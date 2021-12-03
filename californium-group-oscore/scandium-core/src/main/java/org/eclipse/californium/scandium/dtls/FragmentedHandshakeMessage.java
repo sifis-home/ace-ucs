@@ -28,8 +28,6 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public final class FragmentedHandshakeMessage extends HandshakeMessage {
 
-	// Members ////////////////////////////////////////////////////////
-
 	/** The fragmented handshake body. */
 	private final byte[] fragmentedBytes;
 
@@ -43,8 +41,6 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 	 * The number of bytes contained in previous fragments.
 	 */
 	private final int fragmentOffset;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Called when reassembling a handshake message or received a fragment
@@ -70,8 +66,6 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 		setMessageSeq(messageSeq);
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public HandshakeType getMessageType() {
 		return type;
@@ -93,20 +87,20 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 	}
 
 	@Override
-	public String toString() {
+	protected String getImplementationTypePrefix() {
+		return "Fragmented ";
+	}
+
+	@Override
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tFragmented Handshake Protocol");
-		sb.append(StringUtil.lineSeparator()).append("\tType: ").append(getMessageType());
-		sb.append(StringUtil.lineSeparator()).append("\tMessage Sequence No: ").append(getMessageSeq());
-		sb.append(StringUtil.lineSeparator()).append("\tFragment Offset: ").append(getFragmentOffset());
-		sb.append(StringUtil.lineSeparator()).append("\tFragment Length: ").append(getFragmentLength());
-		sb.append(StringUtil.lineSeparator()).append("\tLength: ").append(getMessageLength());
-		sb.append(StringUtil.lineSeparator());
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent);
+		sb.append(indentation).append("Fragment Offset: ").append(getFragmentOffset()).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Fragment Length: ").append(getFragmentLength()).append(" bytes").append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {

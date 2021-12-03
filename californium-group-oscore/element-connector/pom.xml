@@ -8,7 +8,7 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>cf-bom</artifactId>
-		<version>3.0.0-SNAPSHOT</version>
+		<version>3.1.0-SNAPSHOT</version>
 		<relativePath>../bom</relativePath>
 	</parent>
 
@@ -53,7 +53,7 @@
 
 	<profiles>
 		<profile>
-			<id>java11-ec25519</id>
+			<id>java11-ed25519</id>
 			<activation>
 				<jdk>[11,15)</jdk>
 				<property>

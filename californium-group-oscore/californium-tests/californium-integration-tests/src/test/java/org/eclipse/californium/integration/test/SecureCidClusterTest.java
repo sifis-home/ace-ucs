@@ -16,6 +16,8 @@
 package org.eclipse.californium.integration.test;
 
 import static org.eclipse.californium.integration.test.NatTestHelper.SUPPORT_CID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
@@ -24,7 +26,7 @@ import java.util.List;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
+import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.TestScope;
@@ -71,7 +73,7 @@ public class SecureCidClusterTest {
 
 	@Test
 	public void testSecureGet() throws Exception {
-		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.STRICT, ACK_TIMEOUT);
 		helper.createSecureServer(null, null);
 		helper.createDefaultClientEndpoint(null);
 
@@ -89,7 +91,7 @@ public class SecureCidClusterTest {
 
 	@Test
 	public void testSecureGetWithCID() throws Exception {
-		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.STRICT, ACK_TIMEOUT);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
@@ -97,17 +99,20 @@ public class SecureCidClusterTest {
 		CoapResponse coapResponse = client.get();
 
 		assertNotNull("Response not received", coapResponse);
+		assertThat(coapResponse.getResponseText(), is("Hello"));
 
 		helper.nat.reassignNewLocalAddresses();
 
 		coapResponse = client.get();
 
-		assertNotNull("Response still received", coapResponse);
+		assertNotNull("Response not received", coapResponse);
+		// response with address change.
+		assertThat(coapResponse.getResponseText(), is("Hello?"));
 	}
 
 	@Test
 	public void testMultipleSecureGetWithCID() throws Exception {
-		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.STRICT, ACK_TIMEOUT);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
@@ -134,8 +139,9 @@ public class SecureCidClusterTest {
 	@Test
 	public void testMultipleSecureGetWithCIDAndResumption() throws Exception {
 		// resumption in cluster isn't strict!
-		helper.setupNetworkConfig(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.PRINCIPAL_IDENTITY, ACK_TIMEOUT);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
+		helper.setupConfiguration(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		int overallResumes = 0;
@@ -165,8 +171,9 @@ public class SecureCidClusterTest {
 
 	@Test
 	public void testSecureGetWithMixedAddressesAndCID() throws Exception {
-		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.STRICT, ACK_TIMEOUT);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
+		helper.setupConfiguration(MatcherMode.STRICT, ACK_TIMEOUT);
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		CoapClient client = new CoapClient(helper.uri);
@@ -192,8 +199,9 @@ public class SecureCidClusterTest {
 	@Test
 	public void testSecureGetWithMixedAddressesCIDAndResumption() throws Exception {
 		// resumption in cluster isn't strict!
-		helper.setupNetworkConfig(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.PRINCIPAL_IDENTITY, ACK_TIMEOUT);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
+		helper.setupConfiguration(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		int overallResumes = 0;
@@ -230,8 +238,9 @@ public class SecureCidClusterTest {
 	@Test
 	public void testSecureGetWithMixedAddressesCIDReordered() throws Exception {
 		// resumption in cluster isn't strict!
-		helper.setupNetworkConfig(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.PRINCIPAL_IDENTITY, ACK_TIMEOUT);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
+		helper.setupConfiguration(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 		helper.nat.setMessageReordering(10, 500, 500);
 

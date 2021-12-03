@@ -27,6 +27,7 @@ import java.util.List;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
@@ -34,22 +35,18 @@ import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * This message is used to provide explicit verification of a client
  * certificate. This message is only sent following a client certificate that
  * has signing capability (i.e., all certificates except those containing fixed
  * Diffie-Hellman parameters). When sent, it MUST immediately follow the
- * {@link ClientKeyExchange} message. For further details see <a
- * href="http://tools.ietf.org/html/rfc5246#section-7.4.8">RFC 5246</a>.
+ * {@link ClientKeyExchange} message. For further details see
+ * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.8" target=
+ * "_blank">RFC 5246</a>.
  */
 public final class CertificateVerify extends HandshakeMessage {
 
-	// Logging ///////////////////////////////////////////////////////////
-
 	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateVerify.class);
-
-	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int HASH_ALGORITHM_BITS = 8;
 
@@ -57,25 +54,22 @@ public final class CertificateVerify extends HandshakeMessage {
 
 	private static final int SIGNATURE_LENGTH_BITS = 16;
 
-	// Members ////////////////////////////////////////////////////////
-
 	/** The digitally signed handshake messages. */
 	private final byte[] signatureBytes;
 
-	/** The signature and hash algorithm which must be included into the digitally-signed struct. */
+	/**
+	 * The signature and hash algorithm which must be included into the
+	 * digitally-signed struct.
+	 */
 	private final SignatureAndHashAlgorithm signatureAndHashAlgorithm;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * Called by client to create its CertificateVerify message.
 	 * 
-	 * @param signatureAndHashAlgorithm
-	 *            the signature and hash algorithm used to create the signature.
-	 * @param clientPrivateKey
-	 *            the client's private key to sign the signature.
-	 * @param handshakeMessages
-	 *            the handshake messages which are signed.
+	 * @param signatureAndHashAlgorithm the signature and hash algorithm used to
+	 *            create the signature.
+	 * @param clientPrivateKey the client's private key to sign the signature.
+	 * @param handshakeMessages the handshake messages which are signed.
 	 */
 	public CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, PrivateKey clientPrivateKey,
 			List<HandshakeMessage> handshakeMessages) {
@@ -87,17 +81,14 @@ public final class CertificateVerify extends HandshakeMessage {
 	 * Called by the server when receiving the client's CertificateVerify
 	 * message.
 	 * 
-	 * @param signatureAndHashAlgorithm
-	 *            the signature and hash algorithm used to verify the signature.
-	 * @param signatureBytes
-	 *            the signature.
+	 * @param signatureAndHashAlgorithm the signature and hash algorithm used to
+	 *            verify the signature.
+	 * @param signatureBytes the signature.
 	 */
 	private CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, byte[] signatureBytes) {
 		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
 		this.signatureBytes = signatureBytes;
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public HandshakeType getMessageType() {
@@ -107,13 +98,11 @@ public final class CertificateVerify extends HandshakeMessage {
 	@Override
 	public int getMessageLength() {
 		/*
-		 * fixed: signature and hash algorithm (2 bytes) + signature length field (2 bytes), see
-		 * http://tools.ietf.org/html/rfc5246#section-4.7
+		 * fixed: signature and hash algorithm (2 bytes) + signature length
+		 * field (2 bytes), see http://tools.ietf.org/html/rfc5246#section-4.7
 		 */
 		return 4 + signatureBytes.length;
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {
@@ -129,6 +118,18 @@ public final class CertificateVerify extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
+	@Override
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Signature: ");
+		sb.append(signatureAndHashAlgorithm).append("-")
+				.append(StringUtil.byteArray2HexString(signatureBytes, StringUtil.NO_SEPARATOR, 16));
+		sb.append(StringUtil.lineSeparator());
+		return sb.toString();
+	}
+
 	public static HandshakeMessage fromReader(DatagramReader reader) {
 
 		// according to http://tools.ietf.org/html/rfc5246#section-4.7 the
@@ -142,26 +143,25 @@ public final class CertificateVerify extends HandshakeMessage {
 		return new CertificateVerify(signAndHash, signature);
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	/**
 	 * Creates the signature and signs it with the client's private key.
 	 * 
-	 * @param clientPrivateKey
-	 *            the client's private key.
-	 * @param handshakeMessages
-	 *            the handshake messages used up to now in the handshake.
+	 * @param signatureAndHashAlgorithm signature and hash algorithm
+	 * @param clientPrivateKey the client's private key.
+	 * @param handshakeMessages the handshake messages used up to now in the
+	 *            handshake.
 	 * @return the signature.
 	 * @since 2.5 (was setSignature before)
 	 */
-	private static byte[] sign(SignatureAndHashAlgorithm signatureAndHashAlgorithm, PrivateKey clientPrivateKey, List<HandshakeMessage> handshakeMessages) {
+	private static byte[] sign(SignatureAndHashAlgorithm signatureAndHashAlgorithm, PrivateKey clientPrivateKey,
+			List<HandshakeMessage> handshakeMessages) {
 		byte[] signatureBytes = Bytes.EMPTY;
 
 		try {
 			ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
 			Signature signature = localSignature.currentWithCause();
 			signature.initSign(clientPrivateKey, RandomManager.currentSecureRandom());
-			int index  = 0;
+			int index = 0;
 			for (HandshakeMessage message : handshakeMessages) {
 				signature.update(message.toByteArray());
 				LOGGER.trace("  [{}] - {}", index, message.getMessageType());
@@ -179,18 +179,17 @@ public final class CertificateVerify extends HandshakeMessage {
 	 * Tries to verify the client's signature contained in the CertificateVerify
 	 * message.
 	 * 
-	 * @param clientPublicKey
-	 *            the client's public key.
-	 * @param handshakeMessages
-	 *            the handshake messages exchanged so far.
+	 * @param clientPublicKey the client's public key.
+	 * @param handshakeMessages the handshake messages exchanged so far.
 	 * @throws HandshakeException if the signature could not be verified.
 	 */
-	public void verifySignature(PublicKey clientPublicKey, List<HandshakeMessage> handshakeMessages) throws HandshakeException {
+	public void verifySignature(PublicKey clientPublicKey, List<HandshakeMessage> handshakeMessages)
+			throws HandshakeException {
 		try {
 			ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
 			Signature signature = localSignature.currentWithCause();
 			signature.initVerify(clientPublicKey);
-			int index  = 0;
+			int index = 0;
 			for (HandshakeMessage message : handshakeMessages) {
 				signature.update(message.toByteArray());
 				LOGGER.trace("  [{}] - {}", index, message.getMessageType());

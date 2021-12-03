@@ -8,7 +8,7 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>demo-apps</artifactId>
-		<version>3.0.0-SNAPSHOT</version>
+		<version>3.1.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>cf-plugtest-checker</artifactId>
 	<packaging>jar</packaging>
@@ -17,6 +17,10 @@
 	<description>Californium (Cf) ETSI Plugtest server checker</description>
 
 	<properties>
+		<!-- explicitly skip unit test! The eclipse IDE seems to create a test 
+			folder, if am additional project dependency to "cf-cli-tcp-netty" is added 
+			in order to execute the demo from the IDE with tcp-support -->
+		<maven.test.skip>true</maven.test.skip>
 		<assembly.mainClass>org.eclipse.californium.plugtests.PlugtestChecker</assembly.mainClass>
 	</properties>
 

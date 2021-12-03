@@ -43,6 +43,23 @@ public class AddressEndpointContext implements EndpointContext {
 	/**
 	 * Creates a context for an IP address and port.
 	 * 
+	 * @param address address of peer
+	 * @param port port of peer
+	 * @throws NullPointerException if provided address is {@code null}.
+	 * @since 3.0
+	 */
+	public AddressEndpointContext(String address, int port) {
+		if (address == null) {
+			throw new NullPointerException("missing peer inet address!");
+		}
+		this.peerAddress = new InetSocketAddress(address, port);
+		this.peerIdentity = null;
+		this.virtualHost = null;
+	}
+
+	/**
+	 * Creates a context for an IP address and port.
+	 * 
 	 * @param address IP address of peer
 	 * @param port port of peer
 	 * @throws NullPointerException if provided address is {@code null}.
@@ -100,35 +117,19 @@ public class AddressEndpointContext implements EndpointContext {
 	 * If not override in an extending class, only {@code null} will be returned.
 	 */
 	@Override
-	public Object get(String key) {
+	public <T> T get(Definition<T> definition) {
 		return null;
 	}
 
 	@Override
-	public String getString(String key) {
-		Object value = get(key);
+	public <T> String getString(Definition<T> definition) {
+		T value = get(definition);
 		if (value != null) {
-			return value.toString();
-		} else {
-			return null;
-		}
-	}
-
-	@Override
-	public Number getNumber(String key) {
-		Object value = get(key);
-		if (value != null) {
-			return (Number) value;
-		} else {
-			return null;
-		}
-	}
-
-	@Override
-	public Bytes getBytes(String key) {
-		Object value = get(key);
-		if (value != null) {
-			return (Bytes) value;
+			if (value instanceof Bytes) {
+				return ((Bytes) value).getAsString();
+			} else {
+				return value.toString();
+			}
 		} else {
 			return null;
 		}
@@ -140,7 +141,7 @@ public class AddressEndpointContext implements EndpointContext {
 	 * @return an empty map
 	 */
 	@Override
-	public Map<String, Object> entries() {
+	public Map<Definition<?>, Object> entries() {
 		return Collections.emptyMap();
 	}
 

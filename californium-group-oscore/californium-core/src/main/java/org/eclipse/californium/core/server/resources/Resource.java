@@ -20,13 +20,9 @@
 package org.eclipse.californium.core.server.resources;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
@@ -62,9 +58,9 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * A resource is able to respond to CoAP requests. The requests are contained in
  * an instance of type {@link Exchange} that contains additional information
  * about the current exchange. The request will always be a complete request and
- * not only a block as defined in the CoAP draft (<a
- * href="http://tools.ietf.org/html/draft-ietf-core-block-12">
- * http://tools.ietf.org/html/draft-ietf-core-block-12</a>)
+ * not only a block as defined in the CoAP RFC7959 (<a
+ * href="https://tools.ietf.org/html/rfc7959" target="_blank">
+ * RFC 7959 - Block-Wise Transfers in the Constrained Application Protocol (CoAP)</a>)
  * </p><p>
  * When a request arrives at the server, the {@link ServerMessageDeliverer}
  * searches in the resource tree for the destination resource. It travels down
@@ -247,29 +243,12 @@ public interface Resource {
 	 * @param relation the relation
 	 */
 	public void removeObserveRelation(ObserveRelation relation);
-	
+
 	/**
 	 * Gets the executor of this resource.
 	 *
-	 * @return the executor
+	 * @return the executor. {@code null}, if no executor is used.
 	 */
-	public ExecutorService getExecutor();
+	public Executor getExecutor();
 
-	/**
-	 * Gets the scheduled executor of this resource. Generally used for rare
-	 * executing timers (e.g. cleanup tasks).
-	 *
-	 * @return the executor
-	 */
-	public ScheduledThreadPoolExecutor getSecondaryExecutor();
-
-	/**
-	 * Gets the endpoints this resource is bound to. As long as a resource is
-	 * not added to a server, it should return an empty list. After a resource
-	 * is added, it should return the endpoint list of its parent. The root of
-	 * the server will than return the actual list of endpoints.
-	 * 
-	 * @return the endpoints
-	 */
-	public List<Endpoint> getEndpoints();
 }

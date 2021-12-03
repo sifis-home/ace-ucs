@@ -36,7 +36,7 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 	 * Creates a new instance for an identity.
 	 * 
 	 * @param identity the identity
-	 * @throws NullPointerException if the identity is <code>null</code>
+	 * @throws NullPointerException if the identity is {@code null}
 	 */
 	public PreSharedKeyIdentity(String identity) {
 		this(false, null, identity, null);
@@ -48,9 +48,9 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 	 * @param virtualHost The virtual host name that the identity is scoped to.
 	 *                    The host name will be converted to lower case.
 	 * @param identity the identity.
-	 * @throws NullPointerException if the identity is <code>null</code>
+	 * @throws NullPointerException if the identity is {@code null}
 	 * @throws IllegalArgumentException if virtual host is not a valid host name
-	 *             as per <a href="http://tools.ietf.org/html/rfc1123">RFC 1123</a>.
+	 *             as per <a href="https://tools.ietf.org/html/rfc1123" target="_blank">RFC 1123</a>.
 	 */
 	public PreSharedKeyIdentity(String virtualHost, String identity) {
 		this(true, virtualHost, identity, null);
@@ -64,9 +64,9 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 	 *            The host name will be converted to lower case.
 	 * @param identity the identity.
 	 * @param additionalInformation Additional information for this principal.
-	 * @throws NullPointerException if the identity is <code>null</code>
+	 * @throws NullPointerException if the identity is {@code null}
 	 * @throws IllegalArgumentException if virtual host is not a valid host name
-	 *             as per <a href="http://tools.ietf.org/html/rfc1123">RFC
+	 *             as per <a href="https://tools.ietf.org/html/rfc1123" target="_blank">RFC
 	 *             1123</a>.
 	 */
 	private PreSharedKeyIdentity(boolean sni, String virtualHost, String identity, AdditionalInfo additionalInformation) {

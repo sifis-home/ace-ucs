@@ -38,20 +38,25 @@ import javax.net.ssl.TrustManager;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextUtil;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TcpEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContextMatcher;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.tcp.netty.TlsConnectorTestUtil.SSLTestContext;
-import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -65,14 +70,24 @@ public class TlsCorrelationTest {
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
 
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
+
 	@Rule
 	public ThreadsRule threads = THREADS_RULE;
+
+	private Configuration configuration;
 
 	private final List<Connector> cleanup = new ArrayList<>();
 
 	@BeforeClass
 	public static void initializeSsl() throws Exception {
 		TlsConnectorTestUtil.initializeSsl();
+	}
+
+	@Before
+	public void init() {
+		configuration = ConnectorTestUtil.getTestConfiguration();
 	}
 
 	@After
@@ -97,10 +112,8 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testCorrelationContext() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext, configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -174,10 +187,9 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testCorrelationContextWhenReconnectAfterTimeout() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_RECONNECT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_RECONNECT_IN_S);
+		configuration.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, IDLE_TIMEOUT_RECONNECT_IN_S, TimeUnit.SECONDS);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext, configuration);
 
 		cleanup.add(server);
 		cleanup.add(client);
@@ -234,10 +246,8 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testCorrelationContextWhenReconnectAfterStopStart() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext, configuration);
 
 		cleanup.add(server);
 		cleanup.add(client);
@@ -317,11 +327,10 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testClientSendingCorrelationContext() throws Exception {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class, TlsClientConnector.class);
 		TlsEndpointContextMatcher matcher = new TlsEndpointContextMatcher();
-		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext,configuration);
 
 		client.setEndpointContextMatcher(matcher);
 
@@ -401,11 +410,10 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testServerSendingCorrelationContext() throws Exception {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class, TlsServerConnector.class);
 		TlsEndpointContextMatcher matcher = new TlsEndpointContextMatcher();
-		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext, configuration);
 
 		server.setEndpointContextMatcher(matcher);
 
@@ -461,10 +469,9 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testServerSideClientPrincipal() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverSslContext, ClientAuthMode.NEEDED,
-				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		configuration.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext, configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -495,16 +502,16 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testServerSideClientWithBrokenCertificate() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
 		/*
 		 * create client credential using the client certificate, but wrong
 		 * private key.
 		 */
 		SSLTestContext clientContext = initializeContext(SERVER_NAME, CLIENT_NAME, null);
 
-		TlsServerConnector server = new TlsServerConnector(serverSslContext, ClientAuthMode.NEEDED,
-				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		configuration.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -529,10 +536,9 @@ public class TlsCorrelationTest {
 		SSLTestContext serverContext = initializeTrustAllContext(SERVER_NAME);
 		SSLTestContext clientContext = initializeContext("self", "self", null);
 
-		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
-				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		configuration.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context,configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -552,13 +558,14 @@ public class TlsCorrelationTest {
 
 	@Test
 	public void testServerSideTrustAllClientWithNoneSigningCertificate() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
+
 		SSLTestContext serverContext = initializeTrustAllContext(SERVER_NAME);
 		SSLTestContext clientContext = initializeContext("nosigning", "nosigning", null);
 
-		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
-				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		configuration.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -583,10 +590,8 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testClientSideServerPrincipal() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext, configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -622,16 +627,16 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testClientSideServerWithBrokenCertificate() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
 		/*
 		 * create server credential using the server certificate, but wrong
 		 * private key.
 		 */
 		SSLTestContext serverContext = initializeContext(CLIENT_NAME, SERVER_NAME, null);
 
-		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
-				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		configuration.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext,configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -657,10 +662,10 @@ public class TlsCorrelationTest {
 		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
 		SSLTestContext serverContext = initializeContext("self", "self", null);
 
-		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
-				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		configuration.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		configuration.set(TcpConfig.TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false);
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -680,14 +685,14 @@ public class TlsCorrelationTest {
 
 	@Test
 	public void testClientSideTrustAllServerWithNoneSigningCertificate() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
 
 		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
 		SSLTestContext serverContext = initializeContext("nosigning", "nosigning", null);
 
-		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
-				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		configuration.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -709,14 +714,14 @@ public class TlsCorrelationTest {
 
 	@Test
 	public void testClientSideTrustAllServerWithWrongKeyUsage() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
 
 		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
 		SSLTestContext serverContext = initializeContext("clientext", "clientext", null);
 
-		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
-				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		configuration.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -738,9 +743,10 @@ public class TlsCorrelationTest {
 
 	@Test
 	public void testClientSideTrustAllServerBrokenChain() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
 
 		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
-		
+
 		Credentials credentials = SslContextUtil.loadCredentials(
 				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, SERVER_NAME, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
@@ -757,10 +763,9 @@ public class TlsCorrelationTest {
 		SSLContext serverContext = SSLContext.getInstance(SslContextUtil.DEFAULT_SSL_PROTOCOL);
 		serverContext.init(keyManager, trustManager, null);
 
-		TlsServerConnector server = new TlsServerConnector(serverContext, ClientAuthMode.NEEDED,
-				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		configuration.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();

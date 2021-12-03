@@ -44,11 +44,13 @@ import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
+import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.Util;
+import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
@@ -197,10 +199,10 @@ public class TestOscorepRSGroupOSCORE {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        final Provider PROVIDER = new BouncyCastleProvider();
-        final Provider EdDSA = new EdDSASecurityProvider();
-        Security.insertProviderAt(PROVIDER, 1);
-        Security.insertProviderAt(EdDSA, 0);
+    	final Provider PROVIDER = new BouncyCastleProvider();
+    	final Provider EdDSA = new EdDSASecurityProvider();
+    	Security.insertProviderAt(PROVIDER, 1);
+    	Security.insertProviderAt(EdDSA, 0);
     	
         // Set the valid combinations of roles in a Joining Request
         // Combinations are expressed with the AIF specific data model AIF-OSCORE-GROUPCOMM
@@ -308,36 +310,40 @@ public class TestOscorepRSGroupOSCORE {
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
       
-        //Add a test token to authz-info
-        byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        // Add a test token to authz-info
+        
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
-        OneKey key = new OneKey();
-        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-      
-        byte[] kid  = new byte[] {0x01, 0x02, 0x03};
-        CBORObject kidC = CBORObject.FromObject(kid);
-        key.add(KeyKeys.KeyId, kidC);
-        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        // Build oscore CNF claim
+        CBORObject osccnf = CBORObject.NewMap();
+        CBORObject osc = CBORObject.NewMap();
 
-        CBORObject cnf = CBORObject.NewMap();
-        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put(Constants.CNF, cnf);
-        CWT token = new CWT(params);
+        byte[] masterSecret = new byte[16];
+        new SecureRandom().nextBytes(masterSecret);
+
+        osc.Add(Constants.OS_MS, masterSecret);
+        osc.Add(Constants.OS_ID, Util.intToBytes(0));
+        osccnf.Add(Constants.OSCORE_Input_Material, osc);
+        params.put(Constants.CNF, osccnf);
+
+        AccessToken token = AccessTokenFactory.generateToken(AccessTokenFactory.CWT_TYPE, params);
+        CWT cwt = (CWT)token;
+
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx)); //Encrypting Token
+        payload.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx).EncodeToBytes());
         byte[] n1 = new byte[8];
-        new SecureRandom().nextBytes(n1); 
-        payload.Add(Constants.CNONCE, n1);
-      
-        ai.processMessage(new LocalMessage(0, null, null, payload));
+        new SecureRandom().nextBytes(n1);
+        payload.Add(Constants.NONCE1, n1);
+        payload.Add(Constants.ID1, new byte[]{0x22});
+        CBORObject message = CBORObject.FromObject(payload);
 
-        AsRequestCreationHints archm = new AsRequestCreationHints(
-                  "coaps://blah/authz-info/", null, false, false);
+        ai.processMessage(new LocalMessage(0, null, null, message));
+
+        AsRequestCreationHints archm = new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
         Resource hello = new HelloWorldResource();
         Resource temp = new TempResource();
         Resource authzInfo = new CoapAuthzInfo(ai);
@@ -1263,9 +1269,9 @@ public class TestOscorepRSGroupOSCORE {
                 // The group mode is used. The PoP evidence is a signature
                 if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
                     
-					if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_EC2))
+                    if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_EC2))
                         signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-					else if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_OKP))
+                    else if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_OKP))
                         signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
                     // This should never happen, due to the previous sanity checks

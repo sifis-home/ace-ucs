@@ -15,9 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
+import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.PSK;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.RPK;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeNotNull;
@@ -37,9 +40,11 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -58,7 +63,6 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 	private static final InetSocketAddress DESTINATION = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
 	private static final String ACCEPT = "127.0.0.1:" + ScandiumUtil.PORT;
-	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static LibCoapProcessUtil processUtil;
 	private static CaliforniumUtil californiumUtil;
@@ -75,21 +79,17 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException {
-		if (californiumUtil != null) {
-			californiumUtil.shutdown();
-			californiumUtil = null;
-		}
-		if (processUtil != null) {
-			processUtil.shutdown();
-		}
+		ShutdownUtil.shutdown(californiumUtil, processUtil);
+	}
+
+	@Before
+	public void start() {
+		processUtil.setTag(name.getName());
 	}
 
 	@After
 	public void stop() throws InterruptedException {
-		if (californiumUtil != null) {
-			californiumUtil.shutdown();
-		}
-		processUtil.shutdown();
+		ShutdownUtil.shutdown(californiumUtil, processUtil);
 	}
 
 	@Test
@@ -98,6 +98,31 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, PSK, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
+		connect(true);
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
+	@Test
+	public void testLibCoapServerPsk2FullHandshake() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+		processUtil.startupServer(ACCEPT, PSK, cipherSuite);
+
+		californiumUtil.start(BIND, null, cipherSuite);
+
+		// first handshake
+		Request request = Request.newGet();
+		request.setURI("coaps://" + StringUtil.toString(DESTINATION) + "/time");
+		CoapResponse response = californiumUtil.send(request);
+		assertNotNull(response);
+		assertEquals(CoAP.ResponseCode.CONTENT, response.getCode());
+
+		// second handshake
+		request = Request.newGet();
+		request.setURI("coaps://" + StringUtil.toString(DESTINATION) + "/time");
+		response = californiumUtil.sendWithFullHandshake(request);
+		assertNotNull(response);
+		assertEquals(CoAP.ResponseCode.CONTENT, response.getCode());
+
 		connect(true);
 		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
 	}
@@ -145,10 +170,9 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 		}
 		if (patterns != null) {
 			for (String check : patterns) {
-				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
+				assertTrue("missing " + check, processUtil.waitConsole(check, REQUEST_TIMEOUT_MILLIS.get()));
 			}
 		}
-		processUtil.stop();
 		return processUtil.stop(TIMEOUT_MILLIS);
 	}
 }

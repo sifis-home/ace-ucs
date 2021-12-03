@@ -50,7 +50,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -175,10 +174,11 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public class Request extends Message {
 
-	private static final Pattern IP_PATTERN = Pattern
-			.compile("(\\[[0-9a-fA-F:]+(%\\w+)?\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
-
-	/** The request code. */
+	/**
+	 * The request code.
+	 * 
+	 * {@code null}, if ping-request.
+	 */
 	private final CoAP.Code code;
 
 	/** Marks this request as multicast request */
@@ -186,6 +186,8 @@ public class Request extends Message {
 
 	/** The current response for the request. */
 	private Response response;
+
+	private boolean ready;
 
 	/**
 	 * Request's scheme.
@@ -203,14 +205,14 @@ public class Request extends Message {
 	 * {@link OptionSet#setUriHost(String)} depends on the destination, it's not
 	 * supported to change the destination afterwards. Excludes to use a Proxy-URI,
 	 * see
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2" target="_blank">Proxy-URI</a>
 	 */
 	private boolean uri;
 	/**
 	 * Indicates, that {@link #setProxyUri(String)} was called.
 	 * 
 	 * Excludes to use a CoAP-URI, see
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2" target="_blank">Proxy-URI</a>
 	 */
 	private boolean proxyUri;
 	/**
@@ -218,7 +220,7 @@ public class Request extends Message {
 	 * 
 	 * Used with a CoAP-URI to build the effective destination URI.
 	 * Excludes to use a Proxy-URI, see
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2" target="_blank">Proxy-URI</a>
 	 */
 	private boolean proxyScheme;
 
@@ -235,7 +237,7 @@ public class Request extends Message {
 	/**
 	 * Creates a request of type {@code CON} for a CoAP code.
 	 * 
-	 * @param code the request code.
+	 * @param code the request code. {@code null}, if ping-request.
 	 */
 	public Request(Code code) {
 		this(code, Type.CON);
@@ -244,7 +246,7 @@ public class Request extends Message {
 	/**
 	 * Creates a request for a CoAP code and message type.
 	 * 
-	 * @param code the request code.
+	 * @param code the request code. {@code null}, if ping-request.
 	 * @param type the message type.
 	 */
 	public Request(Code code, Type type) {
@@ -335,7 +337,7 @@ public class Request extends Message {
 	 * Requires the proxy destination address provided by
 	 * {@link #setDestinationContext(EndpointContext)}. Using a Proxy-URI
 	 * excludes to use a CoAP-URI, see
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2" target="_blank">Proxy-URI</a>
 	 * To escape this strict Proxy-/CoAP-URI exclusion for backwards compatibility,
 	 * set the options directly in the options-set using {@link #getOptions()}.
 	 * </p>
@@ -379,7 +381,7 @@ public class Request extends Message {
 	 * 
 	 * Used with a CoAP-URI to build the effective destination URI.
 	 * Excludes to use a Proxy-URI, see
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2" target="_blank">Proxy-URI</a>
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
@@ -421,7 +423,7 @@ public class Request extends Message {
 	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param uri A CoAP URI as specified by
-	 *            <a href="https://tools.ietf.org/html/rfc7252#section-6">
+	 *            <a href="https://tools.ietf.org/html/rfc7252#section-6" target="_blank">
 	 *            Section 6 of RFC 7252</a>
 	 * @return This request for command chaining.
 	 * @throws NullPointerException if the URI is {@code null}.
@@ -479,10 +481,9 @@ public class Request extends Message {
 	 */
 	public Request setURI(final URI uri) {
 		checkURI(uri);
-
 		final String host = uri.getHost() == null ? "localhost" : uri.getHost();
 		final String uriScheme = uri.getScheme();
-		final boolean literalIp = IP_PATTERN.matcher(host).matches();
+		final boolean literalIp = StringUtil.isLiteralIpAddress(host);
 
 		try {
 			InetSocketAddress destinationAdress;
@@ -511,7 +512,7 @@ public class Request extends Message {
 
 	/**
 	 * Sets this request's options from a given URI as defined in
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.4">RFC 7252,
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.4" target="_blank">RFC 7252,
 	 * Section 6.4</a>.
 	 * <p>
 	 * This method requires the <em>destination</em> to be set already because
@@ -547,7 +548,7 @@ public class Request extends Message {
 		if (destinationContext == null) {
 			throw new IllegalStateException("destination must be set ahead!");
 		}
-		setOptionsInternal(uri, destinationContext.getPeerAddress(), IP_PATTERN.matcher(uri.getHost()).matches());
+		setOptionsInternal(uri, destinationContext.getPeerAddress(), StringUtil.isLiteralIpAddress(uri.getHost()));
 		this.uri = true;
 		return this;
 	}
@@ -568,7 +569,9 @@ public class Request extends Message {
 		} else if (!CoAP.isSupportedScheme(uri.getScheme())) {
 			throw new IllegalArgumentException("URI scheme '" + uri.getScheme() + "' is not supported!");
 		} else if (uri.getFragment() != null) {
-			throw new IllegalArgumentException("URI must not contain a fragment");
+			throw new IllegalArgumentException("URI must not contain a fragment '" + uri.getFragment() + "'!");
+		} else if (uri.getSchemeSpecificPart() != null && uri.getHost() == null) {
+			throw new IllegalArgumentException("URI expected host '" + uri.getSchemeSpecificPart() + "' is invalid!");
 		}
 	}
 
@@ -583,16 +586,15 @@ public class Request extends Message {
 	 * will also be left empty, if the provided port matches the destination's
 	 * port.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7252#section-6.4">Decomposing
+	 * See <a href="https://tools.ietf.org/html/rfc7252#section-6.4" target="_blank">Decomposing
 	 * URIs into Options</a> and <a href=
-	 * "https://tools.ietf.org/html/rfc7252#section-5.7.2">Forward-Proxies</a>
+	 * "https://tools.ietf.org/html/rfc7252#section-5.7.2" target="_blank">Forward-Proxies</a>
 	 * for proxy support.
 	 * 
 	 * @param uri The URI to set the options from.
 	 * @param destination The destination of the request.
 	 * @param literalIp {@code true}, if the host part of the URI is a literal
 	 *            address, {@code false}, if it's a DNS name.
-	 * @return This request for command chaining.
 	 * @throws NullPointerException if the destination is {@code null}
 	 * @throws IllegalArgumentException if the URI contains an unsupported
 	 *             scheme or contains a fragment.
@@ -697,7 +699,7 @@ public class Request extends Message {
 
 	/**
 	 * Gets a URI derived from this request's options and properties as defined
-	 * by <a href="https://tools.ietf.org/html/rfc7252#section-6.5">RFC 7252,
+	 * by <a href="https://tools.ietf.org/html/rfc7252#section-6.5" target="_blank">RFC 7252,
 	 * Section 6.5</a>.
 	 * <p>
 	 * This method falls back to using <em>localhost</em> as the host part in
@@ -913,8 +915,13 @@ public class Request extends Message {
 	 * </p>
 	 * 
 	 * @param response the new response
+	 * @throws NullPointerException if response is {@code null}.
+	 * @since 3.0 (throws NullPointerException)
 	 */
 	public void setResponse(Response response) {
+		if (response == null) {
+			throw new NullPointerException("no CoAP response!");
+		}
 		synchronized (this) {
 			this.response = response;
 			notifyAll();
@@ -926,10 +933,18 @@ public class Request extends Message {
 	}
 
 	/**
-	 * Wait for the response. This function blocks until there is a response or
-	 * the request has been canceled.
+	 * Wait for the response.
 	 * 
-	 * @return the response
+	 * This function blocks until there is a response, the request gets rejected
+	 * by the server, has been canceled, timed out, or an error occurred.
+	 * <p>
+	 * This method also sets the response to {@code null} so that succeeding
+	 * calls will wait for the next response. Repeatedly calling this method is
+	 * useful if the client expects multiple responses, e.g., multiple responses
+	 * to a multicast request.
+	 * 
+	 * @return the response, or ({@code null}, if an other event terminated the
+	 *         request)
 	 * @throws InterruptedException the interrupted exception
 	 */
 	public Response waitForResponse() throws InterruptedException {
@@ -938,31 +953,31 @@ public class Request extends Message {
 
 	/**
 	 * Waits for the arrival of the response to this request.
-	 * <p>
-	 * This function blocks until there is a response, the request has been
-	 * canceled or the specified timeout has expired. A timeout of 0 is
-	 * interpreted as infinity. If a response is already here, this method
-	 * returns it immediately.
-	 * <p>
-	 * The calling thread returns if either a response arrives, the request gets
-	 * rejected by the server, the request gets canceled or, in case of a
-	 * confirmable request, timeouts. In that case, if no response has arrived
-	 * yet the return value is null.
-	 * <p>
-	 * This method also sets the response to null so that succeeding calls will
-	 * wait for the next response. Repeatedly calling this method is useful if
-	 * the client expects multiple responses, e.g., multiple notifications to an
-	 * observe request or multiple responses to a multicast request.
 	 * 
-	 * @param timeout the maximum time to wait in milliseconds.
-	 * @return the response (null if timeout occurred)
+	 * This function blocks until there is a response, the request gets rejected
+	 * by the server, has been canceled, timed out, or an error occurred. Or the
+	 * specified wait-timeout has expired. A wait-timeout of 0 is interpreted as
+	 * infinity. If a response is already here, this method returns it
+	 * immediately. Also, if one of the other terminating events has already
+	 * occurred, e.g. the request was rejected or has been canceled.
+	 * <p>
+	 * This method also sets the response to {@code null} so that succeeding
+	 * calls will wait for the next response. Repeatedly calling this method is
+	 * useful if the client expects multiple responses, e.g. multiple responses
+	 * to a multicast request.
+	 * 
+	 * @param timeout the maximum time to wait in milliseconds. {@code 0} waits
+	 *            until a response is received or an other event occurred.
+	 * @return the response, or {@code null}, if timeout occurred, or an other
+	 *         event terminated the request
 	 * @throws InterruptedException the interrupted exception
+	 * @see Object#wait(long)
 	 */
 	public Response waitForResponse(long timeout) throws InterruptedException {
 		long expiresNano = ClockUtil.nanoRealtime() + TimeUnit.MILLISECONDS.toNanos(timeout);
 		long leftTimeout = timeout;
 		synchronized (this) {
-			while (this.response == null && !isCanceled() && !isTimedOut() && !isRejected() && getSendError() == null) {
+			while (!ready && response == null) {
 				wait(leftTimeout);
 				// timeout expired?
 				if (timeout > 0) {
@@ -992,6 +1007,7 @@ public class Request extends Message {
 		super.setTimedOut(timedOut);
 		if (timedOut) {
 			synchronized (this) {
+				ready = true;
 				notifyAll();
 			}
 		}
@@ -1008,6 +1024,7 @@ public class Request extends Message {
 		super.setCanceled(canceled);
 		if (canceled) {
 			synchronized (this) {
+				ready = true;
 				notifyAll();
 			}
 		}
@@ -1018,6 +1035,7 @@ public class Request extends Message {
 		super.setRejected(rejected);
 		if (rejected) {
 			synchronized (this) {
+				ready = true;
 				notifyAll();
 			}
 		}
@@ -1028,6 +1046,7 @@ public class Request extends Message {
 		super.setSendError(sendError);
 		if (sendError != null) {
 			synchronized (this) {
+				ready = true;
 				notifyAll();
 			}
 		}
@@ -1059,6 +1078,7 @@ public class Request extends Message {
 			}
 
 			synchronized (this) {
+				ready = true;
 				notifyAll();
 			}
 		}
@@ -1171,5 +1191,16 @@ public class Request extends Message {
 	 */
 	public static Request newDelete() {
 		return new Request(Code.DELETE);
+	}
+
+	/**
+	 * Convenience factory method to construct a PING (pseudo) request and
+	 * equivalent to <code>new Request(null);</code>
+	 * 
+	 * @return a new PING request
+	 * @since 3.0
+	 */
+	public static Request newPing() {
+		return new Request(null);
 	}
 }

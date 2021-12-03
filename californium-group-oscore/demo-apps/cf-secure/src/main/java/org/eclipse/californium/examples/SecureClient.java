@@ -18,6 +18,7 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -28,26 +29,53 @@ import java.util.List;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 
 public class SecureClient {
+	private static final File CONFIG_FILE = new File("Californium3SecureClient.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Secure Client";
+
+	static {
+		CoapConfig.register();
+		DtlsConfig.register();
+	}
+
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
+
+		@Override
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
+			config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+			config.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
+			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, CipherSuite.STRONG_ENCRYPTION_PREFERENCE);
+			config.setTransient(DtlsConfig.DTLS_CIPHER_SUITES);
+		}
+	};
 
 	public static final List<Mode> SUPPORTED_MODES = Arrays.asList(Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509,
 			Mode.RPK_TRUST, Mode.X509_TRUST);
 	private static final String SERVER_URI = "coaps://127.0.0.1:5684/secure";
 
 	private final DTLSConnector dtlsConnector;
+	private final Configuration configuration;
 
-	public SecureClient(DTLSConnector dtlsConnector) {
+	public SecureClient(DTLSConnector dtlsConnector, Configuration configuration) {
 		this.dtlsConnector = dtlsConnector;
+		this.configuration = configuration;
 	}
 
 	public void test() {
@@ -55,9 +83,10 @@ public class SecureClient {
 		try {
 			URI uri = new URI(SERVER_URI);
 			CoapClient client = new CoapClient(uri);
-			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-			builder.setConnector(dtlsConnector);
-			
+			CoapEndpoint.Builder builder = new CoapEndpoint.Builder()
+					.setConfiguration(configuration)
+					.setConnector(dtlsConnector);
+
 			client.setEndpoint(builder.build());
 			response = client.get();
 			client.shutdown();
@@ -94,21 +123,19 @@ public class SecureClient {
 		System.out.println("Usage: java -cp ... org.eclipse.californium.examples.SecureClient [PSK|ECDHE_PSK] [RPK|RPK_TRUST] [X509|X509_TRUST]");
 		System.out.println("Default:            [PSK] [RPK] [X509]");
 
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+		Configuration configuration = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		Configuration.setStandard(configuration);
+
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
 		CredentialsUtil.setupCid(args, builder);
-		builder.setClientOnly();
-		builder.setSniEnabled(false);
-		builder.setRecommendedCipherSuitesOnly(false);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_CLIENT_MODES, SUPPORTED_MODES);
 		if (modes.contains(CredentialsUtil.Mode.PSK) || modes.contains(CredentialsUtil.Mode.ECDHE_PSK)) {
 			builder.setAdvancedPskStore(new AdvancedSinglePskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));
-		} else {
-			builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
 		}
 		CredentialsUtil.setupCredentials(builder, CredentialsUtil.CLIENT_NAME, modes);
 		DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
-		SecureClient client = new SecureClient(dtlsConnector);
+		SecureClient client = new SecureClient(dtlsConnector, configuration);
 		client.test();
 	}
 }

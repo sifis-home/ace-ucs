@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2016, Jim Schaad
  * Copyright (c) 2018, Ludwig Seitz, RISE SICS
- * Copyright (c) 2018, Rikard Höglund, RISE SICS
+ * Copyright (c) 2018, Rikard HÃ¶glund, RISE SICS
  * All rights reserved.
 
  * Redistribution and use in source and binary forms, with or without

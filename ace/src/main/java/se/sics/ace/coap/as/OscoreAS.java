@@ -48,7 +48,6 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.cose.OneKey;
 
 import se.sics.ace.AceException;
-import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.as.PDP;
@@ -92,6 +91,9 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
     private OscoreAceEndpoint token;
 
     private OscoreAceEndpoint introspect;
+    
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
+    
     /**
      * Constructor.
      * 
@@ -222,7 +224,6 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
                         
             // The identity that this AS uses with this peer
             String identity = myIdentities.get(id);
-            System.out.println("Identity is: " + identity + " retrieving with id " + id);
             IdPair idPair = new IdPair(identity);
             if (idPair.getSenderId() == null) {
             	// This identity is malformed; proceed to the next one
@@ -245,7 +246,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             }
             
             OSCoreCtx ctx = new OSCoreCtx(key, false, null, senderId, 
-            		recipientId, null, null, null, contextId);
+            		recipientId, null, null, null, contextId, MAX_UNFRAGMENTED_SIZE);
             OscoreCtxDbSingleton.getInstance().addContext(ctx);
             
         }

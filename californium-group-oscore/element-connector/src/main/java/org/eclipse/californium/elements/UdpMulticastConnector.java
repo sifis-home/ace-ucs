@@ -27,6 +27,8 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
@@ -84,18 +86,18 @@ import org.slf4j.LoggerFactory;
  * Generally try to omit to use the "any" address at any place. Neither for the
  * unicast socket nor the multicast bind-address. For IPv6 - multicast with
  * link-scope, this may fail caused by
- * <a href="https://bugs.openjdk.java.net/browse/JDK-8210493">Bind to node- or
- * linklocal ipv6 multicast address fails</a>. Please always check your server
- * logs for messages of the pattern "received request {} via different multicast
- * groups ({} != {})!". That indicates, that the multicast request is accidently
- * received by multiple sockets and so unicast request may not be reliable
- * distinguished.
+ * <a href="https://bugs.openjdk.java.net/browse/JDK-8210493" target=
+ * "_blank">Bind to node- or linklocal ipv6 multicast address fails</a>. Please
+ * always check your server logs for messages of the pattern "received request
+ * {} via different multicast groups ({} != {})!". That indicates, that the
+ * multicast request is accidently received by multiple sockets and so unicast
+ * request may not be reliable distinguished.
  * </p>
  * <p>
  * <a href=
- * "https://stackoverflow.com/questions/19392173/multicastsocket-constructors-and-binding-to-port-or-socketaddress">
- * Stackoverflow - MulticastSocket - Constructors binding to port or
- * socketaddress</a>
+ * "https://stackoverflow.com/questions/19392173/multicastsocket-constructors-and-binding-to-port-or-socketaddress"
+ * target="_blank"> Stackoverflow - MulticastSocket - Constructors binding to
+ * port or socketaddress</a>
  * </p>
  * <p>
  * Note: using the multicast address as bind address may work as mention in the
@@ -134,7 +136,7 @@ public class UdpMulticastConnector extends UDPConnector {
 	private List<Join> groups = new ArrayList<Join>();
 
 	/**
-	 * {@code true}, to disable loopback mode, {@false}, otherwise.
+	 * {@code true}, to disable loopback mode, {@code false}, otherwise.
 	 * 
 	 * @since 2.3
 	 */
@@ -160,17 +162,21 @@ public class UdpMulticastConnector extends UDPConnector {
 	 * @param groups list of multicast groups and network interfaces to join. If
 	 *            no broadcast nor multicast address is used as local address,
 	 *            this list must not be empty.
+	 * @param configuration configuration with {@link UdpConfig} definitions.
+	 * @param multicastReceiver enable use as multicast-receiver. Fails, if the
+	 *            connector doesn't joins exactly one group.
 	 * @throws IllegalArgumentException if multicastReceiver is requested but
 	 *             not exactly one broadcast or multicast address is provided.
 	 */
 	private UdpMulticastConnector(InetSocketAddress localSocketAddress, InetAddress outgoingAddress,
-			NetworkInterface outgoingInterface, List<Join> groups, boolean multicastReceiver) {
-		super(localSocketAddress);
+			NetworkInterface outgoingInterface, List<Join> groups, boolean multicastReceiver,
+			Configuration configuration) {
+		super(localSocketAddress, configuration);
 		setReuseAddress(true);
 		this.outgoingInterface = outgoingInterface;
 		this.outgoingAddress = outgoingAddress;
 		this.groups.addAll(groups);
-		InetAddress localAddress = localSocketAddress.getAddress();
+		InetAddress localAddress = localAddr.getAddress();
 		boolean noGroups = this.groups.isEmpty();
 		if (NetworkInterfacesUtil.isBroadcastAddress(localAddress)) {
 			if (multicastReceiver) {
@@ -178,7 +184,7 @@ public class UdpMulticastConnector extends UDPConnector {
 					this.multicast = true;
 				} else {
 					throw new IllegalArgumentException(
-							"Broadcast and additional multicast addresses are nor supported for multicast receiver function!");
+							"Broadcast and additional multicast addresses are not supported for multicast receiver function!");
 				}
 			}
 		} else {
@@ -193,8 +199,7 @@ public class UdpMulticastConnector extends UDPConnector {
 			if (multicastReceiver) {
 				if (this.groups.size() == 1) {
 					multicast = true;
-					this.effectiveAddr = new InetSocketAddress(this.groups.get(0).multicastGroup,
-							localSocketAddress != null ? localSocketAddress.getPort() : 0);
+					this.effectiveAddr = new InetSocketAddress(this.groups.get(0).multicastGroup, localAddr.getPort());
 				} else {
 					throw new IllegalArgumentException(
 							"Multiple multicast addresses are nor supported for multicast receiver function!");
@@ -336,6 +341,7 @@ public class UdpMulticastConnector extends UDPConnector {
 		private NetworkInterface outgoingInterface;
 		private List<Join> groups = new ArrayList<Join>();
 		private boolean multicastReceiver;
+		private Configuration configuration;
 
 		/**
 		 * Create Builder.
@@ -367,7 +373,7 @@ public class UdpMulticastConnector extends UDPConnector {
 		/**
 		 * Set address and port to bind the connector.
 		 * 
-		 * @param localAddress address and port ot bind. If a broadcast address
+		 * @param localAddress address and port to bind. If a broadcast address
 		 *            is used without adding multicast group, this connector may
 		 *            be used as multicast receiver. if a multicast address is
 		 *            used without adding multicast group, the connector joins
@@ -388,7 +394,7 @@ public class UdpMulticastConnector extends UDPConnector {
 		/**
 		 * Set socket address to bind the connector.
 		 * 
-		 * @param localSocketAddress address and port ot bind. If a broadcast
+		 * @param localSocketAddress address and port to bind. If a broadcast
 		 *            address is used without adding multicast group, this
 		 *            connector may be used as multicast receiver. if a
 		 *            multicast address is used without adding multicast group,
@@ -481,6 +487,21 @@ public class UdpMulticastConnector extends UDPConnector {
 		}
 
 		/**
+		 * Set configuration with {@link UdpConfig} definitions.
+		 * 
+		 * If not set, {@link Configuration#getStandard()} is used.
+		 * 
+		 * @param configuration configuration with {@link UdpConfig}
+		 *            definitions.
+		 * @return this builder for command chaining
+		 * @since 3.0
+		 */
+		public Builder setConfiguration(Configuration configuration) {
+			this.configuration = configuration;
+			return this;
+		}
+
+		/**
 		 * Create connector from parameters.
 		 * 
 		 * @return created connector
@@ -489,8 +510,11 @@ public class UdpMulticastConnector extends UDPConnector {
 		 *             provided.
 		 */
 		public UdpMulticastConnector build() {
+			if (configuration == null) {
+				configuration = Configuration.getStandard();
+			}
 			return new UdpMulticastConnector(localSocketAddress, outgoingAddress, outgoingInterface, groups,
-					multicastReceiver);
+					multicastReceiver, configuration);
 		}
 	}
 }

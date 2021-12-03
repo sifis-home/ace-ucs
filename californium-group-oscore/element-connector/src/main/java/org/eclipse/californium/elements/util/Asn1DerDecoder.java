@@ -15,16 +15,14 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.Provider;
 import java.security.PublicKey;
-import java.security.Security;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
@@ -37,22 +35,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * ASN.1 DER decoder for SEQUENCEs and OIDs.
- * <p>
- * To support EdDSA, either java 15, or java 11 with
- * <a href="https://github.com/str4d/ed25519-java">ed25519-java</a> is required
- * at runtime. Using java 15 to build Californium, leaves out {@code ed25519-java}, using
- * java 11 for building, includes {@code ed25519-java} by default. If
- * {@code ed25519-java} should <b>NOT</b> be included into the Californium's
- * jars, add {@code -Dno.net.i2p.crypto.eddsa=true} to maven's arguments. In
- * that case, it's still possible to use {@code ed25519-java}, if the <a href=
- * "https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar">eddsa-0.3.0.jar</a>
- * is provided to the classpath separately.
- * </p>
  */
 public class Asn1DerDecoder {
 	/**
@@ -80,11 +64,9 @@ public class Asn1DerDecoder {
 	/**
 	 * Key algorithm ED25519 (RFC 8422).
 	 * 
-	 * Used with {@link #getEdDsaProvider()}.
-	 * 
 	 * @since 2.4
 	 */
-	public static final String ED25519 = "ED25519";
+	public static final String ED25519 = "Ed25519";
 	/**
 	 * Key algorithm Ed25519 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
@@ -92,15 +74,13 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	public static final String ED25519v2 = "ED25519.v2";
+	public static final String ED25519v2 = "Ed25519.v2";
 	/**
 	 * Key algorithm ED448 (RFC 8422).
 	 * 
-	 * Used with {@link #getEdDsaProvider()}.
-	 * 
 	 * @since 2.4
 	 */
-	public static final String ED448 = "ED448";
+	public static final String ED448 = "Ed448";
 	/**
 	 * Key algorithm Ed448 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
@@ -108,19 +88,63 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	public static final String ED448v2 = "ED448.v2";
+	public static final String ED448v2 = "Ed448.v2";
 	/**
-	 * OID key algorithm ED25519 (RFC 8422).
+	 * Key algorithm X25519 (RFC 8422).
 	 * 
-	 * Used with {@link #getEdDsaProvider()}.
+	 * @since 3.0
+	 */
+	public static final String X25519 = "X25519";
+	/**
+	 * Key algorithm X25519 v2 (RFC 8410), not to be used by KeyFactory.
+	 * 
+	 * @since 3.0
+	 */
+	public static final String X25519v2 = "X25519.v2";
+	/**
+	 * Key algorithm X448 (RFC 8422).
+	 * 
+	 * @since 3.0
+	 */
+	public static final String X448 = "X448";
+	/**
+	 * Key algorithm X448 v2 (RFC 8410), not to be used by KeyFactory.
+	 * 
+	 * @since 3.0
+	 */
+	public static final String X448v2 = "X448.v2";
+	/**
+	 * OID key algorithm X25519
+	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
+	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
+	 * Identifiers</a>).
+	 * 
+	 * @since 3.0
+	 */
+	public static final String OID_X25519 = "OID.1.3.101.110";
+	/**
+	 * OID key algorithm X448
+	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
+	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
+	 * Identifiers</a>).
+	 * 
+	 * @since 3.0
+	 */
+	public static final String OID_XD448 = "OID.1.3.101.111";
+	/**
+	 * OID key algorithm ED25519
+	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
+	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
+	 * Identifiers</a>).
 	 * 
 	 * @since 2.4
 	 */
 	public static final String OID_ED25519 = "OID.1.3.101.112";
 	/**
-	 * OID key algorithm ED448 (RFC 8422).
-	 * 
-	 * Used with {@link #getEdDsaProvider()}.
+	 * OID key algorithm ED448
+	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
+	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
+	 * Identifiers</a>).
 	 * 
 	 * @since 2.4
 	 */
@@ -128,14 +152,12 @@ public class Asn1DerDecoder {
 	/**
 	 * Key algorithm EdDSA (RFC 8422).
 	 * 
-	 * Used with {@link #getEdDsaProvider()}.
-	 * 
 	 * @since 2.4
 	 */
 	public static final String EDDSA = "EdDSA";
 	/**
 	 * ECPoint uncompressed.
-	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2">RFC 5480, Section 2.2</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2" target="_blank">RFC 5480, Section 2.2</a>
 	 * 
 	 * @since 2.3
 	 */
@@ -148,6 +170,11 @@ public class Asn1DerDecoder {
 	 * Tag for ASN.1 SEQUENCE.
 	 */
 	private static final int TAG_SEQUENCE = 0x30;
+	/**
+	 * Tag for ASN.1 SET.
+	 * @since 3.0
+	 */
+	private static final int TAG_SET = 0x31;
 	/**
 	 * Maximum supported length for ASN.1 OID.
 	 */
@@ -169,6 +196,48 @@ public class Asn1DerDecoder {
 	 */
 	private static final int TAG_BIT_STRING = 0x03;
 	/**
+	 * Tag for ASN.1 UTF-8 STRING.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_UTF8_STRING = 0x0C;
+	/**
+	 * Tag for ASN.1 PRINTABLE STRING.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_PRINTABLE_STRING = 0x13;
+	/**
+	 * Tag for ASN.1 TELETEX STRING.
+	 * 
+	 * Support for deprecated CAs.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_TELETEX_STRING = 0x14;
+	/**
+	 * Tag for ASN.1 UNIVERSAL STRING.
+	 * 
+	 * Support for deprecated CAs.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_UNIVERSAL_STRING = 0x1C;
+	/**
+	 * Tag for ASN.1 BMP STRING.
+	 * 
+	 * Support for deprecated CAs.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_BMP_STRING = 0x1E;
+	/**
+	 * List of supported Tag for ASN.1 STRING.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int[] TAGS_STRING = {TAG_UTF8_STRING, TAG_PRINTABLE_STRING, TAG_BMP_STRING, TAG_UNIVERSAL_STRING, TAG_TELETEX_STRING};
+	/**
 	 * Tag for ASN.1 CONTEXT SPECIFIC 0.
 	 */
 	private static final int TAG_CONTEXT_0_SPECIFIC = 0xA0;
@@ -188,10 +257,18 @@ public class Asn1DerDecoder {
 	private static final byte[] OID_RSA_PUBLIC_KEY = { 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0x0D, 0x01,
 			0x01, 0x01 };
 	/**
-	 * ASN.1 OID for DH public key.
+	 * ASN.1 OID for DH key agreement.
+	 * 
+	 * @since 3.0 (renamed, was OID_DH_PUBLIC_KEY)
 	 */
-	private static final byte[] OID_DH_PUBLIC_KEY = { 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0x0D, 0x01,
+	private static final byte[] OID_DH_KEY_AGREEMENT = { 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0x0D, 0x01,
 			0x03, 0x01 };
+	/**
+	 * ASN.1 OID for DH public key.
+	 * 
+	 * @since 3.0
+	 */
+	private static final byte[] OID_DH_PUBLIC_KEY = { 0x2A, (byte) 0x86, 0x48, (byte) 0xCE, (byte) 0x3E, 0x02, 0x01 };
 	/**
 	 * ASN.1 OID for DSA public key.
 	 */
@@ -200,6 +277,18 @@ public class Asn1DerDecoder {
 	 * ASN.1 OID for EC public key.
 	 */
 	private static final byte[] OID_EC_PUBLIC_KEY = { 0x2A, (byte) 0x86, 0x48, (byte) 0xCE, 0x3D, 0x02, 0x01 };
+	/**
+	 * ASN.1 OID for X25519 public key.
+	 * 
+	 * @since 3.0
+	 */
+	private static final byte[] OID_X25519_PUBLIC_KEY = { 0x2b, 0x65, 0x6e };
+	/**
+	 * ASN.1 OID for X448 public key.
+	 * 
+	 * @since 3.0
+	 */
+	private static final byte[] OID_X448_PUBLIC_KEY = { 0x2b, 0x65, 0x6f };
 	/**
 	 * ASN.1 OID for ED25519 public key.
 	 * 
@@ -213,9 +302,19 @@ public class Asn1DerDecoder {
 	 */
 	private static final byte[] OID_ED448_PUBLIC_KEY = { 0x2b, 0x65, 0x71 };
 	/**
+	 * ASN.1 OID for CN.
+	 * 
+	 * @since 3.0
+	 */
+	private static final byte[] OID_CN = { 0x55, 4, 3 };
+	/**
 	 * ASN.1 entity definition for SEQUENCE.
 	 */
 	private static final EntityDefinition SEQUENCE = new EntityDefinition(TAG_SEQUENCE, MAX_DEFAULT_LENGTH, "SEQUENCE");
+	/**
+	 * ASN.1 entity definition for SET.
+	 */
+	private static final EntityDefinition SET = new EntityDefinition(TAG_SET, MAX_DEFAULT_LENGTH, "SET");
 	/**
 	 * ASN.1 entity definition for OID.
 	 */
@@ -257,14 +356,14 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	private static final String[] ED25519_ALIASES = { ED25519, "1.3.101.112", OID_ED25519, EDDSA };
+	private static final String[] ED25519_ALIASES = { ED25519, "1.3.101.112", OID_ED25519, EDDSA, ED25519v2 };
 
 	/**
 	 * Alias algorithms for Ed448.
 	 * 
 	 * @since 3.0
 	 */
-	private static final String[] ED448_ALIASES = { ED448, "1.3.101.113", OID_ED448, EDDSA };
+	private static final String[] ED448_ALIASES = { ED448, "1.3.101.113", OID_ED448, EDDSA, ED448v2 };
 
 	/**
 	 * Table of algorithm aliases.
@@ -273,68 +372,33 @@ public class Asn1DerDecoder {
 	 */
 	private static final String[][] ALGORITHM_ALIASES = { { "DH", "DiffieHellman" }, ED25519_ALIASES, ED448_ALIASES };
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Asn1DerDecoder.class);
-
 	/**
-	 * Provider for EdDsa.
+	 * ISO-10646-UCS-2 charset, if supported.
 	 * 
-	 * Either java 15 SunEC, or, for java version before, external java 7
-	 * <a href="https://github.com/str4d/ed25519-java">net.i2p.crypto.eddsa</a>.
-	 * 
-	 * @since 2.4
+	 * @since 3.0
 	 */
-	private static final Provider EDDSA_PROVIDER;
-	private static final boolean ED25519_SUPPORT;
-	private static final boolean ED448_SUPPORT;
-
+	private static final Charset UCS_2;
 	/**
-	 * Package name for external java 7 EdDSA provider.
+	 * ISO-10646-UCS-4 charset, if supported.
+	 * 
+	 * @since 3.0
 	 */
-	private static final String NET_I2P_CRYPTO_EDDSA = "net.i2p.crypto.eddsa";
+	private static final Charset UCS_4;
 
 	static {
-		boolean ed25519 = false;
-		boolean ed448 = false;
-		Provider provider = null;
+		Charset charset = null;
 		try {
-			KeyFactory factory = KeyFactory.getInstance("EdDSA");
-			provider = factory.getProvider();
-			ed25519 = true;
-			ed448 = true;
-			LOGGER.trace("EdDSA from jvm {}", provider.getName());
-		} catch (NoSuchAlgorithmException e) {
-			Throwable cause = null;
-			try {
-				Class<?> clz = Class.forName(NET_I2P_CRYPTO_EDDSA + ".EdDSASecurityProvider");
-				if (clz != null) {
-					provider = (Provider) clz.getDeclaredConstructor().newInstance();
-					Security.addProvider(provider);
-					ed25519 = true;
-					ed448 = false;
-					LOGGER.trace("EdDSA from {}", NET_I2P_CRYPTO_EDDSA);
-				}
-			} catch (ClassNotFoundException e2) {
-				cause = e2;
-			} catch (InstantiationException e2) {
-				cause = e2;
-			} catch (IllegalAccessException e2) {
-				cause = e2;
-			} catch (IllegalArgumentException e2) {
-				cause = e2;
-			} catch (InvocationTargetException e2) {
-				cause = e2;
-			} catch (NoSuchMethodException e2) {
-				cause = e2;
-			} catch (SecurityException e2) {
-				cause = e2;
-			}
-			if (provider == null) {
-				LOGGER.trace("{} is not available!", NET_I2P_CRYPTO_EDDSA, cause);
-			}
+			charset = Charset.forName("ISO-10646-UCS-2");
+		} catch (Throwable t) {
 		}
-		EDDSA_PROVIDER = provider;
-		ED25519_SUPPORT = ed25519;
-		ED448_SUPPORT = ed448;
+		UCS_2 = charset;
+		charset = null;
+		try {
+			charset = Charset.forName("ISO-10646-UCS-4");
+		} catch (Throwable t) {
+		}
+		UCS_4 = charset;
+		JceProviderUtil.init();
 	}
 
 	/**
@@ -379,52 +443,33 @@ public class Asn1DerDecoder {
 			algorithm = version == 0 ? DSA : null;
 		} else if (Arrays.equals(oid, OID_DH_PUBLIC_KEY)) {
 			algorithm = version == 0 ? DH : null;
+		} else if (Arrays.equals(oid, OID_DH_KEY_AGREEMENT)) {
+			algorithm = version == 0 ? DH : null;
 		} else if (Arrays.equals(oid, OID_ED25519_PUBLIC_KEY)) {
 			algorithm = version == 0 ? ED25519 : ED25519v2;
 		} else if (Arrays.equals(oid, OID_ED448_PUBLIC_KEY)) {
 			algorithm = version == 0 ? ED448 : ED448v2;
+		} else if (Arrays.equals(oid, OID_X25519_PUBLIC_KEY)) {
+			algorithm = version == 0 ? X25519 : X25519v2;
+		} else if (Arrays.equals(oid, OID_X448_PUBLIC_KEY)) {
+			algorithm = version == 0 ? X448 : X448v2;
 		}
 		return algorithm;
 	}
 
 	/**
-	 * Get EdDSA provider.
-	 * 
-	 * Either java 15 SunEC, or, for java version before, external java 7
-	 * <a href="https://github.com/str4d/ed25519-java">net.i2p.crypto.eddsa</a>.
-	 * 
-	 * To disable external java 7 EdDSA provider, set
-	 * "net_i2p_crypto_eddsa_disable" to true in environment or system
-	 * properties.
-	 * 
-	 * @return EdDSA provider, or {@code null}, if not available or disabled.
-	 * @since 2.4
-	 */
-	public static Provider getEdDsaProvider() {
-		return EDDSA_PROVIDER;
-	}
-
-	/**
-	 * Check, if key algorithm is supported.
+	 * Check, if key algorithm is EC based.
 	 * 
 	 * @param algorithm key algorithm
-	 * @return {@code true}, if supported, {@code false}, otherwise.
-	 * @since 2.4
+	 * @return {@code true}, if EC based, {@code false}, otherwise.
+	 * @since 3.0
 	 */
-	public static boolean isSupported(String algorithm) {
+	public static boolean isEcBased(String algorithm) {
 		if (EC.equalsIgnoreCase(algorithm)) {
 			return true;
 		} else {
-			String oid = getEdDsaStandardAlgorithmName(algorithm, null);
-			if (OID_ED25519.equals(oid)) {
-				return ED25519_SUPPORT;
-			} else if (OID_ED448.equals(oid)) {
-				return ED448_SUPPORT;
-			} else if (EDDSA.equalsIgnoreCase(algorithm)) {
-				return ED25519_SUPPORT || ED448_SUPPORT;
-			}
+			return getEdDsaStandardAlgorithmName(algorithm, null) != null;
 		}
-		return false;
 	}
 
 	/**
@@ -487,7 +532,7 @@ public class Asn1DerDecoder {
 	 * Read key algorithm from subjects public key encoded in ASN.1 DER.
 	 * 
 	 * <pre>
-	 * <a href="https://tools.ietf.org/html/rfc5480">RFC 5480</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480" target="_blank">RFC 5480</a>
 	 * SubjectPublicKeyInfo ::= SEQUENCE { 
 	 *    algorithm AlgorithmIdentifier,
 	 *    subjectPublicKey BIT STRING 
@@ -525,7 +570,7 @@ public class Asn1DerDecoder {
 	 * Read public key from subjects public key encoded in ASN.1 DER.
 	 * 
 	 * <pre>
-	 * <a href="https://tools.ietf.org/html/rfc5480">RFC 5480</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480" target="_blank">RFC 5480</a>
 	 * SubjectPublicKeyInfo ::= SEQUENCE { 
 	 *    algorithm AlgorithmIdentifier,
 	 *    subjectPublicKey BIT STRING 
@@ -565,7 +610,7 @@ public class Asn1DerDecoder {
 	 * Supports:
 	 * 
 	 * <pre>
-	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208">RFC 5208</a>
+	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208" target="_blank">RFC 5208</a>
 	 * PrivateKeyInfo ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -573,8 +618,8 @@ public class Asn1DerDecoder {
 	 *  attributes           [0]  IMPLICIT Attributes OPTIONAL }
 	 * 
 	 * v2 (PKCS12), 
-	 * <a href="https://tools.ietf.org/html/rfc5958">RFC 5958 - (EC only!)</a>,
-	 * <a href="https://tools.ietf.org/html/rfc8410">RFC 8410 - EdDSA</a>
+	 * <a href="https://tools.ietf.org/html/rfc5958" target="_blank">RFC 5958 - (EC only!)</a>,
+	 * <a href="https://tools.ietf.org/html/rfc8410" target="_blank">RFC 8410 - EdDSA</a>
 	 * OneAsymmetricKey ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -604,7 +649,7 @@ public class Asn1DerDecoder {
 		// INTEGER version
 		byte[] readValue = INTEGER.readValue(reader);
 		int version = INTEGER.toInteger(readValue);
-		if (version < 0 && version > 1) {
+		if (version < 0 || version > 1) {
 			throw new IllegalArgumentException("Version 0x" + Integer.toHexString(version) + " not supported!");
 		}
 		try {
@@ -652,7 +697,7 @@ public class Asn1DerDecoder {
 	 * Supports:
 	 * 
 	 * <pre>
-	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208">RFC 5208</a>
+	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208" target="_blank">RFC 5208</a>
 	 * PrivateKeyInfo ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -660,8 +705,8 @@ public class Asn1DerDecoder {
 	 *  attributes           [0]  IMPLICIT Attributes OPTIONAL }
 	 * 
 	 * v2 (PKCS12), 
-	 * <a href="https://tools.ietf.org/html/rfc5958">RFC 5958 - (EC only!)</a>,
-	 * <a href="https://tools.ietf.org/html/rfc8410">RFC 8410 - EdDSA</a>
+	 * <a href="https://tools.ietf.org/html/rfc5958" target="_blank">RFC 5958 - (EC only!)</a>,
+	 * <a href="https://tools.ietf.org/html/rfc8410" target="_blank">RFC 8410 - EdDSA</a>
 	 * OneAsymmetricKey ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -755,7 +800,7 @@ public class Asn1DerDecoder {
 	 * Read EC public key from encoded ec public key.
 	 * 
 	 * <pre>
-	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2">RFC 5480, Section 2.2</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2" target="_blank">RFC 5480, Section 2.2</a>
 	 *  byte[0]        : compression := 4 (not compressed)
 	 *  byte[1..n]     : x
 	 *  byte[n+1..n+n] : y
@@ -788,7 +833,7 @@ public class Asn1DerDecoder {
 	/**
 	 * Read EdDSA private key (and public key) from PKCS12 / RFC 8410 v2 format.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc8410">RFC 8410 - EdDSA</a>.
+	 * See <a href="https://tools.ietf.org/html/rfc8410" target="_blank">RFC 8410 - EdDSA</a>.
 	 * 
 	 * @param data eddsa private key encoded according RFC 8410 v2
 	 * @return keys with private and public key. {@code null}, if keys could not
@@ -865,7 +910,7 @@ public class Asn1DerDecoder {
 	 *         {@code false}, otherwise.
 	 */
 	public static boolean equalKeyAlgorithmSynonyms(String keyAlgorithm1, String keyAlgorithm2) {
-		if (keyAlgorithm1.equals(keyAlgorithm2)) {
+		if (keyAlgorithm1 != null && keyAlgorithm1.equals(keyAlgorithm2)) {
 			return true;
 		}
 		for (String[] aliases : ALGORITHM_ALIASES) {
@@ -902,7 +947,7 @@ public class Asn1DerDecoder {
 	 * @since 2.4
 	 */
 	public static String getEdDsaStandardAlgorithmName(String algorithm, String def) {
-		if (algorithm.equalsIgnoreCase(EDDSA)) {
+		if (EDDSA.equalsIgnoreCase(algorithm)) {
 			return EDDSA;
 		} else if (contains(ED25519_ALIASES, algorithm)) {
 			return OID_ED25519;
@@ -916,23 +961,14 @@ public class Asn1DerDecoder {
 	/**
 	 * Get KeyFactory for algorithm.
 	 * 
-	 * Uses {@link #EDDSA_PROVIDER} for EdDSA keys.
-	 * 
 	 * @param algorithm key algorithm
 	 * @return key factory
 	 * @throws NoSuchAlgorithmException if key algorithm is not supported
 	 * @since 2.4
 	 */
 	public static KeyFactory getKeyFactory(String algorithm) throws NoSuchAlgorithmException {
-		String oid = null;
-		if (EDDSA_PROVIDER != null) {
-			oid = getEdDsaStandardAlgorithmName(algorithm, null);
-		}
-		if (oid != null) {
-			return KeyFactory.getInstance(oid, EDDSA_PROVIDER);
-		} else {
-			return KeyFactory.getInstance(algorithm);
-		}
+		String standardAlgorithm = getEdDsaStandardAlgorithmName(algorithm, algorithm);
+		return KeyFactory.getInstance(standardAlgorithm);
 	}
 
 	/**
@@ -944,15 +980,36 @@ public class Asn1DerDecoder {
 	 * @since 3.0
 	 */
 	public static KeyPairGenerator getKeyPairGenerator(String algorithm) throws NoSuchAlgorithmException {
-		String oid = null;
-		if (EDDSA_PROVIDER != null) {
-			oid = getEdDsaStandardAlgorithmName(algorithm, null);
+		String standardAlgorithm = getEdDsaStandardAlgorithmName(algorithm, algorithm);
+		return KeyPairGenerator.getInstance(standardAlgorithm);
+	}
+
+	/**
+	 * Read CN from ASN.1 encoded DN.
+	 * 
+	 * @param data ASN.1 encoded DN
+	 * @return CN, or {@code null}, if not found.
+	 * @throws IllegalArgumentException if DN could not be read
+	 * @since 3.0
+	 */
+	public static String readCNFromDN(byte[] data) {
+		DatagramReader reader = new DatagramReader(data, false);
+		reader = SEQUENCE.createRangeReader(reader, false);
+		while (reader.bytesAvailable()) {
+			DatagramReader setReader = SET.createRangeReader(reader, false);
+			while (setReader.bytesAvailable()) {
+				DatagramReader subReader = SEQUENCE.createRangeReader(setReader, false);
+				byte[] oid = OID.readValue(subReader);
+				if (Arrays.equals(oid, OID_CN)) {
+					try {
+						StringEntityDefinition value = new StringEntityDefinition(TAGS_STRING);
+						return value.readStringValue(subReader);
+					} catch (IllegalArgumentException ex) {
+					}
+				}
+			}
 		}
-		if (oid != null) {
-			return KeyPairGenerator.getInstance(oid, EDDSA_PROVIDER);
-		} else {
-			return KeyPairGenerator.getInstance(algorithm);
-		}
+		return null;
 	}
 
 	/**
@@ -1081,6 +1138,18 @@ public class Asn1DerDecoder {
 		}
 
 		/**
+		 * Check read tag.
+		 * 
+		 * @param tag read tag
+		 * @return {@code true}, if matching the {@link #expectedTag},
+		 *         {@code false}, otherwise.
+		 * @since 3.0
+		 */
+		public boolean checkTag(int tag) {
+			return tag == expectedTag;
+		}
+
+		/**
 		 * Read entity including tag and length into byte array.
 		 * 
 		 * @param reader reader containing the bytes to read.
@@ -1157,7 +1226,7 @@ public class Asn1DerDecoder {
 			reader.mark();
 			// check tag
 			int tag = reader.read(Byte.SIZE);
-			if (tag != expectedTag) {
+			if (!checkTag(tag)) {
 				reader.reset();
 				throw new IllegalArgumentException(
 						String.format("No %s, found %02x instead of %02x!", description, tag, expectedTag));
@@ -1272,6 +1341,65 @@ public class Asn1DerDecoder {
 				throw new IllegalArgumentException("INTEGER byte array value overflow!");
 			}
 			return result;
+		}
+	}
+
+	/**
+	 * String entity.
+	 * 
+	 * @since 3,0
+	 */
+	private static class StringEntityDefinition extends EntityDefinition {
+
+		private int tag;
+		private int[] expectedTags;
+
+		public StringEntityDefinition(int... expectedTags) {
+			super(expectedTags[0], MAX_DEFAULT_LENGTH, "STRING");
+			this.expectedTags = expectedTags;
+		}
+
+		@Override
+		public boolean checkTag(int tag) {
+			for (int expectedTag : expectedTags) {
+				if (expectedTag == tag) {
+					this.tag = tag;
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/**
+		 * Read string.
+		 * 
+		 * @param reader reader containing the bytes to read.
+		 * @return string value.
+		 * @throws IllegalArgumentException if provided bytes doesn't contain a
+		 *             valid string entity.
+		 */
+		public String readStringValue(DatagramReader reader) {
+			byte[] stringByteArray = readValue(reader);
+			if (stringByteArray != null) {
+				if (tag == TAG_PRINTABLE_STRING) {
+					return new String(stringByteArray, StandardCharsets.US_ASCII);
+				} else if (tag == TAG_UTF8_STRING) {
+					return new String(stringByteArray, StandardCharsets.UTF_8);
+				} else if (tag == TAG_BMP_STRING) {
+					if (UCS_2 == null) {
+						throw new IllegalArgumentException("BMP_STRING not supported!");
+					}
+					return new String(stringByteArray, UCS_2);
+				} else if (tag == TAG_UNIVERSAL_STRING) {
+					if (UCS_2 == null) {
+						throw new IllegalArgumentException("UNIVERSAL_STRING not supported!");
+					}
+					return new String(stringByteArray, UCS_4);
+				} else if (tag == TAG_TELETEX_STRING) {
+					throw new IllegalArgumentException("TELETEX_STRING not supported!");
+				}
+			}
+			return null;
 		}
 	}
 }

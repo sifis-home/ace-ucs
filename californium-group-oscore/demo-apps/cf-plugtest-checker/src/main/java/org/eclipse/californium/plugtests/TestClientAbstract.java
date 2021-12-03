@@ -20,6 +20,7 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -28,7 +29,6 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
@@ -48,7 +48,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public abstract class TestClientAbstract {
 
-	private static final MessageObserver ENDPOINT_CONTEXT_TRACER = new EndpointContextTracer() {
+	private static final EndpointContextTracer ENDPOINT_CONTEXT_TRACER = new EndpointContextTracer() {
 		@Override
 		protected void onContextChanged(EndpointContext endpointContext) {
 			System.out.println(Utils.prettyPrint(endpointContext));
@@ -57,6 +57,7 @@ public abstract class TestClientAbstract {
 
 	protected Report report = new Report();
 
+	private Throwable sendError;
 	protected Semaphore terminated = new Semaphore(0);
 
 	/** The test name. */
@@ -197,10 +198,11 @@ public abstract class TestClientAbstract {
 			System.err.println("Invalid URI: " + use.getMessage());
 		}
 
+		addContextObserver(request);
+
 		request.setURI(uri);
 
 		request.addMessageObserver(new TestResponseHandler(request));
-		addContextObserver(request);
 
 		// print request info
 		if (verbose) {
@@ -220,7 +222,17 @@ public abstract class TestClientAbstract {
 		}
 	}
 
-	protected void addContextObserver(Request request) {
+	/**
+	 * Add {@link #ENDPOINT_CONTEXT_TRACER} to request and set endpoint context, if
+	 * not already available.
+	 * 
+	 * @param request request to add observer and set context
+	 */
+	protected static void addContextObserver(Request request) {
+		EndpointContext context = ENDPOINT_CONTEXT_TRACER.getCurrentContext();
+		if (context != null && request.getDestinationContext() == null) {
+			request.setDestinationContext(context);
+		}
 		request.addMessageObserver(ENDPOINT_CONTEXT_TRACER);
 	}
 
@@ -232,15 +244,18 @@ public abstract class TestClientAbstract {
 		return report;
 	}
 
-	public synchronized void tickOffTest() {
+	public void tickOffTest() {
 		terminated.release();
 	}
 
-	public void waitForUntilTestHasTerminated() {
+	public void waitForUntilTestHasTerminated() throws Throwable {
 		try {
 			terminated.acquire();
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+		if (sendError != null) {
+			throw sendError;
 		}
 	}
 
@@ -277,7 +292,7 @@ public abstract class TestClientAbstract {
 				// print response info
 				if (verbose) {
 					System.out.println("Response received");
-					System.out.println("Time elapsed (ms): " + response.getRTT());
+					System.out.println("Time elapsed (ms): " + TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 					if (requests > 1) {
 						System.out.println(requests + " blocks");
 					}
@@ -309,6 +324,16 @@ public abstract class TestClientAbstract {
 				tickOffTest();
 			}
 		}
+
+		@Override
+		public void onSendError(Throwable error) {
+			sendError = error;
+			tickOffTest();
+		}
+
+		protected void failed() {
+			tickOffTest();
+		}
 	}
 
 	/**
@@ -336,22 +361,24 @@ public abstract class TestClientAbstract {
 
 		public void close() {
 			Request origin = observe;
-			if (origin != null && origin.isObserve()) {
-				Request cancel = Request.newGet();
-				cancel.setDestinationContext(origin.getDestinationContext());
-				// use same Token
-				cancel.setToken(origin.getToken());
-				// copy options
-				cancel.setOptions(origin.getOptions());
-				// set Observe to cancel
-				cancel.setObserveCancel();
-				endpoint.sendRequest(cancel);
-				try {
-					cancel.waitForResponse(2000);
-				} catch (InterruptedException e) {
+			if (origin != null) {
+				if (origin.isObserve()) {
+					Request cancel = Request.newGet();
+					cancel.setDestinationContext(origin.getDestinationContext());
+					// use same Token
+					cancel.setToken(origin.getToken());
+					// copy options
+					cancel.setOptions(origin.getOptions());
+					// set Observe to cancel
+					cancel.setObserveCancel();
+					endpoint.sendRequest(cancel);
+					try {
+						cancel.waitForResponse(2000);
+					} catch (InterruptedException e) {
+					}
 				}
+				endpoint.cancelObservation(origin.getToken());
 			}
-			endpoint.cancelObservation(origin.getToken());
 			endpoint.removeNotificationListener(this);
 		}
 
@@ -542,7 +569,7 @@ public abstract class TestClientAbstract {
 	 */
 	protected boolean hasContentType(Response response) {
 		boolean success = response.getOptions().hasContentFormat() || response.getPayloadSize() == 0
-				|| !CoAP.ResponseCode.isSuccess(response.getCode());
+				|| !response.isSuccess();
 
 		if (!success) {
 			System.out.println("FAIL: Response without Content-Type");
@@ -850,43 +877,36 @@ public abstract class TestClientAbstract {
 	 */
 	protected boolean checkToken(Token expectedToken, Token actualToken) {
 
-		boolean success = true;
-
-		if (expectedToken == null || expectedToken.isEmpty()) {
-
-			success = actualToken == null || actualToken.isEmpty();
-
-			if (!success) {
-				System.out.printf("FAIL: Expected empty token, but was %s\n", actualToken.getAsString());
-			} else {
+		if (expectedToken == null) {
+			expectedToken = Token.EMPTY;
+		}
+		if (actualToken == null) {
+			actualToken = Token.EMPTY;
+		}
+		if (expectedToken.isEmpty()) {
+			if (actualToken.isEmpty()) {
 				System.out.println("PASS: Correct empty token");
+			} else {
+				System.out.printf("FAIL: Expected empty token, but was %s\n", actualToken.getAsString());
+				return false;
 			}
-
-			return success;
-
 		} else {
 
-			success = actualToken.length() <= 8;
-			success &= actualToken.length() >= 1;
-
-			// eval token length
-			if (!success) {
-				System.out.printf("FAIL: Expected token %s, but %s has illeagal length\n",
-						expectedToken.getAsString(), actualToken.getAsString());
-				return success;
+			if (actualToken.length() < 1 || actualToken.length() > 8) {
+				System.out.printf("FAIL: Expected token %s, but %s has illeagal length\n", expectedToken.getAsString(),
+						actualToken.getAsString());
+				return false;
 			}
 
-			success &= expectedToken.equals(actualToken);
-
-			if (!success) {
+			if (expectedToken.equals(actualToken)) {
+				System.out.printf("PASS: Correct token (%s)\n", actualToken.getAsString());
+			} else {
 				System.out.printf("FAIL: Expected token %s, but was %s\n", expectedToken.getAsString(),
 						actualToken.getAsString());
-			} else {
-				System.out.printf("PASS: Correct token (%s)\n", actualToken.getAsString());
+				return false;
 			}
-
-			return success;
 		}
+		return true;
 	}
 
 	protected boolean checkDiscovery(String expextedResource, String actualDiscovery) {

@@ -17,36 +17,48 @@ package org.eclipse.californium.plugtests.tests;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.plugtests.TestClientAbstract;
-import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 
 /**
- * TD_COAP_CORE_23: Perform PUT transaction containing the If-None-Match
- * option (CON mode)
+ * TD_COAP_CORE_23: Perform PUT transaction containing the If-None-Match option
+ * (CON mode)
  */
 public class CC23 extends TestClientAbstract {
 
 	public static final String RESOURCE_URI = "/create1";
-	public final ResponseCode EXPECTED_RESPONSE_CODE_A = ResponseCode.CREATED;
-	public final ResponseCode EXPECTED_RESPONSE_CODE_B = ResponseCode.PRECONDITION_FAILED;
+
+	public static final ResponseCode EXPECTED_RESPONSE_CODE_A = ResponseCode.CREATED;
+	public static final ResponseCode EXPECTED_RESPONSE_CODE_B = ResponseCode.PRECONDITION_FAILED;
+
+	private char part = 'A';
 
 	public CC23(String serverURI) {
 		super(CC23.class.getSimpleName());
 
-		Request request = new Request(Code.PUT, Type.CON);
-		// request.setIfNoneMatch();
-		request.getOptions().setIfNoneMatch(true);
-		request.setPayload("TD_COAP_CORE_23 Part A");
-		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+		Request request = createRequest();
+
 		executeRequest(request, serverURI, RESOURCE_URI);
 
+	}
+
+	private Request createRequest() {
+		Request request = Request.newPut();
+		request.setConfirmable(true);
+		// request.setIfNoneMatch();
+		request.getOptions().setIfNoneMatch(true);
+		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+		request.setPayload("TD_COAP_CORE_23 Part " + part);
+		addContextObserver(request);
+		++part;
+		return request;
 	}
 
 	@Override
@@ -62,17 +74,15 @@ public class CC23 extends TestClientAbstract {
 			uri = new URI(serverURI + resourceUri);
 			setUseTcp(uri.getScheme());
 		} catch (URISyntaxException use) {
-			throw new IllegalArgumentException("Invalid URI: "
-					+ use.getMessage());
+			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
-		request.setURI(uri);
 		addContextObserver(request);
+		request.setURI(uri);
 
 		// print request info
 		if (verbose) {
-			System.out.println("Request for test " + this.testName
-					+ " sent");
+			System.out.println("Request for test " + this.testName + " sent");
 			Utils.prettyPrint(request);
 		}
 
@@ -89,14 +99,22 @@ public class CC23 extends TestClientAbstract {
 			request.send();
 			response = request.waitForResponse(6000);
 
+			if (response != null && response.getCode() == ResponseCode.PRECONDITION_FAILED) {
+				// test pre-condition out-of-sync ... try to synchronize ...
+				System.out.println("**** TEST OUT-OF-SYNC, RETRY ****");
+				request = createRequest();
+				request.setURI(uri);
+				request.send();
+				response = request.waitForResponse(6000);
+			}
 			// checking the response
 			if (response != null) {
 
 				// print response info
 				if (verbose) {
 					System.out.println("Response received");
-					System.out.println("Time elapsed (ms): "
-							+ response.getRTT());
+					System.out.println(
+							"Time elapsed (ms): " + TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 					Utils.prettyPrint(response);
 				}
 
@@ -104,14 +122,8 @@ public class CC23 extends TestClientAbstract {
 				success &= checkCode(EXPECTED_RESPONSE_CODE_A, response.getCode());
 
 				// Part B
-				request = new Request(Code.PUT, Type.CON);
-				// request.setIfNoneMatch();
-				request.getOptions().setIfNoneMatch(true);
-				request.setPayload("TD_COAP_CORE_23 Part B");
-				request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-
+				request = createRequest();
 				request.setURI(uri);
-
 				request.send();
 				response = request.waitForResponse(6000);
 
@@ -122,7 +134,7 @@ public class CC23 extends TestClientAbstract {
 					if (verbose) {
 						System.out.println("Response received");
 						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
+								+ TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 						Utils.prettyPrint(response);
 					}
 
@@ -141,10 +153,9 @@ public class CC23 extends TestClientAbstract {
 			}
 
 			tickOffTest();
-			
+
 		} catch (InterruptedException e) {
-			System.err.println("Interupted during receive: "
-					+ e.getMessage());
+			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
 		}
 	}

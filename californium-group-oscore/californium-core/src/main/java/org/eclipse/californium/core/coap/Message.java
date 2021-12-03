@@ -43,34 +43,29 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CoderResult;
-import java.nio.charset.CodingErrorAction;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.TokenGenerator;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 import org.eclipse.californium.core.observe.ObserveManager;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextUtil;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.eclipse.californium.elements.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The class Message models the base class of all CoAP messages. CoAP messages
@@ -156,7 +151,7 @@ public abstract class Message {
 
 	/**
 	 * Message specific parameter. Overwrites then general ones from
-	 * {@link NetworkConfig}.
+	 * {@link Configuration}.
 	 */
 	private volatile ReliabilityLayerParameters parameters;
 
@@ -576,8 +571,8 @@ public abstract class Message {
 	 * outgoing requests, this limits the size of the response.
 	 * 
 	 * @return maximum resource body size. {@code 0} to use the
-	 *         {@link NetworkConfig} value of
-	 *         {@link Keys#MAX_RESOURCE_BODY_SIZE}.
+	 *         {@link Configuration} value of
+	 *         {@link CoapConfig#MAX_RESOURCE_BODY_SIZE}.
 	 * @since 2.3
 	 */
 	public int getMaxResourceBodySize() {
@@ -591,8 +586,8 @@ public abstract class Message {
 	 * outgoing requests, this limits the size of the response.
 	 * 
 	 * @param maxResourceBodySize maximum resource body size. {@code 0} or
-	 *            default is defined by the {@link NetworkConfig} value of
-	 *            {@link Keys#MAX_RESOURCE_BODY_SIZE}.
+	 *            default is defined by the {@link Configuration} value of
+	 *            {@link CoapConfig#MAX_RESOURCE_BODY_SIZE}.
 	 * @since 2.3
 	 */
 	public void setMaxResourceBodySize(int maxResourceBodySize) {
@@ -641,39 +636,7 @@ public abstract class Message {
 	}
 
 	protected String getPayloadTracingString() {
-		byte[] payload = this.payload;
-		if (payload.length == 0) {
-			return "no payload";
-		}
-		boolean text = true;
-		for (byte b : payload) {
-			if (' ' > b) {
-				switch (b) {
-				case '\t':
-				case '\n':
-				case '\r':
-					continue;
-				}
-				text = false;
-				break;
-			}
-		}
-		if (text) {
-			CharsetDecoder decoder = CoAP.UTF8_CHARSET.newDecoder();
-			decoder.onMalformedInput(CodingErrorAction.REPORT);
-			decoder.onUnmappableCharacter(CodingErrorAction.REPORT);
-			ByteBuffer in = ByteBuffer.wrap(payload);
-			CharBuffer out = CharBuffer.allocate(24);
-			CoderResult result = decoder.decode(in, out, true);
-			decoder.flush(out);
-			((Buffer)out).flip();
-			if (CoderResult.OVERFLOW == result) {
-				return "\"" + out + "\".. " + payload.length + " bytes";
-			} else if (!result.isError()) {
-				return "\"" + out + "\"";
-			}
-		}
-		return Utils.toHexText(payload, 256);
+		return StringUtil.toDisplayString(payload, 32);
 	}
 
 	/**
@@ -784,8 +747,15 @@ public abstract class Message {
 	 */
 	public Message setDestinationContext(EndpointContext peerContext) {
 		// requests calls setRequestDestinationContext instead
-		if (peerContext != null && NetworkInterfacesUtil.isMultiAddress(peerContext.getPeerAddress().getAddress())) {
-			throw new IllegalArgumentException("Multicast destination is only supported for request!");
+		if (peerContext != null) {
+			InetAddress address = peerContext.getPeerAddress().getAddress();
+			if (NetworkInterfacesUtil.isBroadcastAddress(address)) {
+				throw new IllegalArgumentException(
+						"Broadcast destination " + StringUtil.toString(address) + " only supported for request!");
+			} else if (NetworkInterfacesUtil.isMultiAddress(address)) {
+				throw new IllegalArgumentException(
+						"Multicast destination " + StringUtil.toString(address) + " only supported for request!");
+			}
 		}
 		this.destinationContext = peerContext;
 		this.effectiveDestinationContext = peerContext;
@@ -879,7 +849,6 @@ public abstract class Message {
 	 * Acknowledge a unacknowledged confirmable message.
 	 *
 	 * Checks and set {@link #acknowledged} atomically. Calls
-	 * {@link #setAcknowledged(boolean)} and
 	 * {@link MessageObserver#onAcknowledgement()}, if message was
 	 * unacknowledged.
 	 * 
@@ -888,11 +857,10 @@ public abstract class Message {
 	 * @return {@code true}, if message was unacknowledged and confirmable,
 	 *         {@code false}, if message was already acknowledged or is not
 	 *         confirmable
-	 * @since 2.2
+	 * @since 3.0 (doesn't longer call {@link #setAcknowledged(boolean)})
 	 */
 	public boolean acknowledge() {
 		if (isConfirmable() && acknowledged.compareAndSet(false, true)) {
-			setAcknowledged(true);
 			for (MessageObserver handler : getMessageObservers()) {
 				handler.onAcknowledgement();
 			}
@@ -938,7 +906,7 @@ public abstract class Message {
 
 	/**
 	 * Marks this message as timed out. Confirmable messages in particular might
-	 * time out.
+	 * timeout.
 	 * 
 	 * @param timedOut {@code true} if timed out
 	 */
@@ -1220,10 +1188,10 @@ public abstract class Message {
 	}
 
 	/**
-	 * Gets the nano timestamp when this message has been received, sent, or
-	 * {@code 0}, if neither has happened yet. The sent timestamp is garanted to
+	 * Gets the nano timestamp, when this message has been received, sent, or
+	 * {@code 0}, if neither has happened yet. The sent timestamp is granted to
 	 * be not after sending, therefore it's very short before actual sending the
-	 * message. And the receive timestamp is garanted te be not before receiving
+	 * message. And the receive timestamp is granted to be not before receiving
 	 * the message, therefore it's very short after actual receiving the
 	 * message.
 	 * 
@@ -1278,12 +1246,12 @@ public abstract class Message {
 	 * heap usage, when message is kept for deduplication.
 	 * 
 	 * The server-side offloads message when sending the first response when
-	 * {@link Keys#USE_MESSAGE_OFFLOADING} is enabled. Requests are
+	 * {@link CoapConfig#USE_MESSAGE_OFFLOADING} is enabled. Requests are
 	 * {@link OffloadMode#FULL} offloaded, responses are
 	 * {@link OffloadMode#PAYLOAD} offloaded.
 	 * 
 	 * A client-side may also chose to offload requests and responses based on
-	 * {@link Keys#USE_MESSAGE_OFFLOADING}, when the request and responses are
+	 * {@link CoapConfig#USE_MESSAGE_OFFLOADING}, when the request and responses are
 	 * not longer used by the client.
 	 * 
 	 * For messages with {@link #setProtectFromOffload()}, offloading is
@@ -1340,6 +1308,10 @@ public abstract class Message {
 	 * Returns the observers registered for this message.
 	 * 
 	 * @return an immutable list of the registered observers.
+	 * @see #addMessageObserver(MessageObserver)
+	 * @see #addMessageObserver(int, MessageObserver)
+	 * @see #addMessageObservers(List)
+	 * @see #removeMessageObserver(MessageObserver)
 	 */
 	public List<MessageObserver> getMessageObservers() {
 		if (null == unmodifiableMessageObserversFacade) {
@@ -1354,8 +1326,12 @@ public abstract class Message {
 	 *
 	 * @param observer the observer
 	 * @throws NullPointerException if the observer is {@code null}.
+	 * @see #getMessageObservers()
+	 * @see #addMessageObserver(int, MessageObserver)
+	 * @see #addMessageObservers(List)
+	 * @see #removeMessageObserver(MessageObserver)
 	 */
-	public void addMessageObserver(final MessageObserver observer) {
+	public void addMessageObserver(MessageObserver observer) {
 		if (observer == null) {
 			throw new NullPointerException();
 		}
@@ -1368,9 +1344,13 @@ public abstract class Message {
 	 * @param observer the observer
 	 * @param index index at which the observer is to be inserted
 	 * @throws NullPointerException if the observer is {@code null}.
+	 * @see #getMessageObservers()
+	 * @see #addMessageObserver(MessageObserver)
+	 * @see #addMessageObservers(List)
+	 * @see #removeMessageObserver(MessageObserver)
 	 * @since 2.1
 	 */
-	public void addMessageObserver(int index, final MessageObserver observer) {
+	public void addMessageObserver(int index, MessageObserver observer) {
 		if (observer == null) {
 			throw new NullPointerException();
 		}
@@ -1382,8 +1362,12 @@ public abstract class Message {
 	 *
 	 * @param observers the observers to add
 	 * @throws NullPointerException if the list is {@code null}.
+	 * @see #getMessageObservers()
+	 * @see #addMessageObserver(MessageObserver)
+	 * @see #addMessageObserver(int, MessageObserver)
+	 * @see #removeMessageObserver(MessageObserver)
 	 */
-	public void addMessageObservers(final List<MessageObserver> observers) {
+	public void addMessageObservers(List<MessageObserver> observers) {
 		if (observers == null) {
 			throw new NullPointerException();
 		}
@@ -1397,8 +1381,12 @@ public abstract class Message {
 	 *
 	 * @param observer the observer
 	 * @throws NullPointerException if the observer is {@code null}.
+	 * @see #getMessageObservers()
+	 * @see #addMessageObserver(MessageObserver)
+	 * @see #addMessageObserver(int, MessageObserver)
+	 * @see #addMessageObservers(List)
 	 */
-	public void removeMessageObserver(final MessageObserver observer) {
+	public void removeMessageObserver(MessageObserver observer) {
 		if (observer == null) {
 			throw new NullPointerException();
 		}
@@ -1411,6 +1399,8 @@ public abstract class Message {
 	/**
 	 * Get list of {@link MessageObserver}. If not already defined, create a new
 	 * one. This method is thread-safe and creates exactly one list.
+	 * 
+	 * @return list of {@link MessageObserver}
 	 */
 	private List<MessageObserver> ensureMessageObserverList() {
 		List<MessageObserver> list = messageObservers.get();

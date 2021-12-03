@@ -36,7 +36,10 @@ import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -52,23 +55,26 @@ import javax.crypto.spec.IvParameterSpec;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointObserver;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.ServersSerializationUtil;
-import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
+import org.eclipse.californium.core.server.resources.MyIpResource;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.plugtests.resources.Context;
 import org.eclipse.californium.plugtests.resources.Create;
 import org.eclipse.californium.plugtests.resources.DefaultTest;
 import org.eclipse.californium.plugtests.resources.Hono;
@@ -83,7 +89,7 @@ import org.eclipse.californium.plugtests.resources.Link3;
 import org.eclipse.californium.plugtests.resources.LocationQuery;
 import org.eclipse.californium.plugtests.resources.LongPath;
 import org.eclipse.californium.plugtests.resources.MultiFormat;
-import org.eclipse.californium.plugtests.resources.MyIp;
+import org.eclipse.californium.plugtests.resources.MyContext;
 import org.eclipse.californium.plugtests.resources.Observe;
 import org.eclipse.californium.plugtests.resources.ObserveLarge;
 import org.eclipse.californium.plugtests.resources.ObserveNon;
@@ -94,6 +100,7 @@ import org.eclipse.californium.plugtests.resources.Query;
 import org.eclipse.californium.plugtests.resources.Separate;
 import org.eclipse.californium.plugtests.resources.Shutdown;
 import org.eclipse.californium.plugtests.resources.Validate;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
@@ -117,7 +124,7 @@ import picocli.CommandLine.ParseResult;
  */
 public class PlugtestServer extends AbstractTestServer {
 
-	private static final File CONFIG_FILE = new File("CaliforniumPlugtest.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumPlugtest3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Plugtest Server";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 64;
@@ -125,20 +132,36 @@ public class PlugtestServer extends AbstractTestServer {
 	// exit codes for runtime errors
 	public static final int ERR_INIT_FAILED = 1;
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	public static final List<CipherSuite> PRESELECTED_CIPHER_SUITES = Arrays.asList(
+			CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+			CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256,
+			CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+			CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
+			CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
+			CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+			CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256,
+			CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256);
+
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
-			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 6);
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
-			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
-			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 300);
-			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 0);
-			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 0);
+		public void applyDefinitions(Configuration config) {
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 300, TimeUnit.SECONDS);
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
+			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
+			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1);
+			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
+			config.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true);
+			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PRESELECTED_CIPHER_SUITES);
+			config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
+			config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
 		}
 	};
 
@@ -168,8 +191,8 @@ public class PlugtestServer extends AbstractTestServer {
 		@Option(names = "--trust-all", description = "trust all valid certificates.")
 		public boolean trustall;
 
-		@Option(names = "--client-auth", defaultValue = "NEEDED", description = "client authentication. Values ${COMPLETION-CANDIDATES}, default ${DEFAULT-VALUE}.")
-		public ClientAuthMode clientAuth;
+		@Option(names = "--client-auth", description = "client authentication. Values ${COMPLETION-CANDIDATES}.")
+		public CertificateAuthenticationMode clientAuth;
 
 		@ArgGroup(exclusive = false)
 		public Store store;
@@ -243,6 +266,13 @@ public class PlugtestServer extends AbstractTestServer {
 	private static File store;
 	private static byte[] state;
 
+	static {
+		CoapConfig.register();
+		UdpConfig.register();
+		DtlsConfig.register();
+		TcpConfig.register();
+	}
+
 	public static void main(String[] args) {
 		CommandLine cmd = new CommandLine(config);
 		try {
@@ -263,11 +293,10 @@ public class PlugtestServer extends AbstractTestServer {
 			cmd.usage(System.err);
 			System.exit(-1);
 		}
-		init(config);
+		Configuration configuration = init(config);
 		load(config);
-		NetworkConfig netConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
-				netConfig.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
+				configuration.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT), //
 				new NamedThreadFactory("CoapServer(main)#")); //$NON-NLS-1$
 		ScheduledExecutorService secondaryExecutor = ExecutorsUtil
 				.newDefaultSecondaryScheduler("CoapServer(secondary)#");
@@ -306,9 +335,15 @@ public class PlugtestServer extends AbstractTestServer {
 		}
 	}
 
-	public static void init(BaseConfig config) {
+	public static Configuration init(BaseConfig config) {
 
-		NetworkConfig netconfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		Configuration configuration = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+
+		Configuration udpConfiguration = new Configuration(configuration)
+				.set(CoapConfig.MAX_MESSAGE_SIZE, configuration.get(EXTERNAL_UDP_MAX_MESSAGE_SIZE))
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, configuration.get(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE));
+		Map<Select, Configuration> protocolConfig = new HashMap<>();
+		protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfiguration);
 
 		// create server
 		try {
@@ -316,7 +351,7 @@ public class PlugtestServer extends AbstractTestServer {
 
 			List<InterfaceType> types = config.getInterfaceTypes();
 
-			server = new PlugtestServer(netconfig);
+			server = new PlugtestServer(configuration, protocolConfig);
 			server.setTag("PLUG-TEST");
 			add(server);
 			// ETSI Plugtest environment
@@ -336,7 +371,7 @@ public class PlugtestServer extends AbstractTestServer {
 			System.err.println("Exiting");
 			System.exit(ERR_INIT_FAILED);
 		}
-
+		return configuration;
 	}
 
 	public static void add(CoapServer server) {
@@ -416,7 +451,11 @@ public class PlugtestServer extends AbstractTestServer {
 			SecretKey key = toKey(password);
 			ByteArrayInputStream in = new ByteArrayInputStream(state);
 			loadServers(in, key);
-			LOGGER.info("Loaded: {} Bytes ({})", state.length, password);
+			if (key == null) {
+				LOGGER.info("Loaded: {} Bytes", state.length);
+			} else {
+				LOGGER.info("Loaded: {} Bytes (pw: {})", state.length, password);
+			}
 			state = null;
 			for (CoapServer server : servers) {
 				server.start();
@@ -445,9 +484,9 @@ public class PlugtestServer extends AbstractTestServer {
 				ep.addInterceptor(new MessageTracer());
 				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
 				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
-				int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+				long interval = ep.getConfig().get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 				final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
-						!CoAP.isTcpScheme(uri.getScheme()), interval, secondaryExecutor);
+						!CoAP.isTcpScheme(uri.getScheme()), interval, TimeUnit.MILLISECONDS, secondaryExecutor);
 				if (healthLogger.isEnabled()) {
 					ep.addPostProcessInterceptor(healthLogger);
 					ep.addObserver(new EndpointObserver() {
@@ -526,12 +565,16 @@ public class PlugtestServer extends AbstractTestServer {
 			saveServers(out, key, 60 * 10);
 			state = out.toByteArray();
 			out.close();
+			if (key == null) {
+				LOGGER.info("Saved: {} Bytes", state.length);
+			} else {
+				LOGGER.info("Saved: {} Bytes (pw: {})", state.length, password);
+			}
 		} catch (IOException ex) {
 			LOGGER.warn("saving failed:", ex);
 		} finally {
 			SecretUtil.destroy(key);
 		}
-		LOGGER.info("Saved: {} Bytes ({})", state.length, password);
 	}
 
 	public static SecretKey toKey(String password) {
@@ -640,8 +683,8 @@ public class PlugtestServer extends AbstractTestServer {
 		}
 	}
 
-	public PlugtestServer(NetworkConfig config) throws SocketException {
-		super(config, null);
+	public PlugtestServer(Configuration config, Map<Select, Configuration> protocolConfig) throws SocketException {
+		super(config, protocolConfig);
 
 		// add resources to the server
 		add(new DefaultTest());
@@ -670,7 +713,7 @@ public class PlugtestServer extends AbstractTestServer {
 		add(new Shutdown());
 		add(new Hono("telemetry"));
 		add(new Hono("event"));
-		add(new MyIp(MyIp.RESOURCE_NAME, false));
-		add(new Context(Context.RESOURCE_NAME, false));
+		add(new MyIpResource(MyIpResource.RESOURCE_NAME, false));
+		add(new MyContext(MyContext.RESOURCE_NAME, StringUtil.CALIFORNIUM_VERSION, false));
 	}
 }

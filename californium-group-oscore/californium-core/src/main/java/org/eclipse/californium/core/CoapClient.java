@@ -46,19 +46,20 @@ package org.eclipse.californium.core;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.eclipse.californium.elements.exception.ConnectorException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.MessageObserver;
@@ -68,11 +69,13 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The Class CoapClient.
@@ -91,6 +94,19 @@ public class CoapClient {
 
 	/** The destination URI */
 	private String uri;
+
+	/**
+	 * Enable proxy mode of client.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean useProxy;
+	/**
+	 * The proxy scheme, or {@code null}, if not used.
+	 * 
+	 * @since 3.0
+	 */
+	private String proxyScheme;
 
 	/**
 	 * Destination endpoint context.
@@ -165,9 +181,8 @@ public class CoapClient {
 	 * Gets the maximum amount of time that synchronous method calls will block
 	 * and wait.
 	 * <p>
-	 * If this property is {@code null}, the value is from configuration property
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}
-	 * of the effective endpoint.
+	 * If this property is {@code null}, the value is from configuration
+	 * property {@link CoapConfig#EXCHANGE_LIFETIME} of the effective endpoint.
 	 * 
 	 * @return The timeout in milliseconds, or {@code null}.
 	 */
@@ -181,9 +196,7 @@ public class CoapClient {
 	 * infinitely.
 	 * <p>
 	 * If this property is {@code null}, the value is from configuration
-	 * property
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}
-	 * of the effective endpoint.
+	 * property {@link CoapConfig#EXCHANGE_LIFETIME} of the effective endpoint.
 	 * <p>
 	 * Under normal circumstances this property should be set to at least the
 	 * <em>EXCHANGE_LIFETIME</em> (the default) in order to account for
@@ -220,15 +233,48 @@ public class CoapClient {
 	/**
 	 * Sets the destination URI of this client.
 	 *
-	 * Reset {@link #destinationContext} also.
+	 * Resets {@link #destinationContext} also, if the destination host or port
+	 * differs and neither {@link #useProxy} is {@code true}, nor a
+	 * {@link #proxyScheme} is used. Therefore one of both must be set before
+	 * the URI, in order to prevent the (proxy-)destination from being reset.
 	 * 
 	 * @param uri the uri
 	 * @return the CoAP client
+	 * @since 3.0 (reset the {@link #destinationContext} only on different
+	 *        destination host or port)
 	 */
 	public CoapClient setURI(String uri) {
-		this.destinationContext.set(null);
+		if (!useProxy && proxyScheme == null && !Objects.equals(this.uri, uri)) {
+			boolean resetContext = true;
+			if (this.uri != null && uri != null) {
+				try {
+					URI destUri = new URI(this.uri);
+					URI newDestUri = new URI(uri);
+					resetContext = destUri.getPort() != newDestUri.getPort()
+							|| !Objects.equals(destUri.getHost(), newDestUri.getHost());
+				} catch (URISyntaxException ex) {
+
+				}
+			}
+			if (resetContext) {
+				this.destinationContext.set(null);
+			}
+		}
 		this.uri = uri;
 		return this;
+	}
+
+	/**
+	 * Get destination endpoint context.
+	 * 
+	 * A proxy-service may be used as destination as well. 
+	 * 
+	 * @return destination endpoint context. Maybe {@code null}, if not
+	 *         available.
+	 * @since 2.3
+	 */
+	public EndpointContext getDestinationContext() {
+		return this.destinationContext.get();
 	}
 
 	/**
@@ -245,14 +291,54 @@ public class CoapClient {
 	}
 
 	/**
-	 * Get destination endpoint context.
+	 * Checks, if a proxy is used by this client.
+	 *
+	 * Prevents {@link #setURI(String)} from reseting the
+	 * {@link #destinationContext} and removing the proxy-service.
 	 * 
-	 * @return destination endpoint context. Maybe {@code null}, if not
-	 *         available.
-	 * @since 2.3
+	 * @return {@code true}, if a proxy is used, {@code false}, if not.
+	 * @since 3.0
 	 */
-	public EndpointContext getDestinationContext() {
-		return this.destinationContext.get();
+	public boolean useProxy() {
+		return useProxy;
+	}
+
+	/**
+	 * Enable this client to use a proxy.
+	 * 
+	 * @param enable {@code true}, if a proxy is used, {@code false}, if not.
+	 * @return the CoAP client
+	 * @since 3.0
+	 */
+	public CoapClient enableProxy(boolean enable) {
+		this.useProxy = enable;
+		return this;
+	}
+
+	/**
+	 * Gets the proxy-scheme of this client.
+	 * 
+	 * Prevents {@link #setURI(String)} from reseting the
+	 * {@link #destinationContext} and removing the proxy-service.
+	 *
+	 * @return the proxy-scheme, or {@code null}, if not used.
+	 * @since 3.0
+	 */
+	public String getProxyScheme() {
+		return proxyScheme;
+	}
+
+	/**
+	 * Sets the proxy-scheme of this client.
+	 * 
+	 * @param proxyScheme the proxy-scheme of the client. e.g. "http", or
+	 *            {@code null}, if not used.
+	 * @return the CoAP client
+	 * @since 3.0
+	 */
+	public CoapClient setProxyScheme(String proxyScheme) {
+		this.proxyScheme = proxyScheme;
+		return this;
 	}
 
 	/**
@@ -438,13 +524,26 @@ public class CoapClient {
 
 	private boolean ping(Long timeout) {
 		try {
-			Request request = new Request(null, Type.CON);
+			Request request = Request.newPing();
 			request.setToken(Token.EMPTY);
+			// the URI will not be serialized!
 			assignClientUriIfEmpty(request);
 			Endpoint outEndpoint = getEffectiveEndpoint(request);
 			if (timeout == null) {
-				timeout = outEndpoint.getConfig().getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+				timeout = outEndpoint.getConfig().get(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
 			}
+			request.addMessageObserver(new MessageObserverAdapter() {
+
+				@Override
+				public void onContextEstablished(EndpointContext endpointContext) {
+					destinationContext.compareAndSet(null, endpointContext);
+				}
+
+				@Override
+				public void onSendError(Throwable error) {
+					LOGGER.error("send error: {}", error.getMessage());
+				}
+			});
 			send(request, outEndpoint).waitForResponse(timeout);
 			return request.isRejected();
 		} catch (InterruptedException e) {
@@ -1105,7 +1204,7 @@ public class CoapClient {
 		try {
 			Long timeout = getTimeout();
 			if (timeout == null) {
-				timeout = outEndpoint.getConfig().getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+				timeout = outEndpoint.getConfig().get(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
 			}
 			Response response = send(request, outEndpoint).waitForResponse(timeout);
 			if (response == null) {
@@ -1205,6 +1304,8 @@ public class CoapClient {
 			CoapResponse response = synchronous(request, outEndpoint);
 			if (response == null || !response.advanced().getOptions().hasObserve()) {
 				relation.setCanceled(true);
+			} else {
+				relation.waitForResponse(2000);
 			}
 			return relation;
 		} else {
@@ -1368,18 +1469,28 @@ public class CoapClient {
 		EndpointContext context = destinationContext.get();
 		if (context != null && request.getDestinationContext() == null) {
 			request.setDestinationContext(context);
-			request.setURI(uri);
+			if (useProxy && proxyScheme == null) {
+				String scheme = CoAP.getSchemeFromUri(uri);
+				if (scheme != null && !CoAP.isSupportedScheme(scheme)) {
+					request.setProxyUri(uri);
+				} else {
+					request.setURI(uri);
+				}
+			} else {
+				request.setURI(uri);
+			}
 		} else if (!request.hasURI() && !request.hasProxyURI()) {
 			request.setURI(uri);
+		}
+		if (proxyScheme != null && !request.hasProxyURI()) {
+			request.setProxyScheme(proxyScheme);
 		}
 		return request;
 	}
 
 	private void setDestinationContextFromResponse(Response response) {
-		if (response != null) {
-			// use source context for further request
-			destinationContext.compareAndSet(null,  response.getSourceContext());
-		}
+		// use source context for further request
+		destinationContext.compareAndSet(null, response.getSourceContext());
 	}
 
 	/*
@@ -1439,7 +1550,7 @@ public class CoapClient {
 			if (!multicast) {
 				setDestinationContextFromResponse(response);
 			}
-			succeeded(response != null ? new CoapResponse(response) : null);
+			succeeded(new CoapResponse(response));
 		}
 
 		/**
@@ -1507,6 +1618,7 @@ public class CoapClient {
 		 * specified relation.
 		 *
 		 * @param handler the Response handler
+		 * @param multicast {@code true}, for multicast requests, {@code false}, otherwise.
 		 * @param relation the Observe relation
 		 */
 		public ObserveMessageObserverImpl(CoapHandler handler, boolean multicast, CoapObserveRelation relation) {

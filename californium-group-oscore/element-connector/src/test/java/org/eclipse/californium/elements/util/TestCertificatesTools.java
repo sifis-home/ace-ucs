@@ -23,7 +23,6 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
@@ -31,7 +30,10 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.List;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.X509KeyManager;
 import javax.security.auth.x500.X500Principal;
 
 public class TestCertificatesTools {
@@ -51,8 +53,20 @@ public class TestCertificatesTools {
 	 * 
 	 * @since 2.3
 	 */
+	public static final String SERVER_CA_RSA_NAME = "servercarsa";
+	/**
+	 * Alias for server RSA certificate chain.
+	 * 
+	 * @since 3.0
+	 */
 	public static final String SERVER_RSA_NAME = "serverrsa";
 	public static final String CLIENT_NAME = "client";
+	/**
+	 * Alias for client RSA certificate chain.
+	 * 
+	 * @since 3.0
+	 */
+	public static final String CLIENT_RSA_NAME = "clientrsa";
 	public static final String ROOT_CA_ALIAS = "root";
 	public static final String CA_ALIAS = "ca";
 	public static final String CA_ALT_ALIAS = "caalt";
@@ -60,27 +74,48 @@ public class TestCertificatesTools {
 
 	private static final SecureRandom random = new SecureRandom();
 
-	private static SslContextUtil.Credentials clientCredentials;
-	private static SslContextUtil.Credentials serverCredentials;
-	private static SslContextUtil.Credentials serverRsaCredentials;
+	private static X509KeyManager clientKeyManager;
+	private static X509KeyManager serverKeyManager;
+	private static X509KeyManager serverEdDsaKeyManager;
+	public static Credentials clientCredentials;
+	public static Credentials clientRsaCredentials;
+	public static Credentials serverCredentials;
+	public static Credentials serverCaRsaCredentials;
+	public static Credentials serverRsaCredentials;
 	private static X509Certificate[] trustedCertificates;
 	private static X509Certificate rootCaCertificate;
 	private static X509Certificate caCertificate;
 	private static X509Certificate caAlternativeCertificate;
 	// a certificate without digitalSignature value in keyusage
 	private static X509Certificate nosigningCertificate;
-	
+
 	static {
 		try {
 			// load key stores once only
 			clientCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					CLIENT_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			clientRsaCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
+					CLIENT_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			serverCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			serverCaRsaCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
+					SERVER_CA_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			serverRsaCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					SERVER_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			Certificate[] certificates = SslContextUtil.loadTrustedCertificates(
 					TRUST_STORE_URI, null, TRUST_STORE_PASSWORD);
+
+			KeyManager[] keyManager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			serverKeyManager = SslContextUtil.getX509KeyManager(keyManager);
+			keyManager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "client", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			clientKeyManager = SslContextUtil.getX509KeyManager(keyManager);
+
+			if (JceProviderUtil.isSupported(Asn1DerDecoder.ED25519)
+					&& SslContextUtil.isAvailableFromUri(EDDSA_KEY_STORE_URI)) {
+				keyManager = SslContextUtil.loadKeyManager(EDDSA_KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD,
+						KEY_STORE_PASSWORD);
+				serverEdDsaKeyManager = SslContextUtil.getX509KeyManager(keyManager);
+			}
 
 			trustedCertificates = SslContextUtil.asX509Certificates(certificates);
 			certificates = SslContextUtil.loadTrustedCertificates(
@@ -96,18 +131,51 @@ public class TestCertificatesTools {
 					KEY_STORE_URI, NO_SIGNING_ALIAS, KEY_STORE_PASSWORD);
 			nosigningCertificate = chain[0];
 		} catch (IOException | GeneralSecurityException e) {
-			// nothing we can do
+			throw new Error(e.getMessage());
 		}
 	}
 
 	protected TestCertificatesTools() {
 	}
 
+	public static X509KeyManager getKeyManager(Credentials credentials) {
+		try {
+			KeyManager[] keyManager = SslContextUtil.createKeyManager("test", credentials.getPrivateKey(),
+					credentials.getCertificateChain());
+			return SslContextUtil.getX509KeyManager(keyManager);
+		} catch (GeneralSecurityException e) {
+			fail(e.getMessage());
+			return null;
+		}
+	}
+
+	public static X509KeyManager getServerKeyManager() {
+		return serverKeyManager;
+	}
+
+	public static X509KeyManager getClientKeyManager() {
+		return clientKeyManager;
+	}
+
+	public static X509KeyManager getServerEdDsaKeyManager() {
+		return serverEdDsaKeyManager;
+	}
+
+	/**
+	 * Get server certificate chain.
+	 * 
+	 * @return server certificate chain as array
+	 */
 	public static X509Certificate[] getServerCertificateChain() {
 		X509Certificate[] certificateChain = serverCredentials.getCertificateChain();
 		return Arrays.copyOf(certificateChain, certificateChain.length);
 	}
 
+	/**
+	 * Get server certificate chain.
+	 * 
+	 * @return server certificate chain as list
+	 */
 	public static List<X509Certificate> getServerCertificateChainAsList() {
 		X509Certificate[] certificateChain = serverCredentials.getCertificateChain();
 		return Arrays.asList(certificateChain);
@@ -116,8 +184,30 @@ public class TestCertificatesTools {
 	/**
 	 * Get mixed server certificate chain. Contains ECDSA and RSA certificates.
 	 * 
-	 * @return mixed server certificate chain
+	 * @return mixed server certificate chain as array
 	 * @since 2.3
+	 */
+	public static X509Certificate[] getServerCaRsaCertificateChain() {
+		X509Certificate[] certificateChain = serverCaRsaCredentials.getCertificateChain();
+		return Arrays.copyOf(certificateChain, certificateChain.length);
+	}
+
+	/**
+	 * Get mixed server certificate chain. Contains ECDSA and RSA certificates.
+	 * 
+	 * @return mixed server certificate chain as list
+	 * @since 2.5
+	 */
+	public static List<X509Certificate> getServerCaRsaCertificateChainAsList() {
+		X509Certificate[] certificateChain = serverCaRsaCredentials.getCertificateChain();
+		return Arrays.asList(certificateChain);
+	}
+
+	/**
+	 * Get server rsa certificate chain. 
+	 * 
+	 * @return server rsa certificate chain as array
+	 * @since 3.0
 	 */
 	public static X509Certificate[] getServerRsaCertificateChain() {
 		X509Certificate[] certificateChain = serverRsaCredentials.getCertificateChain();
@@ -125,23 +215,55 @@ public class TestCertificatesTools {
 	}
 
 	/**
-	 * Get mixed server certificate chain. Contains ECDSA and RSA certificates.
+	 * Get server rsa certificate chain.
 	 * 
-	 * @return mixed server certificate chain
-	 * @since 2.5
+	 * @return server rsa certificate chain as list
+	 * @since 3.0
 	 */
 	public static List<X509Certificate> getServerRsaCertificateChainAsList() {
 		X509Certificate[] certificateChain = serverRsaCredentials.getCertificateChain();
 		return Arrays.asList(certificateChain);
 	}
 
+	/**
+	 * Get client certificate chain. 
+	 * 
+	 * @return client certificate chain as array
+	 */
 	public static X509Certificate[] getClientCertificateChain() {
 		X509Certificate[] certificateChain = clientCredentials.getCertificateChain();
 		return Arrays.copyOf(certificateChain, certificateChain.length);
 	}
 
+	/**
+	 * Get client certificate chain. 
+	 * 
+	 * @return client certificate chain as list
+	 */
 	public static List<X509Certificate> getClientCertificateChainAsList() {
 		X509Certificate[] certificateChain = clientCredentials.getCertificateChain();
+		return Arrays.asList(certificateChain);
+	}
+
+	/**
+	 * Get client rsa certificate chain. 
+	 * 
+	 * @return client rsa certificate chain as array
+	 * @since 3.0
+	 */
+	public static X509Certificate[] getClientRsaCertificateChain() {
+		X509Certificate[] certificateChain = clientRsaCredentials.getCertificateChain();
+		return Arrays.copyOf(certificateChain, certificateChain.length);
+	}
+
+	/**
+	 * Get client rsa certificate chain.
+	 * 
+	 * @return client rsa certificate chain as list
+	 * @since 3.0
+	 */
+	public static List<X509Certificate> getClientRsaCertificateChainAsList() {
+		X509Certificate[] certificateChain = clientRsaCredentials.getCertificateChain();
 		return Arrays.asList(certificateChain);
 	}
 
@@ -152,7 +274,7 @@ public class TestCertificatesTools {
 	 * @return loaded credentials, or {@code null}, if not available.
 	 * @since 2.4
 	 */
-	public static SslContextUtil.Credentials getCredentials(String alias) {
+	public static Credentials getCredentials(String alias) {
 		try {
 			try {
 				return SslContextUtil.loadCredentials(KEY_STORE_URI, alias,
@@ -161,7 +283,7 @@ public class TestCertificatesTools {
 				return SslContextUtil.loadCredentials(EDDSA_KEY_STORE_URI, alias,
 						KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			}
-		} catch (IOException | GeneralSecurityException e) {
+		} catch (IOException | IllegalArgumentException | GeneralSecurityException e) {
 			return null;
 		}
 	}
@@ -173,7 +295,7 @@ public class TestCertificatesTools {
 	 * @since 2.4
 	 */
 	public static KeyPair getServerKeyPair() {
-		return new KeyPair(serverCredentials.getPubicKey(), serverCredentials.getPrivateKey());
+		return new KeyPair(serverCredentials.getPublicKey(), serverCredentials.getPrivateKey());
 	}
 
 	/**
@@ -187,12 +309,23 @@ public class TestCertificatesTools {
 
 	/**
 	 * Gets the server's private key from the example key store. Use the server
-	 * with mixed certificate chain wiht ECDSA and RSA certificates.
+	 * with mixed certificate chain with ECDSA and RSA certificates.
 	 * 
 	 * @return the key
 	 * @since 2.3
 	 */
-	public static PrivateKey getServerRsPrivateKey() {
+	public static PrivateKey getServerCaRsaPrivateKey() {
+		return serverCaRsaCredentials.getPrivateKey();
+	}
+
+	/**
+	 * Gets the server's private key from the example key store. Use the server
+	 * with rsa certificate chain.
+	 * 
+	 * @return the key
+	 * @since 3.0
+	 */
+	public static PrivateKey getServerRsaPrivateKey() {
 		return serverRsaCredentials.getPrivateKey();
 	}
 
@@ -206,6 +339,15 @@ public class TestCertificatesTools {
 	}
 
 	/**
+	 * Gets the client's private rsa key from the example key store.
+	 * 
+	 * @return the key
+	 */
+	public static PrivateKey getClientRsaPrivateKey() {
+		return clientRsaCredentials.getPrivateKey();
+	}
+
+	/**
 	 * Gets the server's public key from the example key store.
 	 * 
 	 * @return The key.
@@ -215,12 +357,30 @@ public class TestCertificatesTools {
 	}
 
 	/**
+	 * Gets the server's RSA public key from the example key store.
+	 * 
+	 * @return The key.
+	 */
+	public static PublicKey getServerRsaPublicKey() {
+		return serverRsaCredentials.getCertificateChain()[0].getPublicKey();
+	}
+
+	/**
 	 * Gets the client's public key from the example key store.
 	 * 
 	 * @return The key.
 	 */
 	public static PublicKey getClientPublicKey() {
 		return clientCredentials.getCertificateChain()[0].getPublicKey();
+	}
+
+	/**
+	 * Gets the client's RSA public key from the example key store.
+	 * 
+	 * @return The key.
+	 */
+	public static PublicKey getClientRsaPublicKey() {
+		return clientRsaCredentials.getCertificateChain()[0].getPublicKey();
 	}
 
 	/**
@@ -347,15 +507,8 @@ public class TestCertificatesTools {
 	 * @since 3.0
 	 */
 	private static Signature getSignatureInstance(String algorithm) throws NoSuchAlgorithmException {
-		String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, null);
-		if (oid != null) {
-			Provider provider = Asn1DerDecoder.getEdDsaProvider();
-			if (provider != null) {
-				// signature still requires specific EdDSA provider
-				return Signature.getInstance(oid, provider);
-			}
-		}
-		return Signature.getInstance(algorithm);
+		String standardAlgorithm = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, algorithm);
+		return Signature.getInstance(standardAlgorithm);
 	}
 
 	public static void assertEquals(List<? extends Certificate> list1, List<? extends Certificate> list2) {
@@ -435,5 +588,4 @@ public class TestCertificatesTools {
 		}
 		return diff.toString();
 	}
-
 }

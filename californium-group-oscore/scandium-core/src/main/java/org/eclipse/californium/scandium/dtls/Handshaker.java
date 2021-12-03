@@ -78,6 +78,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
@@ -86,24 +87,32 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
+import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -114,13 +123,12 @@ import org.slf4j.LoggerFactory;
 /**
  * A base class for the DTLS handshake protocol.
  * 
- * Contains all functionality and fields needed by all types of handshakers.
+ * Contains functionality and fields needed by all types of handshakers.
  */
 public abstract class Handshaker implements Destroyable {
 
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
-	protected ProtocolVersion usedProtocol;
 	protected Random clientRandom;
 	protected Random serverRandom;
 
@@ -134,7 +142,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * The master secret for this handshake.
 	 */
-	protected SecretKey masterSecret;
+	private SecretKey masterSecret;
 	private SecretKey clientWriteMACKey;
 	private SecretKey serverWriteMACKey;
 
@@ -159,7 +167,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * DTLS context of handshaker.
 	 */
-	protected final DTLSContext context;
+	private final DTLSContext context;
 
 	/**
 	 * The logic in charge of verifying the chain of certificates asserting this
@@ -187,13 +195,6 @@ public abstract class Handshaker implements Destroyable {
 	 * message called message_seq) for incoming messages of this handshake.
 	 */
 	private int nextReceiveMessageSequence = 0;
-
-	/**
-	 * Indicates last flight of the handshake. The last flight is net
-	 * retransmitted by timeout, it's retransmitted, if the other peer
-	 * retransmits the flight before this.
-	 */
-	private boolean lastFlight;
 
 	/** Realtime nanoseconds of last sending a flight */
 	private long flightSendNanos;
@@ -245,11 +246,25 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.4
 	 */
 	private Runnable retransmitFlight;
+	/**
+	 * Future of completion timeout of the last flight.
+	 * 
+	 * This future indicates, that the last flight of the handshake is pending.
+	 * The last flight is not retransmitted by the retransmission timeout, it's
+	 * retransmitted, if the other peer retransmits the flight before this.
+	 * 
+	 * If no data is received within that completion timeout, the handshake is
+	 * completed without. The last flight is not longer kept, because the other
+	 * peer is not longer considered to retransmit its flight before this.
+	 * 
+	 * @since 3.0
+	 */
+	private ScheduledFuture<?> timeoutLastFlight;
 
 	/**
 	 * Scheduler for flight timeout and retransmission.
 	 * 
-	 * @sine 2.4
+	 * @since 2.4
 	 */
 	private final ScheduledExecutorService timer;
 	/**
@@ -271,28 +286,70 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Current partial reassembled handshake message.
 	 */
-	protected ReassemblingHandshakeMessage reassembledMessage;
-
-	/** The handshaker's private key. */
-	protected final PrivateKey privateKey;
-
-	/** The handshaker's public key. */
-	protected final PublicKey publicKey;
-
-	/** The chain of certificates asserting this handshaker's identity */
-	protected final List<X509Certificate> certificateChain;
-	/** The certificate path of the other peer */
-	protected CertPath peerCertPath;
+	private ReassemblingHandshakeMessage reassembledMessage;
 	/**
-	 * Indicates, that the certificate or public key verification has finished.
-	 * @since 2.5
+	 * The handshaker's certificate identity provider.
+	 * 
+	 * @since 3.0
 	 */
-	protected boolean certificateVerfied;
+	protected final CertificateProvider certificateIdentityProvider;
+	/**
+	 * The handshaker's private key.
+	 * 
+	 * Only available after certificate identity is provided. May be
+	 * {@code null}, if no matching identity is available.
+	 */
+	protected PrivateKey privateKey;
+	/**
+	 * The handshaker's public key.
+	 * 
+	 * Only available after certificate identity is provided. May be
+	 * {@code null}, if no matching identity is available.
+	 */
+	protected PublicKey publicKey;
+	/**
+	 * The chain of certificates asserting this handshaker's identity.
+	 * 
+	 * Only available after certificate identity is provided. May be
+	 * {@code null}, if no matching identity is available.
+	 */
+	protected List<X509Certificate> certificateChain;
+	/**
+	 * The certificate path of the other peer.
+	 * 
+	 * Only available after certificate verification. Optionally truncated to
+	 * trusted issuer.
+	 * 
+	 * @since 3.0 (renamed, was peerCertPath)
+	 */
+	private CertPath otherPeersCertPath;
+	/**
+	 * The public key of the other peer
+	 * 
+	 * May be {@code null}, if other peer sends a empty certificate.
+	 *  
+	 * @since 3.0
+	 */
+	protected PublicKey otherPeersPublicKey;
+	/**
+	 * Indicates, that the verification of the other peer's certificate chain public key has finished.
+	 * 
+	 * @since 3.0 (renamed certificateVerfied)
+	 */
+	protected boolean otherPeersCertificateVerified;
+	/**
+	 * Indicates, that the signature of the other peers is verified.
+	 * 
+	 * That signature is contained in the SERVER_KEY_EXCHANGE or CERTIFICATE_VERIFY. 
+	 * 
+	 * @since 3.0
+	 */
+	private boolean otherPeersSignatureVerified;
 
 	/**
 	 * Support Server Name Indication TLS extension.
 	 */
-	protected boolean sniEnabled;
+	protected final boolean sniEnabled;
 
 	/**
 	 * Send the extended master secret extension.
@@ -344,37 +401,86 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private final int retransmissionTimeout;
 	/**
+	 * Maximum retransmission timeout.
+	 * 
+	 * @since 3.0
+	 */
+	private final int maxRetransmissionTimeout;
+	private final float retransmissionRandomFactor;
+	private final float retransmissionTimeoutScale;
+	/**
+	 * Additional timeout for ECC.
+	 * 
+	 * @since 3.0
+	 */
+	private final int additionalTimeoutForEcc;
+	/**
 	 * Session listeners.
 	 * 
 	 * @see #addSessionListener(SessionListener)
 	 */
 	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
-	protected int statesIndex;
-	protected HandshakeState[] states;
+	/**
+	 * Indicates, that {@link #setExpectedStates(HandshakeState[])} has been called
+	 * during the last processing of {@link #processNextHandshakeMessages}.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean statesChanged;
+	/**
+	 * Current index of {@link #expectedStates}.
+	 */
+	private int statesIndex;
+	/**
+	 * Currently expected states.
+	 * 
+	 * @see #statesIndex
+	 * @see #setExpectedStates(HandshakeState[])
+	 * @since 3.0 (renamed, was states)
+	 */
+	private HandshakeState[] expectedStates;
 
-	private boolean changeCipherSuiteMessageExpected = false;
-	private boolean contextEstablished = false;
-	private boolean handshakeAborted = false;
-	private boolean handshakeFailed = false;
-	private boolean pskRequestPending = false;
-	private boolean certificateVerificationPending = false;
+	private boolean eccExpected;
+	private boolean changeCipherSuiteMessageExpected;
+	private boolean contextEstablished;
+	private boolean handshakeCompleted;
+	private boolean handshakeAborted;
+	private boolean handshakeFailed;
+	private boolean pskRequestPending;
+	private boolean certificateVerificationPending;
+	private boolean certificateIdentityPending;
+	/**
+	 * {@code true}, if the certificate identity request has completed,
+	 * {@code false}, otherwise. Gets {@code true}, even if no matching identity
+	 * is available.
+	 * 
+	 * @since 3.0
+	 */
+	protected boolean certificateIdentityAvailable;
+
 	/**
 	 * Other secret for ECDHE-PSK cipher suites.
-	 * <a href="https://tools.ietf.org/html/rfc5489#page-4"> RFC 5489, other
+	 * <a href="https://tools.ietf.org/html/rfc5489#page-4" target="_blank"> RFC 5489, other
 	 * secret</a>
 	 */
 	private SecretKey otherSecret;
+	/**
+	 * Cause for handshake failure.
+	 * 
+	 * @see #setFailureCause(Throwable)
+	 */
 	private Throwable cause;
 	/**
-	 * Custom argument for {@link AdvancedApplicationLevelInfoSupplier}.
+	 * Custom argument for {@link ApplicationLevelInfoSupplier#getInfo(Principal, Object)}.
 	 * 
 	 * @since 2.3
 	 */
 	private Object customArgument;
+	/**
+	 * Application level info supplier. May be {@code null}.
+	 */
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * Creates a new handshaker for negotiating a DTLS session with a given
@@ -388,7 +494,6 @@ public abstract class Handshaker implements Destroyable {
 	 *            a value larger than 0, e.g. if one or more cookie exchange
 	 *            round-trips have been performed with the peer before the
 	 *            handshake starts.
-	 * @param session the session this handshaker is negotiating.
 	 * @param recordLayer the object to use for sending flights to the peer.
 	 * @param timer scheduled executor for flight retransmission (since 2.4).
 	 * @param connection the connection related to this handshaker.
@@ -399,11 +504,9 @@ public abstract class Handshaker implements Destroyable {
 	 *             is negative
 	 */
 	@NoPublicAPI
-	protected Handshaker(long initialRecordSequenceNo, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
+	protected Handshaker(long initialRecordSequenceNo, int initialMessageSeq, RecordLayer recordLayer,
 			ScheduledExecutorService timer, Connection connection, DtlsConnectorConfig config) {
-		if (session == null) {
-			throw new NullPointerException("DTLS Context must not be null");
-		} else if (recordLayer == null) {
+		if (recordLayer == null) {
 			throw new NullPointerException("Record layer must not be null");
 		} else if (timer == null) {
 			throw new NullPointerException("Timer must not be null");
@@ -418,13 +521,17 @@ public abstract class Handshaker implements Destroyable {
 		}
 		this.sendMessageSequence = initialMessageSeq;
 		this.nextReceiveMessageSequence = initialMessageSeq;
-		this.context = new DTLSContext(session, initialRecordSequenceNo);
+		this.context = new DTLSContext(initialRecordSequenceNo);
 		this.recordLayer = recordLayer;
 		this.timer = timer;
 		this.connection = connection;
 		this.peerToLog = StringUtil.toLog(connection.getPeerAddress());
 		this.connectionIdGenerator = config.getConnectionIdGenerator();
 		this.retransmissionTimeout = config.getRetransmissionTimeout();
+		this.maxRetransmissionTimeout = config.getMaxRetransmissionTimeout();
+		this.additionalTimeoutForEcc = config.getAdditionalTimeoutForEcc();
+		this.retransmissionRandomFactor = config.getRetransmissionRandomFactor();
+		this.retransmissionTimeoutScale = config.getRetransmissionTimeoutScale();
 		this.backOffRetransmission = config.getBackOffRetransmission();
 		this.maxRetransmissions = config.getMaxRetransmissions();
 		this.recordSizeLimit = config.getRecordSizeLimit();
@@ -433,13 +540,11 @@ public abstract class Handshaker implements Destroyable {
 		this.useMultiHandshakeMessagesRecord = config.useMultiHandshakeMessageRecords();
 		this.maxDeferredProcessedOutgoingApplicationDataMessages = config.getMaxDeferredProcessedOutgoingApplicationDataMessages();
 		this.maxDeferredProcessedIncomingRecordsSize = config.getMaxDeferredProcessedIncomingRecordsSize();
-		this.sniEnabled = config.isSniEnabled();
+		this.sniEnabled = config.useServerNameIndication();
 		this.extendedMasterSecretMode = config.getExtendedMasterSecretMode();
 		this.useTruncatedCertificatePathForVerification = config.useTruncatedCertificatePathForValidation();
-		this.useEarlyStopRetransmission = config.isEarlyStopRetransmission();
-		this.privateKey = config.getPrivateKey();
-		this.publicKey = config.getPublicKey();
-		this.certificateChain = config.getCertificateChain();
+		this.useEarlyStopRetransmission = config.useEarlyStopRetransmission();
+		this.certificateIdentityProvider = config.getCertificateIdentityProvider();
 		this.certificateVerifier = config.getAdvancedCertificateVerifier();
 		this.advancedPskStore = config.getAdvancedPskStore();
 		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
@@ -447,10 +552,16 @@ public abstract class Handshaker implements Destroyable {
 		this.ipv6 = connection.getPeerAddress().getAddress() instanceof Inet6Address;
 		// add all timeouts for retries and the initial timeout twice
 		// to get a short extra timespan for regular handshake timeouts
-		int timeoutMillis = retransmissionTimeout;
-		int expireTimeoutMillis = timeoutMillis * 2;
+		int timeoutMillis = Math.round(retransmissionTimeout * retransmissionRandomFactor);
+		if (CipherSuite.containsEccBasedCipherSuite(config.getSupportedCipherSuites())) {
+			timeoutMillis += additionalTimeoutForEcc;
+		}
+		timeoutMillis = Math.min(timeoutMillis, maxRetransmissionTimeout);
+		int expireTimeoutMillis = Math.min(Math.round(timeoutMillis * retransmissionTimeoutScale),
+				maxRetransmissionTimeout);
 		for (int retry = 0; retry < maxRetransmissions; ++retry) {
-			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis);
+			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis, retransmissionTimeoutScale,
+					maxRetransmissionTimeout);
 			expireTimeoutMillis += timeoutMillis;
 		}
 		this.nanosExpireTimeout = TimeUnit.MILLISECONDS.toNanos(expireTimeoutMillis);
@@ -490,7 +601,8 @@ public abstract class Handshaker implements Destroyable {
 				changeCipherSpec = null;
 				return result;
 			} else {
-				for (Record record : queue) {
+				while (!queue.isEmpty()) {
+					Record record = queue.first();
 					int messageSeq = ((HandshakeMessage) record.getFragment()).getMessageSeq();
 					if (messageSeq > nextReceiveMessageSequence) {
 						break;
@@ -519,7 +631,7 @@ public abstract class Handshaker implements Destroyable {
 		 * for later processing when the message's sequence number becomes the
 		 * next expected one.
 		 * 
-		 * @param record the record containing the message to check
+		 * @param candidate the candidate record containing the message to check
 		 * @return the record containing a message if the message is up for
 		 *         immediate processing or {@code null}, if the message cannot
 		 *         be processed immediately
@@ -577,7 +689,7 @@ public abstract class Handshaker implements Destroyable {
 						return null;
 					}
 				default:
-					LOGGER.warn("Cannot process message of type [{}], discarding...", fragment.getContentType());
+					LOGGER.info("Cannot process message of type [{}], discarding...", fragment.getContentType());
 					return null;
 				}
 			} else {
@@ -808,7 +920,7 @@ public abstract class Handshaker implements Destroyable {
 				GenericHandshakeMessage genericMessage = (GenericHandshakeMessage) handshakeMessage;
 				handshakeMessage = HandshakeMessage.fromGenericHandshakeMessage(genericMessage, getParameter());
 			}
-			if (lastFlight) {
+			if (timeoutLastFlight != null) {
 				if (flight == null) {
 					if (cause != null) {
 						LOGGER.error("last flight missing, handshake already failed! {}", handshakeMessage, cause);
@@ -844,6 +956,7 @@ public abstract class Handshaker implements Destroyable {
 				if (epoch == 0) {
 					handshakeMessages.add(handshakeMessage);
 				}
+				statesChanged = false;
 				recursionProtection.lock();
 				try {
 					doProcessMessage(handshakeMessage);
@@ -852,11 +965,13 @@ public abstract class Handshaker implements Destroyable {
 				}
 				LOGGER.debug("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
 						peerToLog);
-				if (!lastFlight) {
+				if (timeoutLastFlight == null) {
 					// last Flight may have changed processing
 					// the handshake message
 					++nextReceiveMessageSequence;
-					++statesIndex;
+					if (!statesChanged) {
+						++statesIndex;
+					}
 				}
 				handshakeMessage = handshakeMessage.getNextHandshakeMessage();
 				if (useMultiHandshakeMessagesRecord == null && handshakeMessage != null) {
@@ -868,47 +983,85 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Checks, if the provided states are the currently expected ones.
+	 * 
+	 * @param states state to check
+	 * @return {@code true}, if the provided states are the currently expected
+	 *         ones
+	 * @see #setExpectedStates(HandshakeState[])
+	 * @since 3.0
+	 */
+	protected boolean isExpectedStates(HandshakeState[] states) {
+		return this.expectedStates == states;
+	}
+
+	/**
+	 * Sets expected states.
+	 * 
+	 * Resets {@link #statesIndex}.
+	 * 
+	 * @param states expected states
+	 * @see #isExpectedStates(HandshakeState[])
+	 * @see #expectMessage(DTLSMessage)
+	 * @since 3.0
+	 */
+	protected void setExpectedStates(HandshakeState[] states) {
+		this.expectedStates = states;
+		this.statesIndex = 0;
+		this.statesChanged = true;
+	}
+
+	/**
 	 * Check, if message is expected.
 	 * 
 	 * @param message message to check
 	 * @throws HandshakeException if the message is not expected
 	 */
 	protected void expectMessage(DTLSMessage message) throws HandshakeException {
-		if (states != null) {
-			if (statesIndex >= states.length) {
-				LOGGER.warn("Cannot process {} message from peer [{}], no more expected!", HandshakeState.toString(message),
-						peerToLog);
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
-				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
-						+ " handshake message, no more expected!", alert);
-			}
-			HandshakeState expectedState = states[statesIndex];
-			boolean expected = expectedState.expect(message);
-			if (!expected && expectedState.isOptional()) {
-				if (statesIndex + 1 < states.length) {
-					HandshakeState nextExpectedState = states[statesIndex + 1];
-					if (nextExpectedState.expect(message)) {
-						++statesIndex;
-						expected = true;
-					}
+		if (expectedStates == null) {
+			LOGGER.warn("Cannot process {} message from peer [{}], not expected!", HandshakeState.toString(message),
+					peerToLog);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+			throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
+					+ " handshake message, not expected!", alert);
+		}
+		if (expectedStates.length == 0) {
+			// only for tests!
+			return;
+		}
+		if (statesIndex >= expectedStates.length) {
+			LOGGER.warn("Cannot process {} message from peer [{}], no more expected!", HandshakeState.toString(message),
+					peerToLog);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+			throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
+					+ " handshake message, no more expected!", alert);
+		}
+		HandshakeState expectedState = expectedStates[statesIndex];
+		boolean expected = expectedState.expect(message);
+		if (!expected && expectedState.isOptional()) {
+			if (statesIndex + 1 < expectedStates.length) {
+				HandshakeState nextExpectedState = expectedStates[statesIndex + 1];
+				if (nextExpectedState.expect(message)) {
+					++statesIndex;
+					expected = true;
 				}
 			}
+		}
 
-			if (!expected) {
-				// check for self addressed messages
-				// some cloud deployments may get easily mixed up
-				DTLSFlight flight = pendingFlight.get();
-				if (flight != null && flight.contains(message)) {
-					LOGGER.debug("Cannot process {} message from itself [{}]!",
-							HandshakeState.toString(message), peerToLog);
-				} else {
-					LOGGER.debug("Cannot process {} message from peer [{}], {} expected!",
-							HandshakeState.toString(message), peerToLog, expectedState);
-				}
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
-				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
-						+ " handshake message, " + expectedState + " expected!", alert);
+		if (!expected) {
+			// check for self addressed messages
+			// some cloud deployments may get easily mixed up
+			DTLSFlight flight = pendingFlight.get();
+			if (flight != null && flight.contains(message)) {
+				LOGGER.debug("Cannot process {} message from itself [{}]!",
+						HandshakeState.toString(message), peerToLog);
+			} else {
+				LOGGER.debug("Cannot process {} message from peer [{}], {} expected!",
+						HandshakeState.toString(message), peerToLog, expectedState);
 			}
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
+			throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
+					+ " handshake message, " + expectedState + " expected!", alert);
 		}
 	}
 
@@ -944,6 +1097,8 @@ public abstract class Handshaker implements Destroyable {
 			processPskSecretResult((PskSecretResult) handshakeResult);
 		} else if (handshakeResult instanceof CertificateVerificationResult) {
 			processCertificateVerificationResult((CertificateVerificationResult) handshakeResult);
+		} else if (handshakeResult instanceof CertificateIdentityResult) {
+			processCertificateIdentityResult((CertificateIdentityResult) handshakeResult);
 		}
 		if (changeCipherSuiteMessageExpected) {
 			processNextMessages(null);
@@ -994,8 +1149,10 @@ public abstract class Handshaker implements Destroyable {
 					SecretUtil.destroy(newPskSecret);
 					newPskSecret = masterSecret;
 				}
-				customArgument = pskSecretResult.getCustomArgument();
-				processMasterSecret(newPskSecret);
+				setCustomArgument(pskSecretResult);
+				applyMasterSecret(newPskSecret);
+				SecretUtil.destroy(newPskSecret);
+				processMasterSecret();
 			} else {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY);
 				if (hostName != null) {
@@ -1017,11 +1174,10 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Do the handshaker specific master secret processing
 	 * 
-	 * @param masterSecret master secret
 	 * @throws HandshakeException if an error occurs
 	 * @since 2.3
 	 */
-	protected abstract void processMasterSecret(SecretKey masterSecret) throws HandshakeException;
+	protected abstract void processMasterSecret() throws HandshakeException;
 
 	/**
 	 * Process certificate verification result.
@@ -1039,15 +1195,21 @@ public abstract class Handshaker implements Destroyable {
 		}
 		ensureUndestroyed();
 		certificateVerificationPending = false;
-		LOGGER.info("Process result of certificate verification.");
+		LOGGER.debug("Process result of certificate verification.");
 		if (certificateVerificationResult.getCertificatePath() != null) {
-			peerCertPath = certificateVerificationResult.getCertificatePath();
-			certificateVerfied = true;
-			customArgument = certificateVerificationResult.getCustomArgument();
+			otherPeersCertificateVerified = true;
+			otherPeersCertPath = certificateVerificationResult.getCertificatePath();
+			if (otherPeersSignatureVerified) {
+				getSession().setPeerIdentity(new X509CertPath(otherPeersCertPath));
+			}
+			setCustomArgument(certificateVerificationResult);
 			processCertificateVerified();
 		} else if (certificateVerificationResult.getPublicKey() != null) {
-			certificateVerfied = true;
-			customArgument = certificateVerificationResult.getCustomArgument();
+			otherPeersCertificateVerified = true;
+			if (otherPeersSignatureVerified) {
+				getSession().setPeerIdentity(new RawPublicKeyIdentity(otherPeersPublicKey));
+			}
+			setCustomArgument(certificateVerificationResult);
 			processCertificateVerified();
 		} else if (certificateVerificationResult.getException() != null) {
 			throw certificateVerificationResult.getException();
@@ -1065,7 +1227,89 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	protected abstract void processCertificateVerified() throws HandshakeException;
 
-	// Methods ////////////////////////////////////////////////////////
+	/**
+	 * Process the certificate identity.
+	 * 
+	 * @param result certificate identity
+	 * @throws HandshakeException if an error occurs
+	 * @throws IllegalStateException if no call is pending (see
+	 *             {@link #certificateIdentityPending}), or the handshaker
+	 *             {@link #isDestroyed()}.
+	 * @since 3.0
+	 */
+	protected void processCertificateIdentityResult(CertificateIdentityResult result) throws HandshakeException {
+		if (!certificateIdentityPending) {
+			throw new IllegalStateException("certificate identity not pending!");
+		}
+		ensureUndestroyed();
+		certificateIdentityPending = false;
+		LOGGER.debug("Process result of certificate identity.");
+		this.privateKey = result.getPrivateKey();
+		this.publicKey = result.getPublicKey();
+		this.certificateChain = result.getCertificateChain();
+		certificateIdentityAvailable = true;
+		processCertificateIdentityAvailable();
+	}
+
+	/**
+	 * Do the handshaker specific processing of certificate identity.
+	 * 
+	 * @throws HandshakeException if an error occurs
+	 * @since 3.0
+	 */
+	protected abstract void processCertificateIdentityAvailable() throws HandshakeException;
+
+	/**
+	 * Set custom argument for {@link ApplicationLevelInfoSupplier}.
+	 * 
+	 * A {@code null} custom argument will not overwrite a already set one.
+	 * 
+	 * @param result handshake result with custom argument.
+	 * @since 3.0
+	 */
+	protected void setCustomArgument(HandshakeResult result) {
+		Object customArgument = result.getCustomArgument();
+		if (customArgument != null) {
+			this.customArgument = customArgument;
+		}
+	}
+
+	/**
+	 * Checks, if a internal API call is pending.
+	 * 
+	 * Using {@link AdvancedPskStore} or {@link NewAdvancedCertificateVerifier}
+	 * may result in pending API calls. Such API calls are timed out with the
+	 * current flight and so report as INTERNAL_ERROR alert instead of silently
+	 * ignore that time out.
+	 * 
+	 * @return {@code true}, if call is pending, {@code false}, if not.
+	 * @since 3.0
+	 */
+	protected boolean hasPendingApiCall() {
+		return certificateIdentityPending || certificateVerificationPending || pskRequestPending;
+	}
+
+	/**
+	 * Set the signature of the other peer to verified.
+	 * 
+	 * Sets the {@link DTLSSession#setPeerIdentity(Principal)}, if the
+	 * certificate chain or public key of the other peer is also already
+	 * verified.
+	 * 
+	 * @return the value of {@link #otherPeersCertificateVerified} 
+	 * @since 3.0
+	 */
+	protected boolean setOtherPeersSignatureVerified() {
+		otherPeersSignatureVerified = true;
+		if (otherPeersCertificateVerified) {
+			if (otherPeersCertPath != null) {
+				getSession().setPeerIdentity(new X509CertPath(otherPeersCertPath));
+			} else if (otherPeersPublicKey != null) {
+				getSession().setPeerIdentity(new RawPublicKeyIdentity(otherPeersPublicKey));
+			}
+		}
+		return otherPeersCertificateVerified;
+	}
 
 	/**
 	 * Get message digest for FINISH message.
@@ -1085,15 +1329,33 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Clone message digest for second FINISHED message.
+	 * 
+	 * @param md message digest
+	 * @return cloned message digest
+	 * @throws HandshakeException if cloning fails.
+	 * @since 3.0
+	 */
+	protected final MessageDigest cloneMessageDigest(MessageDigest md) throws HandshakeException {
+		try {
+			return (MessageDigest) md.clone();
+		} catch (CloneNotSupportedException e) {
+			throw new HandshakeException("Cannot create hash for second FINISHED message",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+		}
+	}
+
+	/**
 	 * Applying the key expansion on the master secret generates a large key
 	 * block to generate the encryption, MAC and IV keys. Also set the master
-	 * secret to the session for resumption handshakes.
+	 * secret to the session for later resumption handshakes.
 	 * 
-	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.3">RFC5246</a>
+	 * See <a href="https://tools.ietf.org/html/rfc5246#section-6.3" target="_blank">RFC5246</a>
 	 * for further details about the keys.
 	 * 
 	 * @param masterSecret the master secret.
 	 * @see #masterSecret
+	 * @see #calculateKeys(SecretKey)
 	 * @since 2.3
 	 */
 	protected void applyMasterSecret(SecretKey masterSecret) {
@@ -1101,6 +1363,19 @@ public abstract class Handshaker implements Destroyable {
 		this.masterSecret = SecretUtil.create(masterSecret);
 		calculateKeys(masterSecret);
 		getSession().setMasterSecret(masterSecret);
+	}
+
+	/**
+	 * Resume master secret from established session.
+	 * 
+	 * @see #masterSecret
+	 * @see #calculateKeys(SecretKey)
+	 * @since 3.0
+	 */
+	protected void resumeMasterSecret() {
+		ensureUndestroyed();
+		this.masterSecret = getSession().getMasterSecret();
+		calculateKeys(masterSecret);
 	}
 
 	/**
@@ -1207,23 +1482,25 @@ public abstract class Handshaker implements Destroyable {
 	 * @param pskIdentity PSK identity
 	 * @param otherSecret others secret for ECHDE support. Maybe {@code null}.
 	 * @param seed seed to be used for (extended) master secret.
-	 * @return psk secret result. {@code null}, if result is returned
-	 *         asynchronous.
+	 * @throws HandshakeException if an error occurs
 	 * @throws NullPointerException if seed is {@code null}
 	 * @since 3.0 (added parameter seed)
 	 */
-	protected PskSecretResult requestPskSecretResult(PskPublicInformation pskIdentity, SecretKey otherSecret, byte[] seed) {
+	protected void requestPskSecretResult(PskPublicInformation pskIdentity, SecretKey otherSecret, byte[] seed) throws HandshakeException {
 		if (seed == null) {
 			throw new NullPointerException("seed must not be null!");
 		}
 		DTLSSession session = getSession();
-		ServerNames serverNames = sniEnabled ? session.getServerNames() : null;
+		ServerNames serverNames = getServerNames();
 		String hmacAlgorithm = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		pskRequestPending = true;
 		masterSecretSeed = seed;
 		this.otherSecret = SecretUtil.create(otherSecret);
-		return advancedPskStore.requestPskSecretResult(connection.getConnectionId(), serverNames, pskIdentity,
+		PskSecretResult result = advancedPskStore.requestPskSecretResult(connection.getConnectionId(), serverNames, pskIdentity,
 				hmacAlgorithm, otherSecret, masterSecretSeed, session.useExtendedMasterSecret());
+		if (result != null) {
+			processPskSecretResult(result);
+		}
 	}
 
 	protected final void setCurrentReadState() {
@@ -1240,6 +1517,47 @@ public abstract class Handshaker implements Destroyable {
 		} else {
 			context.createWriteState(serverWriteKey, serverWriteIV, serverWriteMACKey);
 		}
+	}
+
+	/**
+	 * Create the FINISHED message for a pending handshake.
+	 * 
+	 * @param handshakeHash
+	 *            the hash of the handshake messages
+	 * @return create FINISHED message
+	 * @since 3.0
+	 */
+	protected final Finished createFinishedMessage(byte[] handshakeHash) {
+		if (masterSecret == null) {
+			throw new IllegalStateException("master secret not available!");
+		}
+		return new Finished(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient(), handshakeHash);
+	}
+
+	/**
+	 * Verify the handshake hash of the FINISHED.
+	 * 
+	 * @param finished received FINISHED message.
+	 * @param handshakeHash
+	 *            the hash of the handshake messages
+	 * @throws HandshakeException if the data can not be verified
+	 * @since 3.0
+	 */
+	protected final void verifyFinished(Finished finished, byte[] handshakeHash) throws HandshakeException {
+		if (masterSecret == null) {
+			throw new IllegalStateException("master secret not available!");
+		}
+		finished.verifyData(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, !isClient(), handshakeHash);
+	}
+
+	/**
+	 * Checks, if the master secret is available.
+	 * 
+	 * @return {@code true}, if available, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	public final boolean hasMasterSecret() {
+		return masterSecret != null;
 	}
 
 	/**
@@ -1317,8 +1635,6 @@ public abstract class Handshaker implements Destroyable {
 		return null;
 	}
 
-	// Getters and Setters ////////////////////////////////////////////
-
 	protected abstract boolean isClient();
 
 	/**
@@ -1330,6 +1646,18 @@ public abstract class Handshaker implements Destroyable {
 	HandshakeParameter getParameter() {
 		DTLSSession session = getSession();
 		return new HandshakeParameter(session.getKeyExchange(), session.receiveCertificateType());
+	}
+
+	/**
+	 * Gets the effective server names of {@link DTLSSession}.
+	 * 
+	 * @return the effective server names, or {@code null}, if disabled or not
+	 *         available.
+	 * @see #sniEnabled
+	 * @since 3.0
+	 */
+	public final ServerNames getServerNames() {
+		return sniEnabled ? getSession().getServerNames() : null;
 	}
 
 	/**
@@ -1382,6 +1710,18 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Check, if this peer supports cid.
+	 * 
+	 * @return {@code true}, if the this peer supports cid, {@code false}, if
+	 *         not.
+	 * @see ConnectionId#supportsConnectionId(ConnectionIdGenerator)
+	 * @since 3.0
+	 */
+	public boolean supportsConnectionId() {
+		return ConnectionId.supportsConnectionId(connectionIdGenerator);
+	}
+
+	/**
 	 * Get read connection ID for inbound records
 	 * 
 	 * @return connection ID for inbound records. {@code null}, if connection ID
@@ -1390,14 +1730,14 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.5
 	 */
 	public ConnectionId getReadConnectionId() {
-		if (connectionIdGenerator == null) {
-			return null;
-		} else if (connectionIdGenerator.useConnectionId()) {
+		if (ConnectionId.useConnectionId(connectionIdGenerator)) {
 			// use the already created unique cid
 			return connection.getConnectionId();
-		} else {
+		} else if (ConnectionId.supportsConnectionId(connectionIdGenerator)) {
 			// use empty cid
 			return ConnectionId.EMPTY;
+		} else {
+			return null;
 		}
 	}
 
@@ -1553,7 +1893,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @see #sendFlight(DTLSFlight)
 	 */
 	public void sendLastFlight(DTLSFlight flight) {
-		lastFlight = true;
+		timeoutLastFlight = timer.schedule(new TimeoutCompletedTask(), nanosExpireTimeout, TimeUnit.NANOSECONDS);
 		flight.setRetransmissionNeeded(false);
 		sendFlight(flight);
 	}
@@ -1567,20 +1907,35 @@ public abstract class Handshaker implements Destroyable {
 	public void sendFlight(DTLSFlight flight) {
 		completePendingFlight();
 		try {
-			flight.setTimeout(retransmissionTimeout);
+			int timeout = retransmissionTimeout;
+			float noise = retransmissionRandomFactor - 1.0F;
+			if (noise > 0.0) {
+				timeout += RandomManager.currentRandom().nextInt(Math.round(timeout * noise));
+			}
+			if (eccExpected) {
+				timeout += additionalTimeoutForEcc;
+				eccExpected = false;
+			}
+			timeout = Math.min(timeout, maxRetransmissionTimeout);
+			flight.setTimeout(timeout);
 			flightSendNanos = ClockUtil.nanoRealtime();
 			nanosExpireTime = nanosExpireTimeout + flightSendNanos;
 			int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
 			int maxFragmentSize = getSession().getEffectiveFragmentLimit();
 			List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
 					useMultiHandshakeMessagesRecord, useMultiRecordMessages, false);
-			LOGGER.trace("Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes",
-					flight.getNumberOfMessages(), peerToLog, datagrams.size(), maxDatagramSize);
+			LOGGER.trace(
+					"Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes and {} ms timeout.",
+					flight.getNumberOfMessages(), peerToLog, datagrams.size(), maxDatagramSize, timeout);
 			recordLayer.sendFlight(datagrams);
 			pendingFlight.set(flight);
 			if (flight.isRetransmissionNeeded()) {
 				retransmitFlight = new TimeoutPeerTask(flight);
 				flight.scheduleRetransmission(timer, retransmitFlight);
+			}
+			int effectiveMessageSize = flight.getEffectiveMaxMessageSize();
+			if (effectiveMessageSize > 0) {
+				context.setEffectiveMaxMessageSize(effectiveMessageSize);
 			}
 		} catch (HandshakeException e) {
 			handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " failed!", e));
@@ -1623,7 +1978,7 @@ public abstract class Handshaker implements Destroyable {
 							while (tries < maxRetransmissions) {
 								++tries;
 								flight.incrementTries();
-								flight.incrementTimeout();
+								flight.incrementTimeout(retransmissionTimeoutScale, maxRetransmissionTimeout);
 							}
 							// increment one more to indicate, that
 							// handshake times out without reaching
@@ -1642,7 +1997,7 @@ public abstract class Handshaker implements Destroyable {
 								peerToLog, maxRetransmissions - tries - 1);
 						try {
 							flight.incrementTries();
-							flight.incrementTimeout();
+							flight.incrementTimeout(retransmissionTimeoutScale, maxRetransmissionTimeout);
 							int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
 							int maxFragmentSize = getSession().getEffectiveFragmentLimit();
 							boolean backOff = backOffRetransmission > 0 && (tries + 1) > backOffRetransmission;
@@ -1683,19 +2038,25 @@ public abstract class Handshaker implements Destroyable {
 						timeout = true;
 					}
 				}
-				LOGGER.debug("Flight {} of {} message(s) to peer [{}] failed, {}. Retransmission {} of {}.",
+				LOGGER.debug("Flight {} of {} message(s) to peer [{}] failed,{} Retransmission {} of {}.",
 						flight.getFlightNumber(), flight.getNumberOfMessages(), peerToLog, message, flight.getTries(),
 						maxRetransmissions);
-
+				if (hasPendingApiCall()) {
+					cause = new HandshakeException("Internal callback timeout!",
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+				}
+				if (cause instanceof HandshakeException) {
+					recordLayer.processHandshakeException(connection, (HandshakeException) cause);
+					return;
+				}
 				// inform handshaker
 				if (timeout) {
 					handshaker.handshakeFailed(new DtlsHandshakeTimeoutException(
 							"Handshake flight " + flight.getFlightNumber() + " failed!" + message,
 							flight.getFlightNumber()));
 				} else {
-					handshaker.handshakeFailed(
-							new DtlsException("Handshake flight " + flight.getFlightNumber() + " failed!" + message,
-									cause));
+					handshaker.handshakeFailed(new DtlsException(
+							"Handshake flight " + flight.getFlightNumber() + " failed!" + message, cause));
 				}
 			}
 		}
@@ -1757,6 +2118,20 @@ public abstract class Handshaker implements Destroyable {
 					handleTimeout(flight);
 				}
 			}, true);
+		}
+	}
+
+	private class TimeoutCompletedTask extends ConnectionTask {
+
+		private TimeoutCompletedTask() {
+			super(new Runnable() {
+				@Override
+				public void run() {
+					if (recordLayer.isRunning()) {
+						handshakeCompleted();
+					}
+				}
+			}, false);
 		}
 	}
 
@@ -1823,12 +2198,18 @@ public abstract class Handshaker implements Destroyable {
 	 * Forward handshake completed to registered listeners.
 	 */
 	public final void handshakeCompleted() {
-		completePendingFlight();
-		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.handshakeCompleted(this);
+		if (!handshakeCompleted) {
+			if (timeoutLastFlight != null) {
+				timeoutLastFlight.cancel(false);
+			}
+			handshakeCompleted = true;
+			completePendingFlight();
+			for (SessionListener sessionListener : sessionListeners) {
+				sessionListener.handshakeCompleted(this);
+			}
+			SecretUtil.destroy(this);
+			LOGGER.debug("handshake completed {}", connection);
 		}
-		SecretUtil.destroy(this);
-		LOGGER.debug("handshake completed {}", connection);
 	}
 
 	/**
@@ -2033,20 +2414,35 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Marks this handshaker to expect the peer to calculate some ECC function.
+	 * {@link #additionalTimeoutForEcc} will be added for the next flight in
+	 * that case.
+	 * 
+	 * @since 3.0
+	 */
+	protected void expectEcc() {
+		this.eccExpected = true;
+	}
+
+	/**
 	 * Start validating the X.509 certificate chain provided by the the peer as
 	 * part of this message, or the raw public key of the message.
 	 *
 	 * This method delegates both certificate validation to the
 	 * {@link NewAdvancedCertificateVerifier}. If a asynchronous implementation
 	 * of {@link NewAdvancedCertificateVerifier} is used, the result will be not
-	 * available after this call, but will be available after the callback of the
-	 * asynchronous implementation.
+	 * available after this call, but will be available after the callback of
+	 * the asynchronous implementation.
 	 *
 	 * @param message the certificate message
+	 * @param verifySubject {@code true} to verify the certificate's subject,
+	 *            {@code false}, if not.
 	 *
 	 * @throws HandshakeException if any of the checks fails
+	 * @see DtlsConfig#DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT
+	 * @since 3.0 (added parameter verifySubject)
 	 */
-	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
+	public void verifyCertificate(CertificateMessage message, boolean verifySubject) throws HandshakeException {
 		if (certificateVerifier == null) {
 			LOGGER.debug("Certificate validation failed: no verifier available!");
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
@@ -2054,9 +2450,50 @@ public abstract class Handshaker implements Destroyable {
 		}
 		LOGGER.info("Start certificate verification.");
 		certificateVerificationPending = true;
-		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(connection.getConnectionId(), null, !isClient(), useTruncatedCertificatePathForVerification, message);
+		this.otherPeersPublicKey = message.getPublicKey();
+
+		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(
+				connection.getConnectionId(), getServerNames(), getPeerAddress(), !isClient(),
+				verifySubject, useTruncatedCertificatePathForVerification, message);
 		if (verificationResult != null) {
 			processCertificateVerificationResult(verificationResult);
+		}
+	}
+
+	/**
+	 * Request the certificate based identity.
+	 * 
+	 * @param issuers list of trusted issuers. May be {@code null} or empty.
+	 * @param serverNames indicated server names. May be {@code null} or empty.
+	 * @param certificateKeyAlgorithms list of certificate key algorithms to
+	 *            select a node's certificate. May be {@code null} or empty.
+	 * @param signatureAndHashAlgorithms list of supported signatures and hash
+	 *            algorithms. May be {@code null} or empty.
+	 * @param curves ec-curves (supported groups). May be {@code null} or empty.
+	 * @return {@code true}, if the certificate based identity is available,
+	 *         {@code false}, if the certificate based identity is requested.
+	 * @throws HandshakeException if any of the checks fails
+	 * @see CertificateProvider#requestCertificateIdentity(ConnectionId,
+	 *      boolean, List, ServerNames, List, List, List)
+	 * @since 3.0
+	 */
+	public boolean requestCertificateIdentity(List<X500Principal> issuers, ServerNames serverNames,
+			List<CertificateKeyAlgorithm> certificateKeyAlgorithms, List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms,
+			List<SupportedGroup> curves) throws HandshakeException {
+		certificateIdentityPending = true;
+		CertificateIdentityResult result;
+		if (certificateIdentityProvider == null) {
+			result = new CertificateIdentityResult(connection.getConnectionId(), null);
+		} else {
+			LOGGER.info("Start certificate identity.");
+			result = certificateIdentityProvider.requestCertificateIdentity(connection.getConnectionId(), isClient(),
+					issuers, serverNames, certificateKeyAlgorithms, signatureAndHashAlgorithms, curves);
+		}
+		if (result != null) {
+			processCertificateIdentityResult(result);
+			return false;
+		} else {
+			return true;
 		}
 	}
 
@@ -2115,13 +2552,15 @@ public abstract class Handshaker implements Destroyable {
 			@SuppressWarnings("unchecked")
 			ExtensiblePrincipal<? extends Principal> extensibleClientIdentity = (ExtensiblePrincipal<? extends Principal>) peerIdentity;
 			AdditionalInfo additionalInfo = getAdditionalPeerInfo(peerIdentity);
-			session.setPeerIdentity(extensibleClientIdentity.amend(additionalInfo));
+			if (additionalInfo != null) {
+				session.setPeerIdentity(extensibleClientIdentity.amend(additionalInfo));
+			}
 		}
 	}
 
 	private AdditionalInfo getAdditionalPeerInfo(Principal peerIdentity) {
 		if (applicationLevelInfoSupplier == null || peerIdentity == null) {
-			return AdditionalInfo.empty();
+			return null;
 		} else {
 			return applicationLevelInfoSupplier.getInfo(peerIdentity, customArgument);
 		}

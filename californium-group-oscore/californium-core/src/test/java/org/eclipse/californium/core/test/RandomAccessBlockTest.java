@@ -29,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapClient;
@@ -38,14 +39,14 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -62,8 +63,10 @@ import org.junit.runners.Parameterized.Parameters;
 @Category(Medium.class)
 @RunWith(Parameterized.class)
 public class RandomAccessBlockTest {
+
 	@ClassRule
-	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
+			CoapNetworkRule.Mode.NATIVE);
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
 	@Rule
@@ -71,6 +74,7 @@ public class RandomAccessBlockTest {
 
 	private static final String TARGET = "test";
 	private static final String RESP_PAYLOAD = generateRandomPayload(87);
+	private static final AtomicInteger REQUEST_COUNTER = new AtomicInteger();
 
 	@Parameter
 	public int maxBodySize;
@@ -84,14 +88,14 @@ public class RandomAccessBlockTest {
 
 	@Before
 	public void startupServer() throws Exception {
-		NetworkConfig config = network.getStandardTestConfig()
-			.setInt(Keys.PREFERRED_BLOCK_SIZE, 16)
-			.setInt(Keys.MAX_MESSAGE_SIZE, 32)
-			.setInt(Keys.MAX_RESOURCE_BODY_SIZE, maxBodySize);
+		Configuration config = network.getStandardTestConfig()
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 16)
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 32)
+				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, maxBodySize);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 
 		serverEndpoint = builder.build();
 		CoapServer server = new CoapServer(config);
@@ -102,10 +106,11 @@ public class RandomAccessBlockTest {
 
 		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 
 		clientEndpoint = builder.build();
 		cleanup.add(clientEndpoint);
+		REQUEST_COUNTER.set(0);
 	}
 
 	@Test
@@ -114,11 +119,29 @@ public class RandomAccessBlockTest {
 		int szx = BlockOption.size2Szx(16);
 		Request request = Request.newGet();
 		request.setURI(getUri(serverEndpoint, TARGET));
-		request.getOptions().setBlock2(szx, false, 6); // 6 * 16 = 96 is out of bounds
+		// 6 * 16 = 96 is out of bounds
+		request.getOptions().setBlock2(szx, false, 6);
 
 		Response response = request.send().waitForResponse(1000);
 		assertThat("Client received no response", response, is(notNullValue()));
 		assertThat(response.getCode(), is(ResponseCode.BAD_OPTION));
+		assertThat(response.getOptions().hasBlock2(), is(false));
+		assertThat(REQUEST_COUNTER.get(), is(1));
+	}
+
+	@Test
+	public void testServerReturnsError() throws Exception {
+
+		int szx = BlockOption.size2Szx(16);
+		Request request = Request.newGet();
+		request.setURI(getUri(serverEndpoint, "unknown"));
+		// 6 * 16 = 96 is out of bounds
+		request.getOptions().setBlock2(szx, false, 0);
+
+		Response response = request.send().waitForResponse(1000);
+		assertThat("Client received no response", response, is(notNullValue()));
+		assertThat(response.getCode(), is(ResponseCode.NOT_FOUND));
+		assertThat(response.getOptions().hasBlock2(), is(false));
 	}
 
 	@Test
@@ -128,13 +151,12 @@ public class RandomAccessBlockTest {
 		// do early block negotiation with a specific size but actually wants to
 		// retrieve all blocks.
 
-		int[] blockOrder = {2,1,5,3};
-		String[] expectations = {
-				RESP_PAYLOAD.substring(32, 48),
+		int[] blockOrder = { 2, 1, 5, 3 };
+		String[] expectations = { 
+				RESP_PAYLOAD.substring(32, 48), 
 				RESP_PAYLOAD.substring(16, 32),
-				RESP_PAYLOAD.substring(80 /* until the end */),
-				RESP_PAYLOAD.substring(48, 64)
-		};
+				RESP_PAYLOAD.substring(80 /* until the end */), 
+				RESP_PAYLOAD.substring(48, 64) };
 
 		String uri = getUri(serverEndpoint, TARGET);
 		CoapClient client = new CoapClient();
@@ -150,59 +172,18 @@ public class RandomAccessBlockTest {
 			request.getOptions().setBlock2(szx, false, num);
 
 			CoapResponse response = client.advanced(request);
-			assertNotNull("Client received no response", response);
-			assertThat(response.getCode(), is(ResponseCode.CONTENT));
-			assertThat(response.getResponseText(), is(expectations[i]));
-			assertTrue(response.getOptions().hasBlock2());
-			assertThat(response.getOptions().getBlock2().getOffset(), is(num * 16));
-			assertThat(response.getOptions().getBlock2().getSzx(), is(szx));
+			assertNotNull(i + ": Client received no response", response);
+			assertThat(REQUEST_COUNTER.get(), is(i + 1));
+			assertThat(i + ": ", response.getCode(), is(ResponseCode.CONTENT));
+			assertThat(i + ": ", response.getResponseText(), is(expectations[i]));
+			assertTrue(i + ": ", response.getOptions().hasBlock2());
+			BlockOption block2 = response.getOptions().getBlock2();
+			assertThat(i + ": " + block2.toString(), block2.getOffset(), is(num * 16));
+			assertThat(i + ": " + block2.toString(), block2.getSzx(), is(szx));
+			assertThat(i + ": " + block2.toString(), block2.isM(),
+					is(block2.getOffset() + response.getPayloadSize() < RESP_PAYLOAD.length()));
 		}
-		client.shutdown();
-	}
-
-	@Test
-	public void testServerReturnsSmallerIndividualBlocks() throws Exception {
-
-		int[] blockOrder = {2,1};
-		int blocksize = 32;
-		int expectedBlocksize = 16;
-		String[] expectations = {
-				RESP_PAYLOAD.substring(64, 80),
-				RESP_PAYLOAD.substring(32, 48)
-		};
-
-		if (maxBodySize == 0) {
-			expectedBlocksize = blocksize;
-			expectations = new String[] {
-					RESP_PAYLOAD.substring(64),
-					RESP_PAYLOAD.substring(32, 64)
-			};
-		}
-
-		String uri = getUri(serverEndpoint, TARGET);
-		CoapClient client = new CoapClient();
-		client.setEndpoint(clientEndpoint);
-		client.setTimeout(1000L);
-
-		for (int i = 0; i < blockOrder.length; i++) {
-			int num = blockOrder[i];
-
-			// 32 is larger than the server's preference 16
-			// server will respond with smaller blockSxz
-			// https://mailarchive.ietf.org/arch/browse/core/?gbt=1&index=fYy61XmXaaDvu2sk_6hg4aP83Yw
-			int szx = BlockOption.size2Szx(blocksize);
-			Request request = Request.newGet();
-			request.setURI(uri);
-			request.getOptions().setBlock2(szx, false, num);
-
-			CoapResponse response = client.advanced(request);
-			assertNotNull("Client received no response", response);
-			assertThat(response.getCode(), is(ResponseCode.CONTENT));
-			assertThat(response.getResponseText(), is(expectations[i]));
-			assertTrue(response.getOptions().hasBlock2());
-			assertThat(response.getOptions().getBlock2().getOffset(), is(num * blocksize));
-			assertThat(response.getOptions().getBlock2().getSize(), is(expectedBlocksize));
-		}
+		assertThat(REQUEST_COUNTER.get(), is(blockOrder.length));
 		client.shutdown();
 	}
 
@@ -210,6 +191,7 @@ public class RandomAccessBlockTest {
 
 		private ByteBuffer buf;
 		private String responsePayload;
+
 		/**
 		 * @param name
 		 */
@@ -221,7 +203,7 @@ public class RandomAccessBlockTest {
 
 		@Override
 		public void handleGET(final CoapExchange exchange) {
-
+			REQUEST_COUNTER.incrementAndGet();
 			BlockOption block2 = exchange.getRequestOptions().getBlock2();
 			Response response = null;
 
@@ -230,17 +212,18 @@ public class RandomAccessBlockTest {
 				int offset = block2.getOffset();
 				int to = Math.min(offset + block2.getSize(), buf.capacity());
 				int length = to - offset;
-
 				if (offset < buf.capacity() && length > 0) {
 					byte[] payload = new byte[length];
-					((Buffer)buf).position(offset);
+					((Buffer) buf).position(offset);
 					buf.get(payload, 0, length);
 					response = new Response(ResponseCode.CONTENT);
 					response.setPayload(payload);
+					boolean m = to <  buf.capacity();
+					block2 = new BlockOption(block2.getSzx(), m, block2.getNum());
+					response.getOptions().setBlock2(block2);
 				} else {
 					response = new Response(ResponseCode.BAD_OPTION);
 				}
-				response.getOptions().setBlock2(block2);
 				exchange.respond(response);
 
 			} else {

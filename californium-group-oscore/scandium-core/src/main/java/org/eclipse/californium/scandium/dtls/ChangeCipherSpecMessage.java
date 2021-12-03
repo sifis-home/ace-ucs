@@ -20,6 +20,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 
@@ -30,28 +31,20 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * ChangeCipherSpec message is sent by both the client and the server to notify
  * the receiving party that subsequent records will be protected under the newly
  * negotiated CipherSpec and keys. For further details see <a
- * href="http://tools.ietf.org/html/rfc5246#section-7.1">RFC 5246</a>.
+ * href="https://tools.ietf.org/html/rfc5246#section-7.1" target="_blank">RFC 5246</a>.
  */
 public final class ChangeCipherSpecMessage implements DTLSMessage {
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	private static final int CCS_BITS = 8;
 
-	// Members ////////////////////////////////////////////////////////
-
 	private final CCSType CCSProtocolType;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	public ChangeCipherSpecMessage() {
 		CCSProtocolType = CCSType.CHANGE_CIPHER_SPEC;
 	}
 
-	// Change Cipher Spec Enum ////////////////////////////////////////
-
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc5246#section-7.1">RFC 5246</a>
+	 * See <a href="https://tools.ietf.org/html/rfc5246#section-7.1" target="_blank">RFC 5246</a>
 	 * for specification.
 	 */
 	public enum CCSType {
@@ -68,8 +61,6 @@ public final class ChangeCipherSpecMessage implements DTLSMessage {
 		}
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public ContentType getContentType() {
 		return ContentType.CHANGE_CIPHER_SPEC;
@@ -80,16 +71,19 @@ public final class ChangeCipherSpecMessage implements DTLSMessage {
 	}
 
 	@Override
+	public String toString(int indent) {
+		return StringUtil.indentation(indent) + "Change Cipher Spec Message" + StringUtil.lineSeparator();
+	}
+
+	@Override
 	public String toString() {
-		return "\tChange Cipher Spec Message\n";
+		return toString(0);
 	}
 
 	@Override
 	public int size() {
 		return CCS_BITS / Byte.SIZE;
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] toByteArray() {

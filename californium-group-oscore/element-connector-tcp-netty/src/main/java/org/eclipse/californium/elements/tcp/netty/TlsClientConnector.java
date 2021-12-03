@@ -24,17 +24,29 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp.netty;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.security.Principal;
+import java.security.cert.X509Certificate;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLPeerUnverifiedException;
 
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TlsEndpointContext;
+import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.util.CertPathUtil;
+import org.eclipse.californium.elements.util.JceProviderUtil;
+import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 import io.netty.channel.Channel;
@@ -47,16 +59,27 @@ import io.netty.util.concurrent.GenericFutureListener;
  */
 public class TlsClientConnector extends TcpClientConnector {
 
-	private static final int DEFAULT_HANDSHAKE_TIMEOUT_MILLIS = 10000;
-
 	/**
 	 * Context to be used to for connections.
 	 */
 	private final SSLContext sslContext;
 	/**
+	 * Weak cipher suites, or {@code null}, if no required.
+	 * 
+	 * @see JceProviderUtil#hasStrongEncryption()
+	 * @since 3.0
+	 */
+	private final String[] weakCipherSuites;
+	/**
 	 * Handshake timeout in milliseconds.
 	 */
 	private final int handshakeTimeoutMillis;
+	/**
+	 * Verify the server's subject.
+	 * 
+	 * @since 3.0
+	 */
+	private final boolean verifyServerSubject;
 
 	/**
 	 * Creates TLS client connector with custom SSL context. Useful for using
@@ -64,30 +87,17 @@ public class TlsClientConnector extends TcpClientConnector {
 	 * the caller.
 	 * 
 	 * @param sslContext ssl context
-	 * @param numberOfThreads number of thread used by connector
-	 * @param connectTimeoutMillis tcp connect timeout in milliseconds
-	 * @param idleTimeout idle timeout in seconds to close unused connection.
+	 * @param configuration configuration with {@link TcpConfig} definitions.
+	 * @since 3.0
 	 */
-	public TlsClientConnector(SSLContext sslContext, int numberOfThreads, int connectTimeoutMillis, int idleTimeout) {
-		this(sslContext, numberOfThreads, connectTimeoutMillis, DEFAULT_HANDSHAKE_TIMEOUT_MILLIS, idleTimeout);
-	}
-
-	/**
-	 * Creates TLS client connector with custom SSL context. Useful for using
-	 * client keys, or custom trust stores. The context must be initialized by
-	 * the caller.
-	 * 
-	 * @param sslContext ssl context
-	 * @param numberOfThreads number of thread used by connector
-	 * @param connectTimeoutMillis tcp connect timeout in milliseconds
-	 * @param handshakeTimeoutMillis handshake timeout in milliseconds
-	 * @param idleTimeout idle timeout in seconds to close unused connection
-	 */
-	public TlsClientConnector(SSLContext sslContext, int numberOfThreads, int connectTimeoutMillis,
-			int handshakeTimeoutMillis, int idleTimeout) {
-		super(numberOfThreads, connectTimeoutMillis, idleTimeout, new TlsContextUtil(true));
+	public TlsClientConnector(SSLContext sslContext, Configuration configuration) {
+		super(configuration, new TlsContextUtil(CertificateAuthenticationMode.NEEDED));
 		this.sslContext = sslContext;
-		this.handshakeTimeoutMillis = handshakeTimeoutMillis;
+		this.handshakeTimeoutMillis = configuration.getTimeAsInt(TcpConfig.TLS_HANDSHAKE_TIMEOUT,
+				TimeUnit.MILLISECONDS);
+		this.verifyServerSubject = configuration.get(TcpConfig.TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
+		this.weakCipherSuites = JceProviderUtil.hasStrongEncryption() ? null
+				: SslContextUtil.getWeakCipherSuites(sslContext);
 	}
 
 	/**
@@ -115,9 +125,23 @@ public class TlsClientConnector extends TcpClientConnector {
 							msg.onError(new IllegalStateException("Missing TlsEndpointContext " + context));
 							return;
 						}
+						if (verifyServerSubject) {
+							try {
+								Principal principal = context.getPeerIdentity();
+								if (principal instanceof X509CertPath) {
+									X509Certificate target = ((X509CertPath) principal).getTarget();
+									InetSocketAddress address = context.getPeerAddress();
+									String hostname = context.getVirtualHost();
+									verifyCertificatesSubject(hostname, address, target);
+								}
+							} catch (SSLPeerUnverifiedException ex) {
+								msg.onError(ex);
+								return;
+							}
+						}
 						/*
-						 * Handshake succeeded! 
-						 * Call super.send() to actually send the message.
+						 * Handshake succeeded! Call super.send() to actually
+						 * send the message.
 						 */
 						TlsClientConnector.super.send(future.getNow(), endpointMatcher, msg);
 					} else if (future.isCancelled()) {
@@ -134,6 +158,9 @@ public class TlsClientConnector extends TcpClientConnector {
 	protected void onNewChannelCreated(SocketAddress remote, Channel ch) {
 		SSLEngine sslEngine = createSllEngine(remote);
 		sslEngine.setUseClientMode(true);
+		if (weakCipherSuites != null) {
+			sslEngine.setEnabledCipherSuites(weakCipherSuites);
+		}
 		SslHandler sslHandler = new SslHandler(sslEngine);
 		sslHandler.setHandshakeTimeoutMillis(handshakeTimeoutMillis);
 		ch.pipeline().addFirst(sslHandler);
@@ -160,4 +187,60 @@ public class TlsClientConnector extends TcpClientConnector {
 			return sslContext.createSSLEngine();
 		}
 	}
+
+	/**
+	 * Verify the certificate's subject.
+	 * 
+	 * Considers both destination variants, server names and inet address and
+	 * verifies that using the certificate's subject CN and subject alternative
+	 * names.
+	 * 
+	 * @param serverName server name
+	 * @param peer remote peer
+	 * @param certificate server's certificate
+	 * @throws NullPointerException if the certificate or both identities, the
+	 *             servername and peer, is {@code null}.
+	 * @throws SSLPeerUnverifiedException if the verification fails.
+	 * @since 3.0
+	 */
+	private void verifyCertificatesSubject(String serverName, InetSocketAddress peer, X509Certificate certificate)
+			throws SSLPeerUnverifiedException {
+		if (certificate == null) {
+			throw new NullPointerException("Certficate must not be null!");
+		}
+		if (serverName == null && peer == null) {
+			// nothing to verify
+			return;
+		}
+		String literalIp = null;
+		String hostname = serverName;
+		if (peer != null) {
+			InetAddress destination = peer.getAddress();
+			if (destination != null) {
+				literalIp = destination.getHostAddress();
+			}
+			if (hostname == null) {
+				hostname = StringUtil.toHostString(peer);
+			}
+		}
+		if (hostname != null && hostname.equals(literalIp)) {
+			hostname = null;
+		}
+		if (hostname != null) {
+			if (!CertPathUtil.matchDestination(certificate, hostname)) {
+				String cn = CertPathUtil.getSubjectsCn(certificate);
+				LOGGER.debug("Certificate {} validation failed: destination doesn't match", cn);
+				throw new SSLPeerUnverifiedException(
+						"Certificate " + cn + ": Destination '" + hostname + "' doesn't match!");
+			}
+		} else {
+			if (!CertPathUtil.matchLiteralIP(certificate, literalIp)) {
+				String cn = CertPathUtil.getSubjectsCn(certificate);
+				LOGGER.debug("Certificate {} validation failed: literal IP doesn't match", cn);
+				throw new SSLPeerUnverifiedException(
+						"Certificate " + cn + ": Literal IP " + literalIp + " doesn't match!");
+			}
+		}
+	}
+
 }

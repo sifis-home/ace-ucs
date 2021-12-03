@@ -175,24 +175,24 @@ public class OSCOREProfileRequests {
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token);
+        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
         
         byte[] n1 = new byte[8];
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         
         byte[] recipientId = null;
+		byte[] contextId = new byte[0];
         int recipientIdAsInt = -1;
         boolean found = false;
         
         // Determine an available Recipient ID to offer to the Resource Server as ID1
-        byte[] contextId = new byte[0];
         synchronized(usedRecipientIds) {
         	synchronized(db) {
         	
 	        	int maxIdValue;
 	        	
-                if (cnf.get(Constants.OSCORE_Input_Material).ContainsKey(Constants.OS_CONTEXTID)) {
+    			if (cnf.get(Constants.OSCORE_Input_Material).ContainsKey(Constants.OS_CONTEXTID)) {
     				contextId = cnf.get(Constants.OSCORE_Input_Material).get(Constants.OS_CONTEXTID).GetByteString();
     			}
 	        	
@@ -325,7 +325,7 @@ public class OSCOREProfileRequests {
         			
 				// Double check in the database that the OSCORE Security Context
 				// with the selected Recipient ID is actually still not present
-                if (db.getContext(recipientId, contextId) != null) {
+    			if (db.getContext(recipientId, contextId) != null) {
     				// A Security Context with this Recipient ID exists!
     				install = false;
     			}        			
@@ -390,7 +390,7 @@ public class OSCOREProfileRequests {
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token);
+        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
         
     	CoapResponse resp = null;
 

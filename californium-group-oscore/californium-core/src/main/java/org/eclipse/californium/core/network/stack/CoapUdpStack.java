@@ -24,20 +24,17 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.core.network.Outbox;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.config.Configuration;
 
 /**
  * The CoAPStack builds up the stack of CoAP layers that process the CoAP
  * protocol.
  * <p>
  * The complete process for incoming and outgoing messages is visualized below.
- * The class <code>CoapStack</code> builds up the part between the Stack Top and
+ * The class {@link CoapStack} builds up the part between the Stack Top and
  * Bottom.
  * <hr><blockquote><pre>
  * +--------------------------+
@@ -77,48 +74,38 @@ import org.eclipse.californium.elements.Connector;
  */
 public class CoapUdpStack extends BaseCoapStack {
 
-	/** The LOGGER. */
-	private final static Logger LOGGER = LoggerFactory.getLogger(CoapStack.class);
-
 	/**
 	 * Creates a new stack for UDP as the transport.
 	 * 
 	 * @param tag logging tag
 	 * @param config The configuration values to use.
 	 * @param outbox The adapter for submitting outbound messages to the transport.
-	 * @since 3.0 logging tag added
+	 * @since 3.0 (logging tag added and changed parameter to Configuration)
 	 */
-	public CoapUdpStack(String tag, NetworkConfig config, Outbox outbox) {
+	public CoapUdpStack(String tag, Configuration config, Outbox outbox) {
 		super(outbox);
 		Layer layers[] = new Layer[] {
 				createExchangeCleanupLayer(config),
 				createObserveLayer(config),
 				createBlockwiseLayer(tag, config),
-				createReliabilityLayer(config)};
+				createReliabilityLayer(tag, config)};
 
 		setLayers(layers);
 	}
 
-	protected Layer createExchangeCleanupLayer(NetworkConfig config) {
+	protected Layer createExchangeCleanupLayer(Configuration config) {
 		return new ExchangeCleanupLayer(config);
 	}
 
-	protected Layer createObserveLayer(NetworkConfig config) {
+	protected Layer createObserveLayer(Configuration config) {
 		return new ObserveLayer(config);
 	}
 
-	protected Layer createBlockwiseLayer(String tag,NetworkConfig config) {
+	protected Layer createBlockwiseLayer(String tag, Configuration config) {
 		return new BlockwiseLayer(tag, false, config);
 	}
 
-	protected Layer createReliabilityLayer(NetworkConfig config) {
-		ReliabilityLayer reliabilityLayer;
-		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL) == true) {
-			reliabilityLayer = CongestionControlLayer.newImplementation(config);
-			LOGGER.info("Enabling congestion control: {}", reliabilityLayer.getClass().getSimpleName());
-		} else {
-			reliabilityLayer = new ReliabilityLayer(config);
-		}
-		return reliabilityLayer;
+	protected Layer createReliabilityLayer(String tag, Configuration config) {
+		return CongestionControlLayer.newImplementation(tag, config);
 	}
 }

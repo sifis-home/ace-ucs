@@ -17,12 +17,14 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,14 +37,20 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 	static final Logger LOGGER = LoggerFactory.getLogger(ExchangeCleanupLayer.class);
 
 	/**
-	 * Multicast lifetime in milliseconds.
+	 * Multicast and NoResponse lifetime in milliseconds.
 	 */
-	private final int multicastLifetime;
+	private final int lifetime;
 
-	public ExchangeCleanupLayer(final NetworkConfig config) {
-		this.multicastLifetime = config.getInt(NetworkConfig.Keys.NON_LIFETIME)
-				+ config.getInt(NetworkConfig.Keys.MAX_LATENCY)
-				+ config.getInt(NetworkConfig.Keys.MAX_SERVER_RESPONSE_DELAY);
+	/**
+	 * Create exchange cleanup layer.
+	 * 
+	 * @param config configuration
+	 * @since 3.0 (changed parameter to Configuration)
+	 */
+	public ExchangeCleanupLayer(final Configuration config) {
+		this.lifetime = config.getTimeAsInt(CoapConfig.NON_LIFETIME, TimeUnit.MILLISECONDS)
+				+ config.getTimeAsInt(CoapConfig.MAX_LATENCY, TimeUnit.MILLISECONDS)
+				+ config.getTimeAsInt(CoapConfig.MAX_SERVER_RESPONSE_DELAY, TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -56,9 +64,13 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
 		if (request.isMulticast()) {
-			request.addMessageObserver(new MulticastCleanupMessageObserver(exchange, executor, multicastLifetime));
+			request.addMessageObserver(new MulticastCleanupMessageObserver(exchange, executor, lifetime));
 		} else {
-			request.addMessageObserver(new CleanupMessageObserver(exchange));
+			if (request.getOptions().hasNoResponse()) {
+				request.addMessageObserver(new NoResponseCleanupMessageObserver(exchange, executor, lifetime));
+			} else {
+				request.addMessageObserver(new CleanupMessageObserver(exchange));
+			}
 		}
 		super.sendRequest(exchange, request);
 	}

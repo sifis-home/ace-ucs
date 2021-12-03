@@ -119,7 +119,7 @@ public class CookieGeneratorTest {
 				SignatureAndHashAlgorithm.DEFAULT, Collections.<CertificateType> emptyList(),
 				Collections.<CertificateType> emptyList(), Collections.singletonList(SupportedGroup.secp256r1));
 		byte[] cookie1 = generator.generateCookie(peerAddress, clientHello1);
-		time.addTestTimeShift(CookieGenerator.COOKIE_LIFE_TIME + 1000, TimeUnit.NANOSECONDS);
+		time.addTestTimeShift(CookieGenerator.COOKIE_LIFETIME_NANOS + 1000, TimeUnit.NANOSECONDS);
 		byte[] cookie2 = generator.generateCookie(peerAddress, clientHello1);
 		byte[] cookie3 = generator.generatePastCookie(peerAddress, clientHello1);
 
@@ -157,7 +157,7 @@ public class CookieGeneratorTest {
 							errors.add(e);
 						}
 						if (flushTime) {
-							time.addTestTimeShift(CookieGenerator.COOKIE_LIFE_TIME + 1000, TimeUnit.NANOSECONDS);
+							time.addTestTimeShift(CookieGenerator.COOKIE_LIFETIME_NANOS + 1000, TimeUnit.NANOSECONDS);
 						}
 						done.countDown();
 					}
@@ -171,7 +171,7 @@ public class CookieGeneratorTest {
 			for (Bytes cookie : cookies) {
 				set.add(cookie);
 			}
-			LOGGER.warn("{} cookies of {}", set.size(), numOfCookies);
+			LOGGER.debug("{} cookies of {}", set.size(), numOfCookies);
 			assertThat("too many different cookies", set.size(), is(lessThanOrEqualTo(numOfCookies)));
 			if (!errors.isEmpty()) {
 				for (Throwable t : errors) {

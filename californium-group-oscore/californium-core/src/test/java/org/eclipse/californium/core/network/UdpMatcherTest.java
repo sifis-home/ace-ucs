@@ -28,7 +28,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Matchers.notNull;
+import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -45,13 +45,13 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.EndpointContextOperator;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.MatcherTestUtils.TestEndpointReceiver;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
-import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
@@ -86,11 +86,11 @@ public class UdpMatcherTest {
 	
 	@Before
 	public void before(){
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+		Configuration config = Configuration.createStandardWithoutFile();
 		scheduler = MatcherTestUtils.newScheduler();
 		cleanup.add(scheduler);
 		tokenProvider = new RandomTokenGenerator(config);
-		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider, new UdpEndpointContextMatcher());
+		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
 		observationStore =  new InMemoryObservationStore(config);
 		exchangeEndpointContext = mock(EndpointContext.class);
 		responseEndpointContext = mock(EndpointContext.class);
@@ -151,7 +151,7 @@ public class UdpMatcherTest {
 		UdpMatcher matcher = newUdpMatcher();
 		Exchange exchange = sendRequest(dest, matcher, null);
 		// WHEN request gets completed
-		exchange.setComplete();
+		exchange.executeComplete();
 
 		// THEN assert that token got released in both stores
 		Request request = exchange.getCurrentRequest();
@@ -168,7 +168,7 @@ public class UdpMatcherTest {
 		Exchange exchange = sendObserveRequest(dest, matcher, exchangeEndpointContext);
 
 		// WHEN observe request gets completed
-		exchange.setComplete();
+		exchange.executeComplete();
 
 		// THEN assert that token got released in message exchange store
 		// THEN assert that token got not released in observation store
@@ -207,7 +207,7 @@ public class UdpMatcherTest {
 		// GIVEN a request that has not been sent yet
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
-		Exchange exchange = new Exchange(request, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		Exchange exchange = new Exchange(request, dest, Origin.LOCAL, TestSynchroneExecutor.TEST_EXECUTOR);
 
 		MessageExchangeStore exchangeStore = mock(MessageExchangeStore.class);
 		when(exchangeStore.registerOutboundRequest(exchange)).thenReturn(false);
@@ -231,7 +231,7 @@ public class UdpMatcherTest {
 
 		UdpMatcher matcher = newUdpMatcher();
 
-		Exchange exchange = sendRequest(dest, matcher, endpointContextOperator, preEndpointContext);
+		Exchange exchange = sendRequest(dest, false, matcher, endpointContextOperator, preEndpointContext);
 		TestEndpointReceiver receiver = new TestEndpointReceiver();
 
 		// WHEN a response arrives with arbitrary additional endpoint information

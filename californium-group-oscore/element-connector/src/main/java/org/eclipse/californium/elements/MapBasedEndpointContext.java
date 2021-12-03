@@ -36,6 +36,32 @@ import org.eclipse.californium.elements.util.Bytes;
 public class MapBasedEndpointContext extends AddressEndpointContext {
 
 	/**
+	 * Set of attribute definitions.
+	 * 
+	 * Only String, Integer, Long, Boolean, InetSocketAddress and Bytes are
+	 * supported.
+	 * 
+	 * @since 3.0
+	 */
+	public static final Definitions<Definition<?>> ATTRIBUTE_DEFINITIONS = new Definitions<Definition<?>>(
+			"EndpointContextAttributes") {
+
+		public Definition<?> addIfAbsent(Definition<?> definition) {
+			if (definition == null) {
+				throw new NullPointerException();
+			}
+			Class<?> valueType = definition.getValueType();
+			if (valueType != String.class && valueType != Integer.class && valueType != Long.class
+					&& valueType != Boolean.class && valueType != InetSocketAddress.class
+					&& !Bytes.class.isAssignableFrom(valueType)) {
+				throw new IllegalArgumentException(valueType
+						+ " is not supported, only String, Integer, Long, Boolean, InetSocketAddress and Bytes!");
+			}
+			return super.addIfAbsent(definition);
+		}
+	};
+
+	/**
 	 * Prefix for none critical attributes. These attributes are not considered
 	 * for context matching nor {@link #hasCriticalEntries()}.
 	 */
@@ -49,46 +75,7 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	/**
 	 * (Unmodifiable) map of attributes.
 	 */
-	private final Map<String, Object> entries;
-
-	/**
-	 * Creates a context for a socket address, authenticated identity and
-	 * arbitrary key/value pairs.
-	 * 
-	 * @param peerAddress peer address of endpoint context
-	 * @param peerIdentity peer identity of endpoint context
-	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
-	 *            value_1, key_2, value_2 ...)
-	 * @throws NullPointerException if provided peer address is {@code null},
-	 *             the provided attributes is {@code null}, or one of the
-	 *             attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd size
-	 *             or contains a duplicate key.
-	 */
-	public MapBasedEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String... attributes) {
-
-		this(peerAddress, null, peerIdentity, attributes);
-	}
-
-	/**
-	 * Creates a context for a socket address, authenticated identity and
-	 * arbitrary key/value pairs.
-	 * 
-	 * @param peerAddress peer address of endpoint context
-	 * @param virtualHost the name of the virtual host at the peer
-	 * @param peerIdentity peer identity of endpoint context
-	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
-	 *            value_1, key_2, value_2 ...)
-	 * @throws NullPointerException if provided peer address is {@code null},
-	 *             the provided attributes is {@code null}, or one of the
-	 *             attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd size
-	 *             or contains a duplicate key.
-	 */
-	public MapBasedEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
-			String... attributes) {
-		this(peerAddress, virtualHost, peerIdentity, createAttributes(attributes));
-	}
+	private final Map<Definition<?>, Object> entries;
 
 	/**
 	 * Creates a new endpoint context with correlation context support.
@@ -130,39 +117,6 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	}
 
 	/**
-	 * Create map of attributes.
-	 * 
-	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
-	 *            value_1, key_2, value_2 ...)
-	 * @return create map
-	 * @throws NullPointerException if the provided attributes is {@code null},
-	 *             or one of the critical attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd size
-	 *             or contains a duplicate key.
-	 */
-	private static final Attributes createAttributes(String... attributes) {
-		if (attributes == null) {
-			throw new NullPointerException("attributes must not null!");
-		}
-		if ((attributes.length & 1) != 0) {
-			throw new IllegalArgumentException("number of attributes must be even, not " + attributes.length + "!");
-		}
-		Attributes entries = new Attributes();
-		for (int index = 0; index < attributes.length; ++index) {
-			try {
-				String key = attributes[index];
-				String value = attributes[++index];
-				entries.add(key, value);
-			} catch (NullPointerException ex) {
-				throw new NullPointerException((index / 2) + ". " + ex.getMessage());
-			} catch (IllegalArgumentException ex) {
-				throw new IllegalArgumentException((index / 2) + ". " + ex.getMessage());
-			}
-		}
-		return entries;
-	}
-
-	/**
 	 * Check, if at least one critical attribute is contained in the provided
 	 * map.
 	 * 
@@ -172,22 +126,23 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 * @param attributes map of attributes
 	 * @return {@code true}, if at least one critical attribute is contained.
 	 */
-	private static final boolean findCriticalEntries(Map<String, Object> attributes) {
-		for (String key : attributes.keySet()) {
-			if (!key.startsWith(KEY_PREFIX_NONE_CRITICAL)) {
+	private static final boolean findCriticalEntries(Map<Definition<?>, Object> attributes) {
+		for (Definition<?> key : attributes.keySet()) {
+			if (!key.getKey().startsWith(KEY_PREFIX_NONE_CRITICAL)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public Object get(String key) {
-		return entries.get(key);
+	public <T> T get(Definition<T> key) {
+		return (T) entries.get(key);
 	}
 
 	@Override
-	public Map<String, Object> entries() {
+	public Map<Definition<?>, Object> entries() {
 		return entries;
 	}
 
@@ -205,23 +160,6 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 * Set entries to endpoint context.
 	 * 
 	 * @param context original endpoint context.
-	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
-	 *            value_1, key_2, value_2 ...)..
-	 * @return new endpoint context with attributes.
-	 * @throws NullPointerException if the provided attributes is {@code null},
-	 *             or one of the attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd size
-	 *             or contains a duplicate key.
-	 *             @since 3.0
-	 */
-	public static MapBasedEndpointContext setEntries(EndpointContext context, String... attributes) {
-		return setEntries(context, createAttributes(attributes));
-	}
-
-	/**
-	 * Set entries to endpoint context.
-	 * 
-	 * @param context original endpoint context.
 	 * @param attributes map of attributes.
 	 * @return new endpoint context with attributes.
 	 * @throws NullPointerException if the provided attributes is {@code null}
@@ -230,23 +168,6 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	public static MapBasedEndpointContext setEntries(EndpointContext context, Attributes attributes) {
 		return new MapBasedEndpointContext(context.getPeerAddress(), context.getVirtualHost(),
 				context.getPeerIdentity(), attributes);
-	}
-
-	/**
-	 * Add entries to endpoint context.
-	 * 
-	 * @param context original endpoint context.
-	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
-	 *            value_1, key_2, value_2 ...). The provided attributes may
-	 *            overwrite already available ones.
-	 * @return new endpoint context with additional attributes.
-	 * @throws NullPointerException if the provided attributes is {@code null},
-	 *             or one of the attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd size
-	 *             or contains a duplicate key.
-	 */
-	public static MapBasedEndpointContext addEntries(EndpointContext context, String... attributes) {
-		return addEntries(context, createAttributes(attributes));
 	}
 
 	/**
@@ -277,14 +198,14 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 *             contained in the original context.
 	 * @since 2.1
 	 */
-	public static MapBasedEndpointContext removeEntries(EndpointContext context, String... attributes) {
+	public static MapBasedEndpointContext removeEntries(EndpointContext context, Definition<?>... attributes) {
 		if (attributes == null) {
 			throw new NullPointerException("attributes must not null!");
 		}
 		Attributes entries = new Attributes(context.entries());
 		for (int index = 0; index < attributes.length; ++index) {
 			try {
-				String key = attributes[index];
+				Definition<?> key = attributes[index];
 				if (!entries.remove(key)) {
 					throw new IllegalArgumentException(index + ". key '" + key + "' is not contained");
 				}
@@ -316,7 +237,7 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		/**
 		 * Map of attributes.
 		 */
-		private final Map<String, Object> entries = new HashMap<>();
+		private final Map<Definition<?>, Object> entries = new HashMap<>();
 		/**
 		 * Protect attributes from further modification.
 		 */
@@ -333,15 +254,18 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		 * 
 		 * @param entries available entries.
 		 */
-		private Attributes(Map<String, Object> entries) {
+		private Attributes(Map<Definition<?>, Object> entries) {
 			this.entries.putAll(entries);
 		}
 
 		/**
 		 * Lock attributes. Protect from further modifications.
+		 * 
+		 * @return this for chaining
 		 */
-		public void lock() {
+		public Attributes lock() {
 			lock = true;
+			return this;
 		}
 
 		/**
@@ -366,114 +290,53 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		/**
 		 * Add value for key.
 		 * 
-		 * @param key key to add
+		 * @param <T> value type. Support String, Integer, Long, Boolean,
+		 *            InetSocketAddress and Bytes. Other types may break
+		 *            serialization, especially custom serialization!
+		 * @param definition definition to add. Must be contained in
+		 *            {@link MapBasedEndpointContext#ATTRIBUTE_DEFINITIONS}.
 		 * @param value value to add
+		 * @return this for chaining
 		 * @throws NullPointerException if key is {@code null}, or a critical
 		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty
+		 * @throws IllegalArgumentException if key is empty or the definition is
+		 *             not contained in
+		 *             {@link MapBasedEndpointContext#ATTRIBUTE_DEFINITIONS}.
 		 * @throws IllegalStateException if instance is locked
 		 */
-		private void addObject(String key, Object value) {
+		public <T> Attributes add(Definition<T> definition, T value) {
 			if (lock) {
 				throw new IllegalStateException("Already in use!");
-			} else if (null == key) {
+			} else if (null == definition) {
 				throw new NullPointerException("key is null");
-			} else if (key.isEmpty()) {
-				throw new IllegalArgumentException("key is empty");
 			} else if (null == value) {
-				if (!key.startsWith(KEY_PREFIX_NONE_CRITICAL)) {
+				if (!definition.getKey().startsWith(KEY_PREFIX_NONE_CRITICAL)) {
 					throw new NullPointerException("value is null");
 				}
-			} else if (entries.put(key, value) != null) {
-				throw new IllegalArgumentException("'" + key + "' already contained!");
 			}
-		}
-
-		/**
-		 * Add {@link String} value with key.
-		 * 
-		 * Provides a fluent API to chain add functions.
-		 * 
-		 * @param key key to add
-		 * @param value value to add
-		 * @return this for chaining
-		 * @throws NullPointerException if key is {@code null}, or a critical
-		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty
-		 * @throws IllegalStateException if instance is locked
-		 */
-		public Attributes add(String key, String value) {
-			addObject(key, value);
-			return this;
-		}
-
-		/**
-		 * Add {@link Integer} value with key.
-		 * 
-		 * Provides a fluent API to chain add functions.
-		 * 
-		 * @param key key to add
-		 * @param value value to add
-		 * @return this for chaining
-		 * @throws NullPointerException if key is {@code null}, or a critical
-		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty
-		 * @throws IllegalStateException if instance is locked
-		 */
-		public Attributes add(String key, Integer value) {
-			addObject(key, value);
-			return this;
-		}
-
-		/**
-		 * Add {@link Long} value with key.
-		 * 
-		 * Provides a fluent API to chain add functions.
-		 * 
-		 * @param key key to add
-		 * @param value value to add
-		 * @return this for chaining
-		 * @throws NullPointerException if key is {@code null}, or a critical
-		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty
-		 * @throws IllegalStateException if instance is locked
-		 */
-		public Attributes add(String key, Long value) {
-			addObject(key, value);
-			return this;
-		}
-
-		/**
-		 * Add {@link Bytes} value with key.
-		 * 
-		 * Provides a fluent API to chain add functions.
-		 * 
-		 * @param key key to add
-		 * @param value value to add
-		 * @return this for chaining
-		 * @throws NullPointerException if key is {@code null}, or a critical
-		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty
-		 * @throws IllegalStateException if instance is locked
-		 */
-		public Attributes add(String key, Bytes value) {
-			addObject(key, value);
+			if (!ATTRIBUTE_DEFINITIONS.contains(definition)) {
+				throw new IllegalArgumentException(definition + " is not supported!");
+			}
+			if (value == null) {
+				entries.remove(definition);
+			} else if (entries.put(definition, value) != null) {
+				throw new IllegalArgumentException("'" + definition + "' already contained!");
+			}
 			return this;
 		}
 
 		/**
 		 * Check, if attribute is available.
 		 * 
+		 * @param <T> value type
 		 * @param key the key to check
 		 * @return {@code true}, if available, {@code false}, if not.
 		 * @throws NullPointerException if key is {@code null}
 		 * @throws IllegalArgumentException if key is empty
 		 */
-		public boolean contains(String key) {
+		public <T> boolean contains(Definition<T> key) {
 			if (null == key) {
 				throw new NullPointerException("key is null");
-			} else if (key.isEmpty()) {
-				throw new IllegalArgumentException("key is empty");
 			}
 			return entries.containsKey(key);
 		}
@@ -481,19 +344,18 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		/**
 		 * Remove attribute.
 		 * 
+		 * @param <T> value type
 		 * @param key key to remove
 		 * @return {@code true}, if available, {@code false}, if not.
 		 * @throws NullPointerException if key is {@code null}
 		 * @throws IllegalArgumentException if key is empty
 		 * @throws IllegalStateException if instance is locked
 		 */
-		public boolean remove(String key) {
+		public <T> boolean remove(Definition<T> key) {
 			if (lock) {
 				throw new IllegalStateException("Already in use!");
 			} else if (null == key) {
 				throw new NullPointerException("key is null");
-			} else if (key.isEmpty()) {
-				throw new IllegalArgumentException("key is empty");
 			}
 			return entries.remove(key) != null;
 		}

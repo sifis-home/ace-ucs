@@ -35,13 +35,13 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.HashMapCtxDB;
@@ -143,7 +143,7 @@ public class GroupOscoreServer {
 		//Initialize random number generator
 		random = new Random();
 		
-		NetworkConfig config = NetworkConfig.getStandard();
+		Configuration config = Configuration.getStandard();
 		CoapServer server = new CoapServer(config);
         createEndpoints(server, multicastIP, listenPort, listenPort, config);
         Endpoint serverEndpoint = server.getEndpoint(listenPort);
@@ -188,7 +188,7 @@ public class GroupOscoreServer {
      * @param config
      */
     private static void createEndpoints(CoapServer server, InetAddress multicastIP, int unicastPort, int multicastPort,
-            NetworkConfig config) {
+            Configuration config) {
         // UDPConnector udpConnector = new UDPConnector(new
         // InetSocketAddress(unicastPort));
         // udpConnector.setReuseAddress(true);
@@ -207,9 +207,9 @@ public class GroupOscoreServer {
         if (!ipv4 && NetworkInterfacesUtil.isAnyIpv6()) {
             Inet6Address ipv6 = NetworkInterfacesUtil.getMulticastInterfaceIpv6();
             System.out.println("Multicast: IPv6 Network Address: " + StringUtil.toString(ipv6));
-            UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(ipv6, unicastPort));
+            UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(ipv6, unicastPort), config);
             udpConnector.setReuseAddress(true);
-            CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector)
+            CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setConfiguration(config).setConnector(udpConnector)
                     .build();
 
             builder = new UdpMulticastConnector.Builder().setLocalAddress(multicastIP, multicastPort)
@@ -230,9 +230,9 @@ public class GroupOscoreServer {
         if (ipv4 && NetworkInterfacesUtil.isAnyIpv4()) {
             Inet4Address ipv4 = NetworkInterfacesUtil.getMulticastInterfaceIpv4();
             System.out.println("Multicast: IPv4 Network Address: " + StringUtil.toString(ipv4));
-            UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(ipv4, unicastPort));
+            UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(ipv4, unicastPort), config);
             udpConnector.setReuseAddress(true);
-            CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector)
+            CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setConfiguration(config).setConnector(udpConnector)
                     .build();
 
             builder = new UdpMulticastConnector.Builder().setLocalAddress(multicastIP, multicastPort)
@@ -249,9 +249,9 @@ public class GroupOscoreServer {
             System.out.println("IPv4 - multicast");
         }
         UDPConnector udpConnector = new UDPConnector(
-                new InetSocketAddress(InetAddress.getLoopbackAddress(), unicastPort));
+                new InetSocketAddress(InetAddress.getLoopbackAddress(), unicastPort), config);
         udpConnector.setReuseAddress(true);
-        CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector)
+        CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setConfiguration(config).setConnector(udpConnector)
                 .build();
         server.addEndpoint(coapEndpoint);
         System.out.println("loopback");

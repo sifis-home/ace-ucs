@@ -17,6 +17,7 @@ package org.eclipse.californium.plugtests.tests;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
@@ -114,7 +115,7 @@ public class CO04 extends TestClientAbstract {
 							// print response info
 							if (verbose) {
 								System.out.println("Response received");
-								System.out.println("Time elapsed (ms): " + response.getRTT());
+								System.out.println("Time elapsed (ms): " + TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 								Utils.prettyPrint(response);
 							}
 
@@ -131,6 +132,7 @@ public class CO04 extends TestClientAbstract {
 								System.out.println("++++ obs-reset PUT ++++");
 								Request asyncRequest = new Request(Code.POST, Type.CON);
 								asyncRequest.setPayload("sesame");
+								addContextObserver(asyncRequest);
 								asyncRequest.setURI(serverURI + "/obs-reset");
 								asyncRequest.addMessageObserver(new MessageObserverAdapter() {
 
@@ -155,6 +157,7 @@ public class CO04 extends TestClientAbstract {
 							// do it manually
 							System.out.println("+++++ Re-registering +++++");
 							Request reregister = Request.newGet();
+							addContextObserver(reregister);
 							reregister.setURI(uri);
 							reregister.setToken(request.getToken());
 							reregister.setObserve();

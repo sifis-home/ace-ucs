@@ -29,13 +29,17 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * Utils for TCP based connector tests.
@@ -55,13 +59,15 @@ public class ConnectorTestUtil {
 	public static final ThreadsRule THREADS_RULE = new ThreadsRule("ObjectCleanerThread", "globalEventExecutor-.*");
 
 	static {
+		TcpConfig.register();
+		Configuration configuration = new Configuration();
 		// Ensure to create the thread groups before the Timeout rule.
 		// Otherwise ThreadGroup.destroy() in FailOnTimeout.evaluate()
 		// would destroy them and cause failures when reusing the destroyed
 		// thread-groups.
 		// see https://github.com/junit-team/junit4/pull/1517
-		new TcpClientConnector(0, 0, 0);
-		new TcpServerConnector(null, 0, 0);
+		new TcpClientConnector(configuration);
+		new TcpServerConnector(null, configuration);
 	}
 
 	public static void stop(List<Connector> list) {
@@ -69,6 +75,14 @@ public class ConnectorTestUtil {
 			connector.stop();
 		}
 		list.clear();
+	}
+	
+	public static Configuration getTestConfiguration() {
+		Configuration configuration = new Configuration();
+		configuration.set(TcpConfig.TCP_WORKER_THREADS, NUMBER_OF_THREADS);
+		configuration.set(TcpConfig.TCP_CONNECT_TIMEOUT, CONNECTION_TIMEOUT_IN_MS, TimeUnit.MILLISECONDS);
+		configuration.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, IDLE_TIMEOUT_IN_S, TimeUnit.SECONDS);
+		return configuration;
 	}
 
 	public static InetSocketAddress createServerAddress(int port) {
@@ -85,8 +99,7 @@ public class ConnectorTestUtil {
 
 	public static RawData createMessage(int messageSize, EndpointContext contextToSent, MessageCallback callback)
 			throws Exception {
-		byte[] data = new byte[messageSize];
-		random.nextBytes(data);
+		byte[] data = Bytes.createBytes(random, messageSize);
 
 		try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
 			if (messageSize < 13) {

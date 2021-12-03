@@ -28,12 +28,8 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public final class ApplicationMessage implements DTLSMessage {
 
-	// Members ////////////////////////////////////////////////////////
-
 	/** The (to the record layer) transparent data. */
 	private final byte[] data;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * Creates a new <em>APPLICATION_DATA</em> message containing specific data.
@@ -52,21 +48,23 @@ public final class ApplicationMessage implements DTLSMessage {
 		this.data = data;
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public ContentType getContentType() {
 		return ContentType.APPLICATION_DATA;
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tApplication Data: ").append(StringUtil.byteArray2Hex(data)).append(StringUtil.lineSeparator());
+		String indentation = StringUtil.indentation(indent);
+		sb.append(indentation).append("Application Data: ").append(StringUtil.byteArray2HexString(data, StringUtil.NO_SEPARATOR, 32)).append(StringUtil.lineSeparator());
 		return sb.toString();
 	}
 
-	// Serialization //////////////////////////////////////////////////
+	@Override
+	public String toString() {
+		return toString();
+	}
 
 	@Override
 	public int size() {
@@ -92,8 +90,6 @@ public final class ApplicationMessage implements DTLSMessage {
 	public static DTLSMessage fromByteArray(byte[] byteArray) {
 		return new ApplicationMessage(byteArray);
 	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	public byte[] getData() {
 		return data;

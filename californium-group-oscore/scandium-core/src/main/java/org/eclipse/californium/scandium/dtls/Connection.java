@@ -42,11 +42,12 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ConcurrentModificationException;
 import java.util.Objects;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
-import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DataStreamReader;
@@ -56,7 +57,6 @@ import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SerialExecutor.ExecutionListener;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -79,14 +79,22 @@ public final class Connection {
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();
 
+	private volatile ConnectionListener connectionListener;
+
 	/**
 	 * Identifier of the Client Hello used to start the handshake. Maybe
-	 * {@code null}, for client side connections. Note: used outside of
-	 * the serial-execution!
+	 * {@code null}, for client side connections.
+	 * 
+	 * Note: used outside of the serial-execution!
 	 * 
 	 * @since 3.0
 	 */
 	private volatile ClientHelloIdentifier startingHelloClient;
+
+	private volatile DTLSContext establishedDtlsContext;
+
+	// Used to know when an abbreviated handshake should be initiated
+	private volatile boolean resumptionRequired; 
 
 	/**
 	 * Expired real time nanoseconds of the last message send or received.
@@ -97,7 +105,6 @@ public final class Connection {
 	private InetSocketAddress peerAddress;
 	private InetSocketAddress router;
 	private ConnectionId cid;
-	private DTLSSession resumeSession;
 
 	/**
 	 * Root cause of alert.
@@ -110,80 +117,20 @@ public final class Connection {
 	 */
 	private AlertMessage rootCause;
 
-	private volatile DTLSContext establishedDtlsContext;
-	// Used to know when an abbreviated handshake should be initiated
-	private volatile boolean resumptionRequired; 
-
-	private volatile ConnectionListener connectionListener;
-
 	/**
 	 * Creates a new connection to a given peer.
 	 * 
 	 * @param peerAddress the IP address and port of the peer the connection exists with
-	 * @param serialExecutor serial executor.
-	 * @throws NullPointerException if the peer address or the serial executor is {@code null}
+	 * @throws NullPointerException if the peer address is {@code null}
 	 */
-	public Connection(InetSocketAddress peerAddress, SerialExecutor serialExecutor) {
+	public Connection(InetSocketAddress peerAddress) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
-		} else if (serialExecutor == null) {
-			throw new NullPointerException("Serial executor must not be null");
 		} else {
 			long now = ClockUtil.nanoRealtime();
-			this.resumeSession = null;
 			this.peerAddress = peerAddress;
-			this.serialExecutor = serialExecutor;
 			this.lastPeerAddressNanos = now;
 			this.lastMessageNanos = now;
-		}
-	}
-
-	/**
-	 * Creates a new connection from a session ticket containing <em>current</em> state from another
-	 * connection that should be resumed.
-	 * 
-	 * The connection is not {@link #isExecuting()}.
-	 * 
-	 * @param session The other connection's session.
-	 * @throws NullPointerException if the session is {@code null}
-	 */
-	public Connection(DTLSSession session) {
-		if (session == null) {
-			throw new NullPointerException("session must not be null");
-		} else {
-			this.resumeSession = session;
-			this.resumptionRequired = true;
-			this.cid = null;
-			this.serialExecutor = null;
-		}
-	}
-
-	/**
-	 * Set execution listener.
-	 * 
-	 * @param listener listener to set.
-	 * @since 2.4
-	 */
-	public void setExecutionListener(final ConnectionListener listener) {
-		this.connectionListener = listener;
-		SerialExecutor executor = this.serialExecutor;
-		if (executor != null) {
-			if (listener == null) {
-				executor.setExecutionListener(null);
-			} else {
-				executor.setExecutionListener(new ExecutionListener() {
-
-					@Override
-					public void beforeExecution() {
-						listener.beforeExecution(Connection.this);
-					}
-
-					@Override
-					public void afterExecution() {
-						listener.afterExecution(Connection.this);
-					}
-				});
-			}
 		}
 	}
 
@@ -202,28 +149,44 @@ public final class Connection {
 	}
 
 	/**
-	 * Set new executor to restart execution for stopped connection.
+	 * Set connector's context.
 	 * 
-	 * @param serialExecutor new serial executor
-	 * @throws NullPointerException if the serial executor is {@code null}
+	 * @param executor executor to be used for {@link SerialExecutor}.
+	 * @param listener connection listener.
+	 * @return this connection
 	 * @throws IllegalStateException if the connection is already executing
+	 * @since 3.0 (combines previous setExecutor and setExecutionListener) 
 	 */
-	public void setExecutor(SerialExecutor serialExecutor) {
-		if (serialExecutor == null) {
-			throw new NullPointerException("Serial executor must not be null1");
-		} else if (isExecuting()) {
-			throw new IllegalStateException("Serial executor already available!");
+	public Connection setConnectorContext(Executor executor, ConnectionListener listener) {
+		if (isExecuting()) {
+			throw new IllegalStateException("Executor already available!");
 		}
-		this.serialExecutor = serialExecutor;
-		setExecutionListener(this.connectionListener);
+		this.serialExecutor = new SerialExecutor(executor);
+		this.connectionListener = listener;
+		if (listener == null) {
+			serialExecutor.setExecutionListener(null);
+		} else {
+			serialExecutor.setExecutionListener(new ExecutionListener() {
+
+				@Override
+				public void beforeExecution() {
+					connectionListener.beforeExecution(Connection.this);
+				}
+
+				@Override
+				public void afterExecution() {
+					connectionListener.afterExecution(Connection.this);
+				}
+			});
+		}
+		return this;
 	}
 
 	/**
 	 * Gets the serial executor assigned to this connection.
 	 * 
-	 * @return serial executor. May be {@code null}, if the connection was
-	 *         created with {@link #Connection(DTLSSession)}
-	 *         or restored on startup.
+	 * @return serial executor. May be {@code null}, if the connection is
+	 *         restored on startup.
 	 */
 	public SerialExecutor getExecutor() {
 		return serialExecutor;
@@ -259,18 +222,7 @@ public final class Connection {
 	 *         contains a session that it can be resumed from.
 	 */
 	public boolean isActive() {
-		return establishedDtlsContext != null || resumeSession != null;
-	}
-
-	/**
-	 * Gets the session to resume.
-	 * 
-	 * @return The session or {@code null}, if this connection has not been
-	 *         created for resumption.
-	 * @since 3.0
-	 */
-	public DTLSSession getResumeSession() {
-		return resumeSession;
+		return establishedDtlsContext != null;
 	}
 
 	/**
@@ -281,7 +233,7 @@ public final class Connection {
 	 */
 	public boolean expectCid() {
 		DTLSContext context = getDtlsContext();
-		return context != null && context.getWriteConnectionId() != null;
+		return context != null && ConnectionId.useConnectionId(context.getReadConnectionId());
 	}
 
 	/**
@@ -405,15 +357,15 @@ public final class Connection {
 	/**
 	 * Get endpoint context for writing messages.
 	 * 
+	 * @param attributes initial attributes
 	 * @return endpoint context for writing messages.
 	 * @throws IllegalStateException if dtls context is not established
 	 * @since 3.0
 	 */
-	public DtlsEndpointContext getWriteContext() {
+	public DtlsEndpointContext getWriteContext(Attributes attributes) {
 		if (establishedDtlsContext == null) {
 			throw new IllegalStateException("DTLS context must be established!");
 		}
-		MapBasedEndpointContext.Attributes attributes = new MapBasedEndpointContext.Attributes();
 		establishedDtlsContext.addWriteEndpointContext(attributes);
 		if (router != null) {
 			attributes.add(DtlsEndpointContext.KEY_VIA_ROUTER, "dtls-cid-router");
@@ -424,17 +376,17 @@ public final class Connection {
 
 	/**
 	 * Get endpoint context for reading messages.
-	 * 
+	 * @param attributes initial attributes
 	 * @param recordsPeer peer address of record. Only used, if connection has
 	 *            no {@link #peerAddress}.
+	 * 
 	 * @return endpoint context for reading messages.
 	 * @since 3.0
 	 */
-	public DtlsEndpointContext getReadContext(InetSocketAddress recordsPeer) {
+	public DtlsEndpointContext getReadContext(Attributes attributes, InetSocketAddress recordsPeer) {
 		if (establishedDtlsContext == null) {
 			throw new IllegalStateException("DTLS context must be established!");
 		}
-		MapBasedEndpointContext.Attributes attributes = new MapBasedEndpointContext.Attributes();
 		establishedDtlsContext.addReadEndpointContext(attributes);
 		if (router != null) {
 			attributes.add(DtlsEndpointContext.KEY_VIA_ROUTER, "dtls-cid-router");
@@ -451,7 +403,6 @@ public final class Connection {
 	 * 
 	 * This is the session of the {@link #establishedDtlsContext}, if not
 	 * {@code null}, or the session negotiated in the {@link #ongoingHandshake}.
-	 * If both are {@code null}, then the {@link #resumeSession} is returned.
 	 * 
 	 * @return the <em>current</em> session, or {@code null}, if no session exists
 	 */
@@ -460,7 +411,20 @@ public final class Connection {
 		if (dtlsContext != null) {
 			return dtlsContext.getSession();
 		}
-		return resumeSession;
+		return null;
+	}
+
+	/**
+	 * Gets the DTLS session id of an already established DTLS context that
+	 * exists with this connection's peer.
+	 * 
+	 * @return the session id, or {@code null}, if no DTLS context has been
+	 *         established (yet)
+	 * @since 3.0
+	 */
+	public SessionId getEstablishedSessionIdentifier() {
+		DTLSContext context = getEstablishedDtlsContext();
+		return context == null ? null : context.getSession().getSessionIdentifier();
 	}
 
 	/**
@@ -633,13 +597,11 @@ public final class Connection {
 	 * @since 3.0 (replaces resetSession())
 	 */
 	public void resetContext() {
-		if (establishedDtlsContext == null && resumeSession == null) {
-			throw new IllegalStateException("No established context nor session to resume available!");
+		if (establishedDtlsContext == null) {
+			throw new IllegalStateException("No established context to resume available!");
 		}
 		SecretUtil.destroy(establishedDtlsContext);
 		establishedDtlsContext = null;
-		SecretUtil.destroy(resumeSession);
-		resumeSession = null;
 		resumptionRequired = false;
 		updateConnectionState();
 	}
@@ -668,7 +630,7 @@ public final class Connection {
 	public void close(Record record) {
 		DTLSContext context = establishedDtlsContext;
 		if (context != null) {
-			context.markCloseNotiy(record.getEpoch(), record.getSequenceNumber());
+			context.markCloseNotify(record.getEpoch(), record.getSequenceNumber());
 		}
 	}
 
@@ -861,9 +823,6 @@ public final class Connection {
 				}
 			}
 		}
-		if (resumeSession != null) {
-			builder.append(", resume ").append(resumeSession);
-		}
 		if (isExecuting()) {
 			builder.append(", is alive");
 		}
@@ -982,15 +941,13 @@ public final class Connection {
 	 * Write connection state.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it. The encoding of the
-	 * content may also change in the future.
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param writer writer for connection state
 	 * @return {@code true}, if connection is written, {@code false}, if not.
 	 * @since 3.0
 	 */
-	@WipAPI
-	public boolean write(DatagramWriter writer) {
+	public boolean writeTo(DatagramWriter writer) {
 		if (establishedDtlsContext == null || establishedDtlsContext.isMarkedAsClosed() || rootCause != null) {
 			return false;
 		}
@@ -1006,17 +963,14 @@ public final class Connection {
 			writer.writeByte((byte) 1);
 			start.write(writer);
 		}
-		establishedDtlsContext.write(writer);
+		establishedDtlsContext.writeTo(writer);
 		writer.writeByte(cid != null && cid.equals(establishedDtlsContext.getReadConnectionId()) ? (byte) 1 : (byte) 0);
-		 SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
+		SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 		return true;
 	}
 
 	/**
 	 * Read connection state.
-	 * 
-	 * Note: the stream will contain not encrypted critical credentials. The
-	 * encoding of the content may also change in the future.
 	 * 
 	 * @param reader reader with connection state.
 	 * @param nanoShift adjusting shift for system time in nanoseconds.
@@ -1024,7 +978,6 @@ public final class Connection {
 	 * @throws IllegalArgumentException if version differs or data is erroneous.
 	 * @since 3.0
 	 */
-	@WipAPI
 	public static Connection fromReader(DataStreamReader reader, long nanoShift) {
 		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
 		if (0 < length) {

@@ -688,7 +688,7 @@ public class TestToken {
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
-        params.put(Constants.CNF, cnf);
+        params.put(Constants.REQ_CNF, cnf);
         
         Message msg = new LocalMessage(-1, "clientE", "TestAS", params);
         Message response = t.processMessage(msg);

@@ -23,6 +23,7 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 import javax.crypto.Cipher;
@@ -31,7 +32,7 @@ import javax.crypto.ShortBufferException;
 
 /**
  * A generic authenticated encryption block cipher mode which uses the 128-bit
- * block cipher AES. See <a href="http://tools.ietf.org/html/rfc3610">RFC
+ * block cipher AES. See <a href="https://tools.ietf.org/html/rfc3610" target="_blank">RFC
  * 3610</a> for details.
  */
 public class CCMBlockCipher {
@@ -44,9 +45,17 @@ public class CCMBlockCipher {
 
 	/**
 	 * The underlying block cipher.
+	 * <p>
+	 * <b>Note:</b> code scanners seems to be limited in analyzing code.
+	 * Therefore some code scanners may report the use of "AES/ECB" as finding.
+	 * This implementation uses the basic form of AES ciphers (AES/ECB) to build
+	 * AES/CCM for older JREs. For more details, see
+	 * <a href="https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation"
+	 * target="_blank"> Wikipedia, Block cipher mode of operation</a>
+	 * </p>
 	 */
-	public static final String CIPHER_NAME = "AES/ECB/NoPadding";
-	public static final ThreadLocalCipher CIPHER = new ThreadLocalCipher(CIPHER_NAME);
+	private static final String CIPHER_NAME = "AES/ECB/NoPadding";
+	private static final ThreadLocalCipher CIPHER = new ThreadLocalCipher(CIPHER_NAME);
 
 	private static abstract class Block {
 
@@ -63,12 +72,12 @@ public class CCMBlockCipher {
 		 * 
 		 * Lowest byte at the end.
 		 * 
-		 * <pre>
+		 * {@code
 		 * block[end] = number & 0xff;
 		 * block[end - 1] = (number >>= 8) & 0xff;
 		 * block[end - 2] = (number >>= 8) & 0xff;
 		 * block[offset] = (number >>= 8) & 0xff;
-		 * </pre>
+		 * }
 		 * 
 		 * Return remaining bytes in number.
 		 * 
@@ -103,7 +112,7 @@ public class CCMBlockCipher {
 		private final int nonceL;
 
 		private BlockCipher(Cipher cipher, byte[] nonce) {
-			super(cipher == null ? 0 : cipher.getBlockSize());
+			super(cipher.getBlockSize());
 			this.cipher = cipher;
 			this.nonceL = nonce.length;
 			int L = blockSize - 1 - nonceL;
@@ -144,7 +153,7 @@ public class CCMBlockCipher {
 
 		/**
 		 * Computes CBC-MAC. See
-		 * <a href="http://tools.ietf.org/html/rfc3610#section-2.2">RFC 3610 -
+		 * <a href="https://tools.ietf.org/html/rfc3610#section-2.2" target="_blank">RFC 3610 -
 		 * Authentication</a> for details.
 		 * 
 		 * @param cipher the cipher.
@@ -157,7 +166,7 @@ public class CCMBlockCipher {
 		 */
 		private MacCipher(Cipher cipher, byte[] nonce, byte[] a, byte[] m, int numAuthenticationBytes)
 				throws ShortBufferException {
-			super(cipher == null ? 0 : cipher.getBlockSize());
+			super(cipher.getBlockSize());
 			this.cipher = cipher;
 			int lengthM = m.length;
 			int lengthA = a.length;
@@ -232,7 +241,7 @@ public class CCMBlockCipher {
 				 * into 16-octet blocks, and then padding the last block with
 				 * zeroes if necessary.
 				 */
-				if (lengthA > 0 && lengthA < first) {
+				if (lengthA < first) {
 					// 2 bytes (0x0001 ... 0xFEFF)
 					xorInt(0, 2, lengthA);
 					offset = 2;
@@ -280,7 +289,34 @@ public class CCMBlockCipher {
 	// Static methods /////////////////////////////////////////////////
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.5">RFC 3610</a>
+	 * Checks, if AES/CCM cipher is supported.
+	 * 
+	 * Checks, if the AES/ECB cipher is supported for this JRE in order to build
+	 * a AES/CCM cipher based on that.
+	 * 
+	 * @return {@code true}, if AES/CCM is supported, {@code false}, if not.
+	 * @since 3.0
+	 */
+	public static boolean isSupported() {
+		return CIPHER.isSupported();
+	}
+
+	/**
+	 * Returns the maximum key length for AES/CCM according to the installed JCE
+	 * jurisdiction policy files.
+	 * 
+	 * @return the maximum key length in bits or {@link Integer#MAX_VALUE}.
+	 * 
+	 * @throws NoSuchAlgorithmException if "AES/ECB" is not supported.
+	 * @see Cipher#getMaxAllowedKeyLength(String)
+	 * @since 3.0
+	 */
+	public static int getMaxAllowedKeyLength() throws NoSuchAlgorithmException {
+		return Cipher.getMaxAllowedKeyLength(CIPHER_NAME);
+	}
+
+	/**
+	 * See <a href="https://tools.ietf.org/html/rfc3610#section-2.5" target="_blank">RFC 3610</a>
 	 * for details.
 	 * 
 	 * @param key the encryption key K.
@@ -300,7 +336,7 @@ public class CCMBlockCipher {
 	}
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.5">RFC 3610</a>
+	 * See <a href="https://tools.ietf.org/html/rfc3610#section-2.5" target="_blank">RFC 3610</a>
 	 * for details.
 	 * 
 	 * @param key the encryption key K.
@@ -372,7 +408,7 @@ public class CCMBlockCipher {
 	}
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.2">RFC 3610</a>
+	 * See <a href="https://tools.ietf.org/html/rfc3610#section-2.2" target="_blank">RFC 3610</a>
 	 * for details.
 	 * 
 	 * @param key the encryption key K.
@@ -390,7 +426,7 @@ public class CCMBlockCipher {
 	}
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.2">RFC 3610</a>
+	 * See <a href="https://tools.ietf.org/html/rfc3610#section-2.2" target="_blank">RFC 3610</a>
 	 * for details.
 	 * 
 	 * @param outputOffset offset of the encrypted message within the resulting byte

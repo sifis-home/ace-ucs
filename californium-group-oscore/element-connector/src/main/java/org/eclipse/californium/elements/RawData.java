@@ -87,11 +87,13 @@ public final class RawData {
 	/**
 	 * Instantiates a new raw data.
 	 * 
-	 * Use {@link #inbound(byte[], EndpointContext, boolean)} or
+	 * Use {@link #inbound(byte[], EndpointContext, boolean, long, InetSocketAddress)} or
 	 * {@link #outbound(byte[], EndpointContext, MessageCallback, boolean)}.
 	 *
 	 * @param data the data that is to be sent or has been received
-	 * @param endpointContext remote peers endpoint context.
+	 * @param peerEndpointContext remote peers endpoint context.
+	 * @param callback the handler to call when this message has been sent (may
+	 *            be {@code null}).
 	 * @param multicast indicates whether the data represents a multicast
 	 *            message
 	 * @param nanoTimestamp nano-timestamp for received messages. {@code 0} for
@@ -148,17 +150,17 @@ public final class RawData {
 	 * Instantiates a new raw data for a message to be sent to a peer.
 	 * <p>
 	 * The given callback handler is notified when the message has been sent by
-	 * a <code>Connector</code>. The information contained in the
-	 * <code>MessageContext</code> object that is passed in to the handler may
+	 * a {@link Connector}. The information contained in the
+	 * {@link EndpointContext} object that is passed in to the handler may
 	 * be relevant for matching a response received via a
-	 * <code>RawDataChannel</code> to a request sent using this method, e.g.
+	 * {@link RawDataChannel} to a request sent using this method, e.g.
 	 * when using a DTLS based connector the context may contain the DTLS
 	 * session ID and epoch number which is required to match a response to a
 	 * request as defined in the CoAP specification.
 	 * </p>
 	 * <p>
 	 * The message context is set via a callback in order to allow
-	 * <code>Connector</code> implementations to process (send) messages
+	 * {@link Connector} implementations to process (send) messages
 	 * asynchronously.
 	 * </p>
 	 * 
@@ -238,7 +240,7 @@ public final class RawData {
 	 * 
 	 * This property is only meaningful for messages received from a client.
 	 * 
-	 * @return the identity or <code>null</code> if the sender has not been
+	 * @return the identity or {@code null}, if the sender has not been
 	 *         authenticated
 	 */
 	public Principal getSenderIdentity() {

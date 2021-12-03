@@ -17,15 +17,15 @@
 package org.eclipse.californium.osgi;
 
 import java.net.InetSocketAddress;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.ConnectorFactory;
+import org.eclipse.californium.elements.config.Configuration;
 import org.osgi.service.io.ConnectionFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -44,7 +44,7 @@ public class SimpleServerEndpointFactory implements EndpointFactory {
 	 * Initializes the factory with collaborators.
 	 * 
 	 * @param secureConnectorFactory the factory to use for creating {@link Connector}s
-	 * implementing DTLS for secure Endpoints or <code>null</code> if this factory
+	 * implementing DTLS for secure Endpoints or {@code null}, if this factory
 	 * does not support the creation of secure Endpoints.
 	 */
 	public SimpleServerEndpointFactory(ConnectorFactory secureConnectorFactory) {
@@ -52,21 +52,21 @@ public class SimpleServerEndpointFactory implements EndpointFactory {
 	}
 
 	@Override
-	public final Endpoint getEndpoint(NetworkConfig config, InetSocketAddress address) {
+	public final Endpoint getEndpoint(Configuration config, InetSocketAddress address) {
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setInetSocketAddress(address);
 		return builder.build();
 	}
 
 	@Override
-	public final Endpoint getSecureEndpoint(NetworkConfig config, InetSocketAddress address) {
+	public final Endpoint getSecureEndpoint(Configuration config, InetSocketAddress address) {
 
 		Endpoint endpoint = null;
 		if (secureConnectorFactory != null) {
 			Connector connector = secureConnectorFactory.newConnector(address);
 			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-			builder.setNetworkConfig(config);
+			builder.setConfiguration(config);
 			builder.setConnector(connector);
 			endpoint = builder.build();
 		} else {

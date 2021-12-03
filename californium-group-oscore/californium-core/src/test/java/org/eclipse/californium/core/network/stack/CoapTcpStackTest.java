@@ -16,8 +16,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -30,12 +30,13 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Outbox;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.rule.LoggingRule;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.Rule;
@@ -43,12 +44,15 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 @Category(Small.class) @RunWith(MockitoJUnitRunner.class)
 public class CoapTcpStackTest {
 
-	private static final NetworkConfig CONFIG = NetworkConfig.createStandardWithoutFile();
+	private static final Configuration CONFIG = Configuration.createStandardWithoutFile();
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
@@ -76,8 +80,10 @@ public class CoapTcpStackTest {
 
 
 	@Test public void sendRstExpectNotSend() {
+		logging.setLoggingLevel("ERROR", TcpAdaptionLayer.class);
 		Request request = new Request(CoAP.Code.GET);
-		Exchange exchange = new Exchange(request, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		request.setSourceContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
+		Exchange exchange = new Exchange(request, request.getSourceContext().getPeerAddress(), Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 		EmptyMessage message = new EmptyMessage(CoAP.Type.RST);
 		stack.sendEmptyMessage(exchange, message);
 
@@ -85,22 +91,35 @@ public class CoapTcpStackTest {
 	}
 
 	@Test public void sendRequestExpectSent() {
-		Request message = new Request(CoAP.Code.GET);
-		message.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
-		Exchange exchange = new Exchange(message, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-		stack.sendRequest(exchange, message);
+		final Request request = new Request(CoAP.Code.GET);
+		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
+		final Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.LOCAL, TestSynchroneExecutor.TEST_EXECUTOR);
+		exchange.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				stack.sendRequest(exchange, request);
+			}
+		});
 
-		verify(outbox).sendRequest(any(Exchange.class), eq(message));
+		verify(outbox).sendRequest(any(Exchange.class), eq(request));
 	}
 
 
 	@Test public void sendResponseExpectSent() {
 		Request request = new Request(CoAP.Code.GET);
-		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-		exchange.setRequest(request);
+		request.setSourceContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
+		final Exchange exchange = new Exchange(request, request.getSourceContext().getPeerAddress(), Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
+		final Response response = new Response(CoAP.ResponseCode.CONTENT);
 
-		Response response = new Response(CoAP.ResponseCode.CONTENT);
-		stack.sendResponse(exchange, response);
+		exchange.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				stack.sendResponse(exchange, response);
+			}
+		});
+	
 
 		verify(outbox).sendResponse(exchange, response);
 	}

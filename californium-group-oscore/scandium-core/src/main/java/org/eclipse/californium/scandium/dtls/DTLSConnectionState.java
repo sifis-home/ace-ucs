@@ -30,7 +30,6 @@ import javax.security.auth.Destroyable;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 
@@ -38,7 +37,7 @@ import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
  * A set of algorithms and corresponding security parameters that together
  * represent the <em>current read</em> or <em>write state</em> of a TLS connection.
  * <p>
- * According to the <a href="http://tools.ietf.org/html/rfc5246#section-6.1">TLS 1.2</a>
+ * According to the <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target="_blank">TLS 1.2</a>
  * specification, a connection state <em>specifies a compression algorithm, an encryption
  * algorithm, and a MAC algorithm.  In addition, the parameters for these algorithms are
  * known: the MAC key and the bulk encryption keys for the connection in both the read and
@@ -80,7 +79,7 @@ public abstract class DTLSConnectionState implements Destroyable {
 		}
 
 		@Override
-		public void write(DatagramWriter writer) {
+		public void writeTo(DatagramWriter writer) {
 			throw new RuntimeException("Not suppported!");
 		}
 
@@ -118,16 +117,12 @@ public abstract class DTLSConnectionState implements Destroyable {
 	/**
 	 * Read cipher suite specific connection state from reader.
 	 * 
-	 * Note: the stream will contain not encrypted critical credentials. The
-	 * encoding of the content may also change in the future.
-	 * 
 	 * @param cipherSuite cipher suite
 	 * @param compressionMethod compression method
 	 * @param reader reader with data
 	 * @return connection state
 	 * @since 3.0
 	 */
-	@WipAPI
 	public static DTLSConnectionState fromReader(CipherSuite cipherSuite, CompressionMethod compressionMethod, DatagramReader reader) {
 		switch (cipherSuite.getCipherType()) {
 		case BLOCK:
@@ -139,12 +134,8 @@ public abstract class DTLSConnectionState implements Destroyable {
 		}
 	}
 
-	// Members ////////////////////////////////////////////////////////
-
 	protected final CipherSuite cipherSuite;
 	protected final CompressionMethod compressionMethod;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Initializes all fields with given values.
@@ -153,12 +144,6 @@ public abstract class DTLSConnectionState implements Destroyable {
 	 *            the cipher and MAC algorithm to use for encrypting message content
 	 * @param compressionMethod
 	 *            the algorithm to use for compressing message content
-	 * @param encryptionKey
-	 *            the secret key to use for encrypting message content
-	 * @param iv
-	 *            the initialization vector to use for encrypting message content
-	 * @param macKey
-	 *            the key to use for creating/verifying message authentication codes (MAC)
 	 * @throws NullPointerException if any of the parameter is {@code null}
 	 */
 	DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod) {
@@ -170,8 +155,6 @@ public abstract class DTLSConnectionState implements Destroyable {
 		this.cipherSuite = cipherSuite;
 		this.compressionMethod = compressionMethod;
 	}
-
-	// Getters ////////////////////////////////////////////
 
 	CipherSuite getCipherSuite() {
 		return cipherSuite;
@@ -187,7 +170,6 @@ public abstract class DTLSConnectionState implements Destroyable {
 	CompressionMethod getCompressionMethod() {
 		return compressionMethod;
 	}
-
 
 	/**
 	 * Checks whether the cipher suite is not the <em>NULL_CIPHER</em>.
@@ -222,13 +204,11 @@ public abstract class DTLSConnectionState implements Destroyable {
 	 * Write cipher suite specific connection state to writer.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it. The encoding of the
-	 * content may also change in the future.
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param writer writer to write state to.
 	 * @since 3.0
 	 */
-	@WipAPI
-	public abstract void write(DatagramWriter writer);
+	public abstract void writeTo(DatagramWriter writer);
 
 }

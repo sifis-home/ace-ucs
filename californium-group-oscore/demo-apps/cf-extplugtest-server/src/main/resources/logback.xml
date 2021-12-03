@@ -16,7 +16,7 @@
 			<!-- each file should be at most 5MB, keep 200 files worth of history, but at most 1GB -->
 			<maxFileSize>5MB</maxFileSize>
 			<maxHistory>200</maxHistory>
-			<totalSizeCap>1GB</totalSizeCap>
+			<totalSizeCap>500MB</totalSizeCap>
 		</rollingPolicy>
 
 		<encoder>
@@ -36,7 +36,7 @@
 			<!-- each file should be at most 5MB, keep 200 files worth of history, but at most 1GB -->
 			<maxFileSize>5MB</maxFileSize>
 			<maxHistory>200</maxHistory>
-			<totalSizeCap>1GB</totalSizeCap>
+			<totalSizeCap>500MB</totalSizeCap>
 		</rollingPolicy>
 
 		<encoder>
@@ -120,17 +120,42 @@
 	<logger name="org.eclipse.californium.scandium.DtlsManagedClusterConnector" level="DEBUG" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.scandium.dtls.InMemoryConnectionStore" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 	<logger name="org.eclipse.californium.cluster.DtlsClusterManager" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 	<logger name="org.eclipse.californium.cluster.K8sManagementClient" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.cluster.K8sMonitorJdkService" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.cluster.JdkHttpClient" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.cluster.RestoreHttpClient" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 	<logger name="org.eclipse.californium.core.CoapServer" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.core.server.ServersSerializationUtil" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.elements.util.SslContextLoggingUtil" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 	<logger name="org.eclipse.californium.ban" level="INFO" additivity="false">
 		<appender-ref ref="BAN_FILE" />
+	</logger>
+
+	<logger name="ch.qos.logback" level="ERROR" additivity="false">
+		<appender-ref ref="STDOUT" />
 	</logger>
 
 	<root level="WARN">

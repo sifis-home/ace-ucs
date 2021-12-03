@@ -28,8 +28,10 @@ import java.util.List;
 import javax.crypto.SecretKey;
 
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -38,18 +40,50 @@ public class SupportedGroupTest {
 
 	private static final int LOOPS = 10;
 
+	@BeforeClass
+	public static void init() {
+		JceProviderUtil.init();
+	}
+
 	@Test
 	public void testGetSupportedGroupFromPublicKey() {
 		for (SupportedGroup group : SupportedGroup.getUsableGroups()) {
-				try {
-					XECDHECryptography ecdhe = new XECDHECryptography(group);
-					PublicKey publicKey = ecdhe.getPublicKey();
-					SupportedGroup groupFromPublicKey = SupportedGroup.fromPublicKey(publicKey);
-					assertThat(groupFromPublicKey, is(group));
-				} catch (GeneralSecurityException e) {
-					fail(e.getMessage());
-				}
+			try {
+				XECDHECryptography ecdhe = new XECDHECryptography(group);
+				PublicKey publicKey = ecdhe.getPublicKey();
+				SupportedGroup groupFromPublicKey = SupportedGroup.fromPublicKey(publicKey);
+				assertThat(groupFromPublicKey, is(group));
+			} catch (GeneralSecurityException e) {
+				fail(e.getMessage());
+			}
 		}
+	}
+
+	@Test
+	public void testPublicKeyEncoding() {
+		for (SupportedGroup group : SupportedGroup.getUsableGroups()) {
+			try {
+				XECDHECryptography ecdhe = new XECDHECryptography(group);
+				byte[] point = ecdhe.getEncodedPoint();
+				PublicKey publicKey = group.decodedPoint(point);
+				assertThat(publicKey, is(ecdhe.getPublicKey()));
+			} catch (GeneralSecurityException e) {
+				fail(e.getMessage());
+			}
+		}
+	}
+
+	@Test
+	public void testGetUsableGroupsReturnsOnlyGroupsWithKnownDomainParams() {
+		int length = SupportedGroup.values().length;
+		List<SupportedGroup> usablegroups = SupportedGroup.getUsableGroups();
+		List<SupportedGroup> preferredgroups = SupportedGroup.getPreferredGroups();
+		assertTrue(usablegroups.size() > 0);
+		assertTrue(length >= usablegroups.size());
+		assertTrue(preferredgroups.size() > 0);
+		assertTrue(usablegroups.size() >= preferredgroups.size());
+		System.out.println(
+				"groups: " + length + ", usable: " + usablegroups.size() + ", preferred: " + preferredgroups.size());
 	}
 
 	@Test
@@ -75,7 +109,11 @@ public class SupportedGroupTest {
 					assertThat(secret2, is(notNullValue()));
 					assertThat("edhe failed!", secret1, is(secret2));
 				} catch (GeneralSecurityException e) {
-					fail(e.getMessage());
+					e.printStackTrace();
+					fail(group.name() + ": " + e.getMessage());
+				} catch (RuntimeException e) {
+					e.printStackTrace();
+					fail(group.name() + ": " + e.getMessage());
 				}
 			}
 		}
@@ -94,19 +132,6 @@ public class SupportedGroupTest {
 				fail("DHE: failed to encoded point! " + group.name() + ", position: " + index);
 			}
 		}
-	}
-
-	@Test
-	public void testGetUsableGroupsReturnsOnlyGroupsWithKnownDomainParams() {
-		int length = SupportedGroup.values().length;
-		List<SupportedGroup> usablegroups = SupportedGroup.getUsableGroups();
-		List<SupportedGroup> preferredgroups = SupportedGroup.getPreferredGroups();
-		assertTrue(usablegroups.size() > 0);
-		assertTrue(length >= usablegroups.size());
-		assertTrue(preferredgroups.size() > 0);
-		assertTrue(usablegroups.size() >= preferredgroups.size());
-		System.out.println(
-				"groups: " + length + ", usable: " + usablegroups.size() + ", preferred: " + preferredgroups.size());
 	}
 
 }

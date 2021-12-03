@@ -15,12 +15,9 @@
  ******************************************************************************/
 package org.eclipse.californium.cli;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.Certificate;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -29,10 +26,10 @@ import org.eclipse.californium.elements.util.StringUtil;
 import picocli.CommandLine;
 import picocli.CommandLine.IDefaultValueProvider;
 import picocli.CommandLine.ITypeConverter;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Model.ArgSpec;
 import picocli.CommandLine.Model.PositionalParamSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 /**
  * Client basic command line configuration.
@@ -41,7 +38,12 @@ import picocli.CommandLine.Model.PositionalParamSpec;
  */
 public class ClientBaseConfig extends ConnectorConfig {
 
-	public static final String LABELT_URI = "URI";
+	/**
+	 * Label for URI.
+	 * 
+	 * Used to apply {@link #defaultUri} as default value for parameters.
+	 */
+	public static final String LABEL_URI = "URI";
 
 	public static final String DEFAULT_URI = "californium.eclipseprojects.io";
 
@@ -73,17 +75,25 @@ public class ClientBaseConfig extends ConnectorConfig {
 	public Integer localPort;
 
 	/**
-	 * DTLS auto-resumption timeout in milliseconds.
+	 * DTLS auto-handshake timeout. Format: time[unit].
 	 * 
 	 * @since 3.0
 	 */
-	@Option(names = "--dtls-auto-resumption", description = "enable dtls auto-resumption. Value in milliseconds. Default disabled. Recommended value to use 30000 (30s).")
-	public Long dtlsAutoResumption;
+	@Option(names = "--dtls-auto-handshake", description = "enable dtls auto-handshake with provided timeout. Value in format time[unit], e.g. the recommended value of \"30[s]\". Or time|unit, e.g. 30s. Default disabled.")
+	public String dtlsAutoHandshake;
+
+	/**
+	 * Enable verification of the server's certificate subject.
+	 * 
+	 * @since 3.0
+	 */
+	@Option(names = "--no-subject-verification", negatable = true, description = "enable/disable verification of server certificate's subject.")
+	public Boolean noCertificatesSubjectVerification;
 
 	/**
 	 * Destination URI.
 	 */
-	@Parameters(index = "0", paramLabel = LABELT_URI, arity = "0..1", description = "destination URI. Default ${DEFAULT-VALUE}")
+	@Parameters(index = "0", paramLabel = LABEL_URI, arity = "0..1", description = "destination URI. Default ${DEFAULT-VALUE}")
 	public String uri;
 
 	/**
@@ -106,7 +116,7 @@ public class ClientBaseConfig extends ConnectorConfig {
 			public String defaultValue(ArgSpec argSpec) throws Exception {
 				if (argSpec instanceof PositionalParamSpec) {
 					PositionalParamSpec spec = (PositionalParamSpec) argSpec;
-					if (LABELT_URI.contentEquals(spec.paramLabel())) {
+					if (LABEL_URI.contentEquals(spec.paramLabel())) {
 						return defaultUri;
 					}
 				}
@@ -119,6 +129,18 @@ public class ClientBaseConfig extends ConnectorConfig {
 
 	@Override
 	public void defaults() {
+		String scheme = CoAP.getSchemeFromUri(uri);
+		if (scheme == null) {
+			if (authenticationModes == null || authenticationModes.isEmpty()) {
+				uri = CoAP.COAP_URI_SCHEME + "://" + uri;
+			} else {
+				uri = CoAP.COAP_SECURE_URI_SCHEME + "://" + uri;
+				secure = true;
+			}
+		} else {
+			secure = CoAP.isSecureScheme(scheme);
+			tcp = CoAP.isTcpScheme(scheme);
+		}
 		super.defaults();
 		if (proxy == null) {
 			String proxySpec = StringUtil.getConfiguration("COAP_PROXY");
@@ -129,77 +151,70 @@ public class ClientBaseConfig extends ConnectorConfig {
 				}
 			}
 		}
-		// allow quick hostname as argument
-		String scheme = CoAP.getSchemeFromUri(uri);
-		if (scheme == null) {
-			if (authenticationModes != null && !authenticationModes.isEmpty()) {
-				uri = CoAP.COAP_SECURE_URI_SCHEME + "://" + uri;
-				secure = true;
-			} else {
-				uri = CoAP.COAP_URI_SCHEME + "://" + uri;
-			}
-		} else {
-			secure = CoAP.isSecureScheme(scheme);
-			tcp = CoAP.isTcpScheme(scheme);
-		}
 		if (uri.endsWith("/")) {
 			uri = uri.substring(uri.length() - 1);
 		}
 		if (secure) {
-			if (tcp) {
-				if (trust == null) {
-					trust = new Trust();
-				}
-				if (trust.trusts == null) {
-					if (trust.trustall) {
-						trust.trusts = new Certificate[0];
-					} else {
-						try {
-							trust.trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
-						} catch (GeneralSecurityException e) {
-							e.printStackTrace();
-						} catch (IOException e) {
-							e.printStackTrace();
+			if (!tcp) {
+				if (authenticationModes.isEmpty() || authenticationModes.contains(AuthenticationMode.PSK)
+						|| authenticationModes.contains(AuthenticationMode.ECDHE_PSK)) {
+					if (identity == null && secret == null) {
+						identity = defaultIdentity;
+						secret = new ConnectorConfig.Secret();
+						secret.text = defaultSecret;
+						if (authenticationModes.isEmpty()) {
+							authenticationModes.add(AuthenticationMode.PSK);
 						}
-					}
-				}
-				if (authentication == null) {
-					authentication = new Authentication();
-				}
-				if (!authentication.anonymous && authentication.credentials == null) {
-					try {
-						authentication.credentials = SslContextUtil.loadCredentials(defaultEcCredentials);
-					} catch (GeneralSecurityException e) {
-						e.printStackTrace();
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-				if (authenticationModes.isEmpty()) {
-					authenticationModes.add(AuthenticationMode.X509);
-				}
-			} else if (authenticationModes.isEmpty() || authenticationModes.contains(AuthenticationMode.PSK)
-					|| authenticationModes.contains(AuthenticationMode.ECDHE_PSK)) {
-				if (identity == null && secret == null) {
-					identity = defaultIdentity;
-					secret = new ConnectorConfig.Secret();
-					secret.text = defaultSecret;
-					if (authenticationModes.isEmpty()) {
-						authenticationModes.add(AuthenticationMode.PSK);
 					}
 				}
 			}
 		}
 	}
 
+	@Override
+	protected void defaultAuthenticationModes() {
+		if (tcp) {
+			// x509 only
+			authenticationModes.add(AuthenticationMode.X509);
+		} else {
+			super.defaultAuthenticationModes();
+		}
+	}
+
 	/**
-	 * Create client configuration clone with different PSK identity and secret.
+	 * Create client configuration clone.
+	 * 
+	 * Beside the {@link #authentication} shallow cloning is applied.
+	 * 
+	 * @return created client configuration clone.
+	 * @since 3.0
+	 */
+	public ClientBaseConfig create() {
+		ClientBaseConfig clone = null;
+		try {
+			clone = (ClientBaseConfig) clone();
+			if (authentication != null) {
+				clone.authentication = new Authentication();
+				clone.authentication.anonymous = authentication.anonymous;
+				if (authentication.credentials != null) {
+					clone.authentication.credentials = authentication.credentials;
+				}
+			}
+		} catch (CloneNotSupportedException e) {
+			e.printStackTrace();
+		}
+		return clone;
+	}
+
+	/**
+	 * Create client configuration shallow clone with different PSK identity and
+	 * secret.
 	 * 
 	 * @param id psk identity
 	 * @param secret secret. if {@code null} and
 	 *            {@link ConnectorConfig#PSK_IDENTITY_PREFIX} is used, use
 	 *            {@link ConnectorConfig#PSK_SECRET}
-	 * @return create client configuration clone.
+	 * @return created client configuration shallow clone.
 	 */
 	public ClientBaseConfig create(String id, byte[] secret) {
 		ClientBaseConfig clone = null;
@@ -216,9 +231,11 @@ public class ClientBaseConfig extends ConnectorConfig {
 	/**
 	 * Create client configuration clone with different ec key pair.
 	 * 
+	 * Beside the {@link #authentication} shallow cloning is applied.
+	 * 
 	 * @param privateKey private key
 	 * @param publicKey public key
-	 * @return create client configuration clone.
+	 * @return created client configuration clone.
 	 */
 	public ClientBaseConfig create(PrivateKey privateKey, PublicKey publicKey) {
 		ClientBaseConfig clone = null;

@@ -22,41 +22,52 @@ package org.eclipse.californium.extplugtests;
 import java.io.File;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.ThreadMXBean;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.X509KeyManager;
 
-import org.eclipse.californium.cluster.DtlsClusterManagerConfig;
+import org.eclipse.californium.cluster.CredentialsUtil;
 import org.eclipse.californium.cluster.DtlsClusterManager;
 import org.eclipse.californium.cluster.DtlsClusterManager.ClusterNodesDiscover;
+import org.eclipse.californium.cluster.JdkK8sMonitorService;
 import org.eclipse.californium.cluster.K8sManagementDiscoverClient;
 import org.eclipse.californium.cluster.K8sManagementDiscoverJdkClient;
+import org.eclipse.californium.cluster.Readiness;
+import org.eclipse.californium.cluster.RestoreHttpClient;
+import org.eclipse.californium.cluster.config.DtlsClusterManagerConfig;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.EndpointObserver;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
-import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.core.server.resources.MyIpResource;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
@@ -65,18 +76,18 @@ import org.eclipse.californium.extplugtests.resources.ReverseRequest;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
-import org.eclipse.californium.plugtests.resources.Context;
-import org.eclipse.californium.plugtests.resources.MyIp;
+import org.eclipse.californium.plugtests.resources.Hono;
+import org.eclipse.californium.plugtests.resources.MyContext;
 import org.eclipse.californium.scandium.DtlsClusterConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector.ClusterNodesProvider;
 import org.eclipse.californium.scandium.DtlsManagedClusterConnector;
 import org.eclipse.californium.scandium.MdcConnectionListener;
 import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.unixhealth.NetStatLogger;
@@ -102,76 +113,42 @@ public class ExtendedTestServer extends AbstractTestServer {
 	private static final Logger STATISTIC_LOGGER = LoggerFactory
 			.getLogger("org.eclipse.californium.extplugtests.statistics");
 
-	private static final File CONFIG_FILE = new File("CaliforniumReceivetest.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumReceivetest3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Receivetest Server";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
+	private static final long MEGA = 1024 * 1024L;
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
+		public void applyDefinitions(Configuration config) {
 			// start on alternative port, 5783 and 5784
-			config.setInt(Keys.COAP_PORT, config.getInt(Keys.COAP_PORT) + 100);
-			config.setInt(Keys.COAP_SECURE_PORT, config.getInt(Keys.COAP_SECURE_PORT) + 100);
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
-			config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 1000000);
-			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
-			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 6);
-			config.setInt(Keys.DTLS_CONNECTION_ID_NODE_ID, 1);
-			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60); // 24h
-			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
-			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 60 * 1000); // 60s
-			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
-			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // 60s
-			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 0);
-			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 0);
-			config.setInt(KEY_DTLS_HANDSHAKE_RESULT_DELAY, 0);
+			config.set(DTLS_HANDSHAKE_RESULT_DELAY, 0, TimeUnit.MILLISECONDS);
+			config.set(CoapConfig.COAP_PORT, CoapConfig.COAP_PORT.getDefaultValue() + 100);
+			config.set(CoapConfig.COAP_SECURE_PORT, CoapConfig.COAP_SECURE_PORT.getDefaultValue() + 100);
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
+			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+			config.set(CoapConfig.MAX_ACTIVE_PEERS, 1000000);
+			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 60, TimeUnit.SECONDS);
+			config.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
+			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 1000000);
+			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
+			config.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true);
+			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PlugtestServer.PRESELECTED_CIPHER_SUITES);
+			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 1, TimeUnit.HOURS);
+			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 60, TimeUnit.SECONDS);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
 			int processors = Runtime.getRuntime().availableProcessors();
-			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
-			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, processors);
-		}
-
-	};
-
-	private static final class Time implements ClockUtil.Realtime {
-		
-		@Override
-		public long nanoRealtime() {
-			return System.nanoTime() + getTestTimeShiftNanos();
-		}
-
-		/**
-		 * Current test time shift in nanoseconds.
-		 * 
-		 * @see #addTestTimeShift(long, TimeUnit)
-		 * @see #setTestTimeShift(long, TimeUnit)
-		 * @see #getTestTimeShiftNanos()
-		 */
-		private long timeShiftNanos;
-
-		/**
-		 * Set time shift.
-		 * 
-		 * @param shift time shift
-		 * @param unit unit of time shift
-		 */
-		public final synchronized void setTestTimeShift(final long shift, final TimeUnit unit) {
-			LOGGER.debug("set {} {} as timeshift", shift, unit);
-			timeShiftNanos = unit.toNanos(shift);
-		}
-
-		/**
-		 * Gets current time shift in nanoseconds.
-		 * 
-		 * @return time shift in nanoseconds
-		 */
-		public final synchronized long getTestTimeShiftNanos() {
-			return timeShiftNanos;
+			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
+			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, processors);
+			config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
+			config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
 		}
 
 	};
@@ -227,6 +204,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 		}
 
+		@Option(names = "--k8s-restore", description = "enable k8s restore for graceful restart. https interface to load connections.")
+		public InetSocketAddress k8sRestore;
+
+		@Option(names = "--k8s-monitor", description = "enable k8s monitor. http interface for k8s monitoring.")
+		public InetSocketAddress k8sMonitor;
+
 		public void register(CommandLine cmd) {
 			cmd.registerConverter(ClusterNode.class, clusterDefinition);
 			cmd.registerConverter(InetSocketAddress.class, addressDefinition);
@@ -255,7 +238,23 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	private static final Config config = new Config();
 
+	static {
+		CoapConfig.register();
+		UdpConfig.register();
+		DtlsConfig.register();
+		TcpConfig.register();
+		DtlsClusterManagerConfig.register();
+	}
+
+	private List<Readiness> components = new ArrayList<>();
+
+	private static String version = StringUtil.CALIFORNIUM_VERSION;
+
 	public static void main(String[] args) {
+		String build = StringUtil.readFile(new File("build"), null);
+		if (build != null && !build.isEmpty()) {
+			version = version + "_" + build;
+		}
 		CommandLine cmd = new CommandLine(config);
 		config.register(cmd);
 		try {
@@ -276,22 +275,14 @@ public class ExtendedTestServer extends AbstractTestServer {
 			cmd.usage(System.err);
 			System.exit(-1);
 		}
-		Time handler = new Time();
-		long nanoRealtime = ClockUtil.nanoRealtime();
-		long delta = new Random().nextLong();
-		if (nanoRealtime + delta < 0) {
-//			delta = -nanoRealtime;
-		}
-		handler.setTestTimeShift(delta, TimeUnit.NANOSECONDS);
-		ClockUtil.setRealtimeHandler(handler);
 		STATISTIC_LOGGER.error("start!");
 		startManagamentStatistic();
 		try {
 			K8sManagementDiscoverClient k8sGroup = null;
 			DtlsClusterConnectorConfig.Builder clusterConfigBuilder = DtlsClusterConnectorConfig.builder();
-			NetworkConfig netConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+			Configuration configuration = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 			if (config.cluster != null) {
-				int nodeId;
+				int nodeId = -1;
 				clusterConfigBuilder.setBackwardMessage(config.cluster.backwardClusterMessages);
 				if (config.cluster.clusterType.k8sCluster != null) {
 					clusterConfigBuilder.setAddress(config.cluster.clusterType.k8sCluster.cluster);
@@ -300,8 +291,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					k8sGroup = new K8sManagementDiscoverJdkClient(config.cluster.clusterType.k8sCluster.externalPort);
 					nodeId = k8sGroup.getNodeID();
 					LOGGER.info("dynamic k8s-cluster!");
-				} else {
-					nodeId = -1;
+				} else if (config.cluster.clusterType.simpleCluster != null) {
 					for (ClusterNode cluster : config.cluster.clusterType.simpleCluster.dtlsClusterNodes) {
 						if (cluster.dtls != null) {
 							nodeId = cluster.nodeId;
@@ -324,17 +314,17 @@ public class ExtendedTestServer extends AbstractTestServer {
 						LOGGER.info("static dtls-cluster!");
 					}
 				}
-				netConfig.setInt(Keys.DTLS_CONNECTION_ID_NODE_ID, nodeId);
+				configuration.set(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID, nodeId);
 			} else if (config.plugtest) {
 				// start standard plugtest server
 				PlugtestServer.init(config);
 			}
 
-			NetworkConfig udpConfig = new NetworkConfig(netConfig);
-			udpConfig.setInt(Keys.MAX_MESSAGE_SIZE, 64);
-			udpConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, 64);
-			Map<Select, NetworkConfig> protocolConfig = new HashMap<>();
-			protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfig);
+			Configuration udpConfiguration = new Configuration(configuration)
+					.set(CoapConfig.MAX_MESSAGE_SIZE, configuration.get(EXTERNAL_UDP_MAX_MESSAGE_SIZE))
+					.set(CoapConfig.PREFERRED_BLOCK_SIZE, configuration.get(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE));
+			Map<Select, Configuration> protocolConfig = new HashMap<>();
+			protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfiguration);
 
 			// create server
 			List<Protocol> protocols = config.getProtocols();
@@ -342,21 +332,21 @@ public class ExtendedTestServer extends AbstractTestServer {
 			List<InterfaceType> types = config.getInterfaceTypes();
 
 			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
-					netConfig.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
+					configuration.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT), //
 					new NamedThreadFactory("ExtCoapServer(main)#")); //$NON-NLS-1$
 			ScheduledExecutorService secondaryExecutor = ExecutorsUtil
 					.newDefaultSecondaryScheduler("ExtCoapServer(secondary)#");
 
-			ExtendedTestServer server = new ExtendedTestServer(netConfig, protocolConfig, !config.benchmark);
+			ExtendedTestServer server = new ExtendedTestServer(configuration, protocolConfig, !config.benchmark);
 			server.setTag("EXTENDED-TEST");
 			server.setExecutors(executor, secondaryExecutor, false);
-			server.add(new ReverseRequest(netConfig, executor));
-			ReverseObserve reverseObserver = new ReverseObserve(netConfig, executor);
+			server.add(new ReverseRequest(configuration, executor));
+			ReverseObserve reverseObserver = new ReverseObserve(configuration, executor);
 			server.add(reverseObserver);
-
 			if (k8sGroup != null) {
+				DtlsClusterConnectorConfig clusterConfig = clusterConfigBuilder.build();
 				server.addClusterEndpoint(secondaryExecutor, config.cluster.clusterType.k8sCluster.dtls,
-						k8sGroup.getNodeID(), clusterConfigBuilder.build(), null, k8sGroup, config);
+						k8sGroup.getNodeID(), clusterConfig, null, k8sGroup, config);
 			} else if (config.cluster != null && config.cluster.clusterType.simpleCluster != null) {
 				ClusterGroup group = null;
 				DtlsClusterConnector.ClusterNodesProvider nodes = null;
@@ -400,6 +390,28 @@ public class ExtendedTestServer extends AbstractTestServer {
 			for (Endpoint ep : server.getEndpoints()) {
 				ep.addNotificationListener(reverseObserver);
 			}
+			InetSocketAddress httpLocal = config.k8sMonitor;
+			InetSocketAddress httpsRestore = config.k8sRestore;
+			SSLContext context = null;
+			RestoreHttpClient client = null;
+			SSLContext clientContext = null;
+	
+			if (httpsRestore != null) {
+				context = CredentialsUtil.getClusterInternalHttpsServerContext();
+			}
+			if (httpLocal != null || httpsRestore != null) {
+				final JdkK8sMonitorService monitor = new JdkK8sMonitorService(httpLocal, httpsRestore, context);
+				monitor.addServer(server);
+				if (context != null && k8sGroup != null) {
+					clientContext = CredentialsUtil.getClusterInternalHttpsClientContext();
+					if (clientContext != null) {
+						client = new RestoreHttpClient();
+						monitor.addComponent(client);
+					}
+				}
+				monitor.start();
+			}
+
 			PlugtestServer.add(server);
 			PlugtestServer.load(config);
 			// start standard plugtest server and shutdown
@@ -416,9 +428,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 					ep.addInterceptor(new MessageTracer());
 				}
 				if (ep.getPostProcessInterceptors().isEmpty()) {
-					int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+					long interval = ep.getConfig().get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
-							!CoAP.isTcpScheme(uri.getScheme()), interval, executor);
+							!CoAP.isTcpScheme(uri.getScheme()), interval, TimeUnit.MILLISECONDS, executor);
 					if (healthLogger.isEnabled()) {
 						ep.addPostProcessInterceptor(healthLogger);
 						ep.addObserver(new EndpointObserver() {
@@ -446,6 +458,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 			PlugtestServer.ActiveInputReader reader = new PlugtestServer.ActiveInputReader();
 			if (!config.benchmark) {
 				LOGGER.info("{} without benchmark started ...", ExtendedTestServer.class.getSimpleName());
+				while (!server.isReady()) {
+					Thread.sleep(500);
+				}
+				if (httpsRestore != null && client != null) {
+					client.restore(k8sGroup, httpsRestore.getPort(), clientContext, server);
+				}
 				for (;;) {
 					if (PlugtestServer.console(reader, 15000)) {
 						break;
@@ -461,6 +479,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 				}
 				builder.append(", ").append(max / (1024 * 1024)).append("MB heap, started ...");
 				LOGGER.info("{}", builder);
+				while (!server.isReady()) {
+					Thread.sleep(500);
+				}
+				if (httpsRestore != null && client != null) {
+					client.restore(k8sGroup, httpsRestore.getPort(), clientContext, server);
+				}
 				long lastGcCount = 0;
 				for (;;) {
 					if (PlugtestServer.console(reader, 15000)) {
@@ -471,10 +495,10 @@ public class ExtendedTestServer extends AbstractTestServer {
 					if (fill > 80) {
 						LOGGER.info("Maxium heap size: {}M  {}% used.", max / (1024 * 1024), fill);
 						LOGGER.info("Heap may exceed! Enlarge the maxium heap size.");
-						LOGGER.info("Or consider to reduce the value of " + Keys.EXCHANGE_LIFETIME);
+						LOGGER.info("Or consider to reduce the value of " + CoapConfig.EXCHANGE_LIFETIME);
 						LOGGER.info("in \"{}\" or set", CONFIG_FILE);
-						LOGGER.info("{} to {} or", Keys.DEDUPLICATOR, Keys.NO_DEDUPLICATOR);
-						LOGGER.info("{} in that file.", Keys.PEERS_MARK_AND_SWEEP_MESSAGES);
+						LOGGER.info("{} to {} or", CoapConfig.DEDUPLICATOR, CoapConfig.NO_DEDUPLICATOR);
+						LOGGER.info("{} in that file.", CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES);
 					}
 					long gcCount = 0;
 					for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
@@ -510,17 +534,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 			System.err.println("Exiting");
 			System.exit(PlugtestServer.ERR_INIT_FAILED);
 		}
-	}
-
-	public ExtendedTestServer(NetworkConfig config, Map<Select, NetworkConfig> protocolConfig, boolean noBenchmark)
-			throws SocketException {
-		super(config, protocolConfig);
-		int maxResourceSize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
-		// add resources to the server
-		add(new RequestStatistic());
-		add(new Benchmark(noBenchmark, maxResourceSize));
-		add(new MyIp(MyIp.RESOURCE_NAME, true));
-		add(new Context(Context.RESOURCE_NAME, true));
 	}
 
 	private static void startManagamentStatistic() {
@@ -562,45 +575,88 @@ public class ExtendedTestServer extends AbstractTestServer {
 			}
 		}
 		logger.info("gc: {} ms, {} calls", gcTime, gcCount);
+		MemoryMXBean memoryMxBean = ManagementFactory.getMemoryMXBean();
+		printMemoryUsage(logger, "heap", memoryMxBean.getHeapMemoryUsage());
+		printMemoryUsage(logger, "non-heap", memoryMxBean.getNonHeapMemoryUsage());
 		double loadAverage = osMxBean.getSystemLoadAverage();
 		if (!(loadAverage < 0.0d)) {
 			logger.info("average load: {}", String.format("%.2f", loadAverage));
 		}
 	}
 
+	private static void printMemoryUsage(Logger logger, String title, MemoryUsage memoryUsage) {
+		long max = memoryUsage.getMax();
+		if (max > 0) {
+			if (max > MEGA) {
+				logger.info("{}: {} m-bytes used of {}/{}.", title, memoryUsage.getUsed() / MEGA,
+						memoryUsage.getCommitted() / MEGA, max / MEGA);
+			} else {
+				logger.info("{}: {} bytes used of {}/{}.", title, memoryUsage.getUsed(), memoryUsage.getCommitted(),
+						max);
+			}
+			return;
+		}
+		max = memoryUsage.getCommitted();
+		if (max > MEGA) {
+			logger.info("{}: {} m-bytes used of {}.", title, memoryUsage.getUsed() / MEGA, max / MEGA);
+		} else {
+			logger.info("{}: {} bytes used of {}.", title, memoryUsage.getUsed(), max);
+		}
+	}
+
+	public ExtendedTestServer(Configuration config, Map<Select, Configuration> protocolConfig, boolean noBenchmark)
+			throws SocketException {
+		super(config, protocolConfig);
+		int maxResourceSize = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
+		// add resources to the server
+		add(new RequestStatistic());
+		add(new Benchmark(noBenchmark, maxResourceSize));
+		add(new Hono("telemetry"));
+		add(new Hono("event"));
+		add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
+		add(new MyContext(MyContext.RESOURCE_NAME, version, true));
+	}
+
+	private boolean isReady() {
+		for (Readiness component : components) {
+			if (!component.isReady()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	private void addClusterEndpoint(ScheduledExecutorService secondaryExecutor, InetSocketAddress dtlsInterface,
-			int nodeId, DtlsClusterConnectorConfig configuration, ClusterNodesProvider nodesProvider,
+			int nodeId, DtlsClusterConnectorConfig clusterConfiguration, ClusterNodesProvider nodesProvider,
 			ClusterNodesDiscover nodesDiscoverer, BaseConfig cliConfig) {
 		if (nodesDiscoverer == null ^ nodesProvider != null) {
 			throw new IllegalArgumentException("either nodes-provider or -dicoverer is required!");
 		}
 		InterfaceType interfaceType = dtlsInterface.getAddress().isLoopbackAddress() ? InterfaceType.LOCAL
 				: InterfaceType.EXTERNAL;
-		NetworkConfig netConfig = getConfig(Protocol.DTLS, interfaceType);
-		Integer cidLength = netConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
+		Configuration configuration = getConfig(Protocol.DTLS, interfaceType);
+		int handshakeResultDelayMillis = configuration.getTimeAsInt(DTLS_HANDSHAKE_RESULT_DELAY, TimeUnit.MILLISECONDS);
+		long healthStatusIntervalMillis = configuration.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
+		Integer cidLength = configuration.get(DtlsConfig.DTLS_CONNECTION_ID_LENGTH);
 		if (cidLength == null || cidLength < 6) {
 			throw new IllegalArgumentException("cid length must be at least 6 for cluster!");
 		}
 		initCredentials();
-		int retransmissionTimeout = netConfig.getInt(Keys.ACK_TIMEOUT);
-		int staleTimeout = netConfig.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
-		int dtlsThreads = netConfig.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
-		int dtlsReceiverThreads = netConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
-		int maxPeers = netConfig.getInt(Keys.MAX_ACTIVE_PEERS);
-		int handshakeResultDelay = netConfig.getInt(KEY_DTLS_HANDSHAKE_RESULT_DELAY, 0);
-		Integer healthStatusInterval = netConfig.getOptInteger(Keys.HEALTH_STATUS_INTERVAL); // seconds
-		Integer recvBufferSize = netConfig.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
-		Integer sendBufferSize = netConfig.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
-		DtlsConnectorConfig.Builder dtlsConfigBuilder = new DtlsConnectorConfig.Builder();
-		dtlsConfigBuilder.setConnectionIdGenerator(new MultiNodeConnectionIdGenerator(nodeId, cidLength));
+		DtlsConnectorConfig.Builder dtlsConfigBuilder = DtlsConnectorConfig.builder(configuration);
+		if (cliConfig.clientAuth != null) {
+			configuration.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
+		}
+		// set node-id in dtls-config-builder's Configuration clone
+		dtlsConfigBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID, nodeId);
 		AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(new PlugPskStore());
-		asyncPskStore.setDelay(handshakeResultDelay);
+		asyncPskStore.setDelay(handshakeResultDelayMillis);
 		dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 		dtlsConfigBuilder.setAddress(dtlsInterface);
-		dtlsConfigBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-				CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-		dtlsConfigBuilder.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
+		X509KeyManager keyManager = SslContextUtil.getX509KeyManager(serverCredentials);
+		AsyncKeyManagerCertificateProvider certificateProvider = new AsyncKeyManagerCertificateProvider(keyManager,
 				CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+		certificateProvider.setDelay(handshakeResultDelayMillis);
+		dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
 		AsyncNewAdvancedCertificateVerifier.Builder verifierBuilder = AsyncNewAdvancedCertificateVerifier.builder();
 		if (cliConfig.trustall) {
 			verifierBuilder.setTrustAllCertificates();
@@ -609,27 +665,18 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 		verifierBuilder.setTrustAllRPKs();
 		AsyncNewAdvancedCertificateVerifier verifier = verifierBuilder.build();
-		verifier.setDelay(handshakeResultDelay);
+		verifier.setDelay(handshakeResultDelayMillis);
 		dtlsConfigBuilder.setAdvancedCertificateVerifier(verifier);
-		dtlsConfigBuilder.setMaxConnections(maxPeers);
-		dtlsConfigBuilder.setStaleConnectionThreshold(staleTimeout);
-		dtlsConfigBuilder.setConnectionThreadCount(dtlsThreads);
-		dtlsConfigBuilder.setReceiverThreadCount(dtlsReceiverThreads);
-		dtlsConfigBuilder.setHealthStatusInterval(healthStatusInterval);
-		dtlsConfigBuilder.setSocketReceiveBufferSize(recvBufferSize);
-		dtlsConfigBuilder.setSocketSendBufferSize(sendBufferSize);
-		dtlsConfigBuilder.setRetransmissionTimeout(retransmissionTimeout);
 		dtlsConfigBuilder.setConnectionListener(new MdcConnectionListener());
-		dtlsConfigBuilder.setCidUpdateAddressOnNewerRecordFilter(true);
 		dtlsConfigBuilder.setLoggingTag("node-" + nodeId);
+		DtlsConnectorConfig dtlsConnectorConfig = dtlsConfigBuilder.build();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		EndpointObserver endpointObserver = null;
 		if (nodesDiscoverer != null) {
-			DtlsManagedClusterConnector connector = new DtlsManagedClusterConnector(dtlsConfigBuilder.build(),
-					configuration);
-			DtlsClusterManagerConfig clusterConfig = DtlsClusterManagerConfig.builder().build();
-			final DtlsClusterManager manager = new DtlsClusterManager(connector, clusterConfig, nodesDiscoverer,
-					secondaryExecutor);
+			DtlsManagedClusterConnector connector = new DtlsManagedClusterConnector(dtlsConnectorConfig,
+					clusterConfiguration);
+			final DtlsClusterManager manager = new DtlsClusterManager(connector, dtlsConnectorConfig.getConfiguration(),
+					nodesDiscoverer, secondaryExecutor);
 			builder.setConnector(connector);
 			endpointObserver = new EndpointObserver() {
 
@@ -648,19 +695,18 @@ public class ExtendedTestServer extends AbstractTestServer {
 					manager.stop();
 				}
 			};
+			components.add( manager);
 		} else if (nodesProvider != null) {
-			builder.setConnector(new DtlsClusterConnector(dtlsConfigBuilder.build(), configuration, nodesProvider));
+			builder.setConnector(new DtlsClusterConnector(dtlsConnectorConfig, clusterConfiguration, nodesProvider));
 		}
-		if (MatcherMode.PRINCIPAL.name().equals(netConfig.getString(Keys.RESPONSE_MATCHING))) {
-			builder.setEndpointContextMatcher(new PrincipalEndpointContextMatcher(true));
-		}
-		builder.setNetworkConfig(netConfig);
+		// use dtls-config-builder's Configuration clone with the set node-id
+		builder.setConfiguration(dtlsConnectorConfig.getConfiguration());
 		CoapEndpoint endpoint = builder.build();
-		if (healthStatusInterval != null) {
+		if (healthStatusIntervalMillis > 0) {
 			String tag = CoAP.COAP_SECURE_URI_SCHEME;
 			tag += "-" + nodeId;
-			final HealthStatisticLogger healthLogger = new HealthStatisticLogger(tag, true, healthStatusInterval,
-					secondaryExecutor);
+			final HealthStatisticLogger healthLogger = new HealthStatisticLogger(tag, true, healthStatusIntervalMillis,
+					 TimeUnit.MILLISECONDS, secondaryExecutor);
 			if (healthLogger.isEnabled()) {
 				endpoint.addPostProcessInterceptor(healthLogger);
 				endpoint.addObserver(new EndpointObserver() {
@@ -701,6 +747,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 		@Override
 		public List<InetSocketAddress> getClusterNodesDiscoverScope() {
 			return group;
+		}
+
+		@Override
+		public int getInitialClusterNodes() {
+			return group.size();
 		}
 	}
 

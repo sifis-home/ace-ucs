@@ -33,16 +33,13 @@ import org.eclipse.californium.elements.util.StringUtil;
  * invalidated, preventing the failed session from being used to establish new
  * connections. Like other messages, alert messages are encrypted and
  * compressed, as specified by the current connection state. For further details
- * see <a href="http://tools.ietf.org/html/rfc5246#section-7.2">RFC 5246</a>.
+ * see <a href="https://tools.ietf.org/html/rfc5246#section-7.2" target="_blank">RFC 5246</a>.
  */
 public final class AlertMessage implements DTLSMessage, Serializable {
 
-	// CoAP-specific constants/////////////////////////////////////////
 	private static final long serialVersionUID = 1L;
 
 	private static final int BITS = 8;
-
-	// Members ////////////////////////////////////////////////////////
 
 	/** The level of the alert (warning or fatal). */
 	private final AlertLevel level;
@@ -56,8 +53,6 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	 * @since 2.6
 	 */
 	private final ProtocolVersion protocolVersion;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Create new instance of alert message.
@@ -98,10 +93,8 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		this.protocolVersion = protocolVersion;
 	}
 
-	// Alert Level Enum ///////////////////////////////////////////////
-
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.3">Alert
+	 * See <a href="https://tools.ietf.org/html/rfc5246#appendix-A.3" target="_blank">Alert
 	 * Messages</a> for the listing.
 	 */
 	public enum AlertLevel {
@@ -122,7 +115,7 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		 * Gets the alert level for a given code.
 		 * 
 		 * @param code the code
-		 * @return the corresponding level or <code>null</code> if no alert
+		 * @return the corresponding level or {@code null} if no alert
 		 *         level exists for the given code
 		 */
 		public static AlertLevel getLevelByCode(int code) {
@@ -139,10 +132,8 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		}
 	}
 
-	// Alert Description Enum /////////////////////////////////////////
-
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.3">Alert
+	 * See <a href="https://tools.ietf.org/html/rfc5246#appendix-A.3" target="_blank">Alert
 	 * Messages</a> for the listing.
 	 */
 	public enum AlertDescription {
@@ -194,7 +185,7 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		 * Gets the alert description for a given code.
 		 * 
 		 * @param code the code
-		 * @return the corresponding description or <code>null</code> if no
+		 * @return the corresponding description or {@code null}, if no
 		 *         alert description exists for the given code
 		 */
 		public static AlertDescription getDescriptionByCode(int code) {
@@ -207,26 +198,28 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		}
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public ContentType getContentType() {
 		return ContentType.ALERT;
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tAlert Protocol").append(StringUtil.lineSeparator());
-		sb.append("\tLevel: ").append(level).append(StringUtil.lineSeparator());
-		sb.append("\tDescription: ").append(description).append(StringUtil.lineSeparator());
+		String indentation = StringUtil.indentation(indent);
+		sb.append(indentation).append("Alert Protocol").append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Level: ").append(level).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Description: ").append(description).append(StringUtil.lineSeparator());
 		if (protocolVersion != null) {
-			sb.append("\tProtocol Version: ").append(protocolVersion).append(StringUtil.lineSeparator());
+			sb.append(indentation).append("Protocol Version: ").append(protocolVersion).append(StringUtil.lineSeparator());
 		}
 		return sb.toString();
 	}
 
-	// Serialization //////////////////////////////////////////////////
+	@Override
+	public String toString() {
+		return toString(0);
+	}
 
 	@Override
 	public int size() {

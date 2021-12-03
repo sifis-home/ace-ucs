@@ -19,14 +19,13 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.ObserveRelation;
+import org.eclipse.californium.elements.config.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * TCP related observe/notify handling.
@@ -42,8 +41,9 @@ public class TcpObserveLayer extends AbstractLayer {
 	 * Creates a new observe layer for a configuration.
 	 * 
 	 * @param config The configuration values to use.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public TcpObserveLayer(final NetworkConfig config) {
+	public TcpObserveLayer(final Configuration config) {
 		// so far no configuration values for this layer
 	}
 
@@ -59,10 +59,17 @@ public class TcpObserveLayer extends AbstractLayer {
 	public void sendResponse(final Exchange exchange, final Response response) {
 		final ObserveRelation relation = exchange.getRelation();
 		if (relation != null && relation.isEstablished()) {
-			if (!response.getOptions().hasObserve()) {
-				/* response for cancel request */
-				relation.cancel();
+			if (response.isSuccess() ^ response.isNotification()) {
+				if (response.isNotification()) {
+					LOGGER.warn("Error notification, remove observe-option {}", response);
+					response.getOptions().removeObserve();
+				} else {
+					LOGGER.warn("No-notification response with observe-relation {}, drop.", response);
+					response.setSendError(new IllegalArgumentException("Notification must have observe-option!"));
+					return;
+				}
 			}
+			relation.send(response);
 		} // else no observe was requested or the resource does not allow it
 		lower().sendResponse(exchange, response);
 	}

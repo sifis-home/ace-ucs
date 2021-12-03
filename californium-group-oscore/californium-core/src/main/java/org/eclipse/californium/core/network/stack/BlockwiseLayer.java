@@ -70,14 +70,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,6 +115,16 @@ import org.slf4j.LoggerFactory;
  * is not really advised. When concurrent transfer is detected we always
  * privilege the most recent transfers. This is the most resilient way, as new
  * transfer will never be blocked by old incomplete transfer.
+ * <p>
+ * The transparent blockwise mode is enabled by using a value larger than
+ * {@code 0} for {@link CoapConfig#MAX_RESOURCE_BODY_SIZE}. If the transparent
+ * blockwise mode is enabled, the {@link Resource} is intended to provide the
+ * full payload. The application should not use any block option, that is filled
+ * in by the stack in transparent mode. Only in rare cases the application may
+ * use a block option, but that easily ends up in undefined behavior. Usually
+ * disabling the transparent blockwise mode setting
+ * {@link CoapConfig#MAX_RESOURCE_BODY_SIZE} to {@code 0} is the better option, if
+ * application block options are required.
  * <p>
  * Synchronization: The blockwise-layer uses synchronization to prevent from
  * failures caused by race-conditions. All blockwise-status are kept in
@@ -218,7 +229,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private final int blockInterval;
 	private final int maxResourceBodySize;
 	private final boolean strictBlock2Option;
-	private final int healthStatusInterval;
+	private final long healthStatusInterval;
 	/* @since 2.4 */
 	private final boolean enableAutoFailoverOn413;
 
@@ -227,17 +238,17 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * <p>
 	 * The following configuration properties are used:
 	 * <ul>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_MESSAGE_SIZE}
+	 * <li>{@link CoapConfig#MAX_MESSAGE_SIZE}
 	 * - This value is used as the threshold for determining whether an inbound
 	 * or outbound message's body needs to be transferred blockwise. If not set,
 	 * a default value of 4096 bytes is used.</li>
 	 * 
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#PREFERRED_BLOCK_SIZE}
+	 * <li>{@link CoapConfig#PREFERRED_BLOCK_SIZE}
 	 * - This value is used as the value proposed to a peer when doing a
 	 * transparent blockwise transfer. The value indicates the number of bytes,
 	 * not the szx code. If not set, a default value of 1024 bytes is used.</li>
 	 * 
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_RESOURCE_BODY_SIZE}
+	 * <li>{@link CoapConfig#MAX_RESOURCE_BODY_SIZE}
 	 * - This value (in bytes) is used as the upper limit for the size of the
 	 * buffer used for assembling blocks of a transparent blockwise transfer.
 	 * Resource bodies larger than this value can only be transferred in a
@@ -246,46 +257,42 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * be forwarded directly up and down to the next layer. If not set, a
 	 * default value of 8192 bytes is used.</li>
 	 * 
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STATUS_LIFETIME}
+	 * <li>{@link CoapConfig#BLOCKWISE_STATUS_LIFETIME}
 	 * - The maximum amount of time (in milliseconds) allowed between transfers
 	 * of individual blocks before the blockwise transfer state is discarded. If
 	 * not set, a default value of 30 seconds is used.</li>
 	 * 
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION}
+	 * <li>{@link CoapConfig#BLOCKWISE_STRICT_BLOCK2_OPTION}
 	 * - This value is used to indicate if the response should always include
 	 * the Block2 option when client request early blockwise negociation but the
-	 * response can be sent on one packet. If not set, the default value is
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}</li>
+	 * response can be sent on one packet.</li>
 	 * </ul>
 	 * 
 	 * @param tag logging tag
 	 * @param enableBert {@code true}, enable TCP/BERT support, if the
-	 *            configured value for {@link Keys#TCP_NUMBER_OF_BULK_BLOCKS} is
+	 *            configured value for {@link CoapConfig#TCP_NUMBER_OF_BULK_BLOCKS} is
 	 *            larger than {@code 1}. {@code false} disable it.
 	 * @param config The configuration values to use.
-	 * @since 3.0 logging tag added
+	 * @since 3.0 (logging tag added and changed parameter to Configuration)
 	 */
-	public BlockwiseLayer(String tag, boolean enableBert, NetworkConfig config) {
+	public BlockwiseLayer(String tag, boolean enableBert, Configuration config) {
 		this.tag = tag;
 
-		int blockSize = config.getInt(Keys.PREFERRED_BLOCK_SIZE, NetworkConfigDefaults.DEFAULT_PREFERRED_BLOCK_SIZE);
+		int blockSize = config.get(CoapConfig.PREFERRED_BLOCK_SIZE);
 		int szx = BlockOption.size2Szx(blockSize);
 		String blockSizeDescription = String.valueOf(blockSize);
-		maxTcpBertBulkBlocks = enableBert ? config.getInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 1) : 1;
+		maxTcpBertBulkBlocks = enableBert ? config.get(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS) : 1;
 		if (maxTcpBertBulkBlocks > 1) {
 			// Change the preferredBlockSize to accommodate BERT.
 			szx = BlockOption.BERT_SZX;
 			blockSizeDescription = "1024(BERT)";
 		}
-		maxMessageSize = config.getInt(Keys.MAX_MESSAGE_SIZE, NetworkConfigDefaults.DEFAULT_MAX_MESSAGE_SIZE);
+		maxMessageSize = config.get(CoapConfig.MAX_MESSAGE_SIZE);
 		preferredBlockSzx = szx;
-		blockTimeout = config.getInt(Keys.BLOCKWISE_STATUS_LIFETIME,
-				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STATUS_LIFETIME);
-		blockInterval = config.getInt(Keys.BLOCKWISE_STATUS_INTERVAL,
-				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STATUS_INTERVAL);
-		maxResourceBodySize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE,
-				NetworkConfigDefaults.DEFAULT_MAX_RESOURCE_BODY_SIZE);
-		int maxActivePeers = config.getInt(Keys.MAX_ACTIVE_PEERS, NetworkConfigDefaults.DEFAULT_MAX_ACTIVE_PEERS);
+		blockTimeout = config.getTimeAsInt(CoapConfig.BLOCKWISE_STATUS_LIFETIME, TimeUnit.MILLISECONDS);
+		blockInterval = config.getTimeAsInt(CoapConfig.BLOCKWISE_STATUS_INTERVAL,TimeUnit.MILLISECONDS);
+		maxResourceBodySize = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
+		int maxActivePeers = config.get(CoapConfig.MAX_ACTIVE_PEERS);
 		block1Transfers = new LeastRecentlyUsedCache<>(maxActivePeers / 10, maxActivePeers, blockTimeout,
 				TimeUnit.MILLISECONDS);
 		block1Transfers.setEvictingOnReadAccess(false);
@@ -312,13 +319,11 @@ public class BlockwiseLayer extends AbstractLayer {
 				}
 			}
 		});
-		strictBlock2Option = config.getBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION,
-				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
+		strictBlock2Option = config.get(CoapConfig.BLOCKWISE_STRICT_BLOCK2_OPTION);
 
-		healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+		healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 
-		enableAutoFailoverOn413 = config.getBoolean(Keys.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER,
-				NetworkConfigDefaults.DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
+		enableAutoFailoverOn413 = config.get(CoapConfig.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
 
 		LOGGER.info(
 				"{}BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
@@ -361,7 +366,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						cleanupExpiredBlockStatus(true);
 					}
 				}
-			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
 		}
 		cleanup = secondaryExecutor.scheduleAtFixedRate(new Runnable() {
 
@@ -402,7 +407,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// by means of
 				// a transparent blockwise transfer.
 			} else {
-				KeyUri key = KeyUri.getKey(exchange, request);
+				KeyUri key = KeyUri.getKey(exchange);
 				Block2BlockwiseStatus status = getBlock2Status(key);
 				if (status != null) {
 					// Receiving a blockwise response in transparent mode
@@ -466,7 +471,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			BlockOption block2 = request.getOptions().getBlock2();
 			if (block2 != null && block2.getNum() > 0) {
 				// follow up block, respond from status?
-				KeyUri key = KeyUri.getKey(exchange, request);
+				KeyUri key = KeyUri.getKey(exchange);
 				Block2BlockwiseStatus status = getBlock2Status(key);
 				if (status != null) {
 					// The peer wants to retrieve the next block
@@ -480,7 +485,6 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 		}
 
-		exchange.setRequest(request);
 		upper().receiveRequest(exchange, request);
 	}
 
@@ -491,14 +495,13 @@ public class BlockwiseLayer extends AbstractLayer {
 			Response error = Response.createResponse(request, ResponseCode.REQUEST_ENTITY_TOO_LARGE);
 			error.setPayload(String.format("body too large, max. %d bytes", maxResourceBodySize));
 			error.getOptions().setSize1(maxResourceBodySize);
-			exchange.setCurrentResponse(error);
 			lower().sendResponse(exchange, error);
 
 		} else {
 
 			BlockOption block1 = request.getOptions().getBlock1();
 			LOGGER.debug("{}inbound request contains block1 option {}", tag, block1);
-			KeyUri key = KeyUri.getKey(exchange, request);
+			KeyUri key = KeyUri.getKey(exchange);
 			Block1BlockwiseStatus status = getInboundBlock1Status(key, exchange, request, false);
 			int blockOffset = block1.getOffset();
 
@@ -523,7 +526,6 @@ public class BlockwiseLayer extends AbstractLayer {
 					block1 = getLimitedBlockOption(block1);
 					piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
 
-					exchange.setCurrentResponse(piggybacked);
 					lower().sendResponse(exchange, piggybacked);
 
 				} else {
@@ -575,7 +577,6 @@ public class BlockwiseLayer extends AbstractLayer {
 		error.getOptions().setBlock1(block1.getSzx(), block1.isM(), block1.getNum());
 		error.setPayload(message);
 		clearBlock1Status(status);
-		exchange.setCurrentResponse(error);
 		lower().sendResponse(exchange, error);
 	}
 
@@ -593,14 +594,13 @@ public class BlockwiseLayer extends AbstractLayer {
 			clearBlock2Status(status);
 		}
 
-		exchange.setCurrentResponse(nextBlockResponse);
 		lower().sendResponse(exchange, nextBlockResponse);
 	}
 
 	/**
 	 * Invoked when a response is sent to a peer.
 	 * <p>
-	 * This method initiates a blockwise transfer if the response's payload
+	 * This method initiates a blockwise transfer, if the response's payload
 	 * exceeds {@code MAX_MESSAGE_SIZE}.
 	 * 
 	 * @param exchange The exchange the response is part of.
@@ -614,20 +614,25 @@ public class BlockwiseLayer extends AbstractLayer {
 		if (isTransparentBlockwiseHandlingEnabled()) {
 
 			BlockOption requestBlock2 = exchange.getRequest().getOptions().getBlock2();
-			BlockOption responseBlock2 = response.getOptions().getBlock2();
 
 			if (isRandomAccess(exchange)) {
 
-				// peer has issued a random block access request
+				BlockOption responseBlock2 = response.getOptions().getBlock2();
 
-				if (responseBlock2 != null && requestBlock2.getOffset() != responseBlock2.getOffset()) {
-					LOGGER.warn(
-							"{}resource [{}] implementation error, peer requested block offset {} but resource returned block offest {}",
-							tag, exchange.getRequest().getURI(), requestBlock2.getOffset(), responseBlock2.getOffset());
-					responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.INTERNAL_SERVER_ERROR);
-					responseToSend.setType(response.getType());
-					responseToSend.setMID(response.getMID());
-					responseToSend.addMessageObservers(response.getMessageObservers());
+				// peer has issued a random block access request using option
+				// block2 in request
+				if (responseBlock2 != null) {
+					if (requestBlock2.getOffset() != responseBlock2.getOffset()) {
+						LOGGER.warn(
+								"{}resource [{}] implementation error, peer requested block offset {} but resource returned block offest {}",
+								tag, exchange.getRequest().getURI(), requestBlock2.getOffset(),
+								responseBlock2.getOffset());
+						responseToSend = Response.createResponse(exchange.getRequest(),
+								ResponseCode.INTERNAL_SERVER_ERROR);
+						responseToSend.setType(response.getType());
+						responseToSend.setMID(response.getMID());
+						responseToSend.addMessageObservers(response.getMessageObservers());
+					}
 				} else if (response.hasBlock(requestBlock2)) {
 					// the resource implementation does not support blockwise
 					// retrieval but instead has responded with the full
@@ -635,23 +640,20 @@ public class BlockwiseLayer extends AbstractLayer {
 					// crop the response down to the requested block
 					BlockOption block2 = getLimitedBlockOption(requestBlock2);
 					Block2BlockwiseStatus.crop(responseToSend, block2, maxTcpBertBulkBlocks);
-				} else {
+				} else if (!response.isError()) {
 					// peer has requested a non existing block
 					responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.BAD_OPTION);
 					responseToSend.setType(response.getType());
 					responseToSend.setMID(response.getMID());
-					responseToSend.getOptions().setBlock2(requestBlock2);
 					responseToSend.addMessageObservers(response.getMessageObservers());
 				}
-
 			} else if (requiresBlock2wise(response, requestBlock2)) {
 
 				// the client either has not included a block2 option at all or
-				// has
-				// included a block2 option with num = 0 (early negotiation of
-				// block size)
+				// has included a block2 option with num = 0 (early negotiation
+				// of block size)
 
-				KeyUri key = KeyUri.getKey(exchange, response);
+				KeyUri key = KeyUri.getKey(exchange);
 				// We can not handle several block2 transfer for the same
 				// client/resource.
 				// So we clean previous transfer (priority to the new one)
@@ -683,7 +685,6 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 		}
 
-		exchange.setCurrentResponse(responseToSend);
 		lower().sendResponse(exchange, responseToSend);
 	}
 
@@ -719,7 +720,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					}
 
 					// server is not able to process the payload we included
-					KeyUri key = KeyUri.getKey(exchange, exchange.getCurrentRequest());
+					KeyUri key = KeyUri.getKey(exchange);
 					Block1BlockwiseStatus status = getBlock1Status(key);
 					if (status != null) {
 						clearBlock1Status(status);
@@ -743,7 +744,11 @@ public class BlockwiseLayer extends AbstractLayer {
 					resp.setSourceContext(response.getSourceContext());
 					resp.setPayload(response.getPayload());
 					resp.setOptions(response.getOptions());
-					resp.setRTT(exchange.calculateRTT());
+					resp.setApplicationRttNanos(exchange.calculateApplicationRtt());
+					Long rtt = response.getTransmissionRttNanos();
+					if (rtt != null) {
+						resp.setTransmissionRttNanos(rtt);
+					}
 					exchange.setResponse(resp);
 					upper().receiveResponse(exchange, resp);
 				} else {
@@ -757,7 +762,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 
 			if (!isRandomAccess(exchange)) {
-				KeyUri key = KeyUri.getKey(exchange, response);
+				KeyUri key = KeyUri.getKey(exchange);
 				Block2BlockwiseStatus status = getBlock2Status(key);
 				if (discardBlock2(key, status, exchange, response)) {
 					return;
@@ -796,7 +801,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	 */
 	private boolean handleEntityTooLarge(Exchange exchange, Response response) {
 		if (enableAutoFailoverOn413) {
-			final KeyUri key = KeyUri.getKey(exchange, exchange.getRequest());
+			final KeyUri key = KeyUri.getKey(exchange);
 			try {
 				Request initialRequest = exchange.getRequest();
 				if (response.getOptions().hasBlock1()) {
@@ -896,7 +901,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		LOGGER.debug("{}received response acknowledging block1 {}", tag, block1);
 
 		// Block1 transfer has been originally created for an outbound request
-		final KeyUri key = KeyUri.getKey(exchange, exchange.getRequest());
+		final KeyUri key = KeyUri.getKey(exchange);
 
 		Block1BlockwiseStatus status = getBlock1Status(key);
 
@@ -1059,7 +1064,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private void handleBlock2Response(final Exchange exchange, final Response response) {
 
 		BlockOption block2 = response.getOptions().getBlock2();
-		KeyUri key = KeyUri.getKey(exchange, response);
+		KeyUri key = KeyUri.getKey(exchange);
 
 		if (exchange.getRequest().isCanceled()) {
 
@@ -1088,9 +1093,6 @@ public class BlockwiseLayer extends AbstractLayer {
 					response.getOptions().getSize2(), getMaxResourceBodySize(response));
 			LOGGER.debug("{}{}", tag, msg);
 			exchange.getRequest().setOnResponseError(new IllegalStateException(msg));
-			// TODO we keep the cancel event for backward compatibility but this
-			// should be removed in 3.x
-			exchange.getRequest().cancel();
 
 		} else if (isRandomAccess(exchange)) {
 			// The client has requested this specific block and we deliver it
@@ -1124,7 +1126,11 @@ public class BlockwiseLayer extends AbstractLayer {
 					status.assembleReceivedMessage(assembled);
 
 					// set overall transfer RTT
-					assembled.setRTT(exchange.calculateRTT());
+					assembled.setApplicationRttNanos(exchange.calculateApplicationRtt());
+					Long rtt = response.getTransmissionRttNanos();
+					if (rtt != null) {
+						assembled.setTransmissionRttNanos(rtt);
+					}
 
 					clearBlock2Status(status);
 					LOGGER.debug("{}assembled response: {}", tag, assembled);
@@ -1150,6 +1156,10 @@ public class BlockwiseLayer extends AbstractLayer {
 
 	/**
 	 * Sends request for the next response block.
+	 * 
+	 * @param exchange exchange for blockwise transfer
+	 * @param response current response block
+	 * @param status blockwise status
 	 */
 	private void requestNextBlock(Exchange exchange, Response response, Block2BlockwiseStatus status) {
 		// do late block size negotiation
@@ -1508,7 +1518,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		boolean block2Required = strictBlock2Option && requestBlock2 != null;
 		if (block2Required) {
-			LOGGER.debug("{}response requires requested blockwise transfer", tag, requestBlock2);
+			LOGGER.debug("{}response requires requested {} blockwise transfer", tag, requestBlock2);
 		}
 		return block2Required;
 	}
@@ -1565,3 +1575,4 @@ public class BlockwiseLayer extends AbstractLayer {
 		return block1Transfers.size() == 0 && block2Transfers.size() == 0;
 	}
 }
+

@@ -97,12 +97,12 @@ public final class CoAP {
 	public static final InetAddress MULTICAST_IPV4 = new InetSocketAddress("224.0.1.187", 0).getAddress();
 	/**
 	 * IPv6 multicast address for CoAP, RFC 7252, 12.8., FF0X::FD, link-local.
-	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2">RFC7346, IPv6 Multicast Address Scopes</a> 
+	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2" target="_blank">RFC7346, IPv6 Multicast Address Scopes</a> 
 	 */
 	public static final InetAddress MULTICAST_IPV6_LINKLOCAL = new InetSocketAddress("[FF02::FD]", 0).getAddress();
 	/**
 	 * IPv6 multicast address for CoAP, RFC 7252, 12.8., FF0X::FD, site-local.
-	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2">RFC7346, IPv6 Multicast Address Scopes</a> 
+	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2" target="_blank">RFC7346, IPv6 Multicast Address Scopes</a> 
 	 */
 	public static final InetAddress MULTICAST_IPV6_SITELOCAL = new InetSocketAddress("[FF05::FD]", 0).getAddress();
 
@@ -485,11 +485,11 @@ public final class CoAP {
 		 * The custom code 30.
 		 * 
 		 * Support for openHAB custom CoAP extension, CoIoT, used for shelly binding.
-		 * <a href="https://shelly-api-docs.shelly.cloud/images/CoIoT%20for%20Shelly%20devices%20(rev%201.0)%20.pdf">CoIot Shelly</a>.
+		 * <a href="https://shelly-api-docs.shelly.cloud/images/CoIoT%20for%20Shelly%20devices%20(rev%201.0)%20.pdf" target="_blank">CoIot Shelly</a>.
 		 * 
-		 * Note: though this code is not assigned byt IANA, it may cause future incompatibilities.
+		 * Note: though this code is not assigned by IANA, it may cause future incompatibilities.
 		 * If the IANA assigns this value, this will get replaced!
-		 * <a href="https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#method-codes">IANA CoAP Codes</a>.
+		 * <a href="https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#method-codes" target="_blank">IANA CoAP Codes</a>.
 		 */
 		CUSTOM_30(30);
 
@@ -601,9 +601,10 @@ public final class CoAP {
 		public final String text;
 
 		/**
-		 * Instantiates a new response code with the specified integer value.
-		 *
-		 * @param value the integer value
+		 * Instantiates a new response code with the specified integer values.
+		 * 
+		 * @param codeClass code class
+		 * @param codeDetail code detail
 		 */
 		private ResponseCode(final CodeClass codeClass, final int codeDetail) {
 			this.codeClass = codeClass.value;
@@ -611,6 +612,36 @@ public final class CoAP {
 			this.value = codeClass.value << 5 | codeDetail;
 			this.text = formatCode(codeClass.value, codeDetail);
 			responseCodeMap.put(text, this);
+		}
+
+		/**
+		 * Checks if a response code indicates success.
+		 * 
+		 * @return {@code true} if the given code's class is {@link CodeClass#SUCCESS_RESPONSE}).
+		 * @since 3.0
+		 */
+		public  boolean isSuccess() {
+			return codeClass == CodeClass.SUCCESS_RESPONSE.value;
+		}
+
+		/**
+		 * Checks if a response code indicates a client error.
+		 * 
+		 * @return {@code true} if the given code's class is {@link CodeClass#ERROR_RESPONSE}).
+		 * @since 3.0
+		 */
+		public boolean isClientError() {
+			return codeClass == CodeClass.ERROR_RESPONSE.value;
+		}
+
+		/**
+		 * Checks if a response code indicates a server error.
+		 * 
+		 * @return {@code true} if the given code's class is {@link CodeClass#SERVER_ERROR_RESPONSE}).
+		 * @since 3.0
+		 */
+		public boolean isServerError() {
+			return codeClass == CodeClass.SERVER_ERROR_RESPONSE.value;
 		}
 
 		/**
@@ -697,48 +728,6 @@ public final class CoAP {
 		@Override
 		public String toString() {
 			return text;
-		}
-
-		/**
-		 * Checks if a response code indicates success.
-		 * 
-		 * @param code The response code to check.
-		 * @return {@code true} if the given code's class is {@link CodeClass#SUCCESS_RESPONSE}).
-		 * @throws NullPointerException if the code is {@code null}.
-		 */
-		public static boolean isSuccess(final ResponseCode code) {
-			if (null == code) {
-				throw new NullPointerException("ResponseCode must not be null!");
-			}
-			return code.codeClass == CodeClass.SUCCESS_RESPONSE.value;
-		}
-
-		/**
-		 * Checks if a response code indicates a client error.
-		 * 
-		 * @param code The response code to check.
-		 * @return {@code true} if the given code's class is {@link CodeClass#ERROR_RESPONSE}).
-		 * @throws NullPointerException if the code is {@code null}.
-		 */
-		public static boolean isClientError(final ResponseCode code) {
-			if (null == code) {
-				throw new NullPointerException("ResponseCode must not be null!");
-			}
-			return code.codeClass == CodeClass.ERROR_RESPONSE.value;
-		}
-
-		/**
-		 * Checks if a response code indicates a server error.
-		 * 
-		 * @param code The response code to check.
-		 * @return {@code true} if the given code's class is {@link CodeClass#SERVER_ERROR_RESPONSE}).
-		 * @throws NullPointerException if the code is {@code null}.
-		 */
-		public static boolean isServerError(final ResponseCode code) {
-			if (null == code) {
-				throw new NullPointerException("ResponseCode must not be null!");
-			}
-			return code.codeClass == CodeClass.SERVER_ERROR_RESPONSE.value;
 		}
 	}
 

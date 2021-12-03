@@ -18,7 +18,7 @@ package org.eclipse.californium.osgi;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.config.Configuration;
 
 
 /**
@@ -32,22 +32,24 @@ public interface EndpointFactory {
 	 * The endpoints returned by this method are <em>not</em> started yet.
 	 * 
 	 * @param config the configuration properties to be used for creating the
-	 * endpoint or <code>null</code> if default values should be used
+	 * endpoint or {@code null} if default values should be used
 	 * @param address the IP address and port to bind to
 	 * @return the endpoint
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	Endpoint getEndpoint(NetworkConfig config, InetSocketAddress address);
-	
+	Endpoint getEndpoint(Configuration config, InetSocketAddress address);
+
 	/**
 	 * Gets an Endpoint that uses DTLS for secure communication.
 	 * 
 	 * The endpoints returned by this method are <em>not</em> started yet.
 	 * 
 	 * @param config the configuration properties to be used for creating the
-	 * endpoint or <code>null</code> if default values should be used
+	 *            endpoint or {@code null}, if default values should be used
 	 * @param address the address
-	 * @return the secure endpoint or <code>null</code> if this factory
-	 * does not support secure endpoints
+	 * @return the secure endpoint or {@code null}, if this factory does not
+	 *         support secure endpoints
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	Endpoint getSecureEndpoint(NetworkConfig config, InetSocketAddress address);
+	Endpoint getSecureEndpoint(Configuration config, InetSocketAddress address);
 }

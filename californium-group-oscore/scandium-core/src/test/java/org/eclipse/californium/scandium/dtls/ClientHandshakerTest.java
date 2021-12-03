@@ -38,17 +38,23 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestScheduledExecutorService;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
+import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -59,6 +65,9 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class ClientHandshakerTest {
+	@ClassRule
+	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
+			DtlsNetworkRule.Mode.NATIVE);
 
 	final static int MAX_TRANSMISSION_UNIT = 1500;
 
@@ -207,10 +216,9 @@ public class ClientHandshakerTest {
 		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
 		assertNotNull(clientHello);
 		CipherSuite cipherSuite = clientHello.getCipherSuites().get(0);
-		HelloExtensions extensions = new HelloExtensions();
-		extensions.addExtension(ConnectionIdExtension.fromConnectionId(ConnectionId.EMPTY));
-		ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), new Random(), new SessionId(),
-				cipherSuite, CompressionMethod.NULL, extensions);
+		ServerHello serverHello = new ServerHello(clientHello.getProtocolVersion(), new SessionId(),
+				cipherSuite, CompressionMethod.NULL);
+		serverHello.addExtension(new RecordSizeLimitExtension(100));
 		Record record =  DtlsTestTools.getRecordForMessage(0, 1, serverHello);
 		record.decodeFragment(handshaker.getDtlsContext().getReadState());
 		try {
@@ -242,12 +250,12 @@ public class ClientHandshakerTest {
 			final boolean sniEnabled) throws Exception {
 
 		DtlsConnectorConfig.Builder builder = 
-				DtlsConnectorConfig.builder()
-					.setIdentity(
+				DtlsConnectorConfig.builder(network.createTestConfig())
+					.setCertificateIdentityProvider(new SingleCertificateProvider(
 						DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(),
-						CertificateType.X_509)
-					.setSniEnabled(sniEnabled);
+						CertificateType.X_509))
+					.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, sniEnabled);
 
 		Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
 		if (configureTrustStore) {
@@ -257,10 +265,12 @@ public class ClientHandshakerTest {
 		} else if (configureRpkTrustAll) {
 			builder.setAdvancedCertificateVerifier(verifierBuilder.setTrustAllRPKs().build());
 		} else {
-			builder.setClientAuthenticationRequired(false);
+			builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		}
 		DtlsConnectorConfig config = builder.build();
-		Connection connection = new Connection(config.getAddress(), new SyncSerialExecutor());
+		Connection connection = new Connection(config.getAddress());
+		connection.setConnectorContext(TestSynchroneExecutor.TEST_EXECUTOR, null);
+		connection.setConnectionId(ConnectionId.EMPTY);
 		handshaker = new ClientHandshaker(
 				virtualHost,
 				recordLayer,
@@ -275,7 +285,7 @@ public class ClientHandshakerTest {
 		CertificateType preferred = null;
 		ServerCertificateTypeExtension typeExtension = msg.getServerCertificateTypeExtension();
 		if (typeExtension != null) {
-			preferred = typeExtension.getCertificateTypes().get(0);
+			preferred = typeExtension.getCertificateType();
 		}
 		if (expectedType == CertificateType.X_509) {
 			if (preferred == null) {

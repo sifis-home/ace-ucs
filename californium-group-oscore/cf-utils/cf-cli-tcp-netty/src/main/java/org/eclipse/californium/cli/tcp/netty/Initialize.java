@@ -17,6 +17,9 @@ package org.eclipse.californium.cli.tcp.netty;
 
 import org.eclipse.californium.cli.ClientInitializer;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.elements.config.TcpConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Initialize {@link ClientInitializer}.
@@ -26,10 +29,25 @@ import org.eclipse.californium.core.coap.CoAP;
  * @since 2.4
  */
 public class Initialize {
+	protected static final Logger LOGGER = LoggerFactory.getLogger(Initialize.class);
 
 	static {
-		ClientInitializer.registerConnectorFactory(CoAP.PROTOCOL_TCP, new TcpConnectorFactory());
-		ClientInitializer.registerConnectorFactory(CoAP.PROTOCOL_TLS, new TlsConnectorFactory());
+		boolean config = false;
+		try {
+			ClientInitializer.registerConnectorFactory(CoAP.PROTOCOL_TCP, new TcpConnectorFactory());
+			config = true;
+		} catch (Throwable t) {
+			LOGGER.error(CoAP.PROTOCOL_TCP, t);
+		}
+		try {
+			ClientInitializer.registerConnectorFactory(CoAP.PROTOCOL_TLS, new TlsConnectorFactory());
+			config = true;
+		} catch (Throwable t) {
+			LOGGER.error(CoAP.PROTOCOL_TLS, t);
+		}
+		if (config) {
+			TcpConfig.register();
+		}
 	}
 
 }

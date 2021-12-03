@@ -93,9 +93,13 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.assume.TimeAssume;
+import org.eclipse.californium.elements.config.Configuration;
 import org.junit.AssumptionViolatedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LockstepEndpoint {
+	private static final Logger LOGGER = LoggerFactory.getLogger(LockstepEndpoint.class);
 
 	private static boolean DEFAULT_VERBOSE = false;
 
@@ -115,19 +119,17 @@ public class LockstepEndpoint {
 
 	private final DataSerializer serializer;
 	private final DataParser parser;
+	private final Configuration configuration;
 	private boolean verbose = DEFAULT_VERBOSE;
 	private MultiMessageExpectation multi;
 
-	public LockstepEndpoint() {
-		this((InetSocketAddress)null);
-	}
-
-	public LockstepEndpoint(final InetSocketAddress destination) {
+	public LockstepEndpoint(final InetSocketAddress destination, Configuration configuration) {
 
 		this.destination = destination;
+		this.configuration = configuration;
 		this.storage = new HashMap<String, Object>();
 		this.incoming = new LinkedBlockingQueue<RawData>();
-		this.connector = new UDPConnector(TestTools.LOCALHOST_EPHEMERAL);
+		this.connector = new UDPConnector(TestTools.LOCALHOST_EPHEMERAL, configuration);
 		this.connector.setRawDataReceiver(new RawDataChannel() {
 
 			public void receiveData(RawData raw) {
@@ -144,12 +146,12 @@ public class LockstepEndpoint {
 			throw new RuntimeException(e);
 		}
 	}
-	
+
 	public LockstepEndpoint(final LockstepEndpoint previousEndpoint) {
-		this(previousEndpoint.destination);
+		this(previousEndpoint.destination, previousEndpoint.configuration);
 		storage.putAll(previousEndpoint.storage);
 	}
-	
+
 	public void destroy() {
 		if (connector != null) {
 			connector.destroy();
@@ -158,7 +160,7 @@ public class LockstepEndpoint {
 
 	public void print(String text) {
 		if (verbose) {
-			System.out.println(text);
+			LOGGER.info("{}", text);
 		}
 	}
 
@@ -335,6 +337,7 @@ public class LockstepEndpoint {
 	 * MID, if the repeated MID is not expected. If no next message arrives,
 	 * reports an assert.
 	 * 
+	 * <pre>
 	 * <code>
 	 *    ... expectRequest.storeMID("A").type(CON) ...
 	 * 
@@ -347,6 +350,7 @@ public class LockstepEndpoint {
 	 *    ... expectRequest.type(CON)... 
 	 * 
 	 * </code>
+	 * </pre>
 	 * 
 	 * MID expectations are based on {@link MessageExpectation#mid(int)},
 	 * {@link MessageExpectation#sameMID(String)} or
@@ -577,16 +581,25 @@ public class LockstepEndpoint {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
-					int expectedLength = payload.length();
-					int actualLength = message.getPayloadSize();
-					assertEquals("Wrong payload length: ", expectedLength, actualLength);
-					assertEquals("Wrong payload:", payload, message.getPayloadString());
-					print("Correct payload (" + actualLength + " bytes):" + System.lineSeparator()
-							+ message.getPayloadString());
+					if (payload.isEmpty()) {
+						assertEquals("Payload not expected, length: ", 0, message.getPayloadSize());
+						print("Correct empty payload");
+					} else {
+						int expectedLength = payload.length();
+						int actualLength = message.getPayloadSize();
+						assertEquals("Wrong payload length: ", expectedLength, actualLength);
+						assertEquals("Wrong payload:", payload, message.getPayloadString());
+						print("Correct payload (" + actualLength + " bytes):" + System.lineSeparator()
+								+ message.getPayloadString());
+					}
 				}
 
 				public String toString() {
-					return "Expected payload: '" + payload + "'";
+					if (payload.isEmpty()) {
+						return "Expected no payload";
+					} else {
+						return "Expected payload: '" + payload + "'";
+					}
 				}
 			});
 			return this;

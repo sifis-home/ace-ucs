@@ -17,6 +17,7 @@ package org.eclipse.californium.plugtests.tests;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.cli.decoder.CborDecoder;
 import org.eclipse.californium.cli.decoder.Decoder;
@@ -69,8 +70,8 @@ public class CC20 extends TestClientAbstract {
 					+ use.getMessage());
 		}
 
-		request.setURI(uri);
 		addContextObserver(request);
+		request.setURI(uri);
 
 		// print request info
 		if (verbose) {
@@ -90,18 +91,21 @@ public class CC20 extends TestClientAbstract {
 			if (success) {
 				// Part B
 				request = new Request(Code.GET, Type.CON);
+				addContextObserver(request);
 				request.setURI(uri);
 				success = executeRequest(request, MediaTypeRegistry.APPLICATION_XML, null);
 			}
 			if (success) {
 				// Part C
 				request = new Request(Code.GET, Type.CON);
+				addContextObserver(request);
 				request.setURI(uri);
 				success = executeRequest(request, MediaTypeRegistry.APPLICATION_JSON, new JsonDecoder());
 			}
 			if (success) {
 				// Part B
 				request = new Request(Code.GET, Type.CON);
+				addContextObserver(request);
 				request.setURI(uri);
 				success = executeRequest(request, MediaTypeRegistry.APPLICATION_CBOR, new CborDecoder());
 			}
@@ -145,7 +149,7 @@ public class CC20 extends TestClientAbstract {
 			if (verbose) {
 				System.out.println("Response received");
 				System.out.println("Time elapsed (ms): "
-						+ response.getRTT());
+						+ TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 				Utils.prettyPrint(response);
 			}
 

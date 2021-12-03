@@ -127,7 +127,7 @@ public class CoapDBConnector extends SQLConnector implements AdvancedPskStore {
             if ((val== null) || (val.getType() != CBORType.ByteString)) {
                 return null; //Malformed key
             }
-            return new SecretKeySpec(val.GetByteString(), "PSK"); // FIXME: Changed
+            return new SecretKeySpec(val.GetByteString(), "PSK");
         }
         return null; //Wrong KeyType
           

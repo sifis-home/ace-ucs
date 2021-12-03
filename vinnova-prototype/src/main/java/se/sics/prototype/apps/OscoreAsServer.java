@@ -45,7 +45,6 @@ import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
-import org.eclipse.californium.elements.util.Bytes;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;

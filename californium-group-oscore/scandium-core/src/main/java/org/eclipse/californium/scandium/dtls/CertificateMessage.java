@@ -33,6 +33,7 @@ import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
@@ -53,28 +54,25 @@ import org.slf4j.LoggerFactory;
 /**
  * The server MUST send a Certificate message whenever the agreed-upon key
  * exchange method uses certificates for authentication. This message will
- * always immediately follow the {@link ServerHello} message. For details see <a
- * href="http://tools.ietf.org/html/rfc5246#section-7.4.2">RFC 5246</a>.
+ * always immediately follow the {@link ServerHello} message. For details see
+ * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target=
+ * "_blank">RFC 5246</a>.
  */
 public final class CertificateMessage extends HandshakeMessage {
-
-	// Logging ///////////////////////////////////////////////////////////
 
 	private static final String CERTIFICATE_TYPE_X509 = "X.509";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateMessage.class);
 
-	// DTLS-specific constants ///////////////////////////////////////////
-
 	/**
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.2">RFC 5246</a>:
-	 * <code>opaque ASN.1Cert<1..2^24-1>;</code>
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target="_blank">RFC 5246</a>:
+	 * {@code opaque ASN.1Cert<1..2^24-1>;}
 	 */
 	private static final int CERTIFICATE_LENGTH_BITS = 24;
 
 	/**
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.2">RFC 5246</a>:
-	 * <code>ASN.1Cert certificate_list<0..2^24-1>;</code>
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target="_blank">RFC 5246</a>:
+	 * {@code ASN.1Cert certificate_list<0..2^24-1>;}
 	 */
 	private static final int CERTIFICATE_LIST_LENGTH_BITS = 24;
 
@@ -84,7 +82,13 @@ public final class CertificateMessage extends HandshakeMessage {
 	private static final ThreadLocalCertificateFactory CERTIFICATE_FACTORY = new ThreadLocalCertificateFactory(
 			CERTIFICATE_TYPE_X509);
 
-	// Members ///////////////////////////////////////////////////////////
+	/**
+	 * Empty certificate chain. Used for empty client certificate messages, if
+	 * no matching certificate is available.
+	 * 
+	 * @since 3.0
+	 */
+	private static final List<X509Certificate> EMPTY = Collections.emptyList();
 
 	/**
 	 * A chain of certificates asserting the sender's identity.
@@ -105,7 +109,15 @@ public final class CertificateMessage extends HandshakeMessage {
 	// length is at least 3 bytes containing the message's overall number of bytes
 	private final int length;
 
-	// Constructor ////////////////////////////////////////////////////
+	/**
+	 * Creates a empty <em>CERTIFICATE</em> message containing a empty
+	 * certificate chain.
+	 * 
+	 * @since 3.0
+	 */
+	public CertificateMessage() {
+		this(EMPTY, null);
+	}
 
 	/**
 	 * Creates a <em>CERTIFICATE</em> message containing a certificate chain.
@@ -113,7 +125,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @param certificateChain
 	 *            the certificate chain with the (first certificate must be the
 	 *            server's)
-	 * @throws NullPointerException if the certificate chain is <code>null</code>
+	 * @throws NullPointerException if the certificate chain is {@code null}
 	 *            (use an array of length zero to create an <em>empty</em> message)
 	 * @throws IllegalArgumentException if the certificate chain contains any
 	 *            non-X.509 certificates or does not form a valid chain of
@@ -132,7 +144,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @param certificateAuthorities the certificate authorities to truncate
 	 *            chain. Maybe {@code null} or empty.
 	 * @throws NullPointerException if the certificate chain is
-	 *             <code>null</code> (use an array of length zero to create an
+	 *             {@code null} (use an array of length zero to create an
 	 *             <em>empty</em> message)
 	 * @throws IllegalArgumentException if the certificate chain contains any
 	 *             non-X.509 certificates or does not form a valid chain of
@@ -205,7 +217,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * 
 	 * @param rawPublicKeyBytes
 	 *           the raw public key (SubjectPublicKeyInfo)
-	 * @throws NullPointerException if the raw public key byte array is <code>null</code>
+	 * @throws NullPointerException if the raw public key byte array is {@code null}
 	 *           (use an array of length zero to create an <em>empty</em> message)
 	 */
 	public CertificateMessage(byte[] rawPublicKeyBytes) {
@@ -240,8 +252,6 @@ public final class CertificateMessage extends HandshakeMessage {
 		}
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public HandshakeType getMessageType() {
 		return HandshakeType.CERTIFICATE;
@@ -253,20 +263,26 @@ public final class CertificateMessage extends HandshakeMessage {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(super.toString());
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		String indentation2 = StringUtil.indentation(indent + 2);
 		if (rawPublicKeyBytes == null && certPath != null) {
-			sb.append("\t\tCertificate chain length: ").append(getMessageLength() - 3).append(StringUtil.lineSeparator());
+			List<? extends Certificate> certificates = certPath.getCertificates();
+			sb.append(indentation).append("Certificate chain: ").append(certificates.size()).append(" certificates").append(StringUtil.lineSeparator());
 			int index = 0;
-			for (Certificate cert : certPath.getCertificates()) {
-				sb.append("\t\t\tCertificate Length: ").append(encodedChain.get(index).length).append(StringUtil.lineSeparator());
-				sb.append("\t\t\tCertificate: ").append(cert).append(StringUtil.lineSeparator());
+			for (Certificate cert : certificates) {
+				sb.append(indentation2).append("Certificate Length: ").append(encodedChain.get(index).length).append(" bytes").append(StringUtil.lineSeparator());
+				String text = StringUtil.toDisplayString(cert);
+				sb.append(indentation2).append("Certificate[").append(index).append(".]: ");
+				sb.append(text.replaceAll("\n", "\n" + indentation2)).append(StringUtil.lineSeparator());
 				index++;
 			}
 		} else if (rawPublicKeyBytes != null && certPath == null) {
-			sb.append("\t\tRaw Public Key: ");
-			sb.append(getPublicKey().toString());
+			sb.append(indentation).append("Raw Public Key: ");
+			String text = StringUtil.toDisplayString(publicKey); 
+			sb.append(text.replaceAll("\n", "\n" + indentation2));
 			sb.append(StringUtil.lineSeparator());
 		}
 
@@ -280,7 +296,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * <em>X.509</em> certificates. In that case the returned array
 	 * contains the peer's public key certificate at position 0.
 	 * 
-	 * @return the certificate chain or <code>null</code> if
+	 * @return the certificate chain or {@code null}, if
 	 *        <em>RawPublicKey</em>s are used
 	 */
 	public CertPath getCertificateChain() {
@@ -300,8 +316,6 @@ public final class CertificateMessage extends HandshakeMessage {
 	public boolean isEmpty() {
 		return encodedChain != null && encodedChain.isEmpty();
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {

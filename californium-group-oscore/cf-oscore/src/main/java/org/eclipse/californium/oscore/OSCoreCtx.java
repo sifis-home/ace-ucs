@@ -23,26 +23,25 @@ import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-
-import com.upokecenter.cbor.CBORObject;
-
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.EncryptCommon;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.group.GroupRecipientCtx;
 import org.eclipse.californium.oscore.group.GroupSenderCtx;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.upokecenter.cbor.CBORObject;
 
 /**
  * 
@@ -178,7 +177,22 @@ public class OSCoreCtx {
 	 * @throws OSException if the default KDF is not supported
 	 */
 	public OSCoreCtx(byte[] master_secret, boolean client) throws OSException {
-		this(master_secret, client, null, null, null, null, null, null, null);
+		this(master_secret, client, Configuration.getStandard());
+	}
+
+	/**
+	 * Constructor. Generates the context from the base parameters with the
+	 * minimal input.
+	 * 
+	 * @param master_secret the master secret
+	 * @param client is this originally the client's context
+	 * @param configuration configuration to be used by this context
+	 * @throws OSException if the default KDF is not supported
+	 * @since 3.0
+	 */
+	public OSCoreCtx(byte[] master_secret, boolean client, Configuration configuration) throws OSException {
+		this(master_secret, client, null, null, null, null, null, null, null,
+				configuration.get(CoapConfig.MAX_RESOURCE_BODY_SIZE));
 	}
 
 	/**
@@ -194,11 +208,13 @@ public class OSCoreCtx {
 	 * @param replay_size the replay window size or null for the default
 	 * @param master_salt the optional master salt, can be null
 	 * @param contextId the context id, can be null
+	 * @param maxUnfragmentedSize maximum unfragmented size 
 	 *
 	 * @throws OSException if the KDF is not supported
+	 * @since 3.0 (added parameter maxUnfragmentedSize)
 	 */
 	public OSCoreCtx(byte[] master_secret, boolean client, AlgorithmID alg, byte[] sender_id, byte[] recipient_id,
-			AlgorithmID kdf, Integer replay_size, byte[] master_salt, byte[] contextId) throws OSException {
+			AlgorithmID kdf, Integer replay_size, byte[] master_salt, byte[] contextId, int maxUnfragmentedSize) throws OSException {
 
 		if (alg == null) {
 			this.common_alg = AlgorithmID.AES_CCM_16_64_128;
@@ -274,7 +290,7 @@ public class OSCoreCtx {
 		contextRederivationPhase = ContextRederivation.PHASE.INACTIVE;
 
 		// Set default value of MAX_UNFRAGMENTED_SIZE
-		maxUnfragmentedSize = NetworkConfig.getStandard().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
+		this.maxUnfragmentedSize = maxUnfragmentedSize;
 
 		//Set digest value depending on HKDF
 		String digest = null;
@@ -513,6 +529,12 @@ public class OSCoreCtx {
 			throw new IllegalStateException("Context ID cannot be included for a context without one set.");
 		}
 		
+		// If Context ID is not to be included clear the overriding Context ID
+		// possibly set to be included in messages
+		if (!includeContextId) {
+			this.overrideContextId = null;
+		}
+
 		this.includeContextId = includeContextId;
 	}
 
@@ -887,7 +909,9 @@ public class OSCoreCtx {
 	}
 
 	/**
-	 * Returns this CoAPCode
+	 * Returns this CoAPCode.
+	 * 
+	 * @return the coap code
 	 */
 	public Code getCoAPCode() {
 		return CoAPCode;

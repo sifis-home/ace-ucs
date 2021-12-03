@@ -87,7 +87,9 @@ public class Option implements Comparable<Option> {
 	/**
 	 * Instantiates a new option with the specified option number.
 	 * 
-	 * The value must be set using one of the setters.
+	 * Note: The value must be set using one of the setters or other
+	 * constructors. Since 3.0, the value will be validated. Using
+	 * {@code Bytes.EMPTY} as default would fail in too many cases.
 	 * 
 	 * @param number the option number
 	 * @see #setValue(byte[])
@@ -391,15 +393,21 @@ public class Option implements Comparable<Option> {
 		}
 		switch (OptionNumberRegistry.getFormatByNr(number)) {
 		case INTEGER:
-			if (number==OptionNumberRegistry.ACCEPT || number==OptionNumberRegistry.CONTENT_FORMAT) return "\""+MediaTypeRegistry.toString(getIntegerValue())+"\"";
-			else if (number==OptionNumberRegistry.BLOCK1 || number==OptionNumberRegistry.BLOCK2) return "\""+ new BlockOption(value) +"\"";
-			else return Integer.toString(getIntegerValue());
+			if (number == OptionNumberRegistry.BLOCK1 || number == OptionNumberRegistry.BLOCK2)
+				return "\"" + new BlockOption(value) + "\"";
+			int iValue = getIntegerValue();
+			if (number == OptionNumberRegistry.ACCEPT || number == OptionNumberRegistry.CONTENT_FORMAT)
+				return "\"" + MediaTypeRegistry.toString(iValue) + "\"";
+			else if (number == OptionNumberRegistry.NO_RESPONSE)
+				return "\"" + new NoResponseOption(iValue) + "\"";
+			else
+				return Long.toString(getLongValue());
 		case STRING:
-			return "\""+this.getStringValue()+"\"";
+			return "\"" + this.getStringValue() + "\"";
 		case EMPTY:
 			return "";
 		default:
-			return "0x" + StringUtil.byteArray2Hex(this.getValue());
+			return "0x" + StringUtil.byteArray2Hex(value);
 		}
 	}
 

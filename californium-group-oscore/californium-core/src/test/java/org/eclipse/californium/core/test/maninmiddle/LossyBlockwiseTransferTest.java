@@ -31,18 +31,20 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
 import org.eclipse.californium.elements.category.Large;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -55,6 +57,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -63,7 +67,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class LossyBlockwiseTransferTest {
-	
+	private static final Logger LOGGER = LoggerFactory.getLogger(LossyBlockwiseTransferTest.class);
+
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -87,18 +92,16 @@ public class LossyBlockwiseTransferTest {
 	@Before
 	public void setupEndpoints() throws Exception {
 
-		System.out.println(System.lineSeparator() + "Start" + getClass().getSimpleName());
-
-		NetworkConfig config = network.getStandardTestConfig()
-			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 300)
-			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
-			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1.5f)
-			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
-			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
+		Configuration config = network.getStandardTestConfig()
+			.set(CoapConfig.ACK_TIMEOUT, 300, TimeUnit.MILLISECONDS)
+			.set(CoapConfig.ACK_INIT_RANDOM, 1f)
+			.set(CoapConfig.ACK_TIMEOUT_SCALE, 1.5f)
+			.set(CoapConfig.MAX_MESSAGE_SIZE, 32)
+			.set(CoapConfig.PREFERRED_BLOCK_SIZE, 32);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 
 		clientEndpoint = builder.build();
 		cleanup.add(clientEndpoint);
@@ -107,7 +110,7 @@ public class LossyBlockwiseTransferTest {
 
 		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 
 		Endpoint serverEndpoint = builder.build();
 		CoapServer server = new CoapServer(config);
@@ -125,21 +128,19 @@ public class LossyBlockwiseTransferTest {
 		int clientPort = clientEndpoint.getAddress().getPort();
 		int serverPort = serverEndpoint.getAddress().getPort();
 		middleAddress = InetAddress.getLoopbackAddress();
-		middle = new ManInTheMiddle(middleAddress, clientPort, serverPort, config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT), clientInterceptor);
+		middle = new ManInTheMiddle(middleAddress, clientPort, serverPort, config.get(CoapConfig.MAX_RETRANSMIT), clientInterceptor);
 		middlePort = middle.getPort();
 
-		System.out.println(
-				String.format(
-						"client at %s, middle at %s:%d, server at %s",
-						StringUtil.toString(clientEndpoint.getAddress()),
-						middleAddress.getHostAddress(), middlePort,
-						StringUtil.toString(serverEndpoint.getAddress())));
+		LOGGER.info("client at {}, middle at {}:{}, server at {}",
+				StringUtil.toLog(clientEndpoint.getAddress()),
+				middleAddress.getHostAddress(),
+				middlePort,
+				StringUtil.toLog(serverEndpoint.getAddress()));
 	}
 
 	@After
 	public void shutdownServer() {
-		System.out.println();
-		System.out.printf("End %s", getClass().getSimpleName());
+		LOGGER.info("End");
 		middle.stop();
 	}
 
@@ -171,13 +172,13 @@ public class LossyBlockwiseTransferTest {
 
 	private static void getResourceAndAssertPayload(final CoapClient client, final String expectedPayload) throws ConnectorException, IOException {
 
-		System.out.println(String.format("doing a blockwise GET on: %s", client.getURI()));
+		LOGGER.info("doing a blockwise GET on: {}", client.getURI());
 
 		long start = System.currentTimeMillis();
 		CoapResponse response = client.get();
 		long end = System.currentTimeMillis();
 		assertThat("Blockwise GET timed out after " + (end - start) + " ms", response, is(notNullValue()));
-		System.out.println(String.format("Received %d bytes after %d ms", response.getPayload().length, end - start));
+		LOGGER.info("Received {} bytes after {} ms", response.getPayload().length, end - start);
 		assertThat("Did not receive expected resource body", response.getResponseText(), is(expectedPayload));
 	}
 }

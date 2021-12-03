@@ -18,6 +18,10 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.Inet6Address;
@@ -26,6 +30,14 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CoderResult;
+import java.nio.charset.CodingErrorAction;
+import java.security.PublicKey;
+import java.security.cert.Certificate;
 import java.util.regex.Pattern;
 
 /**
@@ -46,6 +58,9 @@ public class StringUtil {
 	 */
 	private static final Pattern HOSTNAME_PATTERN = Pattern.compile(
 			"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$");
+
+	private static final Pattern IP_PATTERN = Pattern
+			.compile("^(\\[[0-9a-fA-F:]+(%\\w+)?\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})$");
 
 	/**
 	 * Workaround too support android API 16-18.
@@ -69,11 +84,24 @@ public class StringUtil {
 	/**
 	 * Lookup table for hexadecimal digits.
 	 * 
-	 * @see #toHexString(byte[])
+	 * @see #charArray2hex(char[])
+	 * @see #byteArray2HexString(byte[], char, int)
 	 */
 	private final static char[] BIN_TO_HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
+	/**
+	 * Table with tabs for pretty printing.
+	 * 
+	 * @since 3.0
+	 */
+	private static final String[] TABS = new String[10];
+
 	static {
+		String tab = "";
+		for (int i = 0; i < TABS.length; ++i) {
+			TABS[i] = tab;
+			tab += "\t";
+		}
 		boolean support = false;
 		try {
 			Method method = InetSocketAddress.class.getMethod("getHostString");
@@ -82,11 +110,60 @@ public class StringUtil {
 			// android before API 18
 		}
 		SUPPORT_HOST_STRING = support;
-		CALIFORNIUM_VERSION = StringUtil.class.getPackage().getImplementationVersion();
+		String version = null;
+		Package pack = StringUtil.class.getPackage();
+		if (pack != null) {
+			version = pack.getImplementationVersion();
+			if ("0.0".equals(version)) {
+				// that seems to be a dummy value used,
+				// if the version is not available
+				version = null;
+			}
+		}
+		CALIFORNIUM_VERSION = version;
 	}
 
-	private static String toHostString(InetSocketAddress address) {
-		return address.getHostString();
+	/**
+	 * Get host string of inet socket address.
+	 * 
+	 * @param socketAddress inet socket address.
+	 * @return host string
+	 * @since 3.0 (changed scope to public)
+	 */
+	public static String toHostString(InetSocketAddress socketAddress) {
+		if (SUPPORT_HOST_STRING) {
+			return socketAddress.getHostString();
+		} else {
+			InetAddress address = socketAddress.getAddress();
+			if (address != null) {
+				String textAddress = address.toString();
+				if (textAddress.startsWith("/")) {
+					// unresolved, return literal IP
+					return textAddress.substring(1);
+				} else {
+					// resolved, safe to call getHostName 
+					return address.getHostName();
+				}
+			} else {
+				return socketAddress.getHostName();
+			}
+		}
+	}
+
+	/**
+	 * Get indentation-prefix.
+	 * 
+	 * @param indentIndex indent
+	 * @return indentation prefix.
+	 * @since 3.0
+	 */
+	public static String indentation(int indentIndex) {
+		if (indentIndex < 0) {
+			return "";
+		} else if (indentIndex >= TABS.length) {
+			return TABS[TABS.length - 1];
+		}
+		return TABS[indentIndex];
 	}
 
 	/**
@@ -313,6 +390,65 @@ public class StringUtil {
 	}
 
 	/**
+	 * Convert UTF-8 data into display string.
+	 * 
+	 * If none-printable data is contained, the data is converted to a
+	 * hexa-decimal string. If the UTF-8 string exceeds the limit, it's
+	 * truncated and the length is appended. If a hexa-decimal string is
+	 * returned and the data length exceeds the limit, the data is truncated and
+	 * the length is appended.
+	 * 
+	 * @param data data to convert
+	 * @param limit limit of result. Either limits the UTF-8 string, or the data
+	 *            for the hexa-decimal string.
+	 * @return display string
+	 * @since 3.0
+	 */
+	public static String toDisplayString(byte[] data, int limit) {
+		if (data == null) {
+			return "<no data>";
+		} else if (data.length == 0) {
+			return "<empty data>";
+		}
+		if (data.length < limit) {
+			limit = data.length;
+		}
+		boolean text = true;
+		for (byte b : data) {
+			if (' ' > b) {
+				switch (b) {
+				case '\t':
+				case '\n':
+				case '\r':
+					continue;
+				}
+				text = false;
+				break;
+			}
+		}
+		if (text) {
+			CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+			decoder.onMalformedInput(CodingErrorAction.REPORT);
+			decoder.onUnmappableCharacter(CodingErrorAction.REPORT);
+			ByteBuffer in = ByteBuffer.wrap(data);
+			CharBuffer out = CharBuffer.allocate(limit);
+			CoderResult result = decoder.decode(in, out, true);
+			decoder.flush(out);
+			((Buffer) out).flip();
+			if (CoderResult.OVERFLOW == result) {
+				return "\"" + out + "\".. " + data.length + " bytes";
+			} else if (!result.isError()) {
+				return "\"" + out + "\"";
+			}
+		}
+		String hex = byteArray2HexString(data, ' ', limit);
+		if (data.length > limit) {
+			hex += ".." + data.length + " bytes";
+		}
+		return hex;
+	}
+
+	/**
 	 * Get address as string for logging.
 	 * 
 	 * @param address address to be converted to string
@@ -436,7 +572,8 @@ public class StringUtil {
 
 	/**
 	 * Checks if a given string is a valid host name as defined by
-	 * <a href="http://tools.ietf.org/html/rfc1123">RFC 1123</a>.
+	 * <a href="https://tools.ietf.org/html/rfc1123" target="_blank">RFC
+	 * 1123</a>.
 	 * 
 	 * @param name The name to check.
 	 * @return {@code true} if the name is a valid host name.
@@ -450,15 +587,33 @@ public class StringUtil {
 	}
 
 	/**
+	 * Checks if a given string is a literal IP address.
+	 * 
+	 * @param address address to check.
+	 * @return {@code true} if the address is a literal IP address.
+	 * @since 3.0
+	 */
+	public static boolean isLiteralIpAddress(final String address) {
+		if (address == null) {
+			return false;
+		} else {
+			return IP_PATTERN.matcher(address).matches();
+		}
+	}
+
+	/**
 	 * Get URI hostname from address.
 	 * 
 	 * Apply workaround for JDK-8199396.
 	 * 
+	 * Note: since 3.0, a "%" in a IPv6 address is replaced by the encoded form
+	 * with "%25".
+	 * 
 	 * @param address address
 	 * @return uri hostname
 	 * @throws NullPointerException if address is {@code null}.
-	 * @throws URISyntaxException if address could not be converted into
-	 *             URI hostname.
+	 * @throws URISyntaxException if address could not be converted into URI
+	 *             hostname.
 	 * @since 2.1
 	 */
 	public static String getUriHostname(InetAddress address) throws URISyntaxException {
@@ -466,17 +621,33 @@ public class StringUtil {
 			throw new NullPointerException("address must not be null!");
 		}
 		String host = address.getHostAddress();
-		try {
-			new URI(null, null, host, -1, null, null, null);
-		} catch (URISyntaxException e) {
-			try {
-				// work-around for openjdk bug JDK-8199396.
-				// some characters are not supported for the ipv6 scope.
-				host = host.replaceAll("[-._~]", "");
-				new URI(null, null, host, -1, null, null, null);
-			} catch (URISyntaxException e2) {
-				// throw first exception before work-around
-				throw e;
+		if (address instanceof Inet6Address) {
+			Inet6Address address6 = (Inet6Address) address;
+			if (address6.getScopedInterface() != null || address6.getScopeId() > 0) {
+				int pos = host.indexOf('%');
+				if (pos > 0 && pos + 1 < host.length()) {
+					String separator = "%25";
+					String scope = host.substring(pos + 1);
+					String hostAddress = host.substring(0, pos);
+					host = hostAddress + separator + scope;
+					try {
+						new URI(null, null, host, -1, null, null, null);
+					} catch (URISyntaxException e) {
+						// work-around for openjdk bug JDK-8199396.
+						// some characters are not supported for the ipv6 scope.
+						scope = scope.replaceAll("[-._~]", "");
+						if (scope.isEmpty()) {
+							host = hostAddress;
+						} else {
+							host = hostAddress + separator + scope;
+							try {
+								new URI(null, null, host, -1, null, null, null);
+							} catch (URISyntaxException e2) {
+								throw e;
+							}
+						}
+					}
+				}
 			}
 		}
 		return host;
@@ -485,13 +656,13 @@ public class StringUtil {
 	/**
 	 * Normalize logging tag.
 	 * 
-	 * The normalized tag is either a empty string {@code ""}, or terminated by a
-	 * space {@code ' '}.
+	 * The normalized tag is either a empty string {@code ""}, or terminated by
+	 * a space {@code ' '}.
 	 * 
 	 * @param tag tag to be normalized. {@code null} will be normalized to a
 	 *            empty string {@code ""}.
-	 * @return normalized tag. Either a empty string {@code ""}, or terminated by
-	 *         a space {@code ' '}
+	 * @return normalized tag. Either a empty string {@code ""}, or terminated
+	 *         by a space {@code ' '}
 	 */
 	public static String normalizeLoggingTag(String tag) {
 		if (tag == null) {
@@ -500,6 +671,72 @@ public class StringUtil {
 			tag += " ";
 		}
 		return tag;
+	}
+
+	/**
+	 * Get display text for Certificate.
+	 * 
+	 * @param cert certificate
+	 * @return display text
+	 * @since 3.0
+	 */
+	public static String toDisplayString(Certificate cert) {
+		int indentIndex = 0;
+		String[] lines = cert.toString().split("\n");
+		StringBuilder text = new StringBuilder();
+		for (String line : lines) {
+			line = line.trim();
+			if (!line.isEmpty()) {
+				int indent = indentDelta(line);
+				if (indent < 0 && line.length() == 1) {
+					indentIndex += indent;
+					indent = 0;
+				}
+				text.append(indentation(indentIndex)).append(line).append("\n");
+				indentIndex += indent;
+			} else {
+				text.append("\n");
+			}
+		}
+		return text.toString();
+	}
+
+	/**
+	 * Get indent delta for provided lines.
+	 * 
+	 * Counts {@code '['} (+1) and {@code ']'} (-1).
+	 * 
+	 * @param line line
+	 * @return indent change.
+	 * @since 3.0
+	 */
+	private static int indentDelta(String line) {
+		int index = 0;
+		for (int i = line.length(); i > 0;) {
+			--i;
+			char c = line.charAt(i);
+			if (c == '[') {
+				++index;
+			} else if (c == ']') {
+				--index;
+			}
+		}
+		if (index != 0 && line.matches("\\d+:\\s+.*")) {
+			// escape hex-dumps
+			return 0;
+		}
+		return index;
+	}
+
+	/**
+	 * Get display text for public key.
+	 * 
+	 * @param publicKey public key
+	 * @return display text
+	 * @since 3.0
+	 */
+	public static String toDisplayString(PublicKey publicKey) {
+		return publicKey.toString().replaceAll("\n\\s+", "\n");
 	}
 
 	/**
@@ -517,7 +754,10 @@ public class StringUtil {
 	public static String getConfiguration(String name) {
 		String value = System.getenv(name);
 		if (value == null || value.isEmpty()) {
-			value = System.getProperty(name);
+			String property = System.getProperty(name);
+			if (property != null) {
+				value = property;
+			}
 		}
 		return value;
 	}
@@ -568,5 +808,28 @@ public class StringUtil {
 			return Boolean.valueOf(value);
 		}
 		return null;
+	}
+
+	/**
+	 * Read file.
+	 * 
+	 * @param file file to read
+	 * @param defaultText default text
+	 * @return text contained in file, or defaultText, if file could not be
+	 *         read.
+	 * @since 3.0
+	 */
+	public static String readFile(File file, String defaultText) {
+		String content = defaultText;
+		if (file.canRead()) {
+			try (FileReader reader = new FileReader(file)) {
+				BufferedReader lineReader = new BufferedReader(reader);
+				content = lineReader.readLine();
+				lineReader.close();
+			} catch (FileNotFoundException e) {
+			} catch (IOException e) {
+			}
+		}
+		return content;
 	}
 }

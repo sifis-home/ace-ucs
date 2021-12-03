@@ -146,7 +146,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	/**
 	 * Set current thread executing the {@link #currentlyExecutedJob}.
 	 * 
-	 * @throws ConcurrentModificationException, if thread is already set.
+	 * @throws ConcurrentModificationException if thread is already set.
 	 */
 	private void setOwner() {
 		final Thread thread = owner.get();
@@ -162,7 +162,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	/**
 	 * Remove current thread executing the {@link #currentlyExecutedJob}.
 	 * 
-	 * @throws ConcurrentModificationException, if the current thread is not
+	 * @throws ConcurrentModificationException if the current thread is not
 	 *             executing the {@link #currentlyExecutedJob}.
 	 */
 	private void clearOwner() {
@@ -314,21 +314,6 @@ public class SerialExecutor extends AbstractExecutorService {
 		} finally {
 			lock.unlock();
 		}
-	}
-
-	/**
-	 * Create serial executor from provided executor.
-	 * 
-	 * @param executor target executor. if {@code null}, no serial executor is
-	 *            created.
-	 * @return created serial executor, or {@code null}, if provided executor is
-	 *         {@code null}.
-	 */
-	public static SerialExecutor create(final Executor executor) {
-		if (executor != null) {
-			return new SerialExecutor(executor);
-		}
-		return null;
 	}
 
 	/**

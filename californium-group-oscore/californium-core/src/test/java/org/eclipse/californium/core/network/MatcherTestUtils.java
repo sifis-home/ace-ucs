@@ -20,7 +20,6 @@
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -29,15 +28,16 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 
 /**
@@ -57,30 +57,28 @@ public final class MatcherTestUtils {
 		
 	};
 
-	public static final Executor TEST_EXCHANGE_EXECUTOR = null;
-
 	static ScheduledExecutorService newScheduler() {
 		return ExecutorsUtil.newSingleThreadScheduledExecutor(new TestThreadFactory("MatcherTest-"));
 	}
 
-	static TcpMatcher newTcpMatcher(NetworkConfig config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
+	static TcpMatcher newTcpMatcher(Configuration config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
 		InMemoryMessageExchangeStore exchangeStore = new InMemoryMessageExchangeStore(config);
 		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				new InMemoryObservationStore(config), exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
+				new InMemoryObservationStore(config), exchangeStore, correlationContextMatcher, TestSynchroneExecutor.TEST_EXECUTOR);
 		exchangeStore.setExecutor(scheduler);
 		matcher.start();
 		return matcher;
 	}
 
-	static UdpMatcher newUdpMatcher(NetworkConfig config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
+	static UdpMatcher newUdpMatcher(Configuration config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
 		return newUdpMatcher(config, new InMemoryMessageExchangeStore(config), new InMemoryObservationStore(config), correlationContextMatcher, scheduler);
 	}
 
-	static UdpMatcher newUdpMatcher(NetworkConfig config, MessageExchangeStore exchangeStore,
+	static UdpMatcher newUdpMatcher(Configuration config, MessageExchangeStore exchangeStore,
 			ObservationStore observationStore, EndpointContextMatcher correlationContextMatcher,
 			ScheduledExecutorService scheduler) {
 		UdpMatcher matcher = new UdpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				observationStore, exchangeStore, TEST_EXCHANGE_EXECUTOR,
+				observationStore, exchangeStore, TestSynchroneExecutor.TEST_EXECUTOR,
 				correlationContextMatcher);
 		exchangeStore.setExecutor(scheduler);
 		matcher.start();
@@ -88,30 +86,28 @@ public final class MatcherTestUtils {
 	}
 
 	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, EndpointContext exchangeContext) {
-		Request request = Request.newGet();
-		request.setDestinationContext(new AddressEndpointContext(dest));
-		Exchange exchange = new Exchange(request, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
-		matcher.sendRequest(exchange);
-		exchange.setEndpointContext(exchangeContext);
-		return exchange;
+		return sendRequest(dest, false, matcher, null, exchangeContext);
 	}
 
 	static Exchange sendObserveRequest(InetSocketAddress dest, Matcher matcher, EndpointContext exchangeContext) {
-		Request request = Request.newGet();
-		request.setDestinationContext(new AddressEndpointContext(dest));
-		request.setObserve();
-		Exchange exchange = new Exchange(request, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
-		matcher.sendRequest(exchange);
-		exchange.setEndpointContext(exchangeContext);
-		return exchange;
+		return sendRequest(dest, true, matcher, null, exchangeContext);
 	}
 
-	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, Exchange.EndpointContextOperator preoperator, EndpointContext exchangeContext) {
+	static Exchange sendRequest(InetSocketAddress dest, boolean observe, final Matcher matcher, Exchange.EndpointContextOperator preoperator, EndpointContext exchangeContext) {
 		Request request = Request.newGet();
+		if (observe) {
+			request.setObserve();
+		}
 		request.setDestinationContext(new AddressEndpointContext(dest));
-		Exchange exchange = new Exchange(request, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
+		final Exchange exchange = new Exchange(request, dest, Origin.LOCAL, TestSynchroneExecutor.TEST_EXECUTOR);
 		exchange.setEndpointContextPreOperator(preoperator);
-		matcher.sendRequest(exchange);
+		exchange.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				matcher.sendRequest(exchange);
+			}
+		});
 		exchange.setEndpointContext(exchangeContext);
 		return exchange;
 	}

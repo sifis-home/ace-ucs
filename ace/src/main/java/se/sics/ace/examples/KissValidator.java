@@ -138,7 +138,12 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
         if (!scope.getType().equals(CBORType.TextString)) {
             throw new AceException("Scope must be a String in KissValidator");
         }
-        return this.myScopes.containsKey(scope.AsString());
+        String[] scopes = scope.AsString().split(" ");
+        for (String subscope : scopes) {
+            if (!this.myScopes.containsKey(subscope))
+                    return false;
+        }
+        return true;
     }
 
     @Override

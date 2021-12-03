@@ -16,6 +16,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
@@ -83,7 +85,11 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 				return false;
 			}
 		} else {
-			// PSK or PSK_ECDHE only requires a selected cipher suite.
+			if (cipherSuite.isEccBased()) {
+				// PSK_ECDHE requires a selected supported group
+				parameters.selectSupportedGroup(parameters.getSupportedGroups().get(0));
+			}
+			// PSK requires a selected cipher suite.
 			parameters.select(cipherSuite);
 			return true;
 		}
@@ -107,18 +113,24 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 	 * @return {@code true}, if the cipher suite is selected, {@code false},
 	 *         otherwise.
 	 * @throws IllegalArgumentException if the certificate-chain is missing or
-	 *             the node certificate is not EC based.
+	 *             the certificate's key algorithm is not supported.
 	 */
 	protected boolean selectForCertificate(CipherSuiteParameters parameters, CipherSuite cipherSuite) {
-		// make sure that we support the client's proposed server certificate
-		// types
+		CertificateKeyAlgorithm keyAlgorithm = cipherSuite.getCertificateKeyAlgorithm();
+		if (!JceProviderUtil.isSupported(keyAlgorithm.name())) {
+			throw new IllegalArgumentException(keyAlgorithm.name() + " based cipher suites are supported!");
+		}
+		if (!keyAlgorithm.isCompatible(parameters.getPublicKey())) {
+			return false;
+		}
+		// make sure that we support the client's proposed
+		// server certificate types
 		if (parameters.getServerCertTypes().isEmpty()) {
 			parameters.setCertificateMismatch(CertificateBasedMismatch.SERVER_CERT_TYPE);
 			return false;
 		}
-		boolean clientAuthentication = parameters.isClientAuthenticationRequired()
-				|| parameters.isClientAuthenticationWanted();
-		if (clientAuthentication && parameters.getClientCertTypes().isEmpty()) {
+		CertificateAuthenticationMode clientAuthentication = parameters.getClientAuthenticationMode();
+		if (clientAuthentication.useCertificateRequest() && parameters.getClientCertTypes().isEmpty()) {
 			parameters.setCertificateMismatch(CertificateBasedMismatch.CLIENT_CERT_TYPE);
 			return false;
 		}
@@ -133,44 +145,45 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 				parameters.setCertificateMismatch(CertificateBasedMismatch.CERTIFICATE_EC_GROUPS);
 				return false;
 			}
-			SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm
-					.getSupportedSignatureAlgorithm(parameters.getSignatures(), parameters.getPublicKey());
-			if (signatureAndHashAlgorithm == null) {
-				parameters.setCertificateMismatch(CertificateBasedMismatch.CERTIFICATE_SIGNATURE_ALGORITHMS);
-				return false;
-			}
-			CertificateType certificateType = parameters.getServerCertTypes().get(0);
-			if (CertificateType.X_509.equals(certificateType)) {
-				if (parameters.getCertificateChain() == null) {
-					throw new IllegalArgumentException("Certificate type x509 requires a certificate chain!");
-				}
-				// check, if certificate chain is supported
-				boolean supported = SignatureAndHashAlgorithm
-						.isSignedWithSupportedAlgorithms(parameters.getSignatures(), parameters.getCertificateChain());
-				if (supported) {
-					supported = SupportedGroup.isSupported(parameters.getSupportedGroups(),
-							parameters.getCertificateChain());
-				}
-				if (!supported) {
-					// x509 is not supported, because the certificate chain
-					// contains unsupported signature hash algorithms or groups
-					// (curves).
-					if (parameters.getServerCertTypes().contains(CertificateType.RAW_PUBLIC_KEY)) {
-						certificateType = CertificateType.RAW_PUBLIC_KEY;
-					} else {
-						parameters
-								.setCertificateMismatch(CertificateBasedMismatch.CERTIFICATE_PATH_SIGNATURE_ALGORITHMS);
-						return false;
-					}
-				}
-			}
-			parameters.select(cipherSuite);
-			parameters.selectServerCertificateType(certificateType);
-			parameters.selectSignatureAndHashAlgorithm(signatureAndHashAlgorithm);
-			certificateType = clientAuthentication ? parameters.getClientCertTypes().get(0) : null;
-			parameters.selectClientCertificateType(certificateType);
-			return true;
 		}
-		throw new IllegalArgumentException("Only ECDSA certificate based cipher suites are supported!");
+		SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm
+				.getSupportedSignatureAlgorithm(parameters.getSignatures(), parameters.getPublicKey());
+		if (signatureAndHashAlgorithm == null) {
+			parameters.setCertificateMismatch(CertificateBasedMismatch.CERTIFICATE_SIGNATURE_ALGORITHMS);
+			return false;
+		}
+		CertificateType certificateType = parameters.getServerCertTypes().get(0);
+		if (CertificateType.X_509.equals(certificateType)) {
+			if (parameters.getCertificateChain() == null) {
+				throw new IllegalArgumentException("Certificate type x509 requires a certificate chain!");
+			}
+			// check, if certificate chain is supported
+			boolean supported = SignatureAndHashAlgorithm
+					.isSignedWithSupportedAlgorithms(parameters.getSignatures(), parameters.getCertificateChain());
+			if (supported) {
+				supported = SupportedGroup.isSupported(parameters.getSupportedGroups(),
+						parameters.getCertificateChain());
+			}
+			if (!supported) {
+				// x509 is not supported, because the certificate chain
+				// contains unsupported signature hash algorithms or groups
+				// (curves).
+				if (parameters.getServerCertTypes().contains(CertificateType.RAW_PUBLIC_KEY)) {
+					certificateType = CertificateType.RAW_PUBLIC_KEY;
+				} else {
+					parameters
+							.setCertificateMismatch(CertificateBasedMismatch.CERTIFICATE_PATH_SIGNATURE_ALGORITHMS);
+					return false;
+				}
+			}
+		}
+		parameters.select(cipherSuite);
+		parameters.selectServerCertificateType(certificateType);
+		parameters.selectSignatureAndHashAlgorithm(signatureAndHashAlgorithm);
+		parameters.selectSupportedGroup(parameters.getSupportedGroups().get(0));
+		certificateType = clientAuthentication.useCertificateRequest() ? parameters.getClientCertTypes().get(0)
+				: null;
+		parameters.selectClientCertificateType(certificateType);
+		return true;
 	}
 }

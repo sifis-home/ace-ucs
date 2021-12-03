@@ -63,7 +63,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	/**
 	 * Thread factory.
 	 */
-	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncPskStoreTimer#");
+	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncPskStoreTimer#", NamedThreadFactory.SCANDIUM_THREAD_GROUP);
 	/**
 	 * Executor for asynchronous behaviour.
 	 */
@@ -111,7 +111,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 * @return this psk store for command chaining
 	 */
 	public AsyncAdvancedPskStore setSecretMode(boolean enableGenerateMasterSecret) {
-		this.generateMasterSecret = generateMasterSecret;
+		this.generateMasterSecret = enableGenerateMasterSecret;
 		return this;
 	}
 
@@ -182,7 +182,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 * Get secret asynchronous and forward it to the {@link #resultHandler}.
 	 * 
 	 * @param cid connection id for stateless asynchronous implementations.
-	 * @param serverName server names. Maybe {@code null}, if SNI is not enabled
+	 * @param serverNames server names. Maybe {@code null}, if SNI is not enabled
 	 *            or not used by the client.
 	 * @param identity psk identity. Maybe normalized
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.
@@ -205,7 +205,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 * included in the result.
 	 * 
 	 * @param cid connection id for stateless asynchronous implementations.
-	 * @param serverName server names. Maybe {@code null}, if SNI is not enabled
+	 * @param serverNames server names. Maybe {@code null}, if SNI is not enabled
 	 *            or not used by the client.
 	 * @param identity psk identity. Maybe normalized
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.

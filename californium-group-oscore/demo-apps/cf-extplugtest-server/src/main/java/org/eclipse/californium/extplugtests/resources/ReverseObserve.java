@@ -45,10 +45,12 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,16 +143,16 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	/**
 	 * Create reverse observation resource.
 	 * 
-	 * @param config network configuration to read HEALTH_STATUS_INTERVAL.
+	 * @param config configuration to read HEALTH_STATUS_INTERVAL.
 	 * @param executor executor for notification timeout.
 	 */
-	public ReverseObserve(NetworkConfig config, ScheduledExecutorService executor) {
+	public ReverseObserve(Configuration config, ScheduledExecutorService executor) {
 		super(RESOURCE_NAME);
 		this.executor = executor;
 		getAttributes().setTitle("Reverse Observe");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
-		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+		long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			executor.scheduleWithFixedDelay(new Runnable() {
 
@@ -162,7 +164,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 								overallObserves.get());
 					}
 				}
-			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -259,9 +261,9 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 
 		private final CoapExchange incomingExchange;
 		private final int accept;
+		private final int timeout;
 		private final String resource;
 		private final Integer observe;
-		private final Integer timeout;
 		private final List<String> observeUriQuery = new ArrayList<>();
 		private final AtomicBoolean processed = new AtomicBoolean();
 
@@ -270,7 +272,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			Request request = incomingExchange.advanced().getRequest();
 			this.accept = request.getOptions().getAccept();
 			List<String> uriQuery = request.getOptions().getUriQuery();
-			Integer timeout = 30;
+			int timeout = 30;
 			Integer observe = null;
 			String resource = null;
 			for (String query : uriQuery) {
@@ -365,7 +367,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			return observe;
 		}
 
-		private Integer getTimeout() {
+		private int getTimeout() {
 			return timeout;
 		}
 
@@ -439,8 +441,10 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		@Override
 		public void onSendError(Throwable error) {
 			if (error instanceof ConnectorException) {
-				LOGGER.warn("Observe request failed! {} {} {}", outgoingObserveRequest.getScheme(),
-						outgoingObserveRequest.getToken(), error.getMessage());
+				if (!(error instanceof EndpointUnconnectedException)) {
+					LOGGER.warn("Observe request failed! {} {} {}", outgoingObserveRequest.getScheme(),
+							outgoingObserveRequest.getToken(), error.getMessage());
+				}
 				failureLogged = true;
 			}
 			super.onSendError(error);

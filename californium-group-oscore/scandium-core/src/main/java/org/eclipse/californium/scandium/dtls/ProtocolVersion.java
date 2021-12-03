@@ -17,6 +17,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.io.Serializable;
+
 /**
  * Represents the DTLS protocol version.
  * 
@@ -24,10 +26,12 @@ package org.eclipse.californium.scandium.dtls;
  * complement of the corresponding DTLS version numbers, e.g. DTLS version 1.2
  * is represented as bytes {254, 253}.
  * 
- * See <a href="http://tools.ietf.org/html/rfc6347#section-4.1"> Datagram
+ * See <a href="https://tools.ietf.org/html/rfc6347#section-4.1" target="_blank"> Datagram
  * Transport Layer Security Version 1.2 (RFC 6347), Section 4.1</a> for details.
  */
-public class ProtocolVersion implements Comparable<ProtocolVersion> {
+public class ProtocolVersion implements Comparable<ProtocolVersion>, Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Major version for DTLS 1.x.

@@ -61,14 +61,14 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.category.Large;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -79,12 +79,16 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This test implements all examples from the blockwise draft 14 for a client.
  */
 @Category(Large.class)
 public class ObserveClientSideTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ObserveClientSideTest.class);
+
 	private static final int TEST_EXCHANGE_LIFETIME = 2470; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 200; // milliseconds
 
@@ -100,7 +104,7 @@ public class ObserveClientSideTest {
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
-	private NetworkConfig config;
+	private Configuration config;
 
 	private LockstepEndpoint server;
 	private CoapTestEndpoint client;
@@ -111,16 +115,16 @@ public class ObserveClientSideTest {
 	@Before
 	public void setup() throws Exception {
 		config = network.createStandardTestConfig()
-				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16)
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
-				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
-				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
-				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
-				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
-				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
-				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
-				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, 200)
-				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 2000);
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 16)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 16)
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS) // client retransmits after 200 ms
+				.set(CoapConfig.MAX_RETRANSMIT, 2)
+				.set(CoapConfig.ACK_INIT_RANDOM, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
+				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.BLOCKWISE_STATUS_INTERVAL, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.BLOCKWISE_STATUS_LIFETIME, 2000, TimeUnit.MILLISECONDS);
 		// don't check address, tests explicitly change it!
 		client = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config, false);
 		client.addInterceptor(clientInterceptor);
@@ -140,8 +144,8 @@ public class ObserveClientSideTest {
 
 		client.start();
 		cleanup.add(client);
-		System.out.println("Client binds to port " + client.getAddress().getPort());
-		server = createLockstepEndpoint(client.getAddress());
+		LOGGER.info("Client binds to port {}", client.getAddress().getPort());
+		server = createLockstepEndpoint(client.getAddress(), config);
 		cleanup.add(server);
 	}
 
@@ -156,7 +160,6 @@ public class ObserveClientSideTest {
 
 	@Test
 	public void testGETObserveWithLostACK() throws Exception {
-		System.out.println("Observe with lost ACKs:");
 		respPayload = generateRandomPayload(10);
 		String path = "test";
 		int obs = 100;
@@ -182,7 +185,7 @@ public class ObserveClientSideTest {
 		printServerLog(clientInterceptor);
 
 		assertResponseContainsExpectedPayload(response, respPayload);
-		System.out.println("Relation established");
+		clientInterceptor.logNewLine("Relation established");
 
 		respPayload = generateRandomPayload(10); // changed
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
@@ -207,7 +210,6 @@ public class ObserveClientSideTest {
 	@Test
 	public void testBlockwiseObserve() throws Exception {
 
-		System.out.println("Blockwise Observe:");
 		respPayload = generateRandomPayload(40);
 		String path = "test";
 
@@ -228,7 +230,7 @@ public class ObserveClientSideTest {
 		printServerLog(clientInterceptor);
 
 		assertResponseContainsExpectedPayload(response, respPayload);
-		System.out.println("observe relation has been established, server now sends a notification");
+		clientInterceptor.logNewLine("observe relation has been established, server now sends a notification");
 
 		respPayload = generateRandomPayload(45);
 		// normal notification
@@ -248,8 +250,8 @@ public class ObserveClientSideTest {
 		assertResponseContainsExpectedPayload(notification, respPayload);
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 
-		System.out.println("client has successfully retrieved content for notification using blockwise transfer");
-		System.out.println("server now sends notifications interfering with ongoing blockwise transfer");
+		clientInterceptor.logNewLine("client has successfully retrieved content for notification using blockwise transfer");
+		clientInterceptor.logNewLine("server now sends notifications interfering with ongoing blockwise transfer");
 
 		respPayload = generateRandomPayload(42);
 		//
@@ -282,15 +284,14 @@ public class ObserveClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("E").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("E").block2(2, false, 16).payload(respPayload3.substring(32)).go();
 
-		Thread.sleep(50);
 		notification = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
 		assertResponseContainsExpectedPayload(notification, respPayload3);
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 
-		System.out.println("client has detected newly arriving notification while doing blockwise transfer of previous notification");
-		System.out.println("server now sends notifications interfering with ongoing blockwise transfer using conflicting block numbers");
+		clientInterceptor.logNewLine("client has detected newly arriving notification while doing blockwise transfer of previous notification");
+		clientInterceptor.logNewLine("server now sends notifications interfering with ongoing blockwise transfer using conflicting block numbers");
 
 		respPayload = generateRandomPayload(38);
 		// override transfer with new notification and conflicting block number
@@ -326,7 +327,6 @@ public class ObserveClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("I").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("I").block2(2, false, 16).payload(respPayload4.substring(32)).go();
 
-		Thread.sleep(50);
 		notification = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
@@ -394,7 +394,6 @@ public class ObserveClientSideTest {
 	 */
 	@Test
 	public void testBlockwiseObserveAndNotificationWithoutBlockwise() throws Exception {
-		System.out.println("Blockwise Observe:");
 		// observer request response will be sent using blockwise
 		respPayload = generateRandomPayload(25 * 16);
 		// notification payload sended without blockwise
@@ -489,7 +488,6 @@ public class ObserveClientSideTest {
 	 */
 	@Test
 	public void testBlockwiseObserveNotInterruptedByOdlerNotificationWithoutBlockwise() throws Exception {
-		System.out.println("Blockwise Observe:");
 		// observer request response will be sent using blockwise
 		respPayload = generateRandomPayload(2 * 16);
 		// notification payload sended without blockwise
@@ -580,7 +578,6 @@ public class ObserveClientSideTest {
 	 */
 	@Test
 	public void testBlockwiseNotifyAndGet() throws Exception {
-		System.out.println("Blockwise Observe:");
 		// observer request response will be sent using blockwise
 		String path = "test";
 		respPayload = generateRandomPayload(32);
@@ -927,7 +924,6 @@ public class ObserveClientSideTest {
 	@Test
 	public void testBlockwiseObserveChangedServerAddress() throws Exception {
 
-		System.out.println("Blockwise Observe with changing IP address/port:");
 		respPayload = generateRandomPayload(40);
 		String path = "test";
 
@@ -981,7 +977,6 @@ public class ObserveClientSideTest {
 	@Test
 	public void testIncompleteBlock2NotificationNoAckNoResponse() throws Exception {
 
-		System.out.println("Incomplete  block2 notification :");
 		respPayload = generateRandomPayload(40);
 		String path = "test";
 
@@ -1030,7 +1025,6 @@ public class ObserveClientSideTest {
 	@Test
 	public void testCancelledWhileBlock2Notification() throws Exception {
 
-		System.out.println("cancelled block2 transfer:");
 		respPayload = generateRandomPayload(45);
 		String path = "test";
 
@@ -1070,7 +1064,7 @@ public class ObserveClientSideTest {
 		printServerLog(clientInterceptor);
 
 		client.cancelObservation(server.getToken("A"));
-		System.out.println("Cancel observation " + server.getToken("A").getAsString());
+		clientInterceptor.logNewLine("Cancel observation " + server.getToken("A").getAsString());
 
 		assertTrue("ObservationStore must be empty", client.getObservationStore().isEmpty());
 
@@ -1089,7 +1083,6 @@ public class ObserveClientSideTest {
 	@Test
 	public void testIncompleteBlock2NotificationAckNoResponse() throws Exception {
 
-		System.out.println("Incomplete Acknowledged block2 notification :");
 		respPayload = generateRandomPayload(40);
 		String path = "test";
 
@@ -1164,9 +1157,8 @@ public class ObserveClientSideTest {
 	 */
 	@Test
 	public void testBlockwiseObserveAndTimedoutNotification() throws Exception {
-		System.out.println("Blockwise Observe:");
-		int timeoutMillis = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
-		
+		int timeoutMillis = config.getTimeAsInt(CoapConfig.ACK_TIMEOUT, TimeUnit.MILLISECONDS);
+
 		// observer request response will be sent using blockwise
 		respPayload = generateRandomPayload(2 * 16);
 		// notification payload sended without blockwise
@@ -1236,7 +1228,6 @@ public class ObserveClientSideTest {
 	 */
 	@Test
 	public void testObserveFailureBeforeToSend() throws Exception {
-		System.out.println("Observe fails before we send request:");
 		respPayload = generateRandomPayload(10);
 		String path = "test";
 
@@ -1265,7 +1256,6 @@ public class ObserveClientSideTest {
 	 */
 	@Test
 	public void testObserveFailureBeforeToSendDuringBlockNotification() throws Exception {
-		System.out.println("Observe fails before we send the next block2 request for a notification");
 		respPayload = generateRandomPayload(10);
 		String path = "test";
 
@@ -1311,7 +1301,6 @@ public class ObserveClientSideTest {
 	 */
 	@Test
 	public void testSimpleGetAcceptResponseWithObserveOption() throws Exception {
-		System.out.println("Response with observe option is accepted as response for a GET");
 		respPayload = generateRandomPayload(10);
 		String path = "test";
 
@@ -1378,7 +1367,6 @@ public class ObserveClientSideTest {
 	 */
 	@Test
 	public void testProactiveCancel() throws Exception {
-		System.out.println("Proactive cancel");
 		respPayload = generateRandomPayload(10);
 		String path = "test";
 
@@ -1448,7 +1436,6 @@ public class ObserveClientSideTest {
 	 */
 	@Test
 	public void testNotificationIsNotHandledAsProactiveCancelResponse() throws Exception {
-		System.out.println("Notification is not consider as a response of proactive cancel");
 		respPayload = generateRandomPayload(10);
 		String path = "test";
 
@@ -1501,8 +1488,7 @@ public class ObserveClientSideTest {
 
 	@Test
 	public void testNotifyRequestSameMID() throws Exception {
-		boolean replace = config.getBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE);
-		System.out.println("Observe with lost ACKs:");
+		boolean replace = config.get(CoapConfig.DEDUPLICATOR_AUTO_REPLACE);
 		respPayload = generateRandomPayload(10);
 		String path = "test";
 		int obs = 100;
@@ -1525,8 +1511,8 @@ public class ObserveClientSideTest {
 		} else {
 			server.expectEmpty(RST, mid).go();
 		}
-		Thread.sleep(1000);
 	}
+
 	private void assertAllEndpointExchangesAreCompleted(final CoapTestEndpoint endpoint) {
 		assertAllExchangesAreCompleted(endpoint, time);
 	}

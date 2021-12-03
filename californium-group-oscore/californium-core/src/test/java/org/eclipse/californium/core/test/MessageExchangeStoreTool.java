@@ -24,6 +24,7 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
@@ -31,12 +32,12 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapStackFactory;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.RandomTokenGenerator;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.network.stack.CoapUdpStack;
@@ -47,10 +48,13 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.IntendedTestException;
 import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test tools for MessageExchangeStore.
@@ -58,21 +62,22 @@ import org.eclipse.californium.elements.util.TestConditionTools;
  * Dumps exchanges, if MessageExchangeStore is not finally empty.
  */
 public class MessageExchangeStoreTool {
+	private static final Logger LOGGER = LoggerFactory.getLogger(MessageExchangeStoreTool.class);
 
 	/**
 	 * Assert, that all exchanges in both stores are empty.
 	 * 
 	 * dump exchanges, if not empty.
 	 * 
-	 * @param config used network configuration.
+	 * @param config used configuration.
 	 * @param clientExchangeStore client message exchange store.
 	 * @param serverExchangeStore server message exchange store.
 	 */
-	public static void assertAllExchangesAreCompleted(NetworkConfig config,
+	public static void assertAllExchangesAreCompleted(Configuration config,
 			final InMemoryMessageExchangeStore clientExchangeStore,
 			final InMemoryMessageExchangeStore serverExchangeStore, TestTimeRule time) {
-		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
-		int sweepInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
+		int exchangeLifetime = config.getTimeAsInt(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
+		int sweepInterval = config.getTimeAsInt(CoapConfig.MARK_AND_SWEEP_INTERVAL, TimeUnit.MILLISECONDS);
 		if (time != null) {
 			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
@@ -92,13 +97,13 @@ public class MessageExchangeStoreTool {
 	 * 
 	 * dump exchanges, if not empty.
 	 * 
-	 * @param config used network configuration.
+	 * @param config used configuration.
 	 * @param exchangeStore message exchange store.
 	 */
-	public static void assertAllExchangesAreCompleted(NetworkConfig config,
+	public static void assertAllExchangesAreCompleted(Configuration config,
 			final InMemoryMessageExchangeStore exchangeStore, TestTimeRule time) {
-		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
-		int sweepInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
+		int exchangeLifetime = config.getTimeAsInt(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
+		int sweepInterval = config.getTimeAsInt(CoapConfig.MARK_AND_SWEEP_INTERVAL, TimeUnit.MILLISECONDS);
 		if (time != null) {
 			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
@@ -116,9 +121,9 @@ public class MessageExchangeStoreTool {
 	 * Assert, that exchanges store and block-wise layer are empty.
 	 */
 	public static void assertAllExchangesAreCompleted(final CoapTestEndpoint endpoint, TestTimeRule time) {
-		NetworkConfig config = endpoint.getConfig();
-		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
-		int sweepInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
+		Configuration config = endpoint.getConfig();
+		int exchangeLifetime = config.getTimeAsInt(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
+		int sweepInterval = config.getTimeAsInt(CoapConfig.MARK_AND_SWEEP_INTERVAL, TimeUnit.MILLISECONDS);
 		if (time != null) {
 			time.addTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
@@ -126,6 +131,7 @@ public class MessageExchangeStoreTool {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
+				LOGGER.info("check empty {}", new Date());
 				return endpoint.isEmpty() && endpoint.getRequestChecker().allRequestsTerminated();
 			}
 		});
@@ -138,7 +144,7 @@ public class MessageExchangeStoreTool {
 			TestCondition check) {
 		try {
 			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
-			System.out.println("Wait until deduplicator should be empty (" + timeToWait / 1000f + " seconds)");
+			LOGGER.info("Wait until deduplicator should be empty ({} seconds)", timeToWait / 1000f);
 			TestConditionTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
@@ -164,7 +170,7 @@ public class MessageExchangeStoreTool {
 	private static final CoapStackFactory COAP_STACK_TEST_FACTORY = new CoapStackFactory() {
 
 		@Override
-		public CoapStack createCoapStack(String protocol, String tag, NetworkConfig config, Outbox outbox, Object customStackArgument) {
+		public CoapStack createCoapStack(String protocol, String tag, Configuration config, Outbox outbox, Object customStackArgument) {
 			if (CoAP.isTcpProtocol(protocol)) {
 				throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
 			}
@@ -176,12 +182,12 @@ public class MessageExchangeStoreTool {
 
 		private BlockwiseLayer blockwiseLayer;
 
-		public CoapUdpTestStack(String tag, NetworkConfig config, Outbox outbox) {
+		public CoapUdpTestStack(String tag, Configuration config, Outbox outbox) {
 			super(tag, config, outbox);
 		}
 
 		@Override
-		protected Layer createBlockwiseLayer(String tag, NetworkConfig config) {
+		protected Layer createBlockwiseLayer(String tag, Configuration config) {
 			blockwiseLayer = (BlockwiseLayer) super.createBlockwiseLayer(tag, config);
 			return blockwiseLayer;
 		}
@@ -202,10 +208,10 @@ public class MessageExchangeStoreTool {
 		private final UDPTestConnector testConnector;
 		private RequestEventChecker requestChecker;
 
-		private CoapTestEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
+		private CoapTestEndpoint(Connector connector, Configuration config,
 				InMemoryObservationStore observationStore, InMemoryMessageExchangeStore exchangeStore,
 				EndpointContextMatcher matcher) {
-			super(connector, applyConfiguration, config, new RandomTokenGenerator(config), observationStore,
+			super(connector, config, new RandomTokenGenerator(config), observationStore,
 					exchangeStore, matcher, null, null, null, COAP_STACK_TEST_FACTORY, null);
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
@@ -213,22 +219,22 @@ public class MessageExchangeStoreTool {
 			this.testConnector = connector instanceof UDPTestConnector ? (UDPTestConnector) connector : null;
 		}
 
-		public CoapTestEndpoint(UDPTestConnector connector, NetworkConfig config, boolean checkAddress) {
-			this(connector, true, config, new InMemoryObservationStore(config),
+		public CoapTestEndpoint(UDPTestConnector connector, Configuration config, boolean checkAddress) {
+			this(connector, config, new InMemoryObservationStore(config),
 					new InMemoryMessageExchangeStore(config), new UdpEndpointContextMatcher(checkAddress));
 		}
 
-		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config, boolean checkAddress) {
-			this(new UDPTestConnector(bind), true, config, new InMemoryObservationStore(config),
+		public CoapTestEndpoint(InetSocketAddress bind, Configuration config, boolean checkAddress) {
+			this(new UDPTestConnector(bind, config), config, new InMemoryObservationStore(config),
 					new InMemoryMessageExchangeStore(config), new UdpEndpointContextMatcher(checkAddress));
 		}
 
-		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config) {
+		public CoapTestEndpoint(InetSocketAddress bind, Configuration config) {
 			this(bind, config, true);
 		}
 
-		public CoapTestEndpoint(Connector connector, NetworkConfig config, EndpointContextMatcher matcher) {
-			this(connector, false, config, new InMemoryObservationStore(config),
+		public CoapTestEndpoint(Connector connector, Configuration config, EndpointContextMatcher matcher) {
+			this(connector, config, new InMemoryObservationStore(config),
 					new InMemoryMessageExchangeStore(config), matcher);
 		}
 
@@ -303,6 +309,11 @@ public class MessageExchangeStoreTool {
 				}
 
 				@Override
+				public void onResponseHandlingError(Throwable error) {
+					requests.remove(request);
+				}
+
+				@Override
 				public void onTimeout() {
 					requests.remove(request);
 				}
@@ -323,8 +334,8 @@ public class MessageExchangeStoreTool {
 		private int counter;
 		private int[] drops;
 
-		public UDPTestConnector(InetSocketAddress address) {
-			super(address);
+		public UDPTestConnector(InetSocketAddress address, Configuration configuration) {
+			super(address, configuration);
 		}
 
 		@Override

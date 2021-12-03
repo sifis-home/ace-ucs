@@ -24,11 +24,13 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.KeyMID;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -54,9 +56,9 @@ public class DeduplicatorTest {
 	 */
 	@Parameters(name = "deduplicator = {0}")
 	public static Iterable<String> deduplicatorParams() {
-		return Arrays.asList(NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP,
-				NetworkConfig.Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP,
-				NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION);
+		return Arrays.asList(CoapConfig.DEDUPLICATOR_MARK_AND_SWEEP,
+				CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP,
+				CoapConfig.DEDUPLICATOR_CROP_ROTATION);
 	}
 
 	KeyMID key;
@@ -67,19 +69,19 @@ public class DeduplicatorTest {
 
 	@Before
 	public void init() {
-		NetworkConfig config = new NetworkConfig();
-		config.set(NetworkConfig.Keys.DEDUPLICATOR, mode);
+		Configuration config = new Configuration();
+		config.set(CoapConfig.DEDUPLICATOR, mode);
 		deduplicator = DeduplicatorFactory.getDeduplicatorFactory().createDeduplicator(config);
 		Request incoming = Request.newGet();
 		incoming.setMID(10);
 		incoming.setSourceContext(new AddressEndpointContext(PEER));
 		key = new KeyMID(incoming.getMID(), PEER);
-		exchange1 = new Exchange(incoming, Exchange.Origin.REMOTE, null);
-		exchange2 = new Exchange(incoming, Exchange.Origin.REMOTE, null);
+		exchange1 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
+		exchange2 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 		incoming = Request.newGet();
 		incoming.setMID(10);
 		incoming.setSourceContext(new AddressEndpointContext(PEER));
-		exchange3 = new Exchange(incoming, Exchange.Origin.REMOTE, null);
+		exchange3 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 	}
 
 	@Test

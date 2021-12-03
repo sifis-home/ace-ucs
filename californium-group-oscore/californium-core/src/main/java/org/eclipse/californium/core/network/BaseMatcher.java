@@ -64,24 +64,23 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.TokenGenerator.Scope;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointIdentityResolver;
+import org.eclipse.californium.elements.config.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -90,13 +89,14 @@ import org.eclipse.californium.elements.EndpointContext;
 public abstract class BaseMatcher implements Matcher {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BaseMatcher.class);
-	protected final NetworkConfig config;
+	protected final Configuration config;
 	protected final ObservationStore observationStore;
 	protected final MessageExchangeStore exchangeStore;
 	protected final TokenGenerator tokenGenerator;
 	protected final Executor executor;
 	protected boolean running = false;
 	private final NotificationListener notificationListener;
+	private final EndpointIdentityResolver identityResolver;
 
 	/**
 	 * Creates a new matcher based on configuration values.
@@ -110,12 +110,14 @@ public abstract class BaseMatcher implements Matcher {
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore the exchange store to use for keeping track of
 	 *            message exchanges with endpoints.
+	 * @param identityResolver identity resolver to reload notify exchanges.
 	 * @param executor executor to be used for exchanges.
-	 * @throws NullPointerException if one of the parameters is {@code null}.
+	 * @throws NullPointerException if any of the parameters is {@code null}.
+	 * @since 3.0 (changed parameter to Configuration, added EndpointIdentityResolver)
 	 */
-	public BaseMatcher( NetworkConfig config,  NotificationListener notificationListener,
-			 TokenGenerator tokenGenerator,  ObservationStore observationStore,
-			 MessageExchangeStore exchangeStore, Executor executor) {
+	public BaseMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
+			ObservationStore observationStore, MessageExchangeStore exchangeStore,
+			EndpointIdentityResolver identityResolver, Executor executor) {
 		if (config == null) {
 			throw new NullPointerException("Config must not be null");
 		} else if (notificationListener == null) {
@@ -126,12 +128,17 @@ public abstract class BaseMatcher implements Matcher {
 			throw new NullPointerException("MessageExchangeStore must not be null");
 		} else if (observationStore == null) {
 			throw new NullPointerException("ObservationStore must not be null");
+		} else if (identityResolver == null) {
+			throw new NullPointerException("EndpointIdentityResolver must not be null");
+		} else if (executor == null) {
+			throw new NullPointerException("Executor must not be null");
 		} else {
 			this.config = config;
 			this.notificationListener = notificationListener;
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.tokenGenerator = tokenGenerator;
+			this.identityResolver = identityResolver;
 			this.executor = executor;
 		}
 	}
@@ -221,7 +228,7 @@ public abstract class BaseMatcher implements Matcher {
 	protected final Exchange matchNotifyResponse(final Response response) {
 
 		Exchange exchange = null;
-		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
+		if (!response.isSuccess() || response.getOptions().hasObserve()) {
 			Token token = response.getToken();
 			Observation obs = observationStore.get(token);
 			if (obs != null) {
@@ -230,7 +237,10 @@ public abstract class BaseMatcher implements Matcher {
 				// that the "upper" layers can correctly process the
 				// notification response
 				final Request request = obs.getRequest();
-				exchange = new Exchange(request, Origin.LOCAL, executor, obs.getContext(), true);
+				// Use the identity based on the notify in order
+				// to support notifies from peer's with changed addresses
+				Object identity = identityResolver.getEndpointIdentity(response.getSourceContext());
+				exchange = new Exchange(request, identity, Origin.LOCAL, executor, obs.getContext(), true);
 				LOG.debug("re-created exchange from original observe request: {}", request);
 				request.addMessageObserver(new ObservationObserverAdapter(token) {
 

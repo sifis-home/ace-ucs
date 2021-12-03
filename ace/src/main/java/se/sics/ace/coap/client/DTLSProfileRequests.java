@@ -42,18 +42,21 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -103,13 +106,21 @@ public class DTLSProfileRequests {
      */
     public static CoapResponse getToken(String asAddr, CBORObject payload, 
             OneKey key) throws AceException {
+    	Configuration dtlsConfig = Configuration.getStandard();
+    	dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
+    	dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+
+        CBORObject type = key.get(KeyKeys.KeyType);
+    	if (type.equals(KeyKeys.KeyType_Octet)) {
+        	dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));    		
+    	} else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)) {
+    		dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+    	}
+    	
         DtlsConnectorConfig.Builder builder
-            = new DtlsConnectorConfig.Builder().setAddress(
+            = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                     new InetSocketAddress(0));
 
-        builder.setClientAuthenticationRequired(true);
-        builder.setSniEnabled(false);
-        CBORObject type = key.get(KeyKeys.KeyType);
         if (type.equals(KeyKeys.KeyType_Octet)) {
             String keyId = new String(
                     key.get(KeyKeys.KeyId).GetByteString(),
@@ -117,17 +128,14 @@ public class DTLSProfileRequests {
             AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
             pskStore.setKey(keyId, key.get(KeyKeys.Octet_K).GetByteString());
             builder.setAdvancedPskStore(pskStore);
-            builder.setSupportedCipherSuites(new CipherSuite[]{
-                    CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
             try {
-                builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
+                builder.setCertificateIdentityProvider(
+                        new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
             } catch (CoseException e) {
                 LOGGER.severe("Failed to transform key: " + e.getMessage());
                 throw new AceException(e.getMessage());
             }
-            builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         } else {
             LOGGER.severe("Unknwon key type used for getting a token");
             throw new AceException("Unknown key type");
@@ -136,7 +144,7 @@ public class DTLSProfileRequests {
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());      
         CoapEndpoint ep = new CoapEndpoint.Builder()
                 .setConnector(dtlsConnector)
-                .setNetworkConfig(NetworkConfig.getStandard())
+                .setConfiguration(Configuration.getStandard())
                 .build();
         CoapClient client = new CoapClient(asAddr);
         client.setEndpoint(ep);
@@ -177,16 +185,17 @@ public class DTLSProfileRequests {
         }
         Connector c = null;
         if (key != null) {
+        	Configuration dtlsConfig = Configuration.getStandard();
+        	dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
+        	dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+        	dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
             DtlsConnectorConfig.Builder builder 
-                = new DtlsConnectorConfig.Builder().setAddress(
+                = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                         new InetSocketAddress(0));
 
-            builder.setClientAuthenticationRequired(true);
-            builder.setSniEnabled(false);
-            builder.setSupportedCipherSuites(new CipherSuite[]{
-                    CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
             try {
-                builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
+                builder.setCertificateIdentityProvider(
+                        new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
             } catch (CoseException e) {
                 LOGGER.severe("Key is invalid: " + e.getMessage());
                throw new AceException("Aborting, key invalid: " 
@@ -201,10 +210,10 @@ public class DTLSProfileRequests {
 
             c = new DTLSConnector(builder.build());
         } else {
-            c = new UDPConnector();
+            c = new UDPConnector(new InetSocketAddress(0), Configuration.getStandard());
         }
         CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
-                .setNetworkConfig(NetworkConfig.getStandard()).build();
+                .setConfiguration(Configuration.getStandard()).build();
         CoapClient client = new CoapClient(rsAddr);
         client.setEndpoint(e);   
         try {
@@ -286,13 +295,14 @@ public class DTLSProfileRequests {
                     "PSK  client requires a non-null symmetric key");
         }
         
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+    	
         DtlsConnectorConfig.Builder builder 
-            = new DtlsConnectorConfig.Builder().setAddress(
+            = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                     new InetSocketAddress(0));
-        builder.setClientAuthenticationRequired(true);
-        builder.setSniEnabled(false);
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
         AdvancedMultiPskStore store = new AdvancedMultiPskStore();
         
@@ -306,7 +316,7 @@ public class DTLSProfileRequests {
         builder.setAdvancedPskStore(store);
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
-                .setNetworkConfig(NetworkConfig.getStandard()).build();
+                .setConfiguration(Configuration.getStandard()).build();
         CoapClient client = new CoapClient(serverAddress.getHostString());
         client.setEndpoint(e);   
 
@@ -342,13 +352,14 @@ public class DTLSProfileRequests {
                     "PSK  client requires a non-null symmetric key");
         }
         
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+    	
         DtlsConnectorConfig.Builder builder 
-            = new DtlsConnectorConfig.Builder().setAddress(
+            = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                 new InetSocketAddress(0));
-        builder.setClientAuthenticationRequired(true);
-        builder.setSniEnabled(false);
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
         AdvancedMultiPskStore store = new AdvancedMultiPskStore();
 
@@ -361,9 +372,8 @@ public class DTLSProfileRequests {
         
         builder.setAdvancedPskStore(store);
         Connector c = new DTLSConnector(builder.build());
-        CoapEndpoint e = new CoapEndpoint.Builder()
-                .setConnector(c).setNetworkConfig(
-                        NetworkConfig.getStandard()).build();
+        CoapEndpoint e = new CoapEndpoint.Builder().
+                setConfiguration(Configuration.getStandard()).setConnector(c).build();
         CoapClient client = new CoapClient(serverAddress.getHostString());
         client.setEndpoint(e);   
 
@@ -381,14 +391,18 @@ public class DTLSProfileRequests {
      */
     public static CoapClient getRpkClient(OneKey clientKey, OneKey rsPublicKey) 
             throws CoseException {
+    	
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+    	
         DtlsConnectorConfig.Builder builder 
-            = new DtlsConnectorConfig.Builder().setAddress(
+            = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                     new InetSocketAddress(0));
-        builder.setClientAuthenticationRequired(true);
-        builder.setSniEnabled(false);
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-        builder.setIdentity(clientKey.AsPrivateKey(), clientKey.AsPublicKey());
+
+        builder.setCertificateIdentityProvider(
+                new SingleCertificateProvider(clientKey.AsPrivateKey(), clientKey.AsPublicKey()));
         if (rsPublicKey != null) {
 
             RawPublicKeyIdentity[] identities = new RawPublicKeyIdentity[1];
@@ -401,7 +415,7 @@ public class DTLSProfileRequests {
         
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
-                .setNetworkConfig(NetworkConfig.getStandard()).build();
+                .setConfiguration(Configuration.getStandard()).build();
         CoapClient client = new CoapClient();
         client.setEndpoint(e);   
         

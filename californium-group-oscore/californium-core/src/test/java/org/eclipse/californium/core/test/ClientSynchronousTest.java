@@ -43,10 +43,12 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -82,7 +84,6 @@ public class ClientSynchronousTest {
 
 	@BeforeClass
 	public static void startupServer() {
-		network.getStandardTestConfig().setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
 		CoapServer server = createServer();
 		cleanup.add(server);
 	}
@@ -201,6 +202,44 @@ public class ClientSynchronousTest {
 	}
 
 	@Test
+	public void testSynchronousPingWithPrincipalIdentity() throws Exception {
+		final AtomicBoolean sent = new AtomicBoolean();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setEndpointContextMatcher(new UdpEndpointContextMatcher(true) {
+			final AtomicBoolean first = new AtomicBoolean();
+			@Override
+			public Object getEndpointIdentity(EndpointContext context) {
+				if (first.compareAndSet(false, true)) {
+					// emulates first access, when no principal is available
+					throw new IllegalArgumentException("first access during test");
+				}
+				return "TEST";
+			}
+		});
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
+		CoapEndpoint clientEndpoint = builder.build();
+		cleanup.add(clientEndpoint);
+		clientEndpoint.addInterceptor(new MessageInterceptorAdapter() {
+
+			@Override
+			public void sendRequest(Request request) {
+				sent.set(true);
+			}
+		});
+
+		String uri = TestTools.getUri(serverEndpoint, TARGET);
+		CoapClient client = new CoapClient(uri).useExecutor();
+		cleanup.add(client);
+		client.setEndpoint(clientEndpoint);
+
+		// Check that we get the right content when calling get()
+		boolean ping = client.ping();
+		assertTrue(ping);
+		assertTrue("Ping not sent using provided endpoint", sent.get());
+		client.shutdown();
+	}
+
+	@Test
 	public void testAdvancedUsesTypeFromRequest() throws Exception {
 
 		String uri = TestTools.getUri(serverEndpoint, TARGET);
@@ -252,10 +291,10 @@ public class ClientSynchronousTest {
 	}
 
 	private static CoapServer createServer() {
-		NetworkConfig config = network.getStandardTestConfig();
+		Configuration config = network.getStandardTestConfig();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		serverEndpoint = builder.build();
 
 		resource = new StorageResource(TARGET, CONTENT_1);

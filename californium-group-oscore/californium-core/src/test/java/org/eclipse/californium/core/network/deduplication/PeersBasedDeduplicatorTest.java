@@ -18,8 +18,8 @@ package org.eclipse.californium.core.network.deduplication;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -29,22 +29,24 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.KeyMID;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.LoggerFactory;
 
 @Category(Small.class)
 public class PeersBasedDeduplicatorTest {
@@ -60,17 +62,19 @@ public class PeersBasedDeduplicatorTest {
 	@Rule
 	public TestTimeRule time = new TestTimeRule();
 
-	NetworkConfig config;
+	Configuration config;
 	Deduplicator deduplicator;
+	boolean intensiveLogging;
 
 	@Before
 	public void init() {
-		config = new NetworkConfig();
-		config.set(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-		config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, MESSAGES_PER_PEER);
-		config.setInt(Keys.MARK_AND_SWEEP_INTERVAL, 1000);
-		config.setBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE, true);
+		config = new Configuration();
+		config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+		config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, MESSAGES_PER_PEER);
+		config.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, 1000, TimeUnit.MILLISECONDS);
+		config.set(CoapConfig.DEDUPLICATOR_AUTO_REPLACE, true);
 		deduplicator = DeduplicatorFactory.getDeduplicatorFactory().createDeduplicator(config);
+		intensiveLogging = LoggerFactory.getLogger(SweepDeduplicator.class).isDebugEnabled();
 	}
 
 	@Test
@@ -101,7 +105,7 @@ public class PeersBasedDeduplicatorTest {
 	@Test
 	public void testConcurrency() throws Exception {
 		ScheduledExecutorService threadPool = ExecutorsUtil.newScheduledThreadPool(
-				config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), new NamedThreadFactory("DedupTest#"));
+				config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT), new NamedThreadFactory("DedupTest#"));
 		cleanup.add(threadPool);
 		deduplicator.setExecutor(threadPool);
 		deduplicator.start();
@@ -125,13 +129,13 @@ public class PeersBasedDeduplicatorTest {
 				}
 			});
 		}
-		assertThat(ready.await(10, TimeUnit.SECONDS), is(true));
+		assertThat(ready.await(intensiveLogging ? 30 : 10, TimeUnit.SECONDS), is(true));
 
 		int size = deduplicator.size();
 		assertThat(size, is(lessThanOrEqualTo(NUMBER_OF_PEERS * MESSAGES_PER_PEER)));
 
-		long exchangeLifetime = config.getLong(Keys.EXCHANGE_LIFETIME);
-		int sweepInterval = config.getInt(Keys.MARK_AND_SWEEP_INTERVAL);
+		long exchangeLifetime = config.get(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
+		int sweepInterval = config.getTimeAsInt(CoapConfig.MARK_AND_SWEEP_INTERVAL, TimeUnit.MILLISECONDS);
 		time.setTestTimeShift(exchangeLifetime + 1000L, TimeUnit.MILLISECONDS);
 
 		TestConditionTools.waitForCondition(exchangeLifetime, sweepInterval, TimeUnit.MILLISECONDS, new TestCondition() {
@@ -154,7 +158,7 @@ public class PeersBasedDeduplicatorTest {
 		Request incoming = Request.newGet();
 		incoming.setMID(mid);
 		incoming.setSourceContext(new AddressEndpointContext(peer));
-		Exchange exchange = new Exchange(incoming, Exchange.Origin.REMOTE, null);
+		Exchange exchange = new Exchange(incoming, peer, Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 		KeyMID key = new KeyMID(incoming.getMID(), peer);
 		return deduplicator.findPrevious(key, exchange);
 	}

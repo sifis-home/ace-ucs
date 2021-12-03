@@ -8,7 +8,7 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>cf-bom</artifactId>
-		<version>3.0.0-SNAPSHOT</version>
+		<version>3.1.0-SNAPSHOT</version>
 		<relativePath>../../bom</relativePath>
 	</parent>
 
@@ -19,7 +19,6 @@
 	<description>Californium (Cf) Command Line Interface support for TCP using netty.io</description>
 
 	<properties>
-		<picocli.version>4.2.0</picocli.version>
 		<animal.sniffer.skip>true</animal.sniffer.skip>
 		<revapi.skip>true</revapi.skip>
 	</properties>

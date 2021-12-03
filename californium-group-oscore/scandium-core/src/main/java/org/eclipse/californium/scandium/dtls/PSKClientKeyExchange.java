@@ -27,20 +27,14 @@ import org.eclipse.californium.elements.util.StringUtil;
  * to use by including a "PSK identity" in this message. The server can
  * potentially provide a "PSK identity hint" to help the client in selecting
  * which identity to use. See <a
- * href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a> for details.
+ * href="https://tools.ietf.org/html/rfc4279#section-2" target="_blank">RFC 4279</a> for details.
  */
 public final class PSKClientKeyExchange extends ClientKeyExchange {
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	private static final int IDENTITY_LENGTH_BITS = 16;
-
-	// Members ////////////////////////////////////////////////////////
 
 	/** The identity in cleartext. */
 	private final PskPublicInformation identity;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	public PSKClientKeyExchange(PskPublicInformation identity) {
 		this.identity = identity;
@@ -50,8 +44,6 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 		this.identity = PskPublicInformation.fromByteArray(identityEncoded);
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public int getMessageLength() {
 		// fixed: 2 bytes for the length field
@@ -60,14 +52,13 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\tPSK Identity: ").append(identity).append(StringUtil.lineSeparator());
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("PSK Identity: ").append(identity).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {
@@ -84,8 +75,6 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 
 		return new PSKClientKeyExchange(identityEncoded);
 	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	public PskPublicInformation getIdentity() {
 		return identity;

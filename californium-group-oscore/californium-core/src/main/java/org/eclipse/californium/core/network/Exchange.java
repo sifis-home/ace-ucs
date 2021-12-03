@@ -52,13 +52,13 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -67,6 +67,7 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -74,6 +75,7 @@ import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -119,11 +121,9 @@ import org.slf4j.LoggerFactory;
  * concurrent collections in the matcher and therefore establish a "happens
  * before" order (as long as threads accessing the exchange via the matcher).
  * But some methods are out of scope of that and use Exchange directly (e.g.
- * {@link #setEndpointContext(EndpointContext)} the "sender thread" or
- * {@link #setFailedTransmissionCount(int)} the "retransmission thread
- * (executor)"). Therefore use at least volatile for the fields. This doesn't
- * ensure, that Exchange is thread safe, it only ensures the visibility of the
- * states.
+ * {@link #setEndpointContext(EndpointContext)} the "sender thread"). Therefore
+ * some fields use at least volatile. This doesn't ensure, that Exchange is
+ * thread safe, it only ensures the visibility of the states.
  */
 public class Exchange {
 
@@ -164,10 +164,33 @@ public class Exchange {
 	/**
 	 * Executor for exchange jobs.
 	 * 
-	 * Note: for unit tests this may be {@code null} to escape the owner checking.
-	 * Otherwise many change in the tests would be required.
+	 * @since 3.0 (changed from optional (unit tests) to mandatory)
 	 */
 	private final SerialExecutor executor;
+	/** The nano timestamp when this exchange has been created */
+	private final long nanoTimestamp;
+	/**
+	 * Enable to keep the original request in the exchange store. Intended to be
+	 * used for observe request with blockwise response to be able to react on
+	 * newer notifies during an ongoing transfer.
+	 */
+	private final boolean keepRequestInStore;
+	/**
+	 * Mark exchange as notification.
+	 */
+	private final boolean notification;
+	/**
+	 * The other peer's identity.
+	 * 
+	 * Usually that's the peer's {@link InetSocketAddress}.
+	 * 
+	 * @since 3.0
+	 */
+	private final Object peersIdentity;
+	// indicates where the request of this exchange has been initiated.
+	// (as suggested by effective Java, item 40.)
+	private final Origin origin;
+
 	/**
 	 * Caller of {@link #setComplete()}. Intended for debug logging.
 	 */
@@ -186,20 +209,6 @@ public class Exchange {
 	/** Indicates if the exchange is complete */
 	private final AtomicBoolean complete = new AtomicBoolean();
 
-	/** The nano timestamp when this exchange has been created */
-	private final long nanoTimestamp;
-
-	/**
-	 * Enable to keep the original request in the exchange store. Intended to be
-	 * used for observe request with blockwise response to be able to react on
-	 * newer notifies during an ongoing transfer.
-	 */
-	private final boolean keepRequestInStore;
-
-	/**
-	 * Mark exchange as notification.
-	 */
-	private final boolean notification;
 	/**
 	 * The key mid for the current request.
 	 */
@@ -216,9 +225,31 @@ public class Exchange {
 
 	/**
 	 * The realtime in nanoseconds, just before the last message of this
-	 * exchange was sent.
+	 * exchange was sent. {@code 0}, if no message was sent until now. In the
+	 * extremely rare cases, that the realtime in nanosecond is actually
+	 * {@code 0}, the value is adapted to {@code -1}.
 	 */
 	private volatile long sendNanoTimestamp;
+
+	/**
+	 * Indicates, that the transmission is started.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean transmissionRttStart;
+	/**
+	 * Indicates, that the transmission round trip time is set.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean transmissionRttSet;
+	/**
+	 * Nanotimestamp for transmission round trip. Either start time or time
+	 * span.
+	 * 
+	 * @since 3.0
+	 */
+	private long transmissionRttTimestamp;
 
 	/**
 	 * The actual request that caused this exchange. Layers below the
@@ -248,21 +279,20 @@ public class Exchange {
 	// Matching needs to know when receiving duplicate
 	private volatile Response currentResponse;
 
-	// indicates where the request of this exchange has been initiated.
-	// (as suggested by effective Java, item 40.)
-	private final Origin origin;
-
 	// true if the exchange has failed due to a timeout
 	private volatile boolean timedOut;
 
+	// the timeout scale factor, exponential back-off between retransmissions, if larger than 1.0F.
+	private float timeoutScale;
+
 	// the timeout of the current request or response set by reliability layer
-	private volatile int currentTimeout;
+	private int currentTimeout;
 
 	// the amount of attempted transmissions that have not succeeded yet
 	private volatile int failedTransmissionCount = 0;
 
 	// handle to cancel retransmission
-	private ScheduledFuture<?> retransmissionHandle;
+	private volatile ScheduledFuture<?> retransmissionHandle;
 
 	// If the request was sent with a block1 option the response has to send its
 	// first block piggy-backed with the Block1 option of the last request block
@@ -288,12 +318,16 @@ public class Exchange {
 	 * Creates a new exchange with the specified request and origin.
 	 * 
 	 * @param request the request that starts the exchange
+	 * @param peersIdentity peer's identity. Usually that's the peer's
+	 *            {@link InetSocketAddress}.
 	 * @param origin the origin of the request (LOCAL or REMOTE)
-	 * @param executor executor to be used for exchanges. Maybe {@code null} for unit tests.
+	 * @param executor executor to be used for exchanges. Maybe {@code null} for
+	 *            unit tests.
 	 * @throws NullPointerException if request is {@code null}
+	 * @since 3.0 (added peersIdentity)
 	 */
-	public Exchange(Request request, Origin origin, Executor executor) {
-		this(request, origin, executor, null, false);
+	public Exchange(Request request, Object peersIdentity, Origin origin, Executor executor) {
+		this(request, peersIdentity, origin, executor, null, false);
 	}
 
 	/**
@@ -301,23 +335,29 @@ public class Exchange {
 	 * notification marker.
 	 * 
 	 * @param request the request that starts the exchange
+	 * @param peersIdentity peer's identity. Usually that's the peer's
+	 *            {@link InetSocketAddress}.
 	 * @param origin the origin of the request (LOCAL or REMOTE)
-	 * @param executor executor to be used for exchanges. Maybe {@code null} for unit tests.
+	 * @param executor executor to be used for exchanges.
 	 * @param ctx the endpoint context of this exchange
 	 * @param notification {@code true} for notification exchange, {@code false}
 	 *            otherwise
-	 * @throws NullPointerException if request is {@code null}
+	 * @throws NullPointerException if request or executor is {@code null}
+	 * @since 3.0 (added peersIdentity, executor adapted to mandatory)
 	 */
-	public Exchange(Request request, Origin origin, Executor executor, EndpointContext ctx, boolean notification) {
+	public Exchange(Request request, Object peersIdentity, Origin origin, Executor executor, EndpointContext ctx, boolean notification) {
 		// might only be the first block of the whole request
 		if (request == null) {
 			throw new NullPointerException("request must not be null!");
+		} else if (executor == null) {
+			throw new NullPointerException("executor must not be null");
 		}
 		this.id = INSTANCE_COUNTER.incrementAndGet();
-		this.executor = SerialExecutor.create(executor);
+		this.executor = new SerialExecutor(executor);
 		this.currentRequest = request;
 		this.request = request;
 		this.origin = origin;
+		this.peersIdentity = peersIdentity;
 		this.endpointContext.set(ctx);
 		this.keepRequestInStore = !notification && request.isObserve() && origin == Origin.LOCAL;
 		this.notification = notification;
@@ -413,15 +453,26 @@ public class Exchange {
 	 * If no destination context is provided, use the source context of the
 	 * request.
 	 * 
-	 * Note: since 2.3, error responses for multicast requests are not sent. (See
-	 * {@link UdpMulticastConnector} for receiving multicast requests).
+	 * Note: since 2.3, error responses for multicast requests are not sent.
+	 * (See {@link UdpMulticastConnector} for receiving multicast requests).
+	 * 
+	 * Note: since 3.0, {@link NoResponseOption} is considered. That may cause
+	 * to send error responses also for multicast requests.
 	 * 
 	 * @param response the response
 	 * @since 2.3 error responses for multicast requests are not sent
+	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void sendResponse(Response response) {
 		Request current = currentRequest;
-		if (current.isMulticast() && response.isError()) {
+		if (current.getOptions().hasNoResponse()) {
+			NoResponseOption noResponse = current.getOptions().getNoResponse();
+			if (noResponse.suppress(response.getCode())) {
+				if (!current.acknowledge()) {
+					return;
+				}
+			}
+		} else if (current.isMulticast() && response.isError()) {
 			return;
 		}
 		if (response.getDestinationContext() == null) {
@@ -516,6 +567,8 @@ public class Exchange {
 	public void setCurrentRequest(Request newCurrentRequest) {
 		assertOwner();
 		if (currentRequest != newCurrentRequest) {
+			// reset retransmission also for remote exchanges
+			// enables to replace newer notifies for CON notifies in transit
 			setRetransmissionHandle(null);
 			failedTransmissionCount = 0;
 			LOGGER.debug("{} replace {} by {}", this, currentRequest, newCurrentRequest);
@@ -524,11 +577,15 @@ public class Exchange {
 	}
 
 	/**
-	 * Returns the response to the request or null if no response has arrived
-	 * yet. If there is an observe relation, the last received notification is
-	 * the response.
+	 * Returns the response to the request or {@code null}, if no response has
+	 * arrived yet. 
 	 * 
-	 * @return the response
+	 * If there is an observe relation, the last received
+	 * notification is the response on the client side. On the server side, that
+	 * is the last notification to be sent, but may differ from the current
+	 * response, if that is in transit.
+	 * 
+	 * @return the response. or {@code null},
 	 */
 	public Response getResponse() {
 		return response;
@@ -547,20 +604,25 @@ public class Exchange {
 	}
 
 	/**
-	 * Returns the current response block. If a response is not being sent
-	 * blockwise, the whole response counts as a single block and this method
-	 * returns the same request as {@link #getResponse()}. Call getResponse() to
-	 * access the assembled response.
+	 * Returns the current response block.
 	 * 
-	 * @return the current response block
+	 * If a response is not being sent blockwise, the whole response counts as a
+	 * single block and this method returns the same response as
+	 * {@link #getResponse()}. Call {@link #getResponse()} to access the
+	 * assembled response. On the server-side, this is the current notification
+	 * in flight.
+	 * 
+	 * @return the current response block, or current notification in flight.
 	 */
 	public Response getCurrentResponse() {
 		return currentResponse;
 	}
 
 	/**
-	 * Sets the current response block. If a response is not being sent
-	 * blockwise, the origin request (equal to getResponse()) should be set.
+	 * Sets the current response block.
+	 * 
+	 * If a response is not being sent blockwise, the origin response (equal to
+	 * getResponse()) should be set.
 	 * 
 	 * @param newCurrentResponse the current response block
 	 * @throws ConcurrentModificationException if not executed within
@@ -671,6 +733,16 @@ public class Exchange {
 	}
 
 	/**
+	 * Returns the other peer's identity.
+	 * 
+	 * @return the other peer's identity
+	 * @since 3.0
+	 */
+	public Object getPeersIdentity() {
+		return peersIdentity;
+	}
+
+	/**
 	 * Indicated, that this exchange retransmission reached the timeout.
 	 * 
 	 * @return {@code true}, transmission reached timeout, {@code false},
@@ -709,30 +781,94 @@ public class Exchange {
 		}
 	}
 
+	/**
+	 * Get failed transmissions count.
+	 * 
+	 * @return number of failed transmissions
+	 */
 	public int getFailedTransmissionCount() {
 		return failedTransmissionCount;
 	}
 
-	public void setFailedTransmissionCount(int failedTransmissionCount) {
-		this.failedTransmissionCount = failedTransmissionCount;
+	/**
+	 * Increment the failed transmission count.
+	 * 
+	 * @return incremented number of failed transmissions
+	 * @since 3.0
+	 */
+	public int incrementFailedTransmissionCount() {
+		assertOwner();
+		return ++failedTransmissionCount;
 	}
 
+	/**
+	 * Get timeout scale factor for exponential back-off between retransmissions.
+	 * 
+	 * @return timeout scale factor for exponential back-off.
+	 * @since 3.0
+	 */
+	public float getTimeoutScale() {
+		return timeoutScale;
+	}
+
+	/**
+	 * Set timeout scale factor for exponential back-off between
+	 * retransmissions.
+	 * 
+	 * @param scale timeout scale factor. Must be at least 1.0. If larger than
+	 *            1.0, an exponential back-off between retransmissions is used.
+	 * @throws IllegalArgumentException if value is not at least 1.0.
+	 * @since 3.0
+	 */
+	public void setTimeoutScale(float scale) {
+		if (scale < 1.0F) {
+			throw new IllegalArgumentException("Timeout scale factor must be at least 1.0, not " + scale);
+		}
+		timeoutScale = scale;
+	}
+
+	/**
+	 * Get current timeout.
+	 * 
+	 * Timeout for retransmission, if no ACK, RST nor response is received.
+	 * 
+	 * @return current timeout in milliseconds
+	 */
 	public int getCurrentTimeout() {
 		return currentTimeout;
 	}
 
+	/**
+	 * Set current timeout.
+	 * 
+	 * Timeout for retransmission, if no ACK, RST nor response is received.
+	 * 
+	 * @param currentTimeout current timeout in milliseconds. Must be larger
+	 *            than 0.
+	 */
 	public void setCurrentTimeout(int currentTimeout) {
+		if (currentTimeout <= 1) {
+			throw new IllegalArgumentException("Timeout  must be larger than 1 ms, not " + currentTimeout);
+		}
 		this.currentTimeout = currentTimeout;
 	}
 
-	public ScheduledFuture<?> getRetransmissionHandle() {
-		return retransmissionHandle;
+	/**
+	 * Check, if ACK, RST or response for transmission is pending.
+	 * 
+	 * @return {@code true}, if ACK, RST or response is pending, {@code false},
+	 *         if not.
+	 * @since 3.0 (was getRetransmissionHandle)
+	 */
+	public boolean isTransmissionPending() {
+		return retransmissionHandle != null;
 	}
 
 	/**
 	 * Set retransmission handle.
 	 * 
-	 * @param newRetransmissionHandle new retransmission handle
+	 * @param newRetransmissionHandle new retransmission handle. May be
+	 *            {@code null}, if no retransmission is required.
 	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
@@ -920,7 +1056,7 @@ public class Exchange {
 		if (complete.get()) {
 			return false;
 		}
-		if (executor == null || checkOwner()) {
+		if (checkOwner()) {
 			setComplete();
 		} else {
 			execute(new Runnable() {
@@ -953,7 +1089,10 @@ public class Exchange {
 	 * message wasn't sent up to this time. This will also contain the realtime
 	 * for ACK or RST messages.
 	 * 
-	 * @return nano-time of last message sending.
+	 * @return nano-time of last message sending. {@code 0}, if no message was
+	 *         sent until now. In the extremely rare cases, that the realtime in
+	 *         nanosecond is actually {@code 0}, the value is adapted to
+	 *         {@code -1}.
 	 * @see ClockUtil#nanoRealtime()
 	 */
 	public long getSendNanoTimestamp() {
@@ -963,10 +1102,49 @@ public class Exchange {
 	/**
 	 * Set the realtime of the last sending of a message in nanoseconds.
 	 * 
-	 * @param nanoTimestamp realtime in nanoseconds
+	 * @param nanoTimestamp realtime in nanoseconds.{@code 0}, if no message was
+	 *            sent until now. In the extremely rare cases, that the realtime
+	 *            in nanosecond is actually {@code 0}, the value must be adapted
+	 *            to {@code -1}.
 	 */
 	public void setSendNanoTimestamp(long nanoTimestamp) {
 		sendNanoTimestamp = nanoTimestamp;
+	}
+
+	/**
+	 * Start transmission RTT.
+	 * 
+	 * @since 3.0
+	 */
+	public void startTransmissionRtt() {
+		transmissionRttStart = true;
+		transmissionRttSet = false;
+		transmissionRttTimestamp = ClockUtil.nanoRealtime();
+	}
+
+	/**
+	 * Calculate transmission round trip time.
+	 * 
+	 * {@link #startTransmissionRtt()} must be called before.
+	 * 
+	 * @return transmission round trip time in nanoseconds.
+	 * @throws IllegalStateException if {@link #startTransmissionRtt()} wasn't
+	 *             called before.
+	 * @since 3.0
+	 */
+	public long calculateTransmissionRtt() {
+		if (!transmissionRttSet && !transmissionRttStart) {
+			throw new IllegalStateException("startTransmissionRtt must be called before!");
+		}
+		if (!transmissionRttSet) {
+			transmissionRttSet = true;
+			transmissionRttStart = false;
+			transmissionRttTimestamp = ClockUtil.nanoRealtime() - transmissionRttTimestamp;
+			if (transmissionRttTimestamp == 0) {
+				transmissionRttTimestamp = 1;
+			}
+		}
+		return transmissionRttTimestamp;
 	}
 
 	/**
@@ -974,16 +1152,24 @@ public class Exchange {
 	 * 
 	 * MUST be called on receiving the response.
 	 * 
-	 * @return RTT in milliseconds
+	 * @return RTT in nanoseconds
+	 * @since 3.0 (was calculateRTT returning milliseconds)
 	 */
-	public long calculateRTT() {
-		return TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - nanoTimestamp);
+	public long calculateApplicationRtt() {
+		return ClockUtil.nanoRealtime() - nanoTimestamp;
 	}
 
 	/**
-	 * Returns the CoAP observe relation that this exchange has established.
+	 * Returns the CoAP observe relation that this exchange has initially
+	 * established.
+	 * <p>
+	 * <b>Note:</b> in the meantime the relation may have been
+	 * {@link ObserveRelation#cancel()}. Therefore it's important to check the
+	 * current state of the relation using {@link ObserveRelation#isCanceled()}
+	 * or {@link ObserveRelation#isEstablished()}.
 	 * 
-	 * @return the observe relation or null
+	 * @return the observe relation, or {@code null}, if this exchange is not
+	 *         related to an observation.
 	 */
 	public ObserveRelation getRelation() {
 		return relation;
@@ -1041,7 +1227,7 @@ public class Exchange {
 	 * Sets additional information about the context this exchange's request has
 	 * been sent in.
 	 * <p>
-	 * The information is usually obtained from the <code>Connector</code> this
+	 * The information is usually obtained from the {@link Connector} this
 	 * exchange is using to send and receive data. The information contained in
 	 * the context can be used in addition to the message ID and token of this
 	 * exchange to increase security when matching an incoming response to this
@@ -1072,7 +1258,7 @@ public class Exchange {
 	 * Gets transport layer specific information that can be used to correlate a
 	 * response with this exchange's original request.
 	 * 
-	 * @return the endpoint context information or <code>null</code> if no
+	 * @return the endpoint context information or {@code null}, if no
 	 *         information is available.
 	 */
 	public EndpointContext getEndpointContext() {
@@ -1101,7 +1287,7 @@ public class Exchange {
 	 */
 	public void execute(final Runnable command) {
 		try {
-			if (executor == null || checkOwner()) {
+			if (checkOwner()) {
 				command.run();
 			} else {
 				executor.execute(command);
@@ -1136,9 +1322,7 @@ public class Exchange {
 	 *             {@link #execute(Runnable)}.
 	 */
 	private void assertOwner() {
-		if (executor != null) {
-			executor.assertOwner();
-		}
+		executor.assertOwner();
 	}
 
 	/**
@@ -1148,11 +1332,7 @@ public class Exchange {
 	 *         {@code false}, otherwise.
 	 */
 	public boolean checkOwner() {
-		if (executor != null) {
-			return executor.checkOwner();
-		} else {
-			return true;
-		}
+		return executor.checkOwner();
 	}
 
 	/**

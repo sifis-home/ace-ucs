@@ -35,11 +35,11 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
 /**
  * The server's ephemeral ECDH.
  * 
- * See <a href="http://tools.ietf.org/html/rfc4492#section-5.4">
+ * See <a href="https://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">
  * RFC 4492, section 5.4 Server Key Exchange</a> for details regarding
  * the message format.
  * 
- * According <a href= "https://tools.ietf.org/html/rfc8422#section-5.1.1">RFC
+ * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target="_blank">RFC
  * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only "named curves" are
  * valid, the "prime" and "char2" curve descriptions are deprecated. Also only
  * "UNCOMPRESSED" as point format is valid, the other formats have been
@@ -47,8 +47,6 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
  */
 @NoPublicAPI
 public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
-
-	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int CURVE_TYPE_BITS = 8;
 	private static final int NAMED_CURVE_BITS = 16;
@@ -58,32 +56,28 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 	// a named curve is used
 	private static final int NAMED_CURVE = 3;
 
-	// Members ////////////////////////////////////////////////////////
-
 	/** ephemeral keys */
 	private final SupportedGroup supportedGroup;
 
 	private final byte[] encodedPoint;
 
-	// Constructors //////////////////////////////////////////////////
-
 	/**
 	 * Called when reconstructing the byte array.
 	 * 
-	 * @param supportedGroup
-	 *            supported group (named curve)
-	 * @param encodedPoint
-	 *            the encoded point on the curve (public key). 
+	 * @param supportedGroup supported group (named curve)
+	 * @param encodedPoint the encoded point on the curve (public key).
+	 * @throws NullPointerException if one of the parameters are {@code null}
 	 */
 	protected ECDHServerKeyExchange(SupportedGroup supportedGroup, byte[] encodedPoint) {
+		if (supportedGroup == null) {
+			throw new NullPointerException("Supported group (curve) must not be null!");
+		}
 		if (encodedPoint == null) {
-			throw new NullPointerException("encoded point cannot be null!");
+			throw new NullPointerException("encoded point must not be null!");
 		}
 		this.supportedGroup = supportedGroup;
 		this.encodedPoint = encodedPoint;
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	protected int getNamedCurveLength() {
 		return 4 + encodedPoint.length;
@@ -125,8 +119,6 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 		signature.update(encodedPoint);
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	/**
 	 * Get supported group for ECDH.
 	 * 
@@ -146,11 +138,12 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(super.toString());
-		sb.append("\t\tDiffie-Hellman public key: ");
-		sb.append(supportedGroup.name()).append("-").append(StringUtil.byteArray2HexString(encodedPoint, StringUtil.NO_SEPARATOR, 10));
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Diffie-Hellman public key: ");
+		sb.append(supportedGroup.name()).append("-").append(StringUtil.byteArray2HexString(encodedPoint, StringUtil.NO_SEPARATOR, 16));
 		sb.append(StringUtil.lineSeparator());
 
 		return sb.toString();

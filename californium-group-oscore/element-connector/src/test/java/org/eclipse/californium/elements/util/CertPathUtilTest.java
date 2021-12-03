@@ -16,6 +16,8 @@
 package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -81,11 +83,17 @@ public class CertPathUtilTest {
 
 	private X509Certificate[] clientChainExtUsage;
 	private X509Certificate[] clientSelfsigned;
+	private X509Certificate[] server;
 	private X509Certificate[] serverLarge;
 
 	private List<X509Certificate> clientChainExtUsageList;
 	private List<X509Certificate> clientSelfsignedList;
 	private List<X509Certificate> serverLargeList;
+
+	private void expectTrustAnchorError() {
+		exception.expectMessage(anyOf(containsString("Path does not chain with any of the trust anchors"),
+				containsString("Trust anchor for certification path not found")));
+	}
 
 	@Before
 	public void init() throws IOException, GeneralSecurityException {
@@ -97,6 +105,10 @@ public class CertPathUtilTest {
 		clientSelfsigned = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "self",
 				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD).getCertificateChain();
 		assumeThat(clientSelfsigned.length, is(1));
+
+		server = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "server",
+				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD).getCertificateChain();
+		assumeThat(server.length, is(2));
 
 		serverLarge = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "serverlarge",
 				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD).getCertificateChain();
@@ -135,7 +147,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testToX509CertificatesListUsingInvalidCertificate() throws Exception {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Given certificate is not X.509! Dummy");
+		exception.expectMessage("Given certificate is not X.509!");
 
 		List<Certificate> list = new ArrayList<Certificate>(clientChainExtUsageList);
 		list.add(new Certificate("Dummy") {
@@ -232,7 +244,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testServerCertificateValidationUnknownTrust() throws Exception {
 		exception.expect(CertPathValidatorException.class);
-		exception.expectMessage("Path does not chain with any of the trust anchors");
+		expectTrustAnchorError();
 		List<X509Certificate> serverCertificates = TestCertificatesTools.getServerCertificateChainAsList();
 		CertPath certPath = CertPathUtil.generateCertPath(serverCertificates);
 		CertPathUtil.validateCertificatePathWithIssuer(false, certPath, clientSelfsigned);
@@ -361,7 +373,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testServerCertificateValidationWithIntermediateTrustFails() throws Exception {
 		exception.expect(CertPathValidatorException.class);
-		exception.expectMessage("Path does not chain with any of the trust anchors");
+		expectTrustAnchorError();
 		List<X509Certificate> certificates = TestCertificatesTools.getServerCertificateChainAsList();
 		X509Certificate[] trusts = new X509Certificate[] { TestCertificatesTools.getTrustedCA() };
 		CertPath certPath = CertPathUtil.generateCertPath(certificates);
@@ -446,7 +458,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testServerCertificateValidationWithSelfTrustFails() throws Exception {
 		exception.expect(CertPathValidatorException.class);
-		exception.expectMessage("Path does not chain with any of the trust anchors");
+		expectTrustAnchorError();
 		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
 		X509Certificate[] trusts = new X509Certificate[] {certificates[0]};
 		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
@@ -607,4 +619,22 @@ public class CertPathUtilTest {
 		assertEquals(clientSelfsignedList, generateCertPath.getCertificates());
 	}
 
+	@Test
+	public void testMatchDestination() throws Exception {
+		assertTrue(CertPathUtil.matchDestination(serverLarge[0], "cf-serverlarge"));
+		assertFalse(CertPathUtil.matchDestination(server[0], "cf-server"));
+		assertTrue(CertPathUtil.matchDestination(server[0], "californium.eclipseprojects.io"));
+		assertFalse(CertPathUtil.matchDestination(server[0], "foreign.server"));
+		assertFalse(CertPathUtil.matchDestination(server[0], "*.server"));
+		assertTrue(CertPathUtil.matchLiteralIP(server[0], "127.0.0.1"));
+		assertFalse(CertPathUtil.matchLiteralIP(server[0], "127.0.0.2"));
+	}
+
+	@Test
+	public void testMatchLiteralIP() throws Exception {
+		assertTrue(CertPathUtil.matchLiteralIP("127.0.0.1", "127.0.0.1"));
+		assertTrue(CertPathUtil.matchLiteralIP("2001::1", "2001:0:0:0:0:0:0:1"));
+		assertFalse(CertPathUtil.matchLiteralIP("127.0.0.1", "127.0.0.2"));
+		assertFalse(CertPathUtil.matchLiteralIP("2001::2", "2001:0:0:0:0:0:0:1"));
+	}
 }

@@ -32,6 +32,7 @@
 package org.eclipse.californium.core.test;
 
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -52,17 +53,18 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
@@ -85,6 +87,7 @@ import org.slf4j.LoggerFactory;
  */
 @Category(Medium.class)
 public class MemoryLeakingHashMapTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(MemoryLeakingHashMapTest.class);
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -114,7 +117,6 @@ public class MemoryLeakingHashMapTest {
 	// The name of the resource of the server
 	private static final String URI = "test";
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(MemoryLeakingHashMapTest.class);
 	private static Endpoint serverEndpoint;
 
 	// The server endpoint that we test
@@ -143,8 +145,7 @@ public class MemoryLeakingHashMapTest {
 		try {
 			assertAllExchangesAreCompleted(network.getStandardTestConfig(), clientExchangeStore, serverExchangeStore, time);
 		} finally {
-			System.out.println(clientInterceptor.toString());
-			clientInterceptor.clear();
+			printServerLog(clientInterceptor);
 			clientExchangeStore.stop();
 			serverExchangeStore.stop();
 		}
@@ -338,7 +339,7 @@ public class MemoryLeakingHashMapTest {
 	public void testObserveReactive() throws Exception {
 
 		final String uri = uriOf(URI);
-		System.out.println("Test observe relation with a reactive cancelation to " + uri);
+		LOGGER.debug("Test observe relation with a reactive cancelation to {}", uri);
 
 		String currentResponseText = "Hello observer";
 		resource.setNotifies(currentResponseText, Mode.PIGGY_BACKED_RESPONSE);
@@ -363,25 +364,25 @@ public class MemoryLeakingHashMapTest {
 
 	private static void createServerAndClientEndpoints() throws Exception {
 
-		NetworkConfig config = network.getStandardTestConfig()
+		Configuration config = network.getStandardTestConfig()
 			// We make sure that the sweep deduplicator is used
-			.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP)
-			.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
-			.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
+			.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_MARK_AND_SWEEP)
+			.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
+			.set(CoapConfig.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS)
 
 			// set ACK timeout to 500ms
-			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT)
-			.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 1)
+			.set(CoapConfig.ACK_TIMEOUT, ACK_TIMEOUT, TimeUnit.MILLISECONDS)
+			.set(CoapConfig.MAX_RETRANSMIT, 1)
 
 			// We set the block size to 16 bytes
-			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, TEST_BLOCK_SIZE)
-			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_BLOCK_SIZE);
+			.set(CoapConfig.MAX_MESSAGE_SIZE, TEST_BLOCK_SIZE)
+			.set(CoapConfig.PREFERRED_BLOCK_SIZE, TEST_BLOCK_SIZE);
 
 		// Create the endpoint for the server and create surveillant
 		serverExchangeStore = new InMemoryMessageExchangeStore(config);	
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setMessageExchangeStore(serverExchangeStore);
 		serverEndpoint = builder.build();
 		serverEndpoint.addInterceptor(new MessageTracer());
@@ -389,7 +390,7 @@ public class MemoryLeakingHashMapTest {
 		clientExchangeStore = new InMemoryMessageExchangeStore(config);
 		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setMessageExchangeStore(clientExchangeStore);
 		clientEndpoint = builder.build();
 		cleanup.add(clientEndpoint);

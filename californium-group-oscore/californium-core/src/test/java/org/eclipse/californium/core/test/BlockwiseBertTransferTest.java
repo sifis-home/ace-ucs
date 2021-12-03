@@ -18,6 +18,7 @@ package org.eclipse.californium.core.test;
 import static org.eclipse.californium.TestTools.LOCALHOST_EPHEMERAL;
 import static org.eclipse.californium.TestTools.generateRandomPayload;
 import static org.eclipse.californium.TestTools.getUri;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -31,15 +32,16 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ServerBlockwiseInterceptor;
 import org.eclipse.californium.core.test.lockstep.ServerBlockwiseInterceptor.ReceiveRequestHandler;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -50,6 +52,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This test tests the BERT blockwise transfer of requests and responses. Uses a
@@ -62,6 +66,7 @@ import org.junit.experimental.categories.Category;
 // because of pending BlockCleanupTask
 @Category(Medium.class)
 public class BlockwiseBertTransferTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseBertTransferTest.class);
 
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
@@ -82,7 +87,7 @@ public class BlockwiseBertTransferTest {
 	private static final String OVERSIZE_BODY = generateRandomPayload(16000);
 
 	private static CoapServer server;
-	private static NetworkConfig config;
+	private static Configuration config;
 
 	private static Endpoint serverEndpoint;
 
@@ -95,11 +100,11 @@ public class BlockwiseBertTransferTest {
 	@BeforeClass
 	public static void prepare() {
 		config = network.getStandardTestConfig()
-				.setInt(Keys.UDP_CONNECTOR_DATAGRAM_SIZE, 3000)
-				.setInt(Keys.PREFERRED_BLOCK_SIZE, 1024)
-				.setInt(Keys.MAX_MESSAGE_SIZE, 1024)
-				.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 2)
-				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 8192);
+				.set(UdpConfig.UDP_DATAGRAM_SIZE, 3000)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 1024)
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 1024)
+				.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 2)
+				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, 8192);
 
 		server = createSimpleServer();
 		cleanup.add(server);
@@ -109,8 +114,8 @@ public class BlockwiseBertTransferTest {
 	public void createClients() throws IOException {
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
-		builder.setConnectorWithAutoConfiguration(new UDPConnector(LOCALHOST_EPHEMERAL) {
+		builder.setConfiguration(config);
+		builder.setConnector(new UDPConnector(LOCALHOST_EPHEMERAL, config) {
 
 			@Override
 			public String getProtocol() {
@@ -131,7 +136,6 @@ public class BlockwiseBertTransferTest {
 
 	@Test
 	public void test_POST_long_long() throws Exception {
-		System.out.println("-- POST long long --");
 		executePOSTRequest();
 		// repeat test to check ongoing clean-up
 		executePOSTRequest();
@@ -139,7 +143,6 @@ public class BlockwiseBertTransferTest {
 
 	@Test
 	public void test_GET_long() throws Exception {
-		System.out.println("-- GET long --");
 		executeGETRequest();
 		// repeat test to check ongoing clean-up
 		executeGETRequest();
@@ -147,14 +150,12 @@ public class BlockwiseBertTransferTest {
 
 	@Test
 	public void test_GET_long_cancel() throws Exception {
-		System.out.println("-- GET long, cancel --");
 		executeGETRequest(true, false);
 
 	}
 
 	@Test
 	public void test_GET_long_M1() throws Exception {
-		System.out.println("-- GET long, accidently set M to 1 --");
 		executeGETRequest(false, true);
 	}
 
@@ -164,7 +165,7 @@ public class BlockwiseBertTransferTest {
 		Request req = Request.newGet().setURI(getUri(serverEndpoint, RESOURCE_BIG));
 		req.addMessageObserver(observer);
 		clientEndpoint.sendRequest(req);
-		assertTrue(observer.waitForCancelCalls(1, 1000, TimeUnit.MILLISECONDS));
+		assertTrue(observer.waitForResponseErrorCalls(1, 1000, TimeUnit.MILLISECONDS));
 	}
 
 	private void executeGETRequest() throws Exception {
@@ -178,7 +179,7 @@ public class BlockwiseBertTransferTest {
 			final AtomicInteger counter = new AtomicInteger(0);
 			final Request request = Request.newGet();
 			String uri = getUri(serverEndpoint, RESOURCE_TEST);
-			System.out.println(uri);
+			LOGGER.info("{}", uri);
 			request.setURI(uri);
 			if (m) {
 				// set BLOCK 2 with wrong m
@@ -212,8 +213,8 @@ public class BlockwiseBertTransferTest {
 			}
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
-			System.out.println("Client received payload [" + payload + "]" + System.lineSeparator()
-					+ interceptor.toString() + System.lineSeparator());
+			LOGGER.info("Client received payload [{}]", payload);
+			printServerLog(interceptor);
 		}
 	}
 
@@ -245,8 +246,8 @@ public class BlockwiseBertTransferTest {
 			assertEquals(getBertBlocks(LONG_POST_REQUEST) + getBertBlocks(LONG_POST_RESPONSE) - 1, counter.get());
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
-			System.out.println("Client received payload [" + payload + "]" + System.lineSeparator()
-					+ interceptor.toString() + System.lineSeparator());
+			LOGGER.info("Client received payload [{}]", payload);
+			printServerLog(interceptor);
 		}
 	}
 
@@ -255,8 +256,8 @@ public class BlockwiseBertTransferTest {
 		CoapServer result = new CoapServer(config);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
-		builder.setConnectorWithAutoConfiguration(new UDPConnector(LOCALHOST_EPHEMERAL) {
+		builder.setConfiguration(config);
+		builder.setConnector(new UDPConnector(LOCALHOST_EPHEMERAL, config) {
 
 			@Override
 			public String getProtocol() {
@@ -272,7 +273,7 @@ public class BlockwiseBertTransferTest {
 
 			@Override
 			public void handleGET(final CoapExchange exchange) {
-				System.out.println("Server received GET request");
+				LOGGER.info("Server received GET request");
 				applicationLayerGetRequestCount.incrementAndGet();
 				exchange.respond(LONG_GET_RESPONSE);
 			}
@@ -280,7 +281,7 @@ public class BlockwiseBertTransferTest {
 			@Override
 			public void handlePOST(final CoapExchange exchange) {
 				String payload = exchange.getRequestText();
-				System.out.println("Server received " + payload);
+				LOGGER.info("Server received {}", payload);
 				assertEquals(payload, LONG_POST_REQUEST);
 				exchange.respond(LONG_POST_RESPONSE);
 			}
@@ -294,12 +295,12 @@ public class BlockwiseBertTransferTest {
 		});
 
 		result.start();
-		System.out.println("serverPort: " + serverEndpoint.getAddress().getPort());
+		LOGGER.info("serverPort: {}", serverEndpoint.getAddress().getPort());
 		return result;
 	}
 
 	private static int getBertBlocks(String payload) {
-		int bulk = config.getInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS);
+		int bulk = config.get(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS);
 		int bulkSize = 1024 * bulk;
 		return (payload.length() + bulkSize - 1) / bulkSize;
 	}

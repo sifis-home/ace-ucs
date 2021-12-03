@@ -15,7 +15,10 @@
  *******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import java.util.concurrent.TimeUnit;
+
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.elements.config.Configuration;
 
 /**
  * Contains the configuration values for {@link ReliabilityLayer} and
@@ -24,14 +27,16 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 public class ReliabilityLayerParameters {
 
 	private final int ackTimeout;
+	private final int maxAckTimeout;
 	private final float ackRandomFactor;
 	private final float ackTimeoutScale;
 	private final int maxRetransmit;
 	private final int nstart;
 
-	ReliabilityLayerParameters(int ackTimeout, float ackRandomFactor, float ackTimeoutScale, int maxRetransmit,
-			int nstart) {
+	ReliabilityLayerParameters(int ackTimeout, int maxAckTimeout, float ackRandomFactor, float ackTimeoutScale,
+			int maxRetransmit, int nstart) {
 		this.ackTimeout = ackTimeout;
+		this.maxAckTimeout = maxAckTimeout;
 		this.ackRandomFactor = ackRandomFactor;
 		this.ackTimeoutScale = ackTimeoutScale;
 		this.maxRetransmit = maxRetransmit;
@@ -45,6 +50,16 @@ public class ReliabilityLayerParameters {
 	 */
 	public int getAckTimeout() {
 		return ackTimeout;
+	}
+
+	/**
+	 * Maximum ACK timeout.
+	 * 
+	 * @return maximum ACK timeout in milliseconds.
+	 * @since 3.0
+	 */
+	public int getMaxAckTimeout() {
+		return maxAckTimeout;
 	}
 
 	/**
@@ -110,6 +125,10 @@ public class ReliabilityLayerParameters {
 		 */
 		private int ackTimeout;
 		/**
+		 * Maximum ACK timeout.
+		 */
+		private int maxAckTimeout;
+		/**
 		 * Random factor for initial ACK retransmission timeout.
 		 */
 		private float ackRandomFactor;
@@ -130,20 +149,27 @@ public class ReliabilityLayerParameters {
 		}
 
 		/**
-		 * Apply value from {@link NetworkConfig}. Specific values may be
-		 * adapted by further calls to other setter.
+		 * Apply value from {@link Configuration}.
+		 * 
+		 * Specific values may be adapted by further calls to other setter.
 		 * 
 		 * Provides a fluent API to chain setters.
 		 * 
-		 * @param config network configuration
+		 * @param config configuration
 		 * @return this builder to chain setter.
+		 * @throws IllegalStateException if {@link #maxAckTimeout} is less than
+		 *             {@link #ackTimeout} or {@link #ackRandomFactor} or
+		 *             {@link #ackTimeoutScale} is less than {@code 1.0}.
+		 * @since 3.0 (changed parameter to Configuration, added IllegalStateException)
 		 */
-		public Builder applyConfig(NetworkConfig config) {
-			ackTimeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
-			ackRandomFactor = config.getFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR);
-			ackTimeoutScale = config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
-			maxRetransmit = config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
-			nstart = config.getInt(NetworkConfig.Keys.NSTART);
+		public Builder applyConfig(Configuration config) {
+			ackTimeout = config.getTimeAsInt(CoapConfig.ACK_TIMEOUT, TimeUnit.MILLISECONDS);
+			maxAckTimeout = config.getTimeAsInt(CoapConfig.MAX_ACK_TIMEOUT, TimeUnit.MILLISECONDS);
+			ackRandomFactor = config.get(CoapConfig.ACK_INIT_RANDOM);
+			ackTimeoutScale = config.get(CoapConfig.ACK_TIMEOUT_SCALE);
+			maxRetransmit = config.get(CoapConfig.MAX_RETRANSMIT);
+			nstart = config.get(CoapConfig.NSTART);
+			check();
 			return this;
 		}
 
@@ -157,6 +183,20 @@ public class ReliabilityLayerParameters {
 		 */
 		public Builder ackTimeout(int ackTimeout) {
 			this.ackTimeout = ackTimeout;
+			return this;
+		}
+
+		/**
+		 * Set the maximum ACK timeout.
+		 * 
+		 * Provides a fluent API to chain setters.
+		 * 
+		 * @param maxAckTimeout maximum ACK timeout in milliseconds
+		 * @return this builder to chain setter.
+		 * @since 3.0
+		 */
+		public Builder maxAckTimeout(int maxAckTimeout) {
+			this.maxAckTimeout = maxAckTimeout;
 			return this;
 		}
 
@@ -217,9 +257,42 @@ public class ReliabilityLayerParameters {
 		 * Build ReliabilityLayerParameters.
 		 * 
 		 * @return initialized ReliabilityLayerParameters
+		 * @throws IllegalStateException if {@link #maxAckTimeout} is less than
+		 *             {@link #ackTimeout} or {@link #ackRandomFactor} or
+		 *             {@link #ackTimeoutScale} is less than {@code 1.0}.
+		 * @since 3.0 (added IllegalStateException)
 		 */
 		public ReliabilityLayerParameters build() {
-			return new ReliabilityLayerParameters(ackTimeout, ackRandomFactor, ackTimeoutScale, maxRetransmit, nstart);
+			check();
+			return new ReliabilityLayerParameters(ackTimeout, maxAckTimeout, ackRandomFactor, ackTimeoutScale,
+					maxRetransmit, nstart);
+		}
+
+		/**
+		 * Check values consistency.
+		 * 
+		 * @throws IllegalStateException if {@link #maxAckTimeout} is less than
+		 *             {@link #ackTimeout} or {@link #ackRandomFactor} or
+		 *             {@link #ackTimeoutScale} is less than {@code 1.0}.
+		 * @since 3.0
+		 */
+		private void check() {
+			if (maxAckTimeout < ackTimeout) {
+				throw new IllegalStateException("Maximum ack timeout " + maxAckTimeout
+						+ "ms must not be less than ack timeout " + ackTimeout + "ms!");
+			}
+			if (1 > maxRetransmit) {
+				throw new IllegalStateException("Maxium retransmit " + maxRetransmit + " must not be less than 1!");
+			}
+			if (1 > nstart) {
+				throw new IllegalStateException("Nstart " + nstart + " must not be less than 1!");
+			}
+			if (1.0 > ackRandomFactor) {
+				throw new IllegalStateException("Ack random factor " + ackRandomFactor + " must not be less than 1.0!");
+			}
+			if (1.0 > ackTimeoutScale) {
+				throw new IllegalStateException("Ack scale factor " + ackTimeoutScale + " must not be less than 1.0!");
+			}
 		}
 	}
 }

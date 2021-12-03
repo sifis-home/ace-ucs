@@ -22,8 +22,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.eclipse.californium.core.CoapObserveRelation;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.elements.EndpointContext;
 import org.slf4j.Logger;
@@ -49,7 +50,7 @@ public class ClientObserveRelation {
 	protected final Endpoint endpoint;
 
 	/** The re-registration backoff duration [ms]. */
-	private final long reregistrationBackoff;
+	private final long reregistrationBackoffMillis;
 
 	/**
 	 * Indicates, that an observe request or a (proactive) cancel observe
@@ -128,8 +129,8 @@ public class ClientObserveRelation {
 		this.request = request;
 		this.endpoint = endpoint;
 		this.orderer = new ObserveNotificationOrderer();
-		this.reregistrationBackoff = endpoint.getConfig()
-				.getLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF);
+		this.reregistrationBackoffMillis = endpoint.getConfig()
+				.get(CoapConfig.NOTIFICATION_REREGISTRATION_BACKOFF, TimeUnit.MILLISECONDS);
 		this.scheduler = executor;
 		this.request.addMessageObserver(pendingRequestObserver);
 		this.request.setProtectFromOffload();
@@ -323,6 +324,7 @@ public class ClientObserveRelation {
 			isNew = orderer.isNew(response);
 			if (isNew) {
 				current = response;
+				LOGGER.debug("Updated with {}", response);
 			} else if (prepareNext) {
 				// renew preparation also for reregistration responses,
 				// which may still be unchanged
@@ -330,6 +332,8 @@ public class ClientObserveRelation {
 			}
 			if (prepareNext) {
 				prepareReregistration(response);
+			} else if (observe == null && !isCanceled()) {
+				cancel();
 			}
 		}
 		return isNew;
@@ -358,8 +362,9 @@ public class ClientObserveRelation {
 	}
 
 	private void prepareReregistration(Response response) {
-		long timeout = response.getOptions().getMaxAge() * 1000 + this.reregistrationBackoff;
+		long timeout = TimeUnit.SECONDS.toMillis(response.getOptions().getMaxAge()) + reregistrationBackoffMillis;
 		ScheduledFuture<?> f = scheduler.schedule(reregister, timeout, TimeUnit.MILLISECONDS);
 		setReregistrationHandle(f);
+		LOGGER.debug("Wait for {}ms fresh notifies.", timeout);
 	}
 }

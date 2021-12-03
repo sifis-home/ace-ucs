@@ -29,6 +29,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.eclipse.californium.oscore.OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID;
+import static org.eclipse.californium.oscore.OSCoreEndpointContextInfo.OSCORE_SENDER_ID;
+import static org.eclipse.californium.oscore.OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID;
+import static org.eclipse.californium.oscore.OSCoreEndpointContextInfo.OSCORE_URI;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapServer;
@@ -81,12 +85,7 @@ public class EndpointContextInfoTest {
 	private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
 			0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
 	private final static byte[] context_id = { 0x74, 0x65, 0x73, 0x74 };
-
-	// Keys used in the endpoint context map of strings
-	private final static String OSCORE_SENDER_ID = OSCoreEndpointContextInfo.OSCORE_SENDER_ID;
-	private final static String OSCORE_RECIPIENT_ID = OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID;
-	private final static String OSCORE_CONTEXT_ID = OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID;
-	private final static String OSCORE_URI = OSCoreEndpointContextInfo.OSCORE_URI;
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	@Before
 	public void initLogger() {
@@ -123,7 +122,7 @@ public class EndpointContextInfoTest {
 		// Set up OSCORE context information for request (client)
 		byte[] sidClient = new byte[] { 0x77, 0x66, 0x55, 0x44 };
 		byte[] ridClient = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sidClient, ridClient, kdf, 32, null, context_id);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sidClient, ridClient, kdf, 32, null, context_id, MAX_UNFRAGMENTED_SIZE);
 		String serverUri = serverEndpoint.getUri().toASCIIString();
 		dbClient.addContext(serverUri, ctx);
 
@@ -198,7 +197,7 @@ public class EndpointContextInfoTest {
 		// Set up OSCORE context information for request (client)
 		byte[] sidClient = new byte[] { 0x77, 0x66, 0x55, 0x44 };
 		byte[] ridClient = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sidClient, ridClient, kdf, 32, null, context_id);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sidClient, ridClient, kdf, 32, null, context_id, MAX_UNFRAGMENTED_SIZE);
 		String serverUri = serverEndpoint.getUri().toASCIIString();
 		dbClient.addContext(serverUri, ctx);
 
@@ -325,7 +324,7 @@ public class EndpointContextInfoTest {
 		// Set up OSCORE context information for response (server)
 		byte[] sidServer = new byte[] { 0x01, 0x02, 0x03, 0x04 };
 		byte[] ridServer = new byte[] { 0x77, 0x66, 0x55, 0x44 };
-		final OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sidServer, ridServer, kdf, 32, null, context_id);
+		final OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sidServer, ridServer, kdf, 32, null, context_id, MAX_UNFRAGMENTED_SIZE);
 		String clientUri = "coap://" + TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostAddress();
 		dbServer.addContext(clientUri, ctx);
 

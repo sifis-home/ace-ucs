@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -33,6 +34,8 @@ import org.slf4j.LoggerFactory;
 public class ThreadsRule implements TestRule {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(ThreadsRule.class);
+
+	public static final String[] SYSTEM = { "Libgraal MBean Registration" };
 
 	/**
 	 * Description of current test.
@@ -143,6 +146,14 @@ public class ThreadsRule implements TestRule {
 								}
 							}
 						}
+						if (!skip && SYSTEM != null) {
+							for (String pattern : SYSTEM) {
+								if (thread.getName().matches(pattern)) {
+									skip = true;
+									break;
+								}
+							}
+						}
 						if (!skip) {
 							threads.add(thread);
 						}
@@ -168,35 +179,51 @@ public class ThreadsRule implements TestRule {
 	 *             too fast or new threads are still alive.
 	 */
 	public void checkThreadLeak(List<Thread> activeThreads, boolean reportLeakAsException) {
-		List<Thread> listAfter = getJoinedThreadList(activeThreads);
-		if (!listAfter.isEmpty()) {
-			listAfter = getJoinedThreadList(activeThreads);
-			if (!listAfter.isEmpty()) {
-				int alive = 0;
-				for (Thread thread : listAfter) {
-					if (thread.isAlive()) {
-						++alive;
-						LOGGER.warn("Thread {} is still alive!", thread.getName());
-					}
-				}
-				if (alive > 0) {
-					dump("leaking " + description, listAfter);
-					if (reportLeakAsException) {
-						throw new IllegalStateException(
-								"Active threads differs by " + alive + "! (" + description + ")");
+		List<Thread> listAfter = getJoinedThreadList(activeThreads, 500);
+		if (listAfter.isEmpty()) {
+			return;
+		}
+		listAfter = getJoinedThreadList(activeThreads, 500);
+		if (listAfter.isEmpty()) {
+			return;
+		}
+		int alive = 0;
+		for (Thread thread : listAfter) {
+			if (thread.isAlive()) {
+				++alive;
+				LOGGER.warn("Thread {} is still alive!", thread.getName());
+				if (LOGGER.isDebugEnabled()) {
+					StackTraceElement[] trace = thread.getStackTrace();
+					if (trace != null) {
+						for (int index = 0; index < trace.length; ++index) {
+							LOGGER.debug("   {}", trace[index]);
+						}
 					}
 				}
 			}
 		}
+		if (alive == 1) {
+			// bouncy castle hack - 1.69 uses a daemon thread for secure random ;-(.
+			if (JceProviderUtil.usesBouncyCastle()) {
+				alive = 0;
+			}
+		}
+		if (alive > 0) {
+			dump("leaking " + description, listAfter);
+			if (reportLeakAsException) {
+				throw new IllegalStateException(
+						"Active threads differs by " + alive + "! (" + description + ")");
+			}
+		}
 	}
 
-	private List<Thread> getJoinedThreadList(List<Thread> activeThreads) {
+	private List<Thread> getJoinedThreadList(List<Thread> activeThreads, int timeoutMillis) {
 		List<Thread> listAfter = getActiveThreads();
 		listAfter.removeAll(activeThreads);
-		if (!listAfter.isEmpty()) {
+		if (!listAfter.isEmpty() && timeoutMillis > 0) {
 			for (Thread thread : listAfter) {
 				try {
-					thread.join(1000);
+					thread.join(timeoutMillis);
 				} catch (InterruptedException e) {
 					LOGGER.warn("Interrupted while joining Thread {}!", thread.getName());
 				}

@@ -33,17 +33,20 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.AlertMessage;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
@@ -52,6 +55,10 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * Configure and starts coap-server or -client.
  */
 public class CaliforniumUtil extends ConnectorUtil {
+
+	static {
+		CoapConfig.register();
+	}
 
 	/**
 	 * {@code true}, if used as client, {@code false}, otherwise.
@@ -101,12 +108,7 @@ public class CaliforniumUtil extends ConnectorUtil {
 		}
 		super.shutdown();
 		incoming.clear();
-		AlertMessage alert = getAlertCatcher().getAlert();
-		if (alert != null) {
-			getAlertCatcher().resetAlert();
-			assertThat(alert.getDescription(), is(AlertDescription.CLOSE_NOTIFY));
-//			assertThat(alert, is(new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY)));
-		}
+		assertNoUnexpectedAlert();
 	}
 
 	/**
@@ -128,25 +130,23 @@ public class CaliforniumUtil extends ConnectorUtil {
 	 * Start coap-server or -client.
 	 * 
 	 * @param bind address to bind connector to
-	 * @param rsa use mixed certificate path (includes RSA certificate). Server
-	 *            only!
-	 * @param dtlsBuilder preconfigured dtls builder. Maybe {@link null}.
+	 * @param dtlsBuilder preconfigured dtls builder. May be {@link null}.
 	 * @param trust alias of trusted certificate, or {@code null} to trust all
 	 *            received certificates.
 	 * @param cipherSuites cipher suites to support.
 	 * @throws IOException if an error occurred starting the connector on the
 	 *             provided bind address
 	 */
-	public void start(InetSocketAddress bind, boolean rsa, DtlsConnectorConfig.Builder dtlsBuilder, String trust,
+	public void start(InetSocketAddress bind, DtlsConnectorConfig.Builder dtlsBuilder, String trust,
 			CipherSuite... cipherSuites) throws IOException {
-		build(bind, rsa, dtlsBuilder, trust, cipherSuites);
+		build(bind, dtlsBuilder, trust, cipherSuites);
 		start();
 	}
 
 	private void start() throws IOException {
-		NetworkConfig config = NetworkConfig.getStandard();
+		Configuration config = Configuration.createStandardWithoutFile();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setConnector(getConnector());
 		CoapEndpoint endpoint = builder.build();
 		if (asClient) {
@@ -176,11 +176,7 @@ public class CaliforniumUtil extends ConnectorUtil {
 						} catch (NumberFormatException ex) {
 						}
 					}
-					byte[] message = new byte[size];
-					Arrays.fill(message, (byte) '#');
-					for (int index = 63; index < message.length; index += 64) {
-						message[index] = (byte) '\n';
-					}
+					byte[] message = createPayload(size);
 					exchange.respond(ResponseCode.CHANGED, message);
 				}
 			});
@@ -215,6 +211,24 @@ public class CaliforniumUtil extends ConnectorUtil {
 			});
 			server.start();
 		}
+	}
+
+	/**
+	 * Send request using a full handshake.
+	 * 
+	 * Only available for clients, see {@link #CaliforniumUtil(boolean)}.
+	 * 
+	 * @param request request to send
+	 * @return response, or {@code null}, if no response was received.
+	 * @throws IllegalStateException if it is not a client
+	 * @since 3.0
+	 */
+	public CoapResponse sendWithFullHandshake(Request request) {
+		EndpointContext destinationContext = request.getDestinationContext();
+		destinationContext = MapBasedEndpointContext.setEntries(destinationContext,
+				DtlsEndpointContext.ATTRIBUE_HANDSHAKE_MODE_FORCE_FULL);
+		request.setDestinationContext(destinationContext);
+		return send(request);
 	}
 
 	/**
@@ -321,16 +335,39 @@ public class CaliforniumUtil extends ConnectorUtil {
 	}
 
 	/**
-	 * Assert, that the alert is exchanged.
+	 * Create payload.
 	 * 
-	 * @param expected expected alert
-	 * @throws InterruptedException if waiting for the alert is interrupted.
+	 * @param size size of payload.
+	 * @return created payload.
 	 * @since 3.0
 	 */
-	public void assertAlert(AlertMessage expected) throws InterruptedException {
-		AlertMessage alert = getAlertCatcher().waitForAlert(2000, TimeUnit.MILLISECONDS);
-		assertThat("received alert", alert, is(expected));
-		getAlertCatcher().resetAlert();
+	public byte[] createPayload(int size) {
+		byte[] message = new byte[size];
+		Arrays.fill(message, (byte) '#');
+		for (int index = 0; index < message.length; ++index) {
+			int page = index / 64;
+			message[index] = (byte) Character.forDigit((page / 16) % 16, 16);
+			++index;
+			if (index < message.length) {
+				message[index] = (byte) Character.forDigit(page % 16, 16);
+				index += 62;
+				if (index < message.length) {
+					message[index] = (byte) '\n';
+				}
+			}
+		}
+		return message;
 	}
 
+	/**
+	 * Create text payload.
+	 * 
+	 * @param size size of text payload.
+	 * @return created text payload.
+	 * @since 3.0
+	 */
+	public String createTextPayload(int size) {
+		byte[] message = createPayload(size);
+		return new String(message, StandardCharsets.US_ASCII);
+	}
 }

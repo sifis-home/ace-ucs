@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -124,9 +125,9 @@ public class CoapReq implements Message {
         else if (ctx instanceof MapBasedEndpointContext) {
             MapBasedEndpointContext mapCtx = (MapBasedEndpointContext) ctx;
 
-			byte[] clientSenderId = StringUtil
+            byte[] clientSenderId = StringUtil
                     .hex2ByteArray((String) mapCtx.get(OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID));
-			byte[] idContext = StringUtil
+            byte[] idContext = StringUtil
                     .hex2ByteArray((String) mapCtx.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
 
             if (clientSenderId == null) {
@@ -210,4 +211,12 @@ public class CoapReq implements Message {
     public Token getToken() {
         return this.request.getToken();
     }
+    
+    /**
+     * @return  the OptionSet associated with this message
+     */
+    public OptionSet getOptions() {
+    	return this.request.getOptions();
+    }
+    
 }

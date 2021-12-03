@@ -246,7 +246,7 @@ public class OneKey {
         
         //  Must have a key type
         val = OneKey.this.get(KeyKeys.KeyType);
-        if ((val == null) || (val.getType() != CBORType.Integer))
+		if ((val == null) || (val.getType() != CBORType.Integer))
 			throw new CoseException("Missing or incorrect key type field");
         
         if (val.equals(KeyKeys.KeyType_Octet)) {

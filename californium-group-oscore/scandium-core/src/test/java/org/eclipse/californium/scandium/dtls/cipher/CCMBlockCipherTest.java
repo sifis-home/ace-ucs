@@ -23,12 +23,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -50,17 +50,14 @@ public class CCMBlockCipherTest {
 	static final SecretKey aesKey = new SecretKeySpec(aesKeyBytes, "AES");
 	static final SecretKey aesKey256 = new SecretKeySpec(Bytes.concatenate(aesKeyBytes, aesKeyBytes), "AES");
 
-	static boolean strongEncryptionAvailable;
-	
 	@BeforeClass
-	public static void checksetUp() throws Exception {
-		strongEncryptionAvailable = Cipher.getMaxAllowedKeyLength("AES") > 128;
+	public static void init() {
+		JceProviderUtil.init();
 	}
-	
+
 	@Parameterized.Parameters
 	public static List<Object[]> parameters() {
-		// Trying different messages size to hit sharp corners in Coap-over-TCP
-		// spec
+		// Trying different messages size to hit sharp corners in Coap-over-TCP spec
 		List<Object[]> parameters = new ArrayList<>();
 		parameters.add(new Object[] { 0, 0, 7 });
 		parameters.add(new Object[] { 5, 0, 7 });
@@ -77,10 +74,11 @@ public class CCMBlockCipherTest {
 		return parameters;
 	}
 
-	Random random;
+	static final Random random = new Random();
+
 	byte[] additionalData;
 	byte[] nonce;
-	
+
 	byte[] payloadData;
 	int payloadLength = 50;
 	int aLength = 13;
@@ -91,19 +89,17 @@ public class CCMBlockCipherTest {
 		this.aLength = aLength;
 		this.nonceLength = nonceLength;
 	}
-	
+
 	@Before
 	public void setUp() throws Exception {
 		// salt: 32bit client write init vector (can be any four bytes)
 		byte[] client_iv = new byte[]{0x55, 0x23, 0x2F, (byte) 0xA3};
 		ProtocolVersion protocolVer = ProtocolVersion.VERSION_DTLS_1_2;
-		payloadData = new byte[payloadLength];
-		random = new Random(payloadLength);
-		random.nextBytes(payloadData);
-		
+		payloadData = Bytes.createBytes(random, payloadLength);
+
 		// 64bit sequence number, consisting of 16bit epoch (0) + 48bit sequence number (5)
 		byte[] seq_num = new byte[]{0x00, (byte) EPOCH, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) SEQUENCE_NO};
-		
+
 		// additional data based on sequence number, type (APPLICATION DATA) and protocol version
 		additionalData = new byte[]{TYPE_APPL_DATA, (byte) protocolVer.getMajor(), (byte) protocolVer.getMinor(), 0, (byte) payloadLength};
 		additionalData = Bytes.concatenate(seq_num, additionalData);
@@ -117,15 +113,12 @@ public class CCMBlockCipherTest {
 	}
 
 	private byte[] adjustLength(byte[] data, int len) {
-		if (data.length > len) {
-			return Arrays.copyOf(data, len);
-		} else if (data.length < len) {
-			byte[] temp = new byte[len];
-			random.nextBytes(temp);
-			System.arraycopy(data, 0, temp, 0, data.length);
-			return temp;
+		byte[] adjusted = Arrays.copyOf(data, len);
+		if (data.length < len) {
+			byte[] temp = Bytes.createBytes(random, len - data.length);
+			System.arraycopy(temp, 0, adjusted, data.length, temp.length);
 		}
-		return data;
+		return adjusted;
 	}
 
 	@Test
@@ -144,7 +137,7 @@ public class CCMBlockCipherTest {
 	 */
 	@Test(expected = InvalidMacException.class)
 	public void testAES256and128CryptionFails() throws Exception {
-		assumeTrue("requires strong encryption enabled", strongEncryptionAvailable);
+		assumeTrue("requires strong encryption enabled", JceProviderUtil.hasStrongEncryption());
 		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey256, nonce, additionalData, payloadData, 8);
 		CCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
 	}
@@ -156,7 +149,7 @@ public class CCMBlockCipherTest {
 	 */
 	@Test
 	public void testAES256CCM8Cryption() throws Exception {
-		assumeTrue("requires strong encryption enabled", strongEncryptionAvailable);
+		assumeTrue("requires strong encryption enabled", JceProviderUtil.hasStrongEncryption());
 		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey256, nonce, additionalData, payloadData, 8);
 		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey256, nonce, additionalData, encryptedData, 8);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
@@ -170,7 +163,7 @@ public class CCMBlockCipherTest {
 	@Test
 	public void testAES256CCMCryption() throws Exception {
 		// http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html
-		assumeTrue("requires strong encryption enabled", strongEncryptionAvailable);
+		assumeTrue("requires strong encryption enabled", JceProviderUtil.hasStrongEncryption());
 		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey256, nonce, additionalData, payloadData, 16);
 		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey256, nonce, additionalData, encryptedData, 16);
 		assertTrue(Arrays.equals(decryptedData, payloadData));

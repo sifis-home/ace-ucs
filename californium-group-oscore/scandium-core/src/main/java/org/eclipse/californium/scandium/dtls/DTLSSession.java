@@ -60,7 +60,6 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SerializationUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -85,7 +84,16 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * An arbitrary byte sequence chosen by the server to identify this session.
 	 */
-	private SessionId sessionIdentifier;
+	private SessionId sessionIdentifier = SessionId.emptySessionId();
+
+	/**
+	 * Protocol version.
+	 * 
+	 * Only {@link ProtocolVersion#VERSION_DTLS_1_2} is supported.
+	 * 
+	 * @since 3.0
+	 */
+	private ProtocolVersion protocolVersion = ProtocolVersion.VERSION_DTLS_1_2;
 
 	/**
 	 * Peer identity.
@@ -134,7 +142,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Use extended master secret.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>.
+	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>.
 	 * 
 	 * @since 3.0
 	 */
@@ -163,8 +171,6 @@ public final class DTLSSession implements Destroyable {
 	private ServerNames serverNames;
 	private boolean peerSupportsSni;
 
-	// Constructor ////////////////////////////////////////////////////
-
 	/**
 	 * Creates a session using default values for all fields.
 	 */
@@ -176,7 +182,7 @@ public final class DTLSSession implements Destroyable {
 	 * Creates a session using default values for all fields, except the
 	 * {@link #hostName} and {@link #serverNames}.
 	 * 
-	 * @param hostname, or {@code null}, if not used.
+	 * @param hostname hostname, or {@code null}, if not used.
 	 * @see #setHostName(String)
 	 * @since 3.0
 	 */
@@ -188,43 +194,38 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Creates a new session based on a given set of crypto parameter of another
 	 * session that is to be resumed.
-	 * <p>
-	 * The newly created session will have its <em>pending state</em>
-	 * initialized with the given crypto parameter so that it can be used during
-	 * the abbreviated handshake used to resume the session.
-	 *
-	 * @param id The identifier of the session to be resumed.
-	 * @param ticket The crypto parameter to use for the abbreviated handshake
-	 */
-	public DTLSSession(SessionId id, SessionTicket ticket) {
-		creationTime = ticket.getTimestamp();
-		sessionIdentifier = id;
-		masterSecret = SecretUtil.create(ticket.getMasterSecret());
-		peerIdentity = ticket.getClientIdentity();
-		cipherSuite = ticket.getCipherSuite();
-		compressionMethod = ticket.getCompressionMethod();
-		extendedMasterSecret = ticket.useExtendedMasterSecret();
-		setServerNames(ticket.getServerNames());
-	}
-
-	/**
-	 * Creates a new session based on a given set of crypto parameter of another
-	 * session that is to be resumed.
 	 * 
 	 * @param session session to resume
 	 */
 	public DTLSSession(DTLSSession session) {
+		set(session);
+	}
+
+	/**
+	 * Sets session.
+	 * 
+	 * Sets all fields of this session from the values of the provided session.
+	 * 
+	 * @param session session to set
+	 * @since 3.0
+	 */
+	public void set(DTLSSession session) {
 		creationTime = session.getCreationTime();
 		sessionIdentifier = session.getSessionIdentifier();
+		protocolVersion = session.getProtocolVersion();
 		masterSecret = session.getMasterSecret();
 		peerIdentity = session.getPeerIdentity();
 		cipherSuite = session.getCipherSuite();
 		compressionMethod = session.getCompressionMethod();
+		signatureAndHashAlgorithm = session.getSignatureAndHashAlgorithm();
+		ecGroup = session.getEcGroup();
 		extendedMasterSecret = session.useExtendedMasterSecret();
+		sendCertificateType = session.sendCertificateType();
+		receiveCertificateType = session.receiveCertificateType();
+		recordSizeLimit = session.getRecordSizeLimit();
+		maxFragmentLength = session.getMaxFragmentLength();
 		setServerNames(session.getServerNames());
 	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	@Override
 	public void destroy() throws DestroyFailedException {
@@ -263,12 +264,14 @@ public final class DTLSSession implements Destroyable {
 	 * @param sessionIdentifier new session identifier
 	 * @throws NullPointerException if the provided session identifier is
 	 *             {@code null}
+	 * @throws IllegalArgumentException if the provided session identifier is
+	 *             neither empty nor different to the available one.
 	 */
 	void setSessionIdentifier(SessionId sessionIdentifier) {
 		if (sessionIdentifier == null) {
 			throw new NullPointerException("session identifier must not be null!");
 		}
-		if (!sessionIdentifier.equals(this.sessionIdentifier)) {
+		if (!sessionIdentifier.equals(this.sessionIdentifier) || sessionIdentifier.isEmpty()) {
 			// reset master secret
 			SecretUtil.destroy(this.masterSecret);
 			this.masterSecret = null;
@@ -276,6 +279,35 @@ public final class DTLSSession implements Destroyable {
 		} else {
 			throw new IllegalArgumentException("no new session identifier?");
 		}
+	}
+
+	/**
+	 * Gets protocol version.
+	 * 
+	 * Only {@link ProtocolVersion#VERSION_DTLS_1_2} is supported.
+	 * 
+	 * @return protocol version.
+	 * @since 3.0
+	 */
+	public ProtocolVersion getProtocolVersion() {
+		return protocolVersion;
+	}
+
+	/**
+	 * Sets protocol version.
+	 * 
+	 * Only {@link ProtocolVersion#VERSION_DTLS_1_2} is supported.
+	 * 
+	 * @param protocolVersion protocol version
+	 * @throws IllegalArgumentException if other version as
+	 *             {@link ProtocolVersion#VERSION_DTLS_1_2} is provided.
+	 * @since 3.0
+	 */
+	void setProtocolVersion(ProtocolVersion protocolVersion) {
+		if (!ProtocolVersion.VERSION_DTLS_1_2.equals(protocolVersion)) {
+			throw new IllegalArgumentException(protocolVersion + " is not supported!");
+		}
+		this.protocolVersion = ProtocolVersion.VERSION_DTLS_1_2;
 	}
 
 	/**
@@ -372,11 +404,14 @@ public final class DTLSSession implements Destroyable {
 	 * 
 	 * @param attributes attributes to add the entries
 	 */
-	public void addEndpintContext(MapBasedEndpointContext.Attributes attributes) {
+	public void addEndpointContext(MapBasedEndpointContext.Attributes attributes) {
 		Bytes id = sessionIdentifier.isEmpty() ? new Bytes(("TIME:" + Long.toString(creationTime)).getBytes())
 				: sessionIdentifier;
 		attributes.add(DtlsEndpointContext.KEY_SESSION_ID, id);
 		attributes.add(DtlsEndpointContext.KEY_CIPHER, cipherSuite.name());
+		if (extendedMasterSecret) {
+			attributes.add(DtlsEndpointContext.KEY_EXTENDED_MASTER_SECRET, Boolean.TRUE);
+		}
 	}
 
 	/**
@@ -446,7 +481,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Set use extended master secret.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>.
+	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>.
 	 * 
 	 * @param enable {@code true}, to enable the use of the extended master
 	 *            secret, {@code false}, if the master secret (RFC 5246) is
@@ -460,7 +495,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Gets use extended master secret.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>.
+	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>.
 	 * 
 	 * @return {@code true}, to enable the use of the extended master secret,
 	 *         {@code false}, if the master secret (RFC 5246) is used.
@@ -491,7 +526,7 @@ public final class DTLSSession implements Destroyable {
 	 * @throws NullPointerException if the master secret is {@code null}
 	 * @throws IllegalArgumentException if the secret is not exactly 48 bytes
 	 *             (see
-	 *             <a href="http://tools.ietf.org/html/rfc5246#section-8.1"> RFC
+	 *             <a href="https://tools.ietf.org/html/rfc5246#section-8.1" target="_blank"> RFC
 	 *             5246 (TLS 1.2), section 8.1</a>)
 	 * @throws IllegalStateException if the master secret is already set
 	 */
@@ -540,7 +575,7 @@ public final class DTLSSession implements Destroyable {
 	 * <p>
 	 * The value of this property corresponds directly to the
 	 * <em>DTLSPlaintext.length</em> field as defined in
-	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">DTLS 1.2 spec,
 	 * Section 4.3.1</a>.
 	 * <p>
 	 * The default value of this property is 2^14 bytes.
@@ -570,7 +605,7 @@ public final class DTLSSession implements Destroyable {
 	 * <p>
 	 * The value of this property serves as an upper boundary for the
 	 * <em>DTLSPlaintext.length</em> field defined in
-	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">DTLS 1.2 spec,
 	 * Section 4.3.1</a>. This means that an application can assume that any
 	 * message containing at most as many bytes as indicated by this method,
 	 * will be delivered to the peer in a single unfragmented IP datagram.
@@ -653,7 +688,6 @@ public final class DTLSSession implements Destroyable {
 	 * server key exchange message.
 	 * 
 	 * @param signatureAndHashAlgorithm negotiated signature and hash algorithm
-	 * 
 	 * @since 2.3
 	 */
 	void setSignatureAndHashAlgorithm(SignatureAndHashAlgorithm signatureAndHashAlgorithm) {
@@ -665,7 +699,6 @@ public final class DTLSSession implements Destroyable {
 	 * message.
 	 * 
 	 * @return negotiated ec-group
-	 * 
 	 * @since 3.0
 	 */
 	public SupportedGroup getEcGroup() {
@@ -676,7 +709,6 @@ public final class DTLSSession implements Destroyable {
 	 * Sets the negotiated ec-group to be used for the ECDHE key exchange
 	 * 
 	 * @param ecGroup negotiated ec-group
-	 * 
 	 * @since 3.0
 	 */
 	void setEcGroup(SupportedGroup ecGroup) {
@@ -696,7 +728,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Sets the authenticated peer's identity.
 	 * 
-	 * @param the identity
+	 * @param peerIdentity the identity
 	 * @throws NullPointerException if the identity is {@code null}
 	 */
 	void setPeerIdentity(Principal peerIdentity) {
@@ -704,26 +736,6 @@ public final class DTLSSession implements Destroyable {
 			throw new NullPointerException("Peer identity must not be null");
 		}
 		this.peerIdentity = peerIdentity;
-	}
-
-	/**
-	 * Get a session ticket representing this session's <em>current</em>
-	 * connection state.
-	 * 
-	 * @return The ticket. Or {@code null}, if the session id is empty and
-	 *         doesn't support resumption.
-	 * @throws IllegalStateException if this session does not have its current
-	 *             connection state set yet.
-	 */
-	public SessionTicket getSessionTicket() {
-		SecretKey masterSecret = this.masterSecret;
-		if (SecretUtil.isDestroyed(masterSecret)) {
-			throw new IllegalStateException("session has no valid crypto params, not fully negotiated yet?");
-		} else if (sessionIdentifier.isEmpty()) {
-			return null;
-		}
-		return new SessionTicket(ProtocolVersion.VERSION_DTLS_1_2, cipherSuite, compressionMethod, extendedMasterSecret,
-				masterSecret, getServerNames(), getPeerIdentity(), creationTime);
 	}
 
 	@Override
@@ -783,6 +795,9 @@ public final class DTLSSession implements Destroyable {
 		if (!Objects.equals(peerIdentity, other.peerIdentity)) {
 			return false;
 		}
+		if (!Objects.equals(protocolVersion, other.protocolVersion)) {
+			return false;
+		}
 		return true;
 	}
 
@@ -795,14 +810,12 @@ public final class DTLSSession implements Destroyable {
 	 * Write dtls session state.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it. The encoding of the
-	 * content may also change in the future.
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param writer writer for dtls session state
 	 * @since 3.0
 	 */
-	@WipAPI
-	public void write(DatagramWriter writer) {
+	public void writeTo(DatagramWriter writer) {
 		int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 		writer.writeLong(creationTime, Long.SIZE);
 		if (serverNames == null) {
@@ -849,16 +862,12 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Read dtls session state.
 	 * 
-	 * Note: the stream will contain not encrypted critical credentials. The
-	 * encoding of the content may also change in the future.
-	 * 
 	 * @param reader reader with dtls session state.
 	 * @return read dtls session.
 	 * @throws IllegalArgumentException if version differs or the data is
 	 *             erroneous
 	 * @since 3.0
 	 */
-	@WipAPI
 	public static DTLSSession fromReader(DatagramReader reader) {
 		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
 		if (0 < length) {

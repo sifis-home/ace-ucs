@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -80,7 +81,6 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.TokenRepository;
-import se.sics.ace.Util;
 
 /**
  * Test the DTLSProfileAuthzInfo class.
@@ -209,8 +209,7 @@ public class TestDtlspAuthzInfo {
         req.setToken(new byte[]{0x01});
         CoapEndpoint cep = new CoapEndpoint.Builder().build();
         cep.start();
-        Exchange iex = new Exchange(req, Origin.REMOTE, null);
-        iex.setRequest(req);   
+        Exchange iex = new Exchange(req, null, Origin.REMOTE, new TestSynchroneExecutor());
         iex.setEndpoint(cep);
         CoapExchange ex = new CoapExchange(iex, dai);      
         dai.handlePOST(ex);
@@ -259,8 +258,7 @@ public class TestDtlspAuthzInfo {
         req.setToken(new byte[]{0x02});
         CoapEndpoint cep = new CoapEndpoint.Builder().build();
         cep.start();
-        Exchange iex = new Exchange(req, Origin.REMOTE, null);
-        iex.setRequest(req);   
+        Exchange iex = new Exchange(req, null, Origin.REMOTE, new TestSynchroneExecutor());
         iex.setEndpoint(cep);
         CoapExchange ex = new CoapExchange(iex, dai);      
         dai.handlePOST(ex);
@@ -331,5 +329,30 @@ public class TestDtlspAuthzInfo {
     public static void tearDown() throws AceException {
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+    }
+    
+    /**
+     * Synchronous Executor.
+     * 
+     * Executes command synchronous to simplify unit tests.
+     * 
+     * @since 3.0 (replaces SyncSerialExecutor)
+     */
+    private class TestSynchroneExecutor implements Executor {
+        /**
+         * Synchronous executor.
+         * 
+         * For unit tests.
+         */
+        private TestSynchroneExecutor() {
+        }
+
+        /**
+         * Execute the job synchronous.
+         */
+        @Override
+        public void execute(final Runnable command) {
+            command.run();
+        }
     }
 }

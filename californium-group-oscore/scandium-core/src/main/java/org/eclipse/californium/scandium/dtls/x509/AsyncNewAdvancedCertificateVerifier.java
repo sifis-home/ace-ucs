@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.x509;
 
+import java.net.InetSocketAddress;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
@@ -48,7 +49,7 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 	/**
 	 * Thread factory.
 	 */
-	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncTimer#");
+	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncCertVerifier#", NamedThreadFactory.SCANDIUM_THREAD_GROUP);
 	/**
 	 * Executor for asynchronous behaviour.
 	 */
@@ -78,16 +79,16 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 	 * @param delayMillis delay in milliseconds to report result. {@code 0} or
 	 *            negative delays using synchronous blocking behaviour. Positive
 	 *            delays using asynchronous none-blocking behaviour.
-	 * @return this psk store for command chaining
+	 * @return this certificate verifier for command chaining
 	 */
 	public AsyncNewAdvancedCertificateVerifier setDelay(int delayMillis) {
 		this.delayMillis = delayMillis;
 		if (delayMillis > 0) {
-			LOGGER.info("Asynchronous delayed PSK store {}ms.", delayMillis);
+			LOGGER.info("Asynchronous delayed certificate verifier {}ms.", delayMillis);
 		} else if (delayMillis < 0) {
-			LOGGER.info("Synchronous delayed PSK store {}ms.", -delayMillis);
+			LOGGER.info("Synchronous delayed certificate verifier {}ms.", -delayMillis);
 		} else {
-			LOGGER.info("Synchronous PSK store.");
+			LOGGER.info("Synchronous certificate verifier.");
 		}
 		return this;
 	}
@@ -112,7 +113,8 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 
 	@Override
 	public CertificateVerificationResult verifyCertificate(final ConnectionId cid, final ServerNames serverName,
-			final boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message) {
+			final InetSocketAddress remotePeer, final boolean clientUsage, final boolean verifySubject,
+			final boolean truncateCertificatePath, final CertificateMessage message) {
 		if (delayMillis <= 0) {
 			if (delayMillis < 0) {
 				try {
@@ -120,23 +122,26 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 				} catch (InterruptedException e) {
 				}
 			}
-			return super.verifyCertificate(cid, serverName, clientUsage, truncateCertificatePath, message);
+			return super.verifyCertificate(cid, serverName, remotePeer, clientUsage, verifySubject,
+					truncateCertificatePath, message);
 		} else {
 			executorService.schedule(new Runnable() {
 
 				@Override
 				public void run() {
-					verifyCertificateAsynchronous(cid, serverName, clientUsage, truncateCertificatePath, message);
+					verifyCertificateAsynchronous(cid, serverName, remotePeer, clientUsage, verifySubject,
+							truncateCertificatePath, message);
 				}
 			}, delayMillis, TimeUnit.MILLISECONDS);
 			return null;
 		}
 	}
 
-	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, boolean clientUsage,
-			boolean truncateCertificatePath, CertificateMessage message) {
-		CertificateVerificationResult result = super.verifyCertificate(cid, serverName, clientUsage,
-				truncateCertificatePath, message);
+	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, InetSocketAddress remotePeer,
+			boolean clientUsage, boolean verifySubject, boolean truncateCertificatePath,
+			CertificateMessage message) {
+		CertificateVerificationResult result = super.verifyCertificate(cid, serverName, remotePeer, clientUsage,
+				verifySubject, truncateCertificatePath, message);
 		CertPath certPath = result.getCertificatePath();
 		PublicKey publicKey = result.getPublicKey();
 		if (certPath == null && publicKey == null) {

@@ -25,16 +25,16 @@
 package org.eclipse.californium.core.network.stack;
 
 import org.eclipse.californium.core.network.Outbox;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.config.Configuration;
 
 /**
  * The CoapTcpStack builds up the stack of CoAP layers that process the CoAP
  * protocol when running over TCP connection.
  * <p>
  * The complete process for incoming and outgoing messages is visualized below.
- * The class <code>CoapStack</code> builds up the part between the Stack Top and
+ * The class {@link CoapStack} builds up the part between the Stack Top and
  * Bottom.
  * <hr><blockquote><pre>
  * +--------------------------+
@@ -80,9 +80,9 @@ public class CoapTcpStack extends BaseCoapStack {
 	 * @param tag logging tag
 	 * @param config The configuration values to use.
 	 * @param outbox The adapter for submitting outbound messages to the transport.
-	 * @since 3.0 logging tag added
+	 * @since 3.0 (logging tag added and changed parameter to Configuration)
 	 */
-	public CoapTcpStack(String tag, NetworkConfig config, Outbox outbox) {
+	public CoapTcpStack(String tag, Configuration config, Outbox outbox) {
 		super(outbox);
 
 		Layer layers[] = new Layer[] {

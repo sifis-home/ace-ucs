@@ -27,15 +27,17 @@
 package org.eclipse.californium.core.observe;
 
 import java.net.InetSocketAddress;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.StringUtil;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The ObserveRelation is a server-side control structure. It represents a
@@ -71,7 +73,7 @@ public class ObserveRelation {
 	/** Indicates if the relation is canceled */
 	private volatile boolean canceled;
 
-	private long interestCheckTimer = System.currentTimeMillis();
+	private long interestCheckTimer = ClockUtil.nanoRealtime();
 	private int interestCheckCounter = 1;
 
 	/**
@@ -91,11 +93,12 @@ public class ObserveRelation {
 		this.endpoint = endpoint;
 		this.resource = resource;
 		this.exchange = exchange;
-		NetworkConfig config = exchange.getEndpoint().getConfig();
-		checkIntervalTime = config.getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME);
-		checkIntervalCount = config.getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
+		Configuration config = exchange.getEndpoint().getConfig();
+		checkIntervalTime = config.get(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, TimeUnit.NANOSECONDS);
+		checkIntervalCount = config.get(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT);
 
 		this.key = StringUtil.toString(getSource()) + "#" + exchange.getRequest().getTokenString();
+		LOGGER.debug("Observe-relation, checks every {}ns or {} notifications.", checkIntervalTime, checkIntervalCount);
 	}
 
 	/**
@@ -110,19 +113,27 @@ public class ObserveRelation {
 
 	/**
 	 * Sets the established field.
+	 * 
 	 * @throws IllegalStateException if the relation was already canceled.
 	 */
 	public void setEstablished() {
-		if (canceled) {
+		boolean fail;
+		synchronized (this) {
+			fail = canceled;
+			if (!fail) {
+				established = true;
+			}
+		}
+		if (fail) {
 			throw new IllegalStateException(
 					String.format("Could not establish observe relation %s with %s, already canceled (%s)!", getKey(),
 							resource.getURI(), exchange));
 		}
-		this.established = true;
 	}
 
 	/**
 	 * Check, if this relation is canceled.
+	 * 
 	 * @return {@code true}, if relation was canceled, {@code false}, otherwise.
 	 */
 	public boolean isCanceled() {
@@ -130,33 +141,37 @@ public class ObserveRelation {
 	}
 
 	/**
-	 * Cancel this observe relation. This methods invokes the cancel methods of
-	 * the resource and the endpoint.
-	 * @throws IllegalStateException if relation wasn't established.
+	 * Cleanup relation.
+	 * 
+	 * {@link #cancel()}, if {@link #isEstablished()}.
+	 * 
+	 * @since 3.0
 	 */
-	public void cancel() {
-		if (!canceled) {
-			if (!established) {
-				throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
-						resource.getURI(), exchange));
-			}
-			LOGGER.debug("Canceling observe relation {} with {} ({})", getKey(), resource.getURI(), exchange);
-			// stop ongoing retransmissions
-			canceled = true;
-			established = false;
-			Response reponse = exchange.getResponse();
-			if (reponse != null) {
-				reponse.cancel();
-			}
-			resource.removeObserveRelation(this);
-			endpoint.removeObserveRelation(this);
-			exchange.executeComplete();
+	public void cleanup() {
+		if (isEstablished()) {
+			cancel();
 		}
 	}
 
 	/**
-	 * Cancel all observer relations that this server has established with this'
-	 * realtion's endpoint.
+	 * Cancel this observe relation.
+	 * 
+	 * This methods invokes the cancel methods of the resource and the endpoint.
+	 * A last response must have been sent before. Otherwise the
+	 * {@link Exchange} will be completed and fail that sending.
+	 * 
+	 * Note: calling this method outside the execution of the related
+	 * {@link #exchange} may naturally cause indeterministic behavior.
+	 * 
+	 * @throws IllegalStateException if relation wasn't established.
+	 */
+	public void cancel() {
+		cancel(true);
+	}
+
+	/**
+	 * Cancel all observer relations that this server has established with this
+	 * relation's endpoint.
 	 */
 	public void cancelAll() {
 		endpoint.cancelAll();
@@ -197,38 +212,188 @@ public class ObserveRelation {
 		return endpoint.getAddress();
 	}
 
+	/**
+	 * Check, if notification is still requested.
+	 * 
+	 * Send notification as CON response in order to challenge the client to
+	 * acknowledge the message.
+	 * 
+	 * @return {@code true}, to check the observer relation with a
+	 *         CON-notification, {@code false}, otherwise.
+	 */
 	public boolean check() {
-		boolean check = false;
-		check |= this.interestCheckTimer + checkIntervalTime < System.currentTimeMillis();
-		check |= (++interestCheckCounter >= checkIntervalCount);
+		long now = ClockUtil.nanoRealtime();
+		boolean check;
+		synchronized (this) {
+			check = (++interestCheckCounter >= checkIntervalCount);
+			if (check) {
+				this.interestCheckTimer = now;
+				this.interestCheckCounter = 0;
+			}
+		}
 		if (check) {
-			this.interestCheckTimer = System.currentTimeMillis();
-			this.interestCheckCounter = 0;
+			LOGGER.trace("Observe-relation check, {} notifications reached.", checkIntervalCount);
+			return check;
+		}
+		synchronized (this) {
+			check = (now - interestCheckTimer - checkIntervalTime) > 0;
+			if (check) {
+				this.interestCheckTimer = now;
+				this.interestCheckCounter = 0;
+			}
+		}
+		if (check) {
+			LOGGER.trace("Observe-relation check, {}s interval reached.",
+					TimeUnit.NANOSECONDS.toSeconds(checkIntervalTime));
 		}
 		return check;
 	}
 
-	public Response getCurrentControlNotification() {
-		return recentControlNotification;
-	}
-
-	public void setCurrentControlNotification(Response recentControlNotification) {
-		this.recentControlNotification = recentControlNotification;
-	}
-
-	public Response getNextControlNotification() {
-		return nextControlNotification;
-	}
-
-	public void setNextControlNotification(Response nextControlNotification) {
-		if (this.nextControlNotification != null && nextControlNotification != null) {
-			// complete deprecated response
-			this.nextControlNotification.onTransferComplete();
+	/**
+	 * Check, if sending the provided notification is postponed.
+	 * 
+	 * Postponed notification are kept and sent after the current notification.
+	 * Calls {@link #send(Response)}, if not postponed.
+	 * 
+	 * @param response notification to check.
+	 * @return {@code true}, if sending the notification is postponed,
+	 *         {@code false}, if not.
+	 * @since 3.0
+	 */
+	public boolean isPostponedNotification(Response response) {
+		if (isInTransit(recentControlNotification)) {
+			LOGGER.trace("in transit {}", recentControlNotification);
+			if (nextControlNotification != null) {
+				if (!nextControlNotification.isNotification()) {
+					return true;
+				}
+				// complete deprecated response
+				nextControlNotification.onTransferComplete();
+			}
+			nextControlNotification = response;
+			return true;
+		} else {
+			recentControlNotification = response;
+			nextControlNotification = null;
+			send(response);
+			return false;
 		}
-		this.nextControlNotification = nextControlNotification;
 	}
 
+	/**
+	 * Get next notification.
+	 * 
+	 * Calls {@link #send(Response)} for next notification.
+	 * 
+	 * @param response current notification
+	 * @param acknowledged {@code true}, if the current notification was
+	 *            acknowledged, or {@code false}, on retransmission (caused by
+	 *            missing acknowledged)
+	 * @return next notification, or {@code null}, if no next notification is
+	 *         available.
+	 * @since 3.0
+	 */
+	public Response getNextNotification(Response response, boolean acknowledged) {
+		Response next = null;
+		if (recentControlNotification == response) {
+			next = nextControlNotification;
+			if (next != null) {
+				// next may be null
+				recentControlNotification = next;
+				nextControlNotification = null;
+				send(next);
+			} else if (acknowledged) {
+				// next may be null
+				recentControlNotification = null;
+				nextControlNotification = null;
+			}
+		}
+		return next;
+	}
+
+	/**
+	 * Send response for this relation.
+	 * 
+	 * If the response is no notification, {@link #cancel()} the relation
+	 * internally without completing the exchange.
+	 * 
+	 * @param response response to sent.
+	 * @since 3.0
+	 */
+	public void send(Response response) {
+		if (!response.isNotification()) {
+			cancel(false);
+		}
+	}
+
+	/**
+	 * Get key, identifying this observer relation.
+	 * 
+	 * Combination of source-address and token.
+	 * 
+	 * @return identifying key
+	 */
 	public String getKey() {
 		return this.key;
 	}
+
+	/**
+	 * Cancel this observe relation.
+	 * 
+	 * This methods invokes the cancel methods of the resource and the endpoint.
+	 * 
+	 * Note: calling this method outside the execution of the related
+	 * {@link #exchange} may naturally cause indeterministic behavior.
+	 * 
+	 * @param complete {@code true}, to complete the exchange, {@code false}, to
+	 *            not complete it.
+	 * 
+	 * @throws IllegalStateException if relation wasn't established.
+	 * @since 3.0
+	 */
+	private void cancel(boolean complete) {
+		boolean fail = false;
+		boolean cancel = false;
+
+		synchronized (this) {
+			if (!canceled) {
+				fail = !established;
+				if (!fail) {
+					canceled = true;
+					established = false;
+					cancel = true;
+				}
+			}
+		}
+		if (fail) {
+			throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
+					resource.getURI(), exchange));
+		}
+		if (cancel) {
+			LOGGER.debug("Canceling observe relation {} with {} ({})", getKey(), resource.getURI(), exchange);
+			resource.removeObserveRelation(this);
+			endpoint.removeObserveRelation(this);
+			if (complete) {
+				exchange.executeComplete();
+			}
+		}
+	}
+
+	/**
+	 * Returns {@code true}, if the specified response is still in transit. A
+	 * response is in transit, if it has not yet been acknowledged, rejected or
+	 * its current transmission has not yet timed out.
+	 * 
+	 * @param response notification to check.
+	 * @return {@code true}, if notification is in transit, {@code false},
+	 *         otherwise.
+	 * @since 3.0
+	 */
+	private static boolean isInTransit(final Response response) {
+		if (response == null || !response.isConfirmable()) {
+			return false;
+		}
+		return !response.isAcknowledged() && !response.isTimedOut() && !response.isRejected();
+	}
+
 }

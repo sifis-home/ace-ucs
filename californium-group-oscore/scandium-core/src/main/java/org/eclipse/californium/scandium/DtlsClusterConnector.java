@@ -36,7 +36,6 @@ import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
-import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,10 +109,11 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 * Type of incoming forwarded messages.
 	 * 
 	 * Unassigned according <a href=
-	 * "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-5">IANA,
-	 * TLS ContentType</a>, and no collision with CoAP messages
-	 * <a href= "https://tools.ietf.org/html/rfc7252#section-3">RFC 7252,
-	 * Message Format</a> (1. byte, version 0b01, others xx xxxx).
+	 * "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-5"
+	 * target= "_blank">IANA, TLS ContentType</a>, and no collision with CoAP
+	 * messages <a href="https://tools.ietf.org/html/rfc7252#section-3" target=
+	 * "_blank">RFC 7252, Message Format</a> (1. byte, version 0b01, others xx
+	 * xxxx).
 	 */
 	public static final Byte RECORD_TYPE_INCOMING = (byte) 63;
 	/**
@@ -122,7 +122,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 * Unassigned according <a href=
 	 * "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-5">IANA,
 	 * TLS ContentType</a>, and no collision with CoAP messages
-	 * <a href= "https://tools.ietf.org/html/rfc7252#section-3">RFC 7252,
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-3" target="_blank">RFC 7252,
 	 * Message Format</a> (1. byte, version 0b01, others xx xxxx).
 	 */
 	public static final Byte RECORD_TYPE_OUTGOING = (byte) 62;
@@ -173,24 +173,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 */
 	public DtlsClusterConnector(DtlsConnectorConfig configuration, DtlsClusterConnectorConfig clusterConfiguration,
 			ClusterNodesProvider nodes) {
-		this(configuration, clusterConfiguration, nodes, null);
-	}
-
-	/**
-	 * Create dtls connector with cluster support and session cache.
-	 * 
-	 * @param configuration dtls configuration
-	 * @param clusterConfiguration cluster internal connector configuration
-	 * @param nodes nodes provider
-	 * @param sessionCache session cache. May be {@code null}.
-	 * @throws IllegalArgumentException if the configuration doesn't provide a
-	 *             cid generator, or the cid generator only supports, but
-	 *             doesn't use cids, or the cid generator is no
-	 *             {@link NodeConnectionIdGenerator}.
-	 */
-	public DtlsClusterConnector(DtlsConnectorConfig configuration, DtlsClusterConnectorConfig clusterConfiguration,
-			ClusterNodesProvider nodes, SessionCache sessionCache) {
-		this(configuration, clusterConfiguration, createConnectionStore(configuration, sessionCache), true);
+		this(configuration, clusterConfiguration, createConnectionStore(configuration), true);
 		setClusterNodesProvider(nodes);
 	}
 
@@ -417,13 +400,13 @@ public class DtlsClusterConnector extends DTLSConnector {
 			}
 			return;
 		}
-		if (type == RECORD_TYPE_INCOMING) {
+		if (RECORD_TYPE_INCOMING.equals(type)) {
 			LOGGER.trace("cluster-node {}: received forwarded message", getNodeID());
 			super.processDatagram(packet, router);
 			if (clusterHealth != null) {
 				clusterHealth.processForwardedMessage();
 			}
-		} else if (type == RECORD_TYPE_OUTGOING) {
+		} else if (RECORD_TYPE_OUTGOING.equals(type)) {
 			LOGGER.trace("cluster-node {}: received backwarded outgoing message", getNodeID());
 			super.sendNextDatagramOverNetwork(packet);
 			if (clusterHealth != null) {
@@ -476,21 +459,22 @@ public class DtlsClusterConnector extends DTLSConnector {
 					int incomingNodeId = nodeCidGenerator.getNodeId(cid);
 					if (getNodeID() != incomingNodeId) {
 						LOGGER.trace("cluster-node {}: received foreign message for {} from {}", getNodeID(),
-								incomingNodeId, source);
+								incomingNodeId, StringUtil.toLog(source));
 						InetSocketAddress clusterNode = nodesProvider.getClusterNode(incomingNodeId);
 						if (clusterNode != null) {
 							DatagramPacket clusterPacket = encode(RECORD_TYPE_INCOMING, packet, null);
 							clusterPacket.setSocketAddress(clusterNode);
 							try {
 								LOGGER.trace("cluster-node {}: forwards received message from {} to {}, {} bytes",
-										getNodeID(), source, clusterNode, length);
+										getNodeID(), StringUtil.toLog(source), StringUtil.toLog(clusterNode), length);
 								sendDatagramToClusterNetwork(clusterPacket);
 								if (clusterHealth != null) {
 									clusterHealth.forwardMessage();
 								}
 								return;
 							} catch (IOException e) {
-								LOGGER.info("cluster-node {}: forward error:", getNodeID(), e);
+								LOGGER.info("cluster-node {}: error forwarding to {}/{}:", getNodeID(), incomingNodeId,
+										StringUtil.toLog(clusterNode), e);
 								if (clusterHealth != null) {
 									clusterHealth.dropForwardMessage();
 								} else {
@@ -500,7 +484,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 						} else {
 							FILTER.debug(
 									"cluster-node {}: received foreign message from {} for unknown node {}, {} bytes, dropping.",
-									getNodeID(), source, incomingNodeId, length);
+									getNodeID(), StringUtil.toLog(source), incomingNodeId, length);
 							if (clusterHealth != null) {
 								clusterHealth.dropForwardMessage();
 							} else {
@@ -508,17 +492,17 @@ public class DtlsClusterConnector extends DTLSConnector {
 							}
 						}
 					} else {
-						LOGGER.trace("cluster-node {}: received own message from {}, {} bytes", getNodeID(), source,
+						LOGGER.trace("cluster-node {}: received own message from {}, {} bytes", getNodeID(), StringUtil.toLog(source),
 								length);
 					}
 				} else {
-					FILTER.debug("cluster-node {}: received broken CID message from {}", getNodeID(), source);
+					FILTER.debug("cluster-node {}: received broken CID message from {}", getNodeID(), StringUtil.toLog(source));
 				}
 			} else {
-				FILTER.debug("cluster-node {}: received too short CID message from {}", getNodeID(), source);
+				FILTER.debug("cluster-node {}: received too short CID message from {}", getNodeID(), StringUtil.toLog(source));
 			}
 		} else {
-			LOGGER.trace("cluster-node {}: received no CID message from {}, {} bytes.", getNodeID(), source, length);
+			LOGGER.trace("cluster-node {}: received no CID message from {}, {} bytes.", getNodeID(), StringUtil.toLog(source), length);
 		}
 		super.processDatagram(packet, null);
 	}
@@ -538,7 +522,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 				byte[] recordBytes = record.toByteArray();
 				int length = recordBytes.length;
 				byte[] datagramBytes = new byte[length + MAX_DATAGRAM_OFFSET];
-				LOGGER.trace("cluster-node {}: backwards send message for {} to {}, {} bytes", getNodeID(), destination,
+				LOGGER.trace("cluster-node {}: backwards send message for {} to {}, {} bytes", getNodeID(), StringUtil.toLog(destination),
 						router, length);
 				DatagramPacket datagram = new DatagramPacket(datagramBytes, datagramBytes.length, destination);
 				DatagramPacket clusterPacket = encode(RECORD_TYPE_OUTGOING, datagram, recordBytes);
@@ -563,7 +547,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 						"Cluster internal destination " + StringUtil.toString(router) + " not longer available!");
 			}
 		} else {
-			LOGGER.trace("cluster-node {}: sends message to {}, {} bytes", getNodeID(), destination, record.size());
+			LOGGER.trace("cluster-node {}: sends message to {}, {} bytes", getNodeID(), StringUtil.toLog(destination), record.size());
 			super.sendRecord(record);
 		}
 	}
@@ -613,7 +597,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 * 
 	 * @param packet message with original source address encoded at head.
 	 * @return message with decoded original source address
-	 * @see #encode(DatagramPacket, byte)
+	 * @see #encode(byte, DatagramPacket, byte[])
 	 */
 	private DatagramPacket decode(DatagramPacket packet) {
 		try {

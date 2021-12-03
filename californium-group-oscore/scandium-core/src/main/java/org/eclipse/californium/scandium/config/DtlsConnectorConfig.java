@@ -35,53 +35,72 @@
 
 package org.eclipse.californium.scandium.config;
 
+import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
-import org.eclipse.californium.elements.util.CertPathUtil;
-import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.config.BasicDefinition;
+import org.eclipse.californium.elements.config.BasicListDefinition;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.DtlsHealth;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.ConnectionIdExtension;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
+import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
-import org.eclipse.californium.scandium.dtls.RecordLayer;
-import org.eclipse.californium.scandium.dtls.SessionCache;
+import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
+import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.DefaultCipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.resumption.ConnectionStoreResumptionVerifier;
+import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateConfigurationHelper;
+import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
+import org.eclipse.californium.scandium.dtls.x509.ConfigurationHelperSetup;
+import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.ListUtils;
 
 /**
  * A container for all configuration options of a {@link DTLSConnector}.
  * <p>
- * Instances of this class are immutable and can only be created by means of
- * the {@link Builder}, e.g.
+ * Instances of this class are immutable and can only be created by means of the
+ * {@link Builder}, e.g.
  * </p>
+ * 
  * <pre>
  * InetSocketAddress bindToAddress = new InetSocketAddress(0); // use ephemeral port
- * DtlsConnectorConfig config = new DtlsConnectorConfig.Builder()
+ * DtlsConnectorConfig config = DtlsConnectorConfig.builder()
  *    .setAddress(bindToAddress)
  *    .setAdvancedPskStore(new AdvancedSinglePskStore("identity", "secret".getBytes()))
  *    .set... // additional configuration
@@ -91,59 +110,32 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * connector.start();
  * ...
  * </pre>
+ * 
+ * Since 3.0 many values are now backed-up in {@link Configuration} using
+ * {@link DtlsConfig}. The {@link Builder} offers also the setter for
+ * {@link Configuration} definitions. In order not to mix up a provided
+ * {@link Configuration}, that gets cloned on creating the {@link Builder}.
+ * 
+ * Generally the not provided configuration values will be filled in using
+ * proper values for the already provided ones. E.g. if the
+ * {@link Builder#setAdvancedPskStore(AdvancedPskStore)} is used, but no
+ * explicit cipher suite is set with
+ * {@code builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, ...)}, the
+ * configuration chose some PSK cipher suites on its own. For the asymmetric
+ * cryptography functions, the estimation of the proper signature and hash
+ * algorithms and the supported curves for ECDSA/ECDHE is more complicated.
+ * Therefore this is implemented in the {@link CertificateConfigurationHelper},
+ * see there for details.
+ * <p>
+ * <b>Note:</b> since the introduction of this auto-configuration idea, adding
+ * support for multiple certificate identities (see
+ * {@link KeyManagerCertificateProvider}) and RSA made the things much more
+ * complex. Additionally a lot of details of a certificate based handshakes are
+ * asymmetric. Including the support algorithms, which are not required to be in
+ * line with the available credentials, or even more, that a client may stay
+ * anonymous. That makes auto-configuration hard, maybe impossible.
  */
 public final class DtlsConnectorConfig {
-
-	/**
-	 * The default value for the {@link #maxDeferredProcessedOutgoingApplicationDataMessages} property.
-	 */
-	public static final int DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES = 10;
-	/**
-	 * The default value for the {@link #maxConnections} property.
-	 */
-	public static final int DEFAULT_MAX_CONNECTIONS = 150000;
-	/**
-	 * The default value for the {@link #maxFragmentedHandshakeMessageLength} property.
-	 */
-	public static final int DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH = 8192;
-	/**
-	 * The default value for the {@link #maxDeferredProcessedIncomingRecordsSize} property.
-	 */
-	public static final int DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE = 8192;
-	/**
-	 * The default value for the {@link #staleConnectionThreshold} property in seconds.
-	 */
-	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
-	/**
-	 * The default value for the {@link #retransmissionTimeout} property in milliseconds.
-	 */
-	public static final int DEFAULT_RETRANSMISSION_TIMEOUT_MS = 1000;
-	/**
-	 * The default value for the {@link #maxRetransmissions} property.
-	 */
-	public static final int DEFAULT_MAX_RETRANSMISSIONS = 4;
-	/**
-	 * The default value for the {@link #verifyPeersOnResumptionThreshold}
-	 * property in percent.
-	 */
-	public static final int DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT = 30;
-	/**
-	 * The default value for the {@link #maxTransmissionUnitLimit} property.
-	 * @since 2.3
-	 */
-	public static final int DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT = RecordLayer.DEFAULT_ETH_MTU;
-	/**
-	 * The default size of the executor's thread pool which is used for processing records.
-	 * <p>
-	 * The value of this property is 6 * <em>#(CPU cores)</em>.
-	 */
-	private static final int DEFAULT_EXECUTOR_THREAD_POOL_SIZE = 6 * Runtime.getRuntime().availableProcessors();
-	/**
-	 * The default number of receiver threads.
-	 * <p>
-	 * The value of this property is (<em>#(CPU cores)</em> + 1) / 2.
-	 */
-	private static final int DEFAULT_RECEIVER_THREADS = (Runtime.getRuntime().availableProcessors() + 1) / 2;
 
 	/**
 	 * Local network interface.
@@ -151,51 +143,18 @@ public final class DtlsConnectorConfig {
 	private InetSocketAddress address;
 	/**
 	 * Advanced certificate verifier for non-blocking dynamic trust.
+	 * 
 	 * @since 2.5
 	 */
 	private NewAdvancedCertificateVerifier advancedCertificateVerifier;
-	/**
-	 * Stop retransmission at message receipt
-	 */
-	private Boolean earlyStopRetransmission;
+
+	private Configuration configuration;
 
 	/**
 	 * Enable to reuse the address.
 	 */
-	private Boolean enableReuseAddress;
+	private Boolean useReuseAddress;
 
-	/**
-	 * The record size limit.
-	 * 
-	 * Included in the CLIENT_HELLO and SERVER_HELLO to negotiate the record
-	 * size limit.
-	 * 
-	 * @since 2.4
-	 */
-	private Integer recordSizeLimit;
-
-	/**
-	 * The maximum fragment length this connector can process at once.
-	 */
-	private Integer maxFragmentLengthCode;
-
-	/**
-	 * The maximum length of a reassembled fragmented handshake message.
-	 */
-	private Integer maxFragmentedHandshakeMessageLength;
-
-	/**
-	 * Enable to use UDP messages with multiple dtls records.
-	 * 
-	 * @since 2.4
-	 */
-	private Boolean enableMultiRecordMessages;
-	/**
-	 * Enable to use dtls records with multiple handshake messages.
-	 * 
-	 * @since 2.4
-	 */
-	private Boolean enableMultiHandshakeMessageRecords;
 	/**
 	 * Protocol version to use for sending a hello verify request. Default
 	 * {@code null} to reply the clients version.
@@ -204,70 +163,6 @@ public final class DtlsConnectorConfig {
 	 */
 	private ProtocolVersion protocolVersionForHelloVerifyRequests;
 
-	/** The initial timer value for retransmission; rfc6347, section: 4.2.4.1 */
-	private Integer retransmissionTimeout;
-
-	/**
-	 * Number of retransmissions before the attempt to transmit a flight in
-	 * back-off mode.
-	 * 
-	 * <a href="https://tools.ietf.org/html/rfc6347#page-12>RFC 6347, Section
-	 * 4.1.1.1, Page 12</a>
-	 * 
-	 * In back-off mode, UDP datagrams of maximum 512 bytes are used. Each
-	 * handshake message is placed in one dtls record, or more dtls records, if
-	 * the handshake message is too large and must be fragmented. Beside of the
-	 * CCS and FINISH dtls records, which send together in one UDP datagram, all
-	 * other records are send in separate datagrams.
-	 * 
-	 * The {@link #useMultiHandshakeMessageRecords()} and
-	 * {@link #useMultiRecordMessages()} has precedence over the back-off
-	 * definition.
-	 * 
-	 * Value {@code 0}, to disable it, {@code null}, for default of
-	 * {@link #maxRetransmissions} / 2.
-	 * 
-	 * @since 2.4
-	 */
-	private Integer backOffRetransmission;
-
-	/**
-	 * Maximal number of retransmissions before the attempt to transmit a
-	 * message is canceled.
-	 */
-	private Integer maxRetransmissions;
-
-	/**
-	 * Maximum transmission unit.
-	 */
-	private Integer maxTransmissionUnit;
-
-	/**
-	 * Maximum transmission unit limit for auto detection. Default
-	 * {@value #DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}
-	 * 
-	 * @since 2.3
-	 */
-	private Integer maxTransmissionUnitLimit;
-
-	/** does the server want/request the client to authenticate, when x509/RPK is used. */
-	private Boolean clientAuthenticationWanted;
-
-	/** does the server require the client to authenticate, when x509/RPK is used. */
-	private Boolean clientAuthenticationRequired;
-
-	/** does not start handshakes at all. Ignore handshake modes! */
-	private Boolean serverOnly;
-
-	/** Default handshake mode. */
-	private String defaultHandshakeMode;
-
-	/** certificate types to be used to identify this peer */
-	private List<CertificateType> identityCertificateTypes;
-
-	/** certificate types to be used to trust the other peer */
-	private List<CertificateType> trustCertificateTypes;
-
 	/**
 	 * Advanced store of PSK credentials.
 	 * 
@@ -275,15 +170,18 @@ public final class DtlsConnectorConfig {
 	 */
 	private AdvancedPskStore advancedPskStore;
 
-	/** the private key for RPK and X509 mode, right now only EC type is supported */
-	private PrivateKey privateKey;
-
-	/** the public key for RPK and X.509 mode, right now only EC type is supported */
-	private PublicKey publicKey;
-
-	/** the certificate for X509 mode */
-	private List<X509Certificate> certChain;
-
+	/**
+	 * The certificate identity provider.
+	 * 
+	 * @since 3.0
+	 */
+	private CertificateProvider certificateIdentityProvider;
+	/**
+	 * The certificate configuration helper.
+	 * 
+	 * @since 3.0
+	 */
+	private CertificateConfigurationHelper certificateConfigurationHelper;
 	/**
 	 * Cipher suite selector.
 	 * 
@@ -292,132 +190,31 @@ public final class DtlsConnectorConfig {
 	private CipherSuiteSelector cipherSuiteSelector;
 
 	/**
-	 * Preselected cipher suites.
+	 * The supported certificate key algorithms.
 	 * 
-	 * If no supported cipher suites are provided, consider only this subset of
-	 * {@link CipherSuite} to be automatically selected as supported cipher
-	 * suites depending on other setting (e.g. if settings allow only PSK, only
-	 * PSK compatible cipher suite from this list will be selected).
+	 * Used on the client side to select default cipher suites and on the server
+	 * side for the {@link CertificateRequest}.
 	 * 
-	 * Not used, if supported cipher suites are provided.
-	 * 
-	 * @see #supportedCipherSuites
-	 * @since 2.5
+	 * @since 3.0
 	 */
-	private List<CipherSuite> preselectedCipherSuites;
+	private List<CertificateKeyAlgorithm> supportedCertificatekeyAlgorithms;
 
-	/** the supported cipher suites in order of preference */
+	/** The supported cipher suites in order of preference */
 	private List<CipherSuite> supportedCipherSuites;
 
 	/**
-	 * the supported signature and hash algorithms in order of preference.
+	 * The supported signature and hash algorithms in order of preference.
 	 * 
 	 * @since 2.3
 	 */
 	private List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms;
 
-	/** 
-	 * the supported groups (curves) in order of preference.
+	/**
+	 * The supported groups (curves) in order of preference.
 	 * 
 	 * @since 2.3
 	 */
 	private List<SupportedGroup> supportedGroups;
-
-	private Integer outboundMessageBufferSize;
-
-	private Integer maxDeferredProcessedOutgoingApplicationDataMessages;
-
-	private Integer maxDeferredProcessedIncomingRecordsSize;
-
-	private Integer maxConnections;
-
-	private Long staleConnectionThreshold;
-
-	private Integer connectionThreadCount;
-
-	private Integer receiverThreadCount;
-
-	private Integer socketReceiveBufferSize;
-
-	private Integer socketSendBufferSize;
-
-	private Integer healthStatusInterval;
-
-	/**
-	 * Automatic session resumption timeout. Triggers session resumption
-	 * automatically, if no messages are exchanged for this timeout. Intended to
-	 * be used, if traffic is routed through a NAT. If {@code null}, no
-	 * automatic session resumption is used. Value is in milliseconds.
-	 */
-	private Long autoResumptionTimeoutMillis;
-
-	/**
-	 * Indicates, that "server name indication" is used (client side) and
-	 * supported (server side). The support on the server side currently
-	 * includes a server name specific PSK secret lookup and to forward the
-	 * server name to the CoAP stack in the {@link org.eclipse.californium.elements.EndpointContext}.
-	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc6066#section-3">RFC 6066, Section 3</a>
-	 */
-	private Boolean sniEnabled;
-
-	/**
-	 * Defines the usage of the "extend master secret" extension.
-	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>
-	 * 
-	 * @since 3.0
-	 */
-	private ExtendedMasterSecretMode extendedMasterSecretMode;
-
-	/**
-	 * Threshold of pending handshakes without verified peer for session
-	 * resumption in percent of {link {@link #maxConnections}. If more such
-	 * handshakes are pending, then use a verify request to ensure, that the
-	 * used client hello is not spoofed.
-	 * 
-	 * <pre>
-	 * 0 := always use a HELLO_VERIFY_REQUEST
-	 * 1 ... 100 := dynamically determine to use a HELLO_VERIFY_REQUEST.
-	 * </pre>
-	 * 
-	 * Default {@link #DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}.
-	 * 
-	 * @see #getVerifyPeersOnResumptionThreshold()
-	 */
-	private Integer verifyPeersOnResumptionThreshold;
-
-	/**
-	 * Indicates, that no session id is used by this server. The sessions are not
-	 * cached by this server and can not be resumed.
-	 */
-	private Boolean useNoServerSessionId;
-
-	/**
-	 * Use anti replay filter.
-	 * 
-	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
-	 */
-	private Boolean useAntiReplayFilter;
-
-	/**
-	 * Use filter for record in window and before limit.
-	 * 
-	 * The value will be subtracted from to lower receive window boundary. A
-	 * value of {@code -1} will set that calculated lower boundary to {@code 0}.
-	 * Messages between lower receive window boundary and that calculated value
-	 * will pass the filter, for other messages the filter is applied.
-	 * 
-	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
-	 * @since 2.4
-	 */
-	private Integer useExtendedWindowFilter;
-
-	/**
-	 * Use filter to update the ip-address from DTLS 1.2 CID
-	 * records only for newer records based on epoch/sequence_number.
-	 */
-	private Boolean useCidUpdateAddressOnNewerRecordFilter;
 
 	/**
 	 * Logging tag.
@@ -439,28 +236,86 @@ public final class DtlsConnectorConfig {
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 
 	/**
-	 * Use truncated certificate paths when sending the client's certificate message.
-	 * @since 2.1
+	 * Connection Listener.
 	 */
-	private Boolean useTruncatedCertificatePathForClientsCertificateMessage;
-	/**
-	 * Use truncated certificate paths for verification.
-	 * @since 2.1
-	 */
-	private Boolean useTruncatedCertificatePathForValidation;
-
 	private ConnectionListener connectionListener;
 
+	/**
+	 * Session store for {@link InMemoryConnectionStore}.
+	 * 
+	 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
+	 * session store must be provided directly to that implementation. In that
+	 * case, the configured session store here will be ignored.
+	 * 
+	 * @see DTLSConnector#createConnectionStore
+	 * @since 3.0
+	 */
+	private SessionStore sessionStore;
+
+	/**
+	 * Server side verifier for DTLS session resumption.
+	 * 
+	 * Supports none-blocking processing.
+	 * 
+	 * @since 3.0
+	 */
+	private ResumptionVerifier resumptionVerifier;
+
 	private DtlsHealth healthHandler;
-	
-	private Boolean clientOnly;
-	
-	private Boolean recommendedCipherSuitesOnly;
 
-	private Boolean recommendedSupportedGroupsOnly;
+	/**
+	 * Creates a new instance for configuration options for a
+	 * {@code DTLSConnector} instance.
+	 * 
+	 * @param configuration the configuration with {@link DtlsConfig}
+	 *            definitions.
+	 * @throws NullPointerException if configuration is {@code null}
+	 * @since 3.0
+	 */
+	private DtlsConnectorConfig(Configuration configuration) {
+		if (configuration == null) {
+			throw new NullPointerException("Configuration must not be null!");
+		}
+		this.configuration = new Configuration(configuration);
+	}
 
-	private DtlsConnectorConfig() {
-		// empty
+	/**
+	 * Gets configuration with {@link DtlsConfig} definitions.
+	 * 
+	 * @return configuration with {@link DtlsConfig} definitions
+	 * @since 3.0
+	 */
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
+	/**
+	 * Get protocol version for hello verify requests to send.
+	 * 
+	 * Before version 2.5.0, Californium used fixed the protocol version DTLS
+	 * 1.2 to send the HelloVerifyRequest. According
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>, that
+	 * HelloVerifyRequest SHOULD be sent using protocol version DTLS 1.0. But
+	 * that found to be ambiguous, because it's also requested that "The server
+	 * MUST use the same version number in the HelloVerifyRequest that it would
+	 * use when sending a ServerHello." With that, Californium from 2.6.0 on
+	 * will, by default, reply the version the client sent in the
+	 * HelloVerifyRequest, and will postpone the version negotiation until the
+	 * client has verified it's endpoint ownership. If that client version is
+	 * below DTLS 1.0, a DTLS 1.0 will be used. If a different behavior is
+	 * wanted, you may use the related setter to provide a fixed version for the
+	 * HelloVerifyRequest. In order to provide backwards compatibility to
+	 * version before 2.5.0 , configure to use protocol version DTLS 1.2.
+	 * 
+	 * @return fixed protocol version, or {@code null}, to reply the clients
+	 *         version. Default is {@code null}.
+	 * @see HelloVerifyRequest
+	 * @see Builder#setProtocolVersionForHelloVerifyRequests(ProtocolVersion)
+	 * @since 2.5
+	 */
+	public ProtocolVersion getProtocolVersionForHelloVerifyRequests() {
+		return protocolVersionForHelloVerifyRequests;
 	}
 
 	/**
@@ -470,15 +325,16 @@ public final class DtlsConnectorConfig {
 	 * size limit.
 	 * 
 	 * @return record size limit, or {@code null}, if not used.
+	 * @see DtlsConfig#DTLS_RECORD_SIZE_LIMIT
 	 * @since 2.4
 	 */
 	public Integer getRecordSizeLimit() {
-		return recordSizeLimit;
+		return configuration.get(DtlsConfig.DTLS_RECORD_SIZE_LIMIT);
 	}
 
 	/**
-	 * Gets the maximum amount of message payload data that this connector can receive in a
-	 * single DTLS record.
+	 * Gets the maximum amount of message payload data that this connector can
+	 * receive in a single DTLS record.
 	 * <p>
 	 * The code returned is either {@code null} or one of the following:
 	 * <ul>
@@ -489,18 +345,22 @@ public final class DtlsConnectorConfig {
 	 * </ul>
 	 * 
 	 * @return the code indicating the maximum payload length, or {@code null}.
+	 * @see DtlsConfig#DTLS_MAX_FRAGMENT_LENGTH
+	 * @since 3.0 (changed name and return type)
 	 */
-	public Integer getMaxFragmentLengthCode() {
-		return maxFragmentLengthCode;
+	public Length getMaxFragmentLength() {
+		return configuration.get(DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH);
 	}
 
 	/**
-	 * Gets the maximum length of a reassembled fragmented handshake message.
+	 * Gets the maximum length of a single reassembled fragmented handshake
+	 * message.
 	 * 
 	 * @return maximum length, or {@code null}.
+	 * @see DtlsConfig#DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH
 	 */
 	public Integer getMaxFragmentedHandshakeMessageLength() {
-		return maxFragmentedHandshakeMessageLength;
+		return configuration.get(DtlsConfig.DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH);
 	}
 
 	/**
@@ -511,10 +371,11 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return {@code true}, if enabled, {@code false}, otherwise. {@code null}
 	 *         for default behavior.
+	 * @see DtlsConfig#DTLS_USE_MULTI_RECORD_MESSAGES
 	 * @since 2.4
 	 */
 	public Boolean useMultiRecordMessages() {
-		return enableMultiRecordMessages;
+		return configuration.get(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES);
 	}
 
 	/**
@@ -526,77 +387,93 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return {@code true}, if enabled, {@code false}, otherwise. {@code null}
 	 *         for default behavior.
+	 * @see DtlsConfig#DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS
 	 * @since 2.4
 	 */
 	public Boolean useMultiHandshakeMessageRecords() {
-		return enableMultiHandshakeMessageRecords;
+		return configuration.get(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS);
 	}
 
 	/**
-	 * Get protocol version for hello verify requests to send.
+	 * Gets the (initial) time to wait before a handshake flight of messages
+	 * gets re-transmitted.
 	 * 
-	 * Before version 2.5.0, Californium used fixed the protocol version DTLS
-	 * 1.2 to send the HelloVerifyRequest. According
-	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347,
-	 * 4.2.1. Denial-of-Service Countermeasures</a>, that HelloVerifyRequest
-	 * SHOULD be sent using protocol version DTLS 1.0. But that found to be
-	 * ambiguous, because it's also requested that "The server MUST use the same
-	 * version number in the HelloVerifyRequest that it would use when sending a
-	 * ServerHello." With that, Californium from 2.6.0 on will, by default,
-	 * reply the version the client sent in the HelloVerifyRequest, and will
-	 * postpone the version negotiation until the client has verified it's
-	 * endpoint ownership. If that client version is below DTLS 1.0, a DTLS 1.0
-	 * will be used. If a different behavior is wanted, you may use the related
-	 * setter to provide a fixed version for the HelloVerifyRequest. In order to
-	 * provide backwards compatibility to version before 2.5.0 , configure to
-	 * use protocol version DTLS 1.2.
-	 * 
-	 * @return fixed protocol version, or {@code null}, to reply the clients
-	 *         version. Default is {@code null}.
-	 * @see HelloVerifyRequest
-	 * @since 2.5
-	 */
-	public ProtocolVersion getProtocolVersionForHelloVerifyRequests() {
-		return protocolVersionForHelloVerifyRequests;
-	}
-
-	/**
-	 * Gets the (initial) time to wait before a handshake flight of messages gets re-transmitted.
-	 * 
-	 * This timeout gets adjusted during the course of repeated re-transmission of a flight.
-	 * The DTLS spec suggests an exponential back-off strategy, i.e. after each re-transmission the
-	 * timeout value is doubled.
+	 * This timeout gets adjusted during the course of repeated re-transmission
+	 * of a flight. The DTLS spec suggests an exponential back-off strategy,
+	 * i.e. after each re-transmission the timeout value is doubled.
 	 * 
 	 * @return the (initial) time to wait in milliseconds
+	 * @see DtlsConfig#DTLS_RETRANSMISSION_TIMEOUT
 	 */
-	public Integer getRetransmissionTimeout() {
-		return retransmissionTimeout;
+	public int getRetransmissionTimeout() {
+		return configuration.getTimeAsInt(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS);
 	}
 
 	/**
-	 * Gets the maximum number of deferred processed outgoing application data messages.
+	 * Gets the maximum time to wait before a handshake flight of messages gets
+	 * re-transmitted.
 	 * 
-	 * @return the maximum number of deferred processed outgoing application data messages
+	 * @return the maximum time to wait in milliseconds
+	 * @see DtlsConfig#DTLS_MAX_RETRANSMISSION_TIMEOUT
+	 * @since 3.0
 	 */
-	public Integer getMaxDeferredProcessedOutgoingApplicationDataMessages() {
-		return maxDeferredProcessedOutgoingApplicationDataMessages;
+	public Integer getMaxRetransmissionTimeout() {
+		return configuration.getTimeAsInt(DtlsConfig.DTLS_MAX_RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS);
 	}
 
 	/**
-	 * Gets the maximum size of all deferred processed incoming records.
+	 * Gets the random factor for the initial retransmission timeout.
 	 * 
-	 * @return the maximum size of all deferred processed incoming records
+	 * @return the random factor for the initial retransmission timeout. Values
+	 *         range [1.0 - 2.0]
+	 * @see DtlsConfig#DTLS_RETRANSMISSION_INIT_RANDOM
+	 * @since 3.0
 	 */
-	public Integer getMaxDeferredProcessedIncomingRecordsSize() {
-		return maxDeferredProcessedIncomingRecordsSize;
+	public Float getRetransmissionRandomFactor() {
+		return configuration.get(DtlsConfig.DTLS_RETRANSMISSION_INIT_RANDOM);
+	}
+
+	/**
+	 * Gets the scale factor for retransmission timeouts back-off.
+	 * 
+	 * @return the scale factor for retransmission timeout. Values range [1.0 -
+	 *         2.0]
+	 * @see DtlsConfig#DTLS_RETRANSMISSION_TIMEOUT_SCALE
+	 * @since 3.0
+	 */
+	public Float getRetransmissionTimeoutScale() {
+		return configuration.get(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT_SCALE);
+	}
+
+	/**
+	 * Gets the additional (initial) time to wait before a handshake flight of
+	 * messages gets re-transmitted, when the other peer is expected to perform
+	 * ECC calculations.
+	 * 
+	 * ECC calculations may be time intensive, especially for smaller
+	 * micro-controllers without ecc-hardware support. The additional timeout
+	 * prevents Californium from resending a flight too early. The extra time is
+	 * used for the DTLS-client, if a ECDSA or ECDHE cipher suite is proposed,
+	 * and for the DTLS-server, if a ECDSA or ECDHE cipher suite is selected.
+	 * 
+	 * This timeout is added to {@link #getRetransmissionTimeout()} and on each
+	 * retransmission, the resulting time is doubled.
+	 * 
+	 * @return the additional (initial) time to wait in milliseconds. Default is
+	 *         {@link DtlsConfig#DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_IN_MILLISECONDS}.
+	 * @see DtlsConfig#DTLS_ADDITIONAL_ECC_TIMEOUT
+	 * @since 3.0
+	 */
+	public int getAdditionalTimeoutForEcc() {
+		return configuration.getTimeAsInt(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, TimeUnit.MILLISECONDS);
 	}
 
 	/**
 	 * Number of retransmissions before the attempt to transmit a flight in
 	 * back-off mode.
 	 * 
-	 * <a href="https://tools.ietf.org/html/rfc6347#page-12"> RFC 6347, Section
-	 * 4.1.1.1, Page 12</a>
+	 * <a href="https://tools.ietf.org/html/rfc6347#page-12" target="_blank">
+	 * RFC 6347, Section 4.1.1.1, Page 12</a>
 	 * 
 	 * In back-off mode, UDP datagrams of maximum 512 bytes, or the negotiated
 	 * records size, if that is smaller, are used. Each handshake message is
@@ -610,23 +487,51 @@ public final class DtlsConnectorConfig {
 	 * definition.
 	 * 
 	 * Value {@code 0}, to disable it, default is value
-	 * {@link #maxRetransmissions} / 2.
+	 * {@link #getMaxRetransmissions()} / 2.
 	 * 
 	 * @return the number of re-transmissions to use the back-off mode
+	 * @see DtlsConfig#DTLS_RETRANSMISSION_BACKOFF
 	 * @since 2.4
 	 */
 	public Integer getBackOffRetransmission() {
-		return backOffRetransmission;
+		Integer backoff = configuration.get(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF);
+		if (backoff == null) {
+			backoff = getMaxRetransmissions() / 2;
+		}
+		return backoff;
 	}
 
 	/**
-	 * Gets the maximum number of times a flight of handshake messages gets re-transmitted
-	 * to a peer.
+	 * Gets the maximum number of times a flight of handshake messages gets
+	 * re-transmitted to a peer.
 	 * 
 	 * @return the maximum number of re-transmissions
+	 * @see DtlsConfig#DTLS_MAX_RETRANSMISSIONS
 	 */
 	public Integer getMaxRetransmissions() {
-		return maxRetransmissions;
+		return configuration.get(DtlsConfig.DTLS_MAX_RETRANSMISSIONS);
+	}
+
+	/**
+	 * Gets the maximum number of deferred processed outgoing application data
+	 * messages.
+	 * 
+	 * @return the maximum number of deferred processed outgoing application
+	 *         data messages
+	 * @see DtlsConfig#DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES
+	 */
+	public Integer getMaxDeferredProcessedOutgoingApplicationDataMessages() {
+		return configuration.get(DtlsConfig.DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES);
+	}
+
+	/**
+	 * Gets the maximum size of all deferred processed incoming records.
+	 * 
+	 * @return the maximum size of all deferred processed incoming records
+	 * @see DtlsConfig#DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE
+	 */
+	public Integer getMaxDeferredProcessedIncomingRecordsSize() {
+		return configuration.get(DtlsConfig.DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE);
 	}
 
 	/**
@@ -635,9 +540,10 @@ public final class DtlsConnectorConfig {
 	 * Maximum number of bytes sent in one transmission.
 	 * 
 	 * @return maximum transmission unit
+	 * @see DtlsConfig#DTLS_MAX_TRANSMISSION_UNIT
 	 */
 	public Integer getMaxTransmissionUnit() {
-		return maxTransmissionUnit;
+		return configuration.get(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT);
 	}
 
 	/**
@@ -646,79 +552,87 @@ public final class DtlsConnectorConfig {
 	 * Limit Maximum number of bytes sent in one transmission.
 	 * 
 	 * @return maximum transmission unit limit. Default
-	 *         {@value #DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}.
+	 *         {@link DtlsConfig#DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}.
+	 * @see DtlsConfig#DTLS_MAX_TRANSMISSION_UNIT_LIMIT
 	 * @since 2.3
 	 */
 	public Integer getMaxTransmissionUnitLimit() {
-		return maxTransmissionUnitLimit;
+		return configuration.get(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT);
 	}
 
 	/**
-	 * @return true if retransmissions should be stopped as soon as we receive
-	 *         handshake message
+	 * Enable to stop retransmission early.
+	 * 
+	 * @return {@code true} if retransmissions should be stopped as soon as we
+	 *         receive handshake message
+	 * @see DtlsConfig#DTLS_USE_EARLY_STOP_RETRANSMISSION
+	 * @since 3.0 (renamed, was isEarlyStopRetransmission)
 	 */
-	public Boolean isEarlyStopRetransmission() {
-		return earlyStopRetransmission;
+	public Boolean useEarlyStopRetransmission() {
+		return configuration.get(DtlsConfig.DTLS_USE_EARLY_STOP_RETRANSMISSION);
 	}
 
 	/**
-	 * @return true, if address reuse should be enabled for the socket. 
+	 * Enable address to be reusable.
+	 * 
+	 * Mainly used for unit tests.
+	 * 
+	 * @return {@code true}, if address reuse should be enabled for the socket.
+	 * @see DatagramSocket#setReuseAddress(boolean)
+	 * @see Builder#setReuseAddress(boolean)
+	 * @since 3.0 (renamed was isAddressReuseEnabled)
 	 */
-	public Boolean isAddressReuseEnabled() {
-		return enableReuseAddress;
+	public Boolean useReuseAddress() {
+		return useReuseAddress;
 	}
 
 	/**
 	 * Checks whether the connector should support the use of the TLS
-	 * <a href="https://tools.ietf.org/html/rfc6066#section-3"> Server Name
-	 * Indication extension</a> in the DTLS handshake.
+	 * <a href="https://tools.ietf.org/html/rfc6066#section-3" target="_blank">
+	 * Server Name Indication extension</a> in the DTLS handshake.
 	 * <p>
 	 * If enabled, the client side should send a server name extension, if the
 	 * server is specified with hostname rather then with a raw ip-address. The
 	 * server side support currently includes a server name specific PSK secret
 	 * lookup and a forwarding of the server name to the CoAP stack in the
-	 * {@link DtlsEndpointContext}. The x509 or RPK credentials lookup is currently
-	 * not server name specific, therefore the server's certificate will be the
-	 * same, regardless of the indicated server name.
+	 * {@link DtlsEndpointContext}. The x509 or RPK credentials lookup is
+	 * currently not server name specific, therefore the server's certificate
+	 * will be the same, regardless of the indicated server name.
 	 * <p>
 	 * The default value of this property is {@code null}. If this property is
-	 * not set explicitly using {@link Builder#setSniEnabled(boolean)}, then the
-	 * {@link Builder#build()} method will set it to {@code false}.
+	 * not set explicitly using {@link Builder#setReuseAddress(boolean)}, then
+	 * the {@link Builder#build()} method will set it to {@code false}.
 	 * 
 	 * @return {@code true}, if SNI should be used.
+	 * @see DtlsConfig#DTLS_USE_SERVER_NAME_INDICATION
+	 * @since 3.0 (renamed, was isSniEnabled)
 	 */
-	public Boolean isSniEnabled() {
-		return sniEnabled;
+	public Boolean useServerNameIndication() {
+		return configuration.get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION);
 	}
 
 	/**
 	 * Gets the <em>Extended Master Secret</em> TLS extension mode.
 	 * 
 	 * <p>
-	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627, Extended
-	 * Master Secret extension</a> and {@link ExtendedMasterSecretMode} for
-	 * details.
-	 * </p>
-	 * <p>
-	 * The default value of this property is {@code null}. If this property is
-	 * not set explicitly using
-	 * {@link Builder#setExtendedMasterSecretMode(ExtendedMasterSecretMode)},
-	 * then the {@link Builder#build()} method will set it to
-	 * {@link ExtendedMasterSecretMode#ENABLED}.
+	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">
+	 * RFC7627, Extended Master Secret extension</a> and
+	 * {@link ExtendedMasterSecretMode} for details.
 	 * </p>
 	 * 
 	 * @return the extended master secret mode.
+	 * @see DtlsConfig#DTLS_EXTENDED_MASTER_SECRET_MODE
 	 * @since 3.0
 	 */
 	public ExtendedMasterSecretMode getExtendedMasterSecretMode() {
-		return extendedMasterSecretMode;
+		return configuration.get(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE);
 	}
 
 	/**
 	 * Threshold to use a HELLO_VERIFY_REQUEST also for session resumption in
 	 * percent of {@link #getMaxConnections()}. Though a CLIENT_HELLO with an
 	 * session id is used in session resumption, that session ID could be used
-	 * to check.
+	 * as weaker verification, that the peer controls the source address.
 	 * 
 	 * <pre>
 	 * Value 
@@ -726,79 +640,189 @@ public final class DtlsConnectorConfig {
 	 * 1 ... 100 : dynamically use a verify request.
 	 * </pre>
 	 * 
-	 * Peers are identified by their endpoint (ip-address and port) and dtls
-	 * sessions have a id and may be also related to an endpoint. If a peer
-	 * resumes its own session (by id, and that session is related to the same
-	 * endpoint as the peer), no verify request is used. If a peer resumes as
-	 * session (by id), but a different session is related to its endpoint, then
-	 * a verify request is used to ensure, that the peer really owns that
-	 * endpoint. If a peer resumes a session, and the endpoint of the peer is
-	 * either unused or not related to a established session, this threshold
-	 * controls, if a verify request is sued or not. If more resumption
-	 * handshakes without verified peers are pending than this threshold, then a
-	 * verify request is used.
-	 * 
-	 * Note: a value larger than 0 will call
-	 * {@link SessionCache#get(org.eclipse.californium.scandium.dtls.SessionId)}.
-	 * If that implementation is expensive, please ensure, that this value is
-	 * configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid session
-	 * ids may be spoofed and gets too expensive.
+	 * Peers are identified by their endpoint (ip-address and port). To protect
+	 * the server from congestion by address spoofing, a HELLO_VERIFY_REQUEST is
+	 * used. That adds one exchange and with that, additional latency. In cases
+	 * of session resumption, the server may also use the dtls session ID as a
+	 * weaker proof of a valid client. Unfortunately there are several
+	 * elaborated attacks to that (e.g. on-path-attacker may alter the
+	 * source-address). To mitigate this vulnerability, this threshold defines a
+	 * maximum percentage of handshakes without HELLO_VERIFY_REQUEST. If more
+	 * resumption handshakes without verified peers are pending than this
+	 * threshold, then a HELLO_VERIFY_REQUEST is used again. Additionally, if a
+	 * peer resumes a session (by id), but a different session is related to its
+	 * endpoint, then a verify request is used to ensure, that the peer really
+	 * owns that endpoint.
+	 * <p>
+	 * <b>Note:</b> a value larger than 0 will call the
+	 * {@link ResumptionVerifier}. If that implementation is expensive, please
+	 * ensure, that this value is configured with {@code 0}. Otherwise,
+	 * CLIENT_HELLOs with invalid session IDs may be spoofed and gets too
+	 * expensive.
+	 * </p>
+	 * <p>
+	 * <b>Note:</b> if spoofing is considered to be relevant for the used
+	 * network environment, please set this to {@code 0} using
+	 * {@link Builder#set} with
+	 * {@link DtlsConfig#DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} in order to
+	 * disable this function.
+	 * </p>
 	 * 
 	 * @return threshold handshakes without verified peer in percent of
 	 *         {@link #getMaxConnections()}.
+	 * @see HelloVerifyRequest
+	 * @see DtlsConfig#DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD
 	 */
 	public Integer getVerifyPeersOnResumptionThreshold() {
-		return verifyPeersOnResumptionThreshold;
+		return configuration.get(DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD);
+	}
+
+	/**
+	 * Enable/disable the server's HELLO_VERIFY_REQUEST, if peers shares at
+	 * least one PSK based cipher suite.
+	 * <p>
+	 * <b>Note:</b> it is not recommended to disable the HELLO_VERIFY_REQUEST!
+	 * See <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+	 * </p>
+	 * To limit the amplification, the peers must share PSK cipher suites to by
+	 * pass that check. If only certificate based cipher suites are shared, the
+	 * HELLO_VERIFY_REQUEST will still be used.
+	 * 
+	 * @return {@code true}, if a HELLO_VERIFY_REQUEST should be send to the
+	 *         client, {@code false}, if no HELLO_VERIFY_REQUEST is used.
+	 * @see HelloVerifyRequest
+	 * @see #useHelloVerifyRequest()
+	 * @see DtlsConfig#DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK
+	 * @since 3.0
+	 */
+	public Boolean useHelloVerifyRequestForPsk() {
+		return configuration.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK);
+	}
+
+	/**
+	 * Generally enable/disable the server's HELLO_VERIFY_REQUEST.
+	 * <p>
+	 * <b>Note:</b> it is strongly not recommended to disable the
+	 * HELLO_VERIFY_REQUEST for certificates! That creates a large
+	 * amplification! See
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+	 * </p>
+	 * 
+	 * @return {@code true}, if a HELLO_VERIFY_REQUEST should be send to the
+	 *         client, {@code false}, if no HELLO_VERIFY_REQUEST is used.
+	 * @see HelloVerifyRequest
+	 * @see #useHelloVerifyRequestForPsk()
+	 * @see DtlsConfig#DTLS_USE_HELLO_VERIFY_REQUEST
+	 * @since 3.0
+	 */
+	public Boolean useHelloVerifyRequest() {
+		return configuration.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST);
 	}
 
 	/**
 	 * Gets connection ID generator.
+	 * 
+	 * If no connection ID generator is provided via
+	 * {@link Builder#setConnectionIdGenerator(ConnectionIdGenerator)}, the
+	 * value of {@link DtlsConfig#DTLS_CONNECTION_ID_LENGTH} is used to create a
+	 * {@link SingleNodeConnectionIdGenerator}, if set. If additionally
+	 * {@link DtlsConfig#DTLS_CONNECTION_ID_NODE_ID} is available, a
+	 * {@link MultiNodeConnectionIdGenerator} is created, but requires a CID
+	 * length of at least 5 bytes throwing {@link IllegalStateException} on
+	 * less.
 	 * 
 	 * @return connection id generator. {@code null} for not supported. The
 	 *         returned generator may only support the use of a connection id
 	 *         without using it by itself. In that case
 	 *         {@link ConnectionIdGenerator#useConnectionId()} will return
 	 *         {@code false}.
+	 * @see Builder#setConnectionIdGenerator(ConnectionIdGenerator)
+	 * @see DtlsConfig#DTLS_CONNECTION_ID_LENGTH
+	 * @see DtlsConfig#DTLS_CONNECTION_ID_NODE_ID
 	 */
 	public ConnectionIdGenerator getConnectionIdGenerator() {
 		return connectionIdGenerator;
 	}
 
 	/**
-	 * Gets the number of outbound messages that can be buffered in memory before
-	 * messages are dropped.
+	 * Enable/disable the use of the deprecated CID before version 9 of <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+	 * target="_blank">Draft dtls-connection-id</a> for the client.
+	 * 
+	 * @return cid extension code point to use along with the deprecated MAC
+	 *         calculation, or, {@code null}, if final extension code point 54
+	 *         and MAC calculation should be used otherwise.
+	 * @see ConnectionIdExtension
+	 * @see DtlsConfig#DTLS_USE_DEPRECATED_CID
+	 * @since 3.0
+	 */
+	public Integer useDeprecatedCid() {
+		return configuration.get(DtlsConfig.DTLS_USE_DEPRECATED_CID);
+	}
+
+	/**
+	 * Enable/disable the support for the deprecated CID before version 9 of
+	 * <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+	 * target="_blank">Draft dtls-connection-id</a> for the server.
+	 * 
+	 * If enabled, the server will also accept the deprecated value {@code 53}
+	 * for the connection id extension and use the old MAC definition, if so.
+	 * 
+	 * @return {@code true}, for support the deprecated extension ID 53 along
+	 *         with the deprecated MAC calculation, {@code false}, otherwise.
+	 * @see ConnectionIdExtension
+	 * @see DtlsConfig#DTLS_SUPPORT_DEPRECATED_CID
+	 * @since 3.0
+	 */
+	public Boolean supportsDeprecatedCid() {
+		return configuration.get(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID);
+	}
+
+	/**
+	 * Gets the number of outbound messages that can be buffered in memory
+	 * before messages are dropped.
 	 * 
 	 * @return the number of messages
+	 * @see DtlsConfig#DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE
 	 */
 	public Integer getOutboundMessageBufferSize() {
-		return outboundMessageBufferSize;
+		return configuration.get(DtlsConfig.DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE);
 	}
 
 	/**
 	 * Gets the IP address and port the connector is bound to.
 	 * 
 	 * @return the address
+	 * @see Builder#setAddress(InetSocketAddress)
 	 */
 	public InetSocketAddress getAddress() {
 		return address;
 	}
 
 	/**
-	 * Gets the certificates forming the chain-of-trust from 
-	 * a root CA down to the certificate asserting the server's identity.
+	 * Gets the certificate identity provider.
 	 * 
-	 * @return the certificates or <code>null</code> if the connector is
-	 * not supposed to support certificate based authentication
+	 * @return the certificate identity provider, or {@code null}, if the
+	 *         connector is not supposed to support certificate based
+	 *         authentication
+	 * @see Builder#setCertificateIdentityProvider(CertificateProvider)
+	 * @see KeyManagerCertificateProvider
+	 * @see SingleCertificateProvider
+	 * @since 3.0
 	 */
-	public List<X509Certificate> getCertificateChain() {
-		return certChain;
+	public CertificateProvider getCertificateIdentityProvider() {
+		return certificateIdentityProvider;
 	}
 
 	/**
-	 * Get cipher suite selector.
+	 * Get cipher suite selector for the server side.
 	 * 
 	 * @return cipher suite selector. Default
 	 *         {@link DefaultCipherSuiteSelector}.
+	 * @see Builder#setCipherSuiteSelector(CipherSuiteSelector)
 	 * @since 2.3
 	 */
 	public CipherSuiteSelector getCipherSuiteSelector() {
@@ -808,7 +832,8 @@ public final class DtlsConnectorConfig {
 	/**
 	 * Gets the preselected cipher suites.
 	 * 
-	 * If no supported cipher suites are provided, consider only this subset of
+	 * If no supported cipher suites are provided in the configuration for
+	 * {@link DtlsConfig#DTLS_CIPHER_SUITES}, consider only this subset of
 	 * {@link CipherSuite} to be automatically selected as supported cipher
 	 * suites depending on other setting (e.g. if settings allow only PSK, only
 	 * PSK compatible cipher suite from this list will be selected).
@@ -817,10 +842,25 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the preselected cipher suites
 	 * @see #getSupportedCipherSuites()
+	 * @see Builder#setAsList(BasicListDefinition, Object...)
+	 * @see DtlsConfig#DTLS_PRESELECTED_CIPHER_SUITES
 	 * @since 2.5
 	 */
 	public List<CipherSuite> getPreselectedCipherSuites() {
-		return preselectedCipherSuites;
+		return configuration.get(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES);
+	}
+
+	/**
+	 * Gets the supported certificate key algorithms.
+	 * 
+	 * Used on the server side for the {@link CertificateRequest}.
+	 * 
+	 * @return supported certificate key algorithms
+	 * @see DtlsConfig#DTLS_CERTIFICATE_KEY_ALGORITHMS
+	 * @since 3.0
+	 */
+	public List<CertificateKeyAlgorithm> getSupportedCertificateKeyAlgorithm() {
+		return supportedCertificatekeyAlgorithms;
 	}
 
 	/**
@@ -829,8 +869,25 @@ public final class DtlsConnectorConfig {
 	 * On the client side the connector advertise these cipher suites in a DTLS
 	 * handshake. On the server side the connector limits the acceptable cipher
 	 * suites to this list.
+	 * <p>
+	 * If not provided in the configuration for
+	 * {@link DtlsConfig#DTLS_CIPHER_SUITES}, the supported cipher suites are
+	 * are setup according the type of the provided credentials and
+	 * {@link #getPreselectedCipherSuites()}.
+	 * <p>
+	 * The connector will use these cipher suites (in exactly the same order)
+	 * during the DTLS handshake when negotiating a cipher suite with a peer. if
+	 * the given list is empty, contains
+	 * {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}, contains a cipher suite, not
+	 * supported by the JVM, violates the
+	 * {@link DtlsConfig#DTLS_RECOMMENDED_CIPHER_SUITES_ONLY} setting, or the
+	 * use of HELLO_VERIFY_REQUEST is disabled and no PSK cipher suite is
+	 * contained.
 	 * 
 	 * @return the supported cipher suites (ordered by preference)
+	 * @see #getPreselectedCipherSuites()
+	 * @see Builder#setAsList(BasicListDefinition, Object...)
+	 * @see DtlsConfig#DTLS_CIPHER_SUITES
 	 */
 	public List<CipherSuite> getSupportedCipherSuites() {
 		return supportedCipherSuites;
@@ -845,6 +902,8 @@ public final class DtlsConnectorConfig {
 	 *         supported signature and hash algorithms, and the server assumes
 	 *         the {@link SignatureAndHashAlgorithm#DEFAULT} as list of
 	 *         supported signature and hash algorithms
+	 * @see Builder#setAsList(BasicListDefinition, Object...)
+	 * @see DtlsConfig#DTLS_SIGNATURE_AND_HASH_ALGORITHMS
 	 * @since 2.3
 	 */
 	public List<SignatureAndHashAlgorithm> getSupportedSignatureAlgorithms() {
@@ -857,12 +916,14 @@ public final class DtlsConnectorConfig {
 	 * On the client side the connector advertise these supported groups
 	 * (curves) in a DTLS handshake. On the server side the connector limits the
 	 * acceptable supported groups (curves) to this list. According
-	 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
-	 * Client Hello Extensions, Actions of the receiver</a> This affects both,
-	 * curves for ECDH and the certificates for ECDSA.
+	 * <a href="https://tools.ietf.org/html/rfc8422#page-11" target=
+	 * "_blank">RFC 8422, 5.1. Client Hello Extensions, Actions of the
+	 * receiver</a> This affects both, curves for ECDH and the certificates for
+	 * ECDSA.
 	 * 
 	 * @return the supported groups (curves, ordered by preference)
-	 * 
+	 * @see Builder#setAsList(BasicListDefinition, Object...)
+	 * @see DtlsConfig#DTLS_CURVES
 	 * @since 2.3
 	 */
 	public List<SupportedGroup> getSupportedGroups() {
@@ -870,20 +931,13 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the private key to use for proving identity to a peer
-	 * during a DTLS handshake.
-	 * 
-	 * @return the key
-	 */
-	public PrivateKey getPrivateKey() {
-		return privateKey;
-	}
-
-	/**
 	 * Gets the advanced registry of <em>shared secrets</em> used for
 	 * authenticating clients during a DTLS handshake.
 	 * 
 	 * @return the registry
+	 * @see Builder#setAdvancedPskStore(AdvancedPskStore)
+	 * @see AdvancedSinglePskStore
+	 * @see AdvancedMultiPskStore
 	 * @since 2.3
 	 */
 	public AdvancedPskStore getAdvancedPskStore() {
@@ -891,20 +945,12 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the public key to send to peers during the DTLS handshake
-	 * for authentication purposes.
-	 * 
-	 * @return the key
-	 */
-	public PublicKey getPublicKey() {
-		return publicKey;
-	}
-
-	/**
 	 * Gets the new advanced certificate verifier to be used during the DTLS
 	 * handshake.
 	 * 
 	 * @return the new advanced certificate verifier
+	 * @see Builder#setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
+	 * @see StaticNewAdvancedCertificateVerifier
 	 * @since 2.5
 	 */
 	public NewAdvancedCertificateVerifier getAdvancedCertificateVerifier() {
@@ -912,9 +958,11 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the supplier of application level information for an authenticated peer's identity.
+	 * Gets the supplier of application level information for an authenticated
+	 * peer's identity.
 	 * 
-	 * @return the supplier or {@code null} if not set
+	 * @return the supplier, or {@code null}, if not set
+	 * @see Builder#setApplicationLevelInfoSupplier(ApplicationLevelInfoSupplier)
 	 */
 	public ApplicationLevelInfoSupplier getApplicationLevelInfoSupplier() {
 		return applicationLevelInfoSupplier;
@@ -931,29 +979,35 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * Only used by the DTLS server side.
 	 * 
-	 * @return {@code true}, if clients wanted to authenticate
+	 * @return client authentication mode
+	 * @see DtlsConfig#DTLS_CLIENT_AUTHENTICATION_MODE
+	 * @since 3.0
 	 */
-	public Boolean isClientAuthenticationWanted() {
-		return clientAuthenticationWanted;
+	public CertificateAuthenticationMode getCertificateAuthenticationMode() {
+		return configuration.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE);
 	}
 
 	/**
-	 * Gets whether the connector requires DTLS x509/RPK clients to authenticate
-	 * during the handshake. Only used by the DTLS server side.
+	 * Verify the server certificate's subject.
 	 * 
-	 * @return {@code true}, if clients need to authenticate
+	 * @return {@code true}, to the server certificate's subject, {@code false},
+	 *         to not verify it
+	 * @see DtlsConfig#DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT
+	 * @since 3.0
 	 */
-	public Boolean isClientAuthenticationRequired() {
-		return clientAuthenticationRequired;
+	public Boolean verifyServerCertificatesSubject() {
+		return configuration.get(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
 	}
 
 	/**
-	 * Gets whether the connector acts only as server and doesn't start new handshakes.
+	 * Gets the DTLS role the connector acts as.
 	 * 
-	 * @return {@code true}, if the connector acts only as server
+	 * @return role the connector acts as
+	 * @see DtlsConfig#DTLS_ROLE
+	 * @since 3.0
 	 */
-	public Boolean isServerOnly() {
-		return serverOnly;
+	public DtlsRole getDtlsRole() {
+		return configuration.get(DtlsConfig.DTLS_ROLE);
 	}
 
 	/**
@@ -964,11 +1018,21 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return default handshake mode.
 	 *         {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE} or
-	 *         {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} (default)
+	 *         {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO}. If
+	 *         {@link DtlsConfig#DTLS_ROLE} is {@link DtlsRole#SERVER_ONLY}, the
+	 *         specified default handshake mode is ignored and
+	 *         {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE} is returned
+	 *         instead.
+	 * @see DtlsConfig#DTLS_DEFAULT_HANDSHAKE_MODE
+	 * @see DtlsConfig#DTLS_ROLE
 	 * @since 2.1
 	 */
 	public String getDefaultHandshakeMode() {
-		return defaultHandshakeMode;
+		if (getDtlsRole() == DtlsRole.SERVER_ONLY) {
+			return DtlsEndpointContext.HANDSHAKE_MODE_NONE;
+		} else {
+			return configuration.get(DtlsConfig.DTLS_DEFAULT_HANDSHAKE_MODE);
+		}
 	}
 
 	/**
@@ -978,9 +1042,14 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return certificate types ordered by preference, or {@code null}, if no
 	 *         certificates are used to identify this peer.
+	 * @see Builder#setCertificateIdentityProvider(CertificateProvider)
+	 * @see CertificateProvider#getSupportedCertificateTypes()
 	 */
 	public List<CertificateType> getIdentityCertificateTypes() {
-		return identityCertificateTypes;
+		if (certificateIdentityProvider == null) {
+			return null;
+		}
+		return certificateIdentityProvider.getSupportedCertificateTypes();
 	}
 
 	/**
@@ -990,116 +1059,150 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return certificate types ordered by preference, or {@code null}, if no
 	 *         certificates are used to trust the other peer.
+	 * @see Builder#setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
+	 * @see NewAdvancedCertificateVerifier#getSupportedCertificateTypes()
 	 */
 	public List<CertificateType> getTrustCertificateTypes() {
-		return trustCertificateTypes;
+		if (advancedCertificateVerifier == null) {
+			return null;
+		}
+		return advancedCertificateVerifier.getSupportedCertificateTypes();
 	}
 
 	/**
-	 * Gets the maximum number of (active) connections the connector will support.
+	 * Gets the maximum number of (active) connections the connector will
+	 * support.
 	 * <p>
-	 * Once this limit is reached, new connections will only be accepted if <em>stale</em>
-	 * connections exist. A stale connection is one that hasn't been used for at least
-	 * <em>staleConnectionThreshold</em> seconds.
+	 * Once this limit is reached, new connections will only be accepted if
+	 * <em>stale</em> connections exist. A stale connection is one that hasn't
+	 * been used for at least <em>staleConnectionThreshold</em> seconds.
 	 * 
 	 * @return The maximum number of active connections supported.
-	 * @see #getStaleConnectionThreshold()
+	 * @see DtlsConfig#DTLS_MAX_CONNECTIONS
+	 * @see #getStaleConnectionThresholdSeconds()
 	 */
 	public Integer getMaxConnections() {
-		return maxConnections;
+		return configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS);
 	}
 
 	/**
-	 * Gets the maximum number of seconds within which some records need to be exchanged
-	 * over a connection before it is considered <em>stale</em>.
+	 * Gets the maximum number of seconds within which some records need to be
+	 * exchanged over a connection before it is considered <em>stale</em>.
 	 * <p>
-	 * Once a connection becomes stale, it cannot be used to transfer DTLS records anymore.
+	 * Once a connection becomes stale, it may be removed for new connections.
 	 * 
 	 * @return The number of seconds.
+	 * @see DtlsConfig#DTLS_STALE_CONNECTION_THRESHOLD
 	 * @see #getMaxConnections()
+	 * @since 3.0 (renamed, was getStaleConnectionThreshold)
 	 */
-	public Long getStaleConnectionThreshold() {
-		return staleConnectionThreshold;
+	public Long getStaleConnectionThresholdSeconds() {
+		return configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS);
 	}
 
 	/**
 	 * Gets the number of threads which should be use to handle DTLS connection.
-	 * <p>
-	 * The default value is 6 * <em>#(CPU cores)</em>.
 	 * 
 	 * @return the number of threads.
+	 * @see DtlsConfig#DTLS_CONNECTOR_THREAD_COUNT
+	 * @since 3.0 (renamed, was getConnectionThreadCount)
 	 */
-	public Integer getConnectionThreadCount() {
-		return connectionThreadCount;
+	public Integer getConnectorThreadCount() {
+		return configuration.get(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT);
 	}
 
 	/**
-	 * Gets the number of threads which should be use to receive datagrams
-	 * from the socket.
-	 * <p>
-	 * The default value is half of <em>#(CPU cores)</em>.
+	 * Gets the number of threads which should be use to receive datagrams from
+	 * the socket.
 	 * 
 	 * @return the number of threads.
+	 * @see DtlsConfig#DTLS_RECEIVER_THREAD_COUNT
 	 */
 	public Integer getReceiverThreadCount() {
-		return receiverThreadCount;
+		return configuration.get(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT);
 	}
 
 	/**
 	 * Gets size of the socket receive buffer.
 	 * 
-	 * @return the socket receive buffer in bytes, or {@code null}, to use the OS default.
+	 * @return the socket receive buffer in bytes, or {@code null}, to use the
+	 *         OS default.
+	 * @see DtlsConfig#DTLS_RECEIVE_BUFFER_SIZE
 	 */
 	public Integer getSocketReceiveBufferSize() {
-		return socketReceiveBufferSize;
+		return configuration.get(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE);
 	}
 
 	/**
 	 * Gets size of the socket send buffer.
 	 * 
-	 * @return the socket send buffer in bytes, or {@code null}, to use the OS default.
+	 * @return the socket send buffer in bytes, or {@code null}, to use the OS
+	 *         default.
+	 * @see DtlsConfig#DTLS_SEND_BUFFER_SIZE
 	 */
 	public Integer getSocketSendBufferSize() {
-		return socketSendBufferSize;
+		return configuration.get(DtlsConfig.DTLS_SEND_BUFFER_SIZE);
 	}
 
 	/**
-	 * Get the timeout for automatic session resumption.
+	 * Get the timeout for automatic handshakes.
 	 * 
 	 * If no messages are exchanged for this timeout, the next message will
-	 * trigger a session resumption automatically. Intended to be used, if
-	 * traffic is routed over a NAT. The value may be overridden by the endpoint
-	 * context attribute {@link DtlsEndpointContext#KEY_RESUMPTION_TIMEOUT}.
+	 * trigger a handshake automatically. Intended to be used, if traffic is
+	 * routed over a NAT. The value may be overridden by the endpoint context
+	 * attribute {@link DtlsEndpointContext#KEY_AUTO_HANDSHAKE_TIMEOUT}.
 	 * 
 	 * @return timeout in milliseconds, or {@code null}, if no automatic
-	 *         resumption is intended.
+	 *         resumption is intended. Values less the 1 milliseconds will be
+	 *         returned as {@code null}.
+	 * @see DtlsConfig#DTLS_AUTO_HANDSHAKE_TIMEOUT
+	 * @since 3.0 (renamed, was getAuteResumptionTimeoutMillis)
 	 */
-	public Long getAutoResumptionTimeoutMillis() {
-		return autoResumptionTimeoutMillis;
+	public Long getAutoHandshakeTimeoutMillis() {
+		Long timeout = configuration.get(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, TimeUnit.MILLISECONDS);
+		if (timeout != null && timeout <= 0) {
+			timeout = null;
+		}
+		return timeout;
 	}
 
 	/**
-	 * Indicates, that no session id is used by this server and so session are
-	 * also not cached by this server and can not be resumed.
+	 * Indicates, that session id is used by this server and so session are
+	 * cached by this server and can be resumed.
 	 * 
-	 * @return {@code true} if no session id is used by this server.
+	 * @return {@code true}, if session id is used by this server,
+	 *         {@code false}, if no session id us used by this server and
+	 *         therefore the session can not be resumed. Default {@code true}.
+	 * @see DtlsConfig#DTLS_SERVER_USE_SESSION_ID
+	 * @since 3.0 (was useNoServerSessionId with inverse logic)
 	 */
-	public Boolean useNoServerSessionId() {
-		return useNoServerSessionId;
+	public Boolean useServerSessionId() {
+		return configuration.get(DtlsConfig.DTLS_SERVER_USE_SESSION_ID);
 	}
 
 	/**
 	 * Use anti replay filter.
 	 * 
 	 * @return {@code true}, apply anti replay filter
-	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
+	 * @see <a href= "https://tools.ietf.org/html/rfc6347#section-4.1.2.6"
+	 *      target= "_blank">RFC6347 4.1.2.6. Anti-Replay</a>
+	 * @see DtlsConfig#DTLS_USE_ANTI_REPLAY_FILTER
 	 */
 	public Boolean useAntiReplayFilter() {
-		return useAntiReplayFilter;
+		return configuration.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER);
 	}
 
 	/**
-	 * Use filter for records in window and before limit.
+	 * Use disabled window for anti replay filter.
+	 * 
+	 * Californium uses the "sliding receive window" approach mentioned in
+	 * <a href= "https://tools.ietf.org/html/rfc6347#section-4.1.2.6" target=
+	 * "_blank">RFC6347 4.1.2.6. Anti-Replay</a>. That causes trouble, if some
+	 * records are sent on postponed routes (e.g. SMS). That would make it more
+	 * probable, that the record is to old for the receive window. In order not
+	 * to discard such records, this values defines a "disabled window", that
+	 * allows record to pass the filter, even if the records are too old for the
+	 * current receive window.
 	 * 
 	 * The value will be subtracted from to lower receive window boundary. A
 	 * value of {@code -1} will set that calculated lower boundary to {@code 0}.
@@ -1109,60 +1212,113 @@ public final class DtlsConnectorConfig {
 	 * @return value to extend lower receive window boundary, {@code -1}, to
 	 *         extend lower boundary to {@code 0}, {@code 0} to disable extended
 	 *         window filter.
-	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
+	 * @see <a href= "https://tools.ietf.org/html/rfc6347#section-4.1.2.6"
+	 *      target= "_blank">RFC6347 4.1.2.6. Anti-Replay</a>
+	 * @see DtlsConfig#DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER
 	 * @since 2.4
 	 */
-	public Integer useExtendedWindowFilter() {
-		return useExtendedWindowFilter;
+	public Integer useDisabledWindowFilter() {
+		return configuration.get(DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER);
 	}
 
 	/**
-	 * Use filter to update the ip-address from DTLS 1.2 CID
-	 * records only for newer records based on epoch/sequence_number.
+	 * Update the ip-address from DTLS 1.2 CID records only for newer records
+	 * based on epoch/sequence_number.
 	 * 
-	 * @return {@code true}, apply the newer filter
+	 * The MAC filter must always be passed.
+	 * 
+	 * @return {@code true}, update ip-address only for newer records,
+	 *         {@code false}, update ip-address for records passing the
+	 *         anti-replay-filter.
+	 * @see DtlsConfig#DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS
+	 * @since 3.0 (renamed, was useCidUpdateAddressOnNewerRecordFilter)
 	 */
-	public Boolean useCidUpdateAddressOnNewerRecordFilter() {
-		return useCidUpdateAddressOnNewerRecordFilter;
+	public Boolean useUpdateAddressUsingCidOnNewerRecords() {
+		return configuration.get(DtlsConfig.DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS);
 	}
 
 	/**
 	 * Use truncated certificate paths for client's certificate message.
 	 * 
-	 * Truncate certificate path according the received certificate
-	 * authorities in the {@link CertificateRequest} for the client's
+	 * Truncate certificate path according the received certificate authorities
+	 * in the {@link CertificateRequest} for the client's
 	 * {@link CertificateMessage}.
 	 * 
 	 * @return {@code true}, if path should be truncated for client's
 	 *         certificate message.
+	 * @see DtlsConfig#DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH
 	 * @since 2.1
 	 */
 	public Boolean useTruncatedCertificatePathForClientsCertificateMessage() {
-		return useTruncatedCertificatePathForClientsCertificateMessage;
+		return configuration.get(DtlsConfig.DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH);
 	}
 
 	/**
 	 * Use truncated certificate paths for validation.
 	 * 
-	 * Truncate certificate path according the available trusted
-	 * certificates before validation.
+	 * Truncate certificate path according the available trusted certificates
+	 * before validation.
 	 * 
 	 * @return {@code true}, if path should be truncated at available trust
 	 *         anchors for validation
+	 * @see DtlsConfig#DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION
 	 * @since 2.1
 	 */
 	public Boolean useTruncatedCertificatePathForValidation() {
-		return useTruncatedCertificatePathForValidation;
+		return configuration.get(DtlsConfig.DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION);
 	}
 
+	/**
+	 * Gets connection listener.
+	 * 
+	 * @return connection listener
+	 * @see Builder#setConnectionListener(ConnectionListener)
+	 */
 	public ConnectionListener getConnectionListener() {
 		return connectionListener;
+	}
+
+	/**
+	 * Gets session store for {@link InMemoryConnectionStore}.
+	 * 
+	 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
+	 * session store must be provided directly to that implementation. In that
+	 * case, the configured session store here will be ignored.
+	 * 
+	 * @return session store, or {@code null}, if not provided.
+	 * @see Builder#setSessionStore(SessionStore)
+	 * @see DTLSConnector#createConnectionStore
+	 * @since 3.0
+	 */
+	public SessionStore getSessionStore() {
+		return sessionStore;
+	}
+
+	/**
+	 * Gets the resumption verifier.
+	 * 
+	 * If the client provides a session id in the client hello, this verifier is
+	 * used to ensure, that a valid session to resume is available. An
+	 * implementation may check a maximum time, or, if the credentials are
+	 * expired (e.g. x509 valid range). The default verifier will just checks,
+	 * if a DTLS session with that session id is available in the
+	 * {@link ResumptionSupportingConnectionStore}.
+	 * 
+	 * @return resumption verifier. May be {@code null}, if
+	 *         {@link #useServerSessionId()} is {@code false} and session
+	 *         resumption is not supported.
+	 * @see Builder#setResumptionVerifier(ResumptionVerifier)
+	 * @since 3.0
+	 */
+	public ResumptionVerifier getResumptionVerifier() {
+		return resumptionVerifier;
 	}
 
 	/**
 	 * Get instance logging tag.
 	 * 
 	 * @return logging tag.
+	 * @see Builder#setLoggingTag(String)
 	 */
 	public String getLoggingTag() {
 		return loggingTag;
@@ -1171,47 +1327,58 @@ public final class DtlsConnectorConfig {
 	/**
 	 * Gets health status interval.
 	 * 
-	 * @return health status interval in seconds.
+	 * @return health status interval in milliseconds. {@code 0} for disabled.
+	 * @see SystemConfig#HEALTH_STATUS_INTERVAL
+	 * @since 3.0 (renamed, was getHealthStatusInterval, changed return type to
+	 *        {@code int} and returns milliseconds instead of seconds)
 	 */
-	public Integer getHealthStatusInterval() {
-		return healthStatusInterval;
+	public int getHealthStatusIntervalMilliseconds() {
+		return configuration.getTimeAsInt(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 	}
 
 	/**
 	 * Gets health handler.
 	 * 
 	 * @return health handler.
+	 * @see Builder#setHealthHandler(DtlsHealth)
 	 */
 	public DtlsHealth getHealthHandler() {
 		return healthHandler;
 	}
 
 	/**
-	 * Gets whether the connector acts only as client.
+	 * Check, if only recommended cipher suite are to be used.
 	 * 
-	 * @return <code>true</code> if the connector acts only as client
-	 * @see Builder#setClientOnly()
+	 * @return {@code true}, if only recommended cipher suites are used.
+	 * @see DtlsConfig#DTLS_RECOMMENDED_CIPHER_SUITES_ONLY
+	 * @since 3.0 (renamed, was isRecommendedCipherSuitesOnly)
 	 */
-	public Boolean isClientOnly() {
-		return clientOnly;
+	public Boolean useRecommendedCipherSuitesOnly() {
+		return configuration.get(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY);
 	}
 
 	/**
-	 * @return <code>true</code> if only recommended cipher suites are used.
-	 * @see Builder#setRecommendedCipherSuitesOnly(boolean)
+	 * Check, if only recommended supported curves are to be used.
+	 * 
+	 * @return {@code true}, if only recommended supported groups (curves) are
+	 *         used.
+	 * @see DtlsConfig#DTLS_RECOMMENDED_CURVES_ONLY
+	 * @since 3.0 (renamed, was isRecommendedSupportedGroupsOnly)
 	 */
-	public Boolean isRecommendedCipherSuitesOnly() {
-		return recommendedCipherSuitesOnly;
+	public Boolean useRecommendedSupportedGroupsOnly() {
+		return configuration.get(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY);
 	}
 
 	/**
-	 * @return <code>true</code> if only recommended supported groups (curves) are used.
-	 * @see Builder#setRecommendedSupportedGroupsOnly(boolean)
+	 * Check, if only recommended signature and hash algorithms are used.
 	 * 
-	 * @since 2.3
+	 * @return {@code true}, if only recommended signature and hash algorithms
+	 *         are used.
+	 * @see DtlsConfig#DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY
+	 * @since 3.0
 	 */
-	public Boolean isRecommendedSupportedGroupsOnly() {
-		return recommendedSupportedGroupsOnly;
+	public Boolean useRecommendedSignatureAndHashAlgorithmsOnly() {
+		return configuration.get(DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY);
 	}
 
 	/**
@@ -1219,75 +1386,41 @@ public final class DtlsConnectorConfig {
 	 */
 	@Override
 	protected Object clone() {
-		DtlsConnectorConfig cloned = new DtlsConnectorConfig();
+		DtlsConnectorConfig cloned = new DtlsConnectorConfig(configuration);
 		cloned.address = address;
 		cloned.advancedCertificateVerifier = advancedCertificateVerifier;
-		cloned.earlyStopRetransmission = earlyStopRetransmission;
-		cloned.enableReuseAddress = enableReuseAddress;
-		cloned.recordSizeLimit = recordSizeLimit;
-		cloned.maxFragmentLengthCode = maxFragmentLengthCode;
-		cloned.maxFragmentedHandshakeMessageLength = maxFragmentedHandshakeMessageLength;
-		cloned.enableMultiRecordMessages = enableMultiRecordMessages;
-		cloned.enableMultiHandshakeMessageRecords = enableMultiHandshakeMessageRecords;
+		cloned.useReuseAddress = useReuseAddress;
 		cloned.protocolVersionForHelloVerifyRequests = protocolVersionForHelloVerifyRequests;
-		cloned.retransmissionTimeout = retransmissionTimeout;
-		cloned.maxRetransmissions = maxRetransmissions;
-		cloned.maxTransmissionUnit = maxTransmissionUnit;
-		cloned.maxTransmissionUnitLimit = maxTransmissionUnitLimit;
-		cloned.clientAuthenticationRequired = clientAuthenticationRequired;
-		cloned.clientAuthenticationWanted = clientAuthenticationWanted;
-		cloned.serverOnly = serverOnly;
-		cloned.defaultHandshakeMode = defaultHandshakeMode;
-		cloned.identityCertificateTypes = identityCertificateTypes;
-		cloned.trustCertificateTypes = trustCertificateTypes;
 		cloned.advancedPskStore = advancedPskStore;
-		cloned.privateKey = privateKey;
-		cloned.publicKey = publicKey;
-		cloned.certChain = certChain;
+		cloned.certificateIdentityProvider = certificateIdentityProvider;
+		cloned.certificateConfigurationHelper = certificateConfigurationHelper;
 		cloned.cipherSuiteSelector = cipherSuiteSelector;
-		cloned.preselectedCipherSuites = preselectedCipherSuites;
+		cloned.supportedCertificatekeyAlgorithms = supportedCertificatekeyAlgorithms;
 		cloned.supportedCipherSuites = supportedCipherSuites;
 		cloned.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
 		cloned.supportedGroups = supportedGroups;
-		cloned.outboundMessageBufferSize = outboundMessageBufferSize;
-		cloned.maxDeferredProcessedOutgoingApplicationDataMessages = maxDeferredProcessedOutgoingApplicationDataMessages;
-		cloned.maxDeferredProcessedIncomingRecordsSize = maxDeferredProcessedIncomingRecordsSize;
-		cloned.maxConnections = maxConnections;
-		cloned.staleConnectionThreshold = staleConnectionThreshold;
-		cloned.connectionThreadCount = connectionThreadCount;
-		cloned.receiverThreadCount = receiverThreadCount;
-		cloned.socketReceiveBufferSize = socketReceiveBufferSize;
-		cloned.socketSendBufferSize = socketSendBufferSize;
-		cloned.healthStatusInterval = healthStatusInterval;
-		cloned.autoResumptionTimeoutMillis = autoResumptionTimeoutMillis;
-		cloned.sniEnabled = sniEnabled;
-		cloned.extendedMasterSecretMode = extendedMasterSecretMode;
-		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
-		cloned.useNoServerSessionId = useNoServerSessionId;
 		cloned.loggingTag = loggingTag;
-		cloned.useAntiReplayFilter = useAntiReplayFilter;
-		cloned.useExtendedWindowFilter = useExtendedWindowFilter;
-		cloned.useCidUpdateAddressOnNewerRecordFilter = useCidUpdateAddressOnNewerRecordFilter;
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
-		cloned.useTruncatedCertificatePathForClientsCertificateMessage = useTruncatedCertificatePathForClientsCertificateMessage;
-		cloned.useTruncatedCertificatePathForValidation = useTruncatedCertificatePathForValidation;
 		cloned.connectionListener = connectionListener;
+		cloned.sessionStore = sessionStore;
+		cloned.resumptionVerifier = resumptionVerifier;
 		cloned.healthHandler = healthHandler;
-		cloned.clientOnly = clientOnly;
-		cloned.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
-		cloned.recommendedSupportedGroupsOnly = recommendedSupportedGroupsOnly;
 		return cloned;
 	}
 
 	/**
 	 * Create new builder for DtlsConnectorConfig.
 	 * 
+	 * @param configuration the configuration with {@link DtlsConfig}
+	 *            definitions. Cloned, changes on the provided configuration
+	 *            don't affect this builder.
 	 * @return created builder
-	 * @since 2.5
+	 * @throws NullPointerException if configuration is {@code null}
+	 * @since 3.0
 	 */
-	public static Builder builder() {
-		return new Builder();
+	public static Builder builder(Configuration configuration) {
+		return new Builder(configuration);
 	}
 
 	/**
@@ -1302,49 +1435,44 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * A helper for creating instances of <code>DtlsConnectorConfig</code>
-	 * based on the builder pattern.
-	 *
+	 * A helper for creating instances of {@code DtlsConnectorConfig} based on
+	 * the builder pattern.
 	 */
 	public static final class Builder {
 
 		private DtlsConnectorConfig config;
 
 		/**
-		 * Creates a new instance for setting configuration options
-		 * for a <code>DTLSConnector</code> instance.
+		 * Creates a new instance for setting configuration options for a
+		 * {@code DTLSConnector} instance.
 		 * 
 		 * Once all options are set, clients should use the {@link #build()}
-		 * method to create an immutable <code>DtlsConfigurationConfig</code>
-		 * instance which can be passed into the <code>DTLSConnector</code>
+		 * method to create an immutable {@code DtlsConfigurationConfig}
+		 * instance which can be passed into the {@code DTLSConnector}
 		 * constructor.
 		 * 
-		 * The builder is initialized to the following default values
-		 * <ul>
-		 * <li><em>address</em>: a wildcard address with a system chosen ephemeral port
-		 *  see {@link InetSocketAddress#InetSocketAddress(int)}</li>
-		 * <li><em>maxFragmentLength</em>: 4096 bytes</li>
-		 * <li><em>maxPayloadSize</em>: 4096 + 25 bytes (max fragment size + 25 bytes for headers)</li>
-		 * <li><em>maxRetransmissions</em>: 4</li>
-		 * <li><em>retransmissionTimeout</em>: 1000ms</li>
-		 * <li><em>clientAuthenticationRequired</em>: <code>true</code></li>
-		 * <li><em>outboundMessageBufferSize</em>: 100.000</li>
-		 * <li><em>trustStore</em>: empty array</li>
-		 * </ul>
+		 * Note that when keeping the default values, at least one of the
+		 * {@link #setAdvancedPskStore(AdvancedPskStore)} or
+		 * {@link #setCertificateIdentityProvider(CertificateProvider)} methods
+		 * need to be used to get a working configuration for a
+		 * {@code DTLSConnector} that can be used as a client and server.
 		 * 
-		 * Note that when keeping the default values, at least one of the {@link #setAdvancedPskStore(AdvancedPskStore)}
-		 * or {@link #setIdentity(PrivateKey, PublicKey)} methods need to be used to 
-		 * get a working configuration for a <code>DTLSConnector</code> that can be used
-		 * as a client and server.
+		 * It is possible to create a configuration for a {@code DTLSConnector}
+		 * that can operate as a client only without the need for setting an
+		 * identity. However, this is possible only if the server does not
+		 * require clients to authenticate, i.e. this only works with the ECDSA
+		 * based cipher suites. If you want to create such a
+		 * <em>client-only</em> configuration, you need to use the
+		 * {@link DtlsConfig#DTLS_ROLE} with {@link DtlsRole#CLIENT_ONLY}.
 		 * 
-		 * It is possible to create a configuration for a <code>DTLSConnector</code> that can operate
-		 * as a client only without the need for setting an identity. However, this is possible
-		 * only if the server does not require clients to authenticate, i.e. this only
-		 * works with the ECDH based cipher suites. If you want to create such a <em>client-only</em>
-		 * configuration, you need to use the {@link #setClientOnly()} method on the builder.
+		 * @param configuration the configuration with {@link DtlsConfig}
+		 *            definitions. Cloned, changes on the provided configuration
+		 *            don't affect this builder.
+		 * @throws NullPointerException if configuration is {@code null}
+		 * @since 3.0
 		 */
-		public Builder() {
-			config = new DtlsConnectorConfig();
+		public Builder(Configuration configuration) {
+			config = new DtlsConnectorConfig(configuration);
 		}
 
 		/**
@@ -1353,8 +1481,101 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param initialConfiguration initial configuration
 		 */
-		public Builder(DtlsConnectorConfig initialConfiguration) {
+		private Builder(DtlsConnectorConfig initialConfiguration) {
 			config = (DtlsConnectorConfig) initialConfiguration.clone();
+		}
+
+		/**
+		 * Associates the specified value with the specified definition.
+		 * 
+		 * @param <T> value type
+		 * @param definition the value definition
+		 * @param value the value
+		 * @return the builder for chaining
+		 * @throws NullPointerException if the definition is {@code null}
+		 * @throws IllegalArgumentException if a different definition is already
+		 *             available for the key of the provided definition.
+		 * @since 3.0
+		 */
+		public <T> Builder set(BasicDefinition<T> definition, T value) {
+			config.configuration.set(definition, value);
+			return this;
+		}
+
+		/**
+		 * Associates the specified list of values with the specified
+		 * definition.
+		 * 
+		 * @param <T> item value type
+		 * @param definition the value definition
+		 * @param values the list of values
+		 * @return the builder for chaining
+		 * @throws NullPointerException if the definition or values is
+		 *             {@code null}
+		 * @throws IllegalArgumentException if a different definition is already
+		 *             available for the key of the provided definition or the
+		 *             values are empty.
+		 * @since 3.0
+		 */
+		public <T> Builder setAsList(BasicListDefinition<T> definition, @SuppressWarnings("unchecked") T... values) {
+			config.configuration.setAsList(definition, values);
+			return this;
+		}
+
+		/**
+		 * Associates the specified list of text values with the specified
+		 * definition.
+		 * 
+		 * @param <T> item value type
+		 * @param definition the value definition
+		 * @param values the list of text values
+		 * @return the builder for chaining
+		 * @throws NullPointerException if the definition or values is
+		 *             {@code null}
+		 * @throws IllegalArgumentException if a different definition is already
+		 *             available for the key of the provided definition or the
+		 *             values are empty.
+		 * @since 3.0
+		 */
+		public <T> Builder setAsListFromText(BasicListDefinition<T> definition, String... values) {
+			config.configuration.setAsListFromText(definition, values);
+			return this;
+		}
+
+		/**
+		 * Associates the specified time value with the specified definition.
+		 * 
+		 * @param definition the value definition
+		 * @param value the value
+		 * @param unit the time unit of the value
+		 * @return the builder for chaining
+		 * @throws NullPointerException if the definition or unit is
+		 *             {@code null}
+		 * @throws IllegalArgumentException if a different definition is already
+		 *             available for the key of the provided definition.
+		 * @since 3.0
+		 */
+		public Builder set(TimeDefinition definition, Long value, TimeUnit unit) {
+			config.configuration.set(definition, value, unit);
+			return this;
+		}
+
+		/**
+		 * Associates the specified time value with the specified definition.
+		 * 
+		 * @param definition the value definition
+		 * @param value the value
+		 * @param unit the time unit of the value
+		 * @return the builder for chaining
+		 * @throws NullPointerException if the definition or unit is
+		 *             {@code null}
+		 * @throws IllegalArgumentException if a different definition is already
+		 *             available for the key of the provided definition.
+		 * @since 3.0
+		 */
+		public Builder set(TimeDefinition definition, int value, TimeUnit unit) {
+			config.configuration.set(definition, value, unit);
+			return this;
 		}
 
 		/**
@@ -1371,6 +1592,7 @@ public final class DtlsConnectorConfig {
 		 * @param address the IP address and port the connector should bind to
 		 * @return this builder for command chaining
 		 * @throws IllegalArgumentException if the given address is unresolved
+		 * @see DtlsConnectorConfig#getAddress()
 		 */
 		public Builder setAddress(InetSocketAddress address) {
 			if (address.isUnresolved()) {
@@ -1385,222 +1607,10 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param enable {@code true} if addresses should be reused.
 		 * @return this builder for command chaining
+		 * @see DtlsConnectorConfig#useReuseAddress()
 		 */
-		public Builder setEnableAddressReuse(boolean enable) {
-			config.enableReuseAddress = enable;
-			return this;
-		}
-
-		/**
-		 * Set usage of recommended cipher suites.
-		 * 
-		 * @param recommendedCipherSuitesOnly {@code true} allow only
-		 *            recommended cipher suites, {@code false}, also allow not
-		 *            recommended cipher suites. Default value is {@code true}
-		 * @return this builder for command chaining
-		 */
-		public Builder setRecommendedCipherSuitesOnly(boolean recommendedCipherSuitesOnly) {
-			config.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
-			if (recommendedCipherSuitesOnly && config.supportedCipherSuites != null) {
-				verifyRecommendedCipherSuitesOnly(config.supportedCipherSuites);
-			}
-			return this;
-		}
-
-		/**
-		 * Set usage of recommended supported groups (curves).
-		 * 
-		 * @param recommendedSupportedGroupsOnly {@code true} allow only
-		 *            recommended supported groups, {@code false}, also allow not
-		 *            recommended supported groups. Default value is {@code true}
-		 * @return this builder for command chaining
-		 * 
-		 * @since 2.3
-		 */
-		public Builder setRecommendedSupportedGroupsOnly(boolean recommendedSupportedGroupsOnly) {
-			config.recommendedSupportedGroupsOnly = recommendedSupportedGroupsOnly;
-			if (recommendedSupportedGroupsOnly && config.supportedGroups != null) {
-				verifyRecommendedSupportedGroupsOnly(config.supportedGroups);
-			}
-			return this;
-		}
-
-		/**
-		 * Indicates that the <em>DTLSConnector</em> will only be used as a
-		 * DTLS client.
-		 * 
-		 * The {@link #build()} method will allow creation of a configuration
-		 * without any identity being set under the following conditions:
-		 * <ul>
-		 * <li>only support for ECDH based cipher suites is configured</li>
-		 * <li>this method has been invoked</li>
-		 * </ul>
-		 * 
-		 * @return this builder for command chaining
-		 * @throws IllegalStateException if client only is in contradiction to
-		 *             server side configuration
-		 */
-		public Builder setClientOnly() {
-			if (config.serverOnly != null && config.serverOnly) {
-				throw new IllegalStateException("client only is in contradiction to server only!");
-			} else if (config.clientAuthenticationRequired != null || config.clientAuthenticationWanted != null) {
-				throw new IllegalStateException(
-						"client only is in contradiction to server side client authentication!");
-			} else if (config.useNoServerSessionId != null && config.useNoServerSessionId.booleanValue()) {
-				throw new IllegalStateException(
-						"client only is in contradiction to server side 'no server session id'!");
-			}
-			config.clientOnly = true;
-			return this;
-		}
-
-		/**
-		 * Indicates that the <em>DTLSConnector</em> will only act as server.
-		 * 
-		 * A server only accepts handshakes, it never starts them.
-		 * 
-		 * @param enable {@code true} if the connector acts only as server.
-		 * @return this builder for command chaining
-		 * @throws IllegalStateException if server only is enabled in
-		 *             contradiction to client side configuration
-		 */
-		public Builder setServerOnly(boolean enable) {
-			if (enable) {
-				if (Boolean.TRUE.equals(config.clientOnly)) {
-					throw new IllegalStateException("server only is in contradiction to client only!");
-				}
-				if (config.defaultHandshakeMode != null && !config.defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
-					throw new IllegalStateException("server only is in contradiction to default handshake mode '"
-							+ config.defaultHandshakeMode + "!");
-				}
-			}
-			config.serverOnly = enable;
-			return this;
-		}
-
-		/**
-		 * Set the <em>DTLSConnector</em> default handshake mode.
-		 * 
-		 * @param defaultHandshakeMode
-		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} or
-		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
-		 * @return this builder for command chaining
-		 * @throws IllegalStateException if configuration is server only and
-		 *             {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} is
-		 *             provided
-		 * @throws IllegalArgumentException if mode is neither
-		 *             {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} nor
-		 *             {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
-		 * @since 2.1
-		 */
-		public Builder setDefaultHandshakeMode(String defaultHandshakeMode) {
-			if (defaultHandshakeMode != null) {
-				if (!defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_AUTO)
-						&& !defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
-					throw new IllegalArgumentException(
-							"default handshake mode must be either \"" + DtlsEndpointContext.HANDSHAKE_MODE_AUTO
-									+ "\" or \"" + DtlsEndpointContext.HANDSHAKE_MODE_NONE + "\"!");
-				}
-			}
-			if (config.serverOnly != null && config.serverOnly
-					&& defaultHandshakeMode != null && !defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
-				throw new IllegalStateException("default handshake modes are not supported for server only!");
-			}
-			config.defaultHandshakeMode = defaultHandshakeMode;
-			return this;
-		}
-
-		/**
-		 * Sets record size limit.
-		 * 
-		 * Included in the CLIENT_HELLO and SERVER_HELLO to negotiate the record
-		 * size limit.
-		 * 
-		 * @param recordSizeLimit the record size limit, betwee 64 and 65535. Or
-		 *            {@code null}, if not used.
-		 * @return this builder for command chaining
-		 * @since 2.4
-		 */
-		public Builder setRecordSizeLimit(Integer recordSizeLimit) {
-			if (recordSizeLimit != null) {
-				if (recordSizeLimit < 64 || recordSizeLimit > 65535) {
-					throw new IllegalArgumentException(
-							"Record size limit must be within [64...65535], not " + recordSizeLimit + "!");
-				}
-			}
-			config.recordSizeLimit = recordSizeLimit;
-			return this;
-		}
-
-		/**
-		 * Sets the maximum amount of payload data that can be received and processed by this connector
-		 * in a single DTLS record.
-		 * <p>
-		 * The value of this property is used to indicate to peers the <em>Maximum Fragment Length</em>
-		 * as defined in <a href="http://tools.ietf.org/html/rfc6066#section-4">RFC 6066, Section 4</a>.
-		 * It is also used to determine the amount of memory that will be allocated for receiving UDP datagrams
-		 * sent by peers from the network interface.
-		 * </p>
-		 * The code must be either {@code null} or one of the following:
-		 * <ul>
-		 * <li>1 - 2^9 bytes</li>
-		 * <li>2 - 2^10 bytes</li>
-		 * <li>3 - 2^11 bytes</li>
-		 * <li>4 - 2^12 bytes</li>
-		 * </ul>
-		 * <p>
-		 * If this property is set to {@code null}, the {@link DTLSConnector} will
-		 * derive its value from the network interface's <em>Maximum Transmission Unit</em>.
-		 * This means that it will set it to a value small enough to make sure that inbound
-		 * messages fit into a UDP datagram having a size less or equal to the MTU.
-		 * </p>
-		 * 
-		 * @param lengthCode the code indicating the maximum length or {@code null} to determine
-		 *                   the maximum fragment length based on the network interface's MTU
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if the code is not one of {1, 2, 3, 4} 
-		 */
-		public Builder setMaxFragmentLengthCode(Integer lengthCode) {
-			if (lengthCode != null && (lengthCode < 1 || lengthCode > 4)) {
-				throw new IllegalArgumentException("Maximum fragment length code must be one of {1, 2, 3, 4}");
-			} else {
-				config.maxFragmentLengthCode = lengthCode;
-				return this;
-			}
-		}
-
-		/**
-		 * Set maximum length of handshake message.
-		 * 
-		 * @param length maximum length of handshake message
-		 * @return this builder for command chaining
-		 */
-		public Builder setMaxFragmentedHandshakeMessageLength(Integer length) {
-			config.maxFragmentedHandshakeMessageLength = length;
-			return this;
-		}
-
-		/**
-		 * Enable to use UDP messages with multiple dtls records.
-		 * 
-		 * @param enable {@code true}, to enabled, {@code false}, otherwise.
-		 * @return this builder for command chaining
-		 * @since 2.4
-		 */
-		public Builder setEnableMultiRecordMessages(boolean enable) {
-			config.enableMultiRecordMessages = enable;
-			return this;
-		}
-
-		/**
-		 * Enable to use dtls records with multiple handshake messages.
-		 * 
-		 * @param enable {@code true}, to enabled, {@code false}, otherwise.
-		 * @return this builder for command chaining
-		 * @since 2.4
-		 */
-		public Builder setEnableMultiHandshakeMessageRecords(boolean enable) {
-			config.enableMultiHandshakeMessageRecords = enable;
+		public Builder setReuseAddress(boolean enable) {
+			config.useReuseAddress = enable;
 			return this;
 		}
 
@@ -1609,24 +1619,30 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * Before version 2.5.0, Californium used fixed the protocol version
 		 * DTLS 1.2 to send the HelloVerifyRequest. According
-		 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347,
-		 * 4.2.1. Denial-of-Service Countermeasures</a>, that HelloVerifyRequest
-		 * SHOULD be sent using protocol version DTLS 1.0. But that found to be
-		 * ambiguous, because it's also requested that "The server MUST use the
-		 * same version number in the HelloVerifyRequest that it would use when
-		 * sending a ServerHello." With that, Californium from 2.6.0 on will, by
-		 * default, reply the version the client sent in the HelloVerifyRequest,
-		 * and will postpone the version negotiation until the client has
-		 * verified it's endpoint ownership. If that client version is below
-		 * DTLS 1.0, a DTLS 1.0 will be used. If a different behavior is wanted,
-		 * you may use this setter to provide a fixed version for the
-		 * HelloVerifyRequest. In order to provide backwards compatibility to
-		 * version before 2.5.0, configure to use protocol version DTLS 1.2.
+		 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+		 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>, that
+		 * HelloVerifyRequest SHOULD be sent using protocol version DTLS 1.0.
+		 * But that found to be ambiguous, because it's also requested that "The
+		 * server MUST use the same version number in the HelloVerifyRequest
+		 * that it would use when sending a ServerHello." With that, Californium
+		 * from 2.6.0 on will, by default, reply the version the client sent in
+		 * the HelloVerifyRequest, and will postpone the version negotiation
+		 * until the client has verified it's endpoint ownership. If that client
+		 * version is below DTLS 1.0, a DTLS 1.0 will be used. If a different
+		 * behavior is wanted, you may use this setter to provide a fixed
+		 * version for the HelloVerifyRequest. In order to provide backwards
+		 * compatibility to version before 2.5.0, configure to use protocol
+		 * version DTLS 1.2.
+		 * 
+		 * <b>Note:</b> this property is considered to be changed only for very
+		 * exotic use-cases. Therefore it's not included in the
+		 * {@link DtlsConfig}.
 		 * 
 		 * @param protocolVersion fixed protocol version to send hello verify
 		 *            requests. {@code null} to reply the client's version.
 		 * @return this builder for command chaining
 		 * @see HelloVerifyRequest
+		 * @see DtlsConnectorConfig#getProtocolVersionForHelloVerifyRequests()
 		 * @since 2.5
 		 */
 		public Builder setProtocolVersionForHelloVerifyRequests(ProtocolVersion protocolVersion) {
@@ -1635,214 +1651,14 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Set the size of the socket receive buffer.
-		 * 
-		 * @param size the socket receive buffer size in bytes, or {@code null},
-		 *            to use the OS default.
-		 * @return this builder for command chaining
-		 */
-		public Builder setSocketReceiveBufferSize(Integer size) {
-			config.socketReceiveBufferSize = size;
-			return this;
-		}
-
-		/**
-		 * Set the size of the socket send buffer.
-		 * 
-		 * @param size the socket send buffer size in bytes, or {@code null}, to
-		 *            use the OS default.
-		 * @return this builder for command chaining
-		 */
-		public Builder setSocketSendBufferSize(Integer size) {
-			config.socketSendBufferSize = size;
-			return this;
-		}
-
-		/**
-		 * Set the health status interval.
-		 * 
-		 * @param healthStatusIntervalSeconds health status interval in seconds.
-		 *            {@code null} disable health status.
-		 * @return this builder for command chaining
-		 */
-		public Builder setHealthStatusInterval(Integer healthStatusIntervalSeconds) {
-			config.healthStatusInterval = healthStatusIntervalSeconds;
-			return this;
-		}
-
-		/**
 		 * Set the health handler.
 		 * 
 		 * @param healthHandler health handler.
 		 * @return this builder for command chaining
+		 * @see DtlsConnectorConfig#getHealthHandler()
 		 */
 		public Builder setHealthHandler(DtlsHealth healthHandler) {
 			config.healthHandler = healthHandler;
-			return this;
-		}
-
-		/**
-		 * Sets the number of outbound messages that can be buffered in memory before
-		 * dropping messages.
-		 * 
-		 * @param capacity the number of messages to buffer
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if capacity &lt; 1
-		 */
-		public Builder setOutboundMessageBufferSize(int capacity) {
-			if (capacity < 1) {
-				throw new IllegalArgumentException("Outbound message buffer size must be at least 1");
-			} else {
-				config.outboundMessageBufferSize = capacity;
-				return this;
-			}
-		}
-
-		/**
-		 * Number of retransmissions before the attempt to transmit a flight in
-		 * back-off mode.
-		 * 
-		 * <a href="https://tools.ietf.org/html/rfc6347#page-12"> RFC 6347,
-		 * Section 4.1.1.1, Page 12</a>
-		 * 
-		 * In back-off mode, UDP datagrams of maximum 512 bytes or the
-		 * negotiated records size, if that is smaller, are used. Each handshake
-		 * message is placed in one dtls record, or more dtls records, if the
-		 * handshake message is too large and must be fragmented. Beside of the
-		 * CCS and FINISH dtls records, which send together in one UDP datagram,
-		 * all other records are send in separate datagrams.
-		 * 
-		 * The {@link #useMultiHandshakeMessageRecords()} and
-		 * {@link #useMultiRecordMessages()} has precedence over the back-off
-		 * definition.
-		 * 
-		 * Value {@code 0}, to disable it, {@code null}, for default of
-		 * {@link #maxRetransmissions} / 2.
-		 * 
-		 * @param count the number of re-transmissions to use the back-off mode
-		 * @return this builder for command chaining
-		 * @since 2.4
-		 */
-		public Builder setBackOffRetransmission(Integer count) {
-			if (count != null && count < 0) {
-				throw new IllegalArgumentException("number of retransmissions to back-off must not be negative");
-			}
-			config.backOffRetransmission = count;
-			return this;
-		}
-
-		/**
-		 * Sets the maximum number of times a flight of handshake messages gets re-transmitted
-		 * to a peer.
-		 * 
-		 * @param count the maximum number of re-transmissions
-		 * @return this builder for command chaining
-		 */
-		public Builder setMaxRetransmissions(int count) {
-			if (count < 1) {
-				throw new IllegalArgumentException("Maximum number of retransmissions must be greater than zero");
-			} else {
-				config.maxRetransmissions = count;
-				return this;
-			}
-		}
-
-		/**
-		 * Set maximum transmission unit. Maximum number of bytes sent in one
-		 * transmission.
-		 * 
-		 * @param mtu maximum transmission unit
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if
-		 *             {@link #setMaxTransmissionUnitLimit(int)} was already set
-		 */
-		public Builder setMaxTransmissionUnit(int mtu) {
-			if (config.maxTransmissionUnitLimit != null) {
-				throw new IllegalArgumentException("MTU limit already set!");
-			}
-			config.maxTransmissionUnit = mtu;
-			return this;
-		}
-
-		/**
-		 * Set maximum transmission unit limit for auto detection.
-		 * 
-		 * Limits maximum number of bytes sent in one transmission.
-		 *
-		 * Note: previous versions took the local link MTU without limits. That
-		 * results in possibly larger MTU, e.g. for localhost or some cloud
-		 * nodes using "jumbo frames". If a larger MTU is required, please
-		 * adjust this limit to the requires value or use
-		 * {@link #setMaxTransmissionUnit(int)}.
-		 * 
-		 * @param limit maximum transmission unit limit. Default
-		 *            {@link DtlsConnectorConfig#DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if
-		 *             {@link #setMaxTransmissionUnit(int)} was already set
-		 * @since 2.3
-		 */
-		public Builder setMaxTransmissionUnitLimit(int limit) {
-			if (config.maxTransmissionUnit != null) {
-				throw new IllegalArgumentException("MTU already set!");
-			}
-			config.maxTransmissionUnitLimit = limit;
-			return this;
-		}
-
-		/**
-		 * Sets whether the connector wants (requests) DTLS clients to
-		 * authenticate during the handshake. The handshake doesn't fail, if the
-		 * client didn't authenticate itself during the handshake. That mostly
-		 * requires the client to use a proprietary mechanism to authenticate
-		 * itself on the application layer (e.g. username/password). It's mainly
-		 * used, if the implementation of the other peer has no PSK cipher suite
-		 * and client certificate should not be used for some reason.
-		 * 
-		 * The default is {@code false}. Only used by the DTLS server side.
-		 * 
-		 * @param authWanted {@code true} if clients wanted to authenticate
-		 * @return this builder for command chaining
-		 * @throws IllegalStateException if configuration is for client only
-		 * @throws IllegalArgumentException if authWanted is {@code true}, but
-		 *             {@link #setClientAuthenticationRequired(boolean)} was set
-		 *             to {@code true} before.
-		 */
-		public Builder setClientAuthenticationWanted(boolean authWanted) {
-			if (Boolean.TRUE.equals(config.clientOnly)) {
-				throw new IllegalStateException("client authentication is not supported for client only!");
-			}
-			if (authWanted && Boolean.TRUE.equals(config.clientAuthenticationRequired)) {
-				throw new IllegalArgumentException("client authentication is already required!");
-			}
-			config.clientAuthenticationWanted = authWanted;
-			return this;
-		}
-
-		/**
-		 * Sets whether the connector requires DTLS clients to authenticate
-		 * during the handshake.
-		 * 
-		 * The default is {@code true}. If
-		 * {@link #setClientAuthenticationWanted(boolean)} is set to
-		 * {@code true}, the default is {@code false}. Only used by the DTLS
-		 * server side.
-		 * 
-		 * @param authRequired {@code true}, if clients need to authenticate
-		 * @return this builder for command chaining
-		 * @throws IllegalStateException if configuration is for client only
-		 * @throws IllegalArgumentException if authWanted is {@code true}, but
-		 *             {@link #setClientAuthenticationWanted(boolean)} was set
-		 *             to {@code true} before.
-		 */
-		public Builder setClientAuthenticationRequired(boolean authRequired) {
-			if (Boolean.TRUE.equals(config.clientOnly)) {
-				throw new IllegalStateException("client authentication is not supported for client only!");
-			}
-			if (authRequired && Boolean.TRUE.equals(config.clientAuthenticationWanted)) {
-				throw new IllegalArgumentException("client authentication is already wanted!");
-			}
-			config.clientAuthenticationRequired = authRequired;
 			return this;
 		}
 
@@ -1855,7 +1671,7 @@ public final class DtlsConnectorConfig {
 		 * @param cipherSuiteSelector the cipher suite selector. Default
 		 *            ({@link DefaultCipherSuiteSelector}.
 		 * @return this builder for command chaining
-		 * 
+		 * @see DtlsConnectorConfig#getCipherSuiteSelector()
 		 * @since 2.3
 		 */
 		public Builder setCipherSuiteSelector(CipherSuiteSelector cipherSuiteSelector) {
@@ -1864,400 +1680,18 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the preselected cipher suites for the connector.
+		 * Sets the advanced key store to use for authenticating clients based
+		 * on a pre-shared key.
 		 * 
-		 * If no supported cipher suites are provided, consider only this subset
-		 * of {@link CipherSuite} to be automatically selected as supported
-		 * cipher suites depending on other setting (e.g. if settings allow only
-		 * PSK, only PSK compatible cipher suite from this list will be
-		 * selected).
-		 * 
-		 * Not used, if supported cipher suites are provided.
-		 * 
-		 * @param cipherSuites the preselected cipher suites
-		 * @return this builder for command chaining
-		 * @since 2.5
-		 */
-		public Builder setPreselectedCipherSuites(CipherSuite... cipherSuites) {
-			if (cipherSuites == null) {
-				config.preselectedCipherSuites = null;
-				return this;
-			} else {
-				return setPreselectedCipherSuites(Arrays.asList(cipherSuites));
-			}
-		}
-
-		/**
-		 * Sets the preselected cipher suites for the connector.
-		 * 
-		 * If no supported cipher suites are provided, consider only this subset
-		 * of {@link CipherSuite} to be automatically selected as supported
-		 * cipher suites depending on other setting (e.g. if settings allow only
-		 * PSK, only PSK compatible cipher suite from this list will be
-		 * selected).
-		 * 
-		 * Not used, if supported cipher suites are provided.
-		 * 
-		 * @param cipherSuites the preselected cipher suites
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if the list is empty, or
-		 *        "TLS_NULL_WITH_NULL_NULL" is contained.
-		 * @since 2.5
-		 */
-		public Builder setPreselectedCipherSuites(List<CipherSuite> cipherSuites) {
-			if (cipherSuites == null) {
-				config.preselectedCipherSuites = null;
-			} else if (cipherSuites.isEmpty()) {
-				throw new IllegalArgumentException("Connector must preselect at least one cipher suite");
-			} else if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
-				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
-			} else {
-				config.preselectedCipherSuites = cipherSuites;
-			}
-			return this;
-		}
-
-		/**
-		 * Sets the preselected cipher suites for the connector.
-		 * 
-		 * If no supported cipher suites are provided, consider only this subset
-		 * of {@link CipherSuite} to be automatically selected as supported
-		 * cipher suites depending on other setting (e.g. if settings allow only
-		 * PSK, only PSK compatible cipher suite from this list will be
-		 * selected).
-		 * 
-		 * Not used, if supported cipher suites are provided.
-		 * 
-		 * @param cipherSuites the names of the preselected cipher suites
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if at least one name is not
-		 *        available, or "TLS_NULL_WITH_NULL_NULL" is contained.
-		 * @since 2.5
-		 */
-		public Builder setPreselectedCipherSuites(String... cipherSuites) {
-			if (cipherSuites == null) {
-				config.preselectedCipherSuites = null;
-				return this;
-			} else {
-				List<CipherSuite> suites = CipherSuite.getTypesByNames(cipherSuites);
-				return setPreselectedCipherSuites(suites);
-			}
-		}
-
-		/**
-		 * Sets the cipher suites supported by the connector.
-		 * <p>
-		 * The connector will use these cipher suites (in exactly the same
-		 * order) during the DTLS handshake when negotiating a cipher suite with
-		 * a peer.
-		 * 
-		 * @param cipherSuites the supported cipher suites in the order of
-		 *            preference
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is {@code null}
-		 * @throws IllegalArgumentException if the given array is empty,
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
-		 *             contains a cipher suite, not supported by the JVM, or
-		 *             violates the
-		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
-		 */
-		public Builder setSupportedCipherSuites(CipherSuite... cipherSuites) {
-			if (cipherSuites == null) {
-				throw new NullPointerException("Connector must support at least one cipher suite");
-			}
-			return setSupportedCipherSuites(Arrays.asList(cipherSuites));
-		}
-
-		/**
-		 * Sets the cipher suites supported by the connector.
-		 * <p>
-		 * The connector will use these cipher suites (in exactly the same
-		 * order) during the DTLS handshake when negotiating a cipher suite with
-		 * a peer.
-		 * 
-		 * @param cipherSuites the supported cipher suites in the order of
-		 *            preference
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given list is {@code null}
-		 * @throws IllegalArgumentException if the given list is empty,
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
-		 *             contains a cipher suite, not supported by the JVM, or
-		 *             violates the
-		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
-		 */
-		public Builder setSupportedCipherSuites(List<CipherSuite> cipherSuites) {
-			if (cipherSuites == null) {
-				throw new NullPointerException("Connector must support at least one cipher suite");
-			}
-			if (cipherSuites.isEmpty()) {
-				throw new IllegalArgumentException("Connector must support at least one cipher suite");
-			} 
-			if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
-				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
-			}
-			if (config.recommendedCipherSuitesOnly == null || config.recommendedCipherSuitesOnly) {
-				verifyRecommendedCipherSuitesOnly(cipherSuites);
-			}
-			for (CipherSuite cipherSuite : cipherSuites) {
-				if (!cipherSuite.isSupported()) {
-					throw new IllegalArgumentException("cipher-suites " + cipherSuite + " is not supported by JVM!");
-				}
-			}
-			
-			config.supportedCipherSuites = cipherSuites;
-			return this;
-		}
-
-		/**
-		 * Sets the cipher suites supported by the connector.
-		 * <p>
-		 * The connector will use these cipher suites (in exactly the same
-		 * order) during the DTLS handshake when negotiating a cipher suite with
-		 * a peer.
-		 * 
-		 * @param cipherSuites the names of supported cipher suites in the order
-		 *            of preference (see <a href=
-		 *            "http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">
-		 *            IANA registry</a> for a list of cipher suite names)
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is {@code null}
-		 * @throws IllegalArgumentException if the given array is empty,
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
-		 *             contains a cipher suite, not supported by the JVM,
-		 *             contains a name, which is not supported, or violates the
-		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
-		 */
-		public Builder setSupportedCipherSuites(String... cipherSuites) {
-			if (cipherSuites == null) {
-				throw new NullPointerException("Connector must support at least one cipher suite");
-			}
-			List<CipherSuite> suites = CipherSuite.getTypesByNames(cipherSuites);
-			return setSupportedCipherSuites(suites);
-		}
-
-		/**
-		 * Sets the signature algorithms supported by the connector.
-		 * <p>
-		 * The connector will use these signature algorithms (in exactly the
-		 * same order) during the DTLS handshake.
-		 * 
-		 * @param supportedSignatureAlgorithms the supported signature
-		 *            algorithms in the order of preference. No arguments, if no
-		 *            specific extension is to be used for a client, and the
-		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
-		 * @return this builder for command chaining
-		 * @since 2.3
-		 */
-		public Builder setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm... supportedSignatureAlgorithms) {
-			List<SignatureAndHashAlgorithm> list = null;
-			if (supportedSignatureAlgorithms != null) {
-				list = Arrays.asList(supportedSignatureAlgorithms);
-			}
-			return setSupportedSignatureAlgorithms(list);
-		}
-
-		/**
-		 * Sets the signature algorithms supported by the connector.
-		 * <p>
-		 * The connector will use these signature algorithms (in exactly the
-		 * same order) during the DTLS handshake.
-		 * 
-		 * @param supportedSignatureAlgorithms the list of supported signature
-		 *            algorithms in the order of preference. Empty, if no
-		 *            specific extension is to be used for a client, and the
-		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
-		 * @return this builder for command chaining
-		 * @since 2.3
-		 */
-		public Builder setSupportedSignatureAlgorithms(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms) {
-			config.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
-			return this;
-		}
-
-		/**
-		 * Sets the signature algorithms supported by the connector.
-		 * <p>
-		 * The connector will use these signature algorithms (in exactly the
-		 * same order) during the DTLS handshake.
-		 * 
-		 * @param supportedSignatureAlgorithms the list of supported signature
-		 *            algorithm names in the order of preference. Empty, if no
-		 *            specific extension is to be used for a client, and the
-		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
-		 * @return this builder for command chaining
-		 * @see SignatureAndHashAlgorithm#valueOf(String)
-		 * @since 2.3
-		 */
-		public Builder setSupportedSignatureAlgorithms(String... supportedSignatureAlgorithms) {
-			List<SignatureAndHashAlgorithm> list = null;
-			if (supportedSignatureAlgorithms != null) {
-				list = new ArrayList<SignatureAndHashAlgorithm>(supportedSignatureAlgorithms.length);
-				for (int i = 0; i < supportedSignatureAlgorithms.length; i++) {
-					SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm
-							.valueOf(supportedSignatureAlgorithms[i]);
-					if (signatureAndHashAlgorithm != null) {
-						list.add(signatureAndHashAlgorithm);
-					} else {
-						throw new IllegalArgumentException(
-								String.format("Signature and hash algorithm [%s] is not (yet) supported",
-										supportedSignatureAlgorithms[i]));
-					}
-				}
-			}
-			return setSupportedSignatureAlgorithms(list);
-		}
-
-		/**
-		 * Sets the groups (curves) supported by the connector.
-		 * <p>
-		 * The connector will use these supported groups (in exactly the same
-		 * order) during the DTLS handshake when negotiating a curve with a
-		 * peer. According
-		 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
-		 * Client Hello Extensions, Actions of the receiver</a> This affects
-		 * both, curves for ECDH and the certificates for ECDSA.
-		 * 
-		 * @param supportedGroups the supported groups (curves) in the order of
-		 *            preference
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is {@code null}
-		 * @throws IllegalArgumentException if the given array is empty,
-		 *             contains a group (curve), not supported by the JVM, or
-		 *             violates the
-		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
-		 * 
-		 * @since 2.3
-		 */
-		public Builder setSupportedGroups(SupportedGroup... supportedGroups) {
-			if (supportedGroups == null) {
-				throw new NullPointerException("Connector must support at least one group (curve)");
-			}
-			return setSupportedGroups(Arrays.asList(supportedGroups));
-		}
-
-		/**
-		 * Sets the groups (curves) supported by the connector.
-		 * <p>
-		 * The connector will use these supported groups (in exactly the same
-		 * order) during the DTLS handshake when negotiating a curve with a
-		 * peer. According
-		 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
-		 * Client Hello Extensions, Actions of the receiver</a> This affects
-		 * both, curves for ECDH and the certificates for ECDSA.
-		 * 
-		 * @param supportedGroups the supported groups (curves) in the order of
-		 *            preference
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given list is {@code null}
-		 * @throws IllegalArgumentException if the given list is empty,
-		 *             contains a group (curve), not supported by the JVM, or
-		 *             violates the
-		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
-		 * 
-		 * @since 2.3
-		 */
-		public Builder setSupportedGroups(List<SupportedGroup> supportedGroups) {
-			if (supportedGroups == null) {
-				throw new NullPointerException("Connector must support at least one group (curve)");
-			}
-			if (supportedGroups.isEmpty()) {
-				throw new IllegalArgumentException("Connector must support at least one group (curve)");
-			} 
-			if (config.recommendedSupportedGroupsOnly == null || config.recommendedSupportedGroupsOnly) {
-				verifyRecommendedSupportedGroupsOnly(supportedGroups);
-			}
-			for (SupportedGroup group : supportedGroups) {
-				if (!group.isUsable()) {
-					throw new IllegalArgumentException("curve " + group.name() + " is not supported by JVM!");
-				}
-			}
-			
-			config.supportedGroups = supportedGroups;
-			return this;
-		}
-
-		/**
-		 * Sets the groups (curves) supported by the connector.
-		 * <p>
-		 * The connector will use these supported groups (in exactly the same
-		 * order) during the DTLS handshake when negotiating a curve with a
-		 * peer. According
-		 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
-		 * Client Hello Extensions, Actions of the receiver</a> This affects
-		 * both, curves for ECDH and the certificates for ECDSA.
-		 * 
-		 * @param supportedGroups the names of supported groups (curves) in the
-		 *            order of preference (see <a href=
-		 *            "http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8">
-		 *            IANA registry</a> for a list of supported group names)
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is {@code null}
-		 * @throws IllegalArgumentException if the given array is empty,
-		 *             contains a group (curve), not supported by the JVM, or
-		 *             violates the
-		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
-		 * 
-		 * @since 2.3
-		 */
-		public Builder setSupportedGroups(String... supportedGroups) {
-			if (supportedGroups == null) {
-				throw new NullPointerException("Connector must support at least one supported group (curve)");
-			}
-			List<SupportedGroup> groups = new ArrayList<>(supportedGroups.length);
-			for (int i = 0; i < supportedGroups.length; i++) {
-				SupportedGroup knownGroup = SupportedGroup.valueOf(supportedGroups[i]);
-				if (knownGroup != null) {
-					groups.add(knownGroup);
-				} else {
-					throw new IllegalArgumentException(
-							String.format("Group (curve) [%s] is not (yet) supported", supportedGroups[i]));
-				}
-			}
-			return setSupportedGroups(groups);
-		}
-
-		/**
-		 * Activate/Deactivate experimental feature: Stop retransmission at
-		 * first received handshake message.
-		 * 
-		 * @param activate Set it to true if retransmissions should be stopped
-		 *            as soon as we receive a handshake message
-		 * @return this builder for command chaining
-		 */
-		public Builder setEarlyStopRetransmission(boolean activate) {
-			config.earlyStopRetransmission = activate;
-			return this;
-		}
-
-		/**
-		 * Sets the (starting) time to wait before a handshake package gets re-transmitted.
-		 * 
-		 * On each retransmission, the time is doubled.
-		 * 
-		 * @param timeout the time in milliseconds
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if the given timeout is negative
-		 */
-		public Builder setRetransmissionTimeout(int timeout) {
-			if (timeout < 0) {
-				throw new IllegalArgumentException("Retransmission timeout must not be negative");
-			}
-			config.retransmissionTimeout = timeout;
-			return this;
-		}
-
-		/**
-		 * Sets the advanced key store to use for authenticating clients based on a
-		 * pre-shared key.
-		 * 
-		 * If used together with {@link #setIdentity(PrivateKey, PublicKey)} or
-		 * {@link #setIdentity(PrivateKey, Certificate[], CertificateType...)}
-		 * the default preference uses the certificate based cipher suites. To
-		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
-		 * {@link #setSupportedCipherSuites(String...)}.
+		 * If used together with
+		 * {@link #setCertificateIdentityProvider(CertificateProvider)} the
+		 * default preference uses the certificate based cipher suites. To
+		 * change that, use the configuration of
+		 * {@link DtlsConfig#DTLS_CIPHER_SUITES}.
 		 * 
 		 * @param advancedPskStore the advanced key store
 		 * @return this builder for command chaining
+		 * @see DtlsConnectorConfig#getAdvancedPskStore()
 		 * @since 2.3
 		 */
 		public Builder setAdvancedPskStore(AdvancedPskStore advancedPskStore) {
@@ -2266,166 +1700,28 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the connector's identifying properties by means of a private and
-		 * public key pair.
+		 * Sets the connector's certificate identifying provider.
 		 * <p>
-		 * Using this method implies that the connector <em>only</em> supports
-		 * <em>RawPublicKey</em> mode for authenticating to a peer. Please
-		 * ensure, that you setup
-		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)},
-		 * if you want to trust the other peer using RAW_PUBLIC_KEY also.
-		 * 
-		 * If X_509 is intended to be supported together with RAW_PUBLIC_KEY,
-		 * please use
-		 * {@link #setIdentity(PrivateKey, Certificate[], CertificateType...)}
-		 * instead and provide RAW_PUBLIC_KEY together with X_509 in the wanted
-		 * preference order.
-		 *
-		 * If used together with {@link #setAdvancedPskStore(AdvancedPskStore)},
-		 * the default preference uses this certificate based cipher suites. To
-		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
-		 * {@link #setSupportedCipherSuites(String...)}.
-		 * 
-		 * @param privateKey the private key used for creating signatures
-		 * @param publicKey the public key a peer can use to verify possession
-		 *            of the private key
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if any of the given keys is
-		 *             {@code null}
-		 * @see #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
-		 */
-		public Builder setIdentity(PrivateKey privateKey, PublicKey publicKey) {
-			if (privateKey == null) {
-				throw new NullPointerException("The private key must not be null");
-			}
-			if (publicKey == null) {
-				throw new NullPointerException("The public key must not be null");
-			}
-			config.privateKey = privateKey;
-			config.publicKey = publicKey;
-			config.certChain = null;
-			config.identityCertificateTypes = new ArrayList<>(1);
-			config.identityCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			return this;
-		}
-
-		/**
-		 * Sets the connector's identifying properties by means of a private key
-		 * and a corresponding issuer certificates chain.
-		 * <p>
-		 * In server mode the key and certificates are used to prove the
-		 * server's identity to the client. In client mode the key and
-		 * certificates are used to prove the client's identity to the server.
 		 * Please ensure, that you setup
 		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)},
-		 * if you want to trust the other peer also using certificates.
+		 * if you want to trust the other peers.
 		 * 
-		 * If used together with {@link #setAdvancedPskStore(AdvancedPskStore)}, the default
-		 * preference uses this certificate based cipher suites. To change that,
-		 * use {@link #setSupportedCipherSuites(CipherSuite...)} or
-		 * {@link #setSupportedCipherSuites(String...)}.
+		 * If used together with {@link #setAdvancedPskStore(AdvancedPskStore)},
+		 * the default preference uses this certificate based cipher suites. To
+		 * change that, use the configuration of
+		 * {@link DtlsConfig#DTLS_CIPHER_SUITES}.
 		 * 
-		 * @param privateKey the private key used for creating signatures
-		 * @param certificateChain the chain of X.509 certificates asserting the
-		 *            private key subject's identity. The endpoint's certificate
-		 *            must be at position 0, the certificate signed by a trusted
-		 *            CA must be at the highest position. A self-signed
-		 *            top-level certificate will be removed for outgoing
-		 *            {@link CertificateMessage}. If used for a client side
-		 *            {@link CertificateMessage}, the chain will be truncated to
-		 *            the first certificate of one of the received certificate
-		 *            authorities.
-		 * @param certificateTypes list of certificate types in the order of
-		 *            preference. Default is X_509. To support RAW_PUBLIC_KEY
-		 *            also, use X_509 and RAW_PUBLIC_KEY in the order of the
-		 *            preference. If only RAW_PUBLIC_KEY is used, the
-		 *            certificate chain will be set to {@code null}.
+		 * For cases, where only a single certificate based identity is used, a
+		 * instance of {@link SingleCertificateProvider} may be provided.
+		 * 
+		 * @param certificateIdentityProvider the certificate identity provider
 		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given private key or certificate
-		 *             chain is {@code null}
-		 * @throws IllegalArgumentException if the certificate chain does not
-		 *             contain any certificates, or contains a non-X.509
-		 *             certificate
 		 * @see #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
+		 * @see DtlsConnectorConfig#getCertificateIdentityProvider()
+		 * @since 3.0
 		 */
-		public Builder setIdentity(PrivateKey privateKey, Certificate[] certificateChain,
-				CertificateType... certificateTypes) {
-			if (certificateTypes == null || certificateTypes.length == 0) {
-				return setIdentity(privateKey, certificateChain, (List<CertificateType>) null);
-			} else {
-				return setIdentity(privateKey, certificateChain, Arrays.asList(certificateTypes));
-			}
-		}
-
-		/**
-		 * Sets the connector's identifying properties by means of a private key
-		 * and a corresponding issuer certificates chain.
-		 * <p>
-		 * In server mode the key and certificates are used to prove the
-		 * server's identity to the client. In client mode the key and
-		 * certificates are used to prove the client's identity to the server.
-		 * Please ensure, that you setup either
-		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)},
-		 * if you want to trust the other peer also using certificates.
-		 * 
-		 * If used together with {@link #setAdvancedPskStore(AdvancedPskStore)}, the default
-		 * preference uses this certificate based cipher suites. To change that,
-		 * use {@link #setSupportedCipherSuites(CipherSuite...)} or
-		 * {@link #setSupportedCipherSuites(String...)}.
-		 * 
-		 * @param privateKey the private key used for creating signatures
-		 * @param certificateChain the chain of X.509 certificates asserting the
-		 *            private key subject's identity. The endpoint's certificate
-		 *            must be at position 0, the certificate signed by a trusted
-		 *            CA must be at the highest position. A self-signed
-		 *            top-level certificate will be removed for outgoing
-		 *            {@link CertificateMessage}. If used for a client side
-		 *            {@link CertificateMessage}, the chain will be truncated to
-		 *            the first certificate of one of the received certificate
-		 *            authorities.
-		 * @param certificateTypes list of certificate types in the order of
-		 *            preference. Default is X_509. To support RAW_PUBLIC_KEY
-		 *            also, use X_509 and RAW_PUBLIC_KEY in the order of the
-		 *            preference. If only RAW_PUBLIC_KEY is used, the
-		 *            certificate chain will be set to {@code null}.
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given private key or certificate
-		 *             chain is {@code null}
-		 * @throws IllegalArgumentException if the certificate chain does not
-		 *             contain any certificates, or contains a non-X.509
-		 *             certificate. Or the provide certificateTypes is empty.
-		 * @see #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
-		 */
-		public Builder setIdentity(PrivateKey privateKey, Certificate[] certificateChain,
-				List<CertificateType> certificateTypes) {
-			if (privateKey == null) {
-				throw new NullPointerException("The private key must not be null!");
-			} else if (certificateChain == null) {
-				throw new NullPointerException("The certificate chain must not be null!");
-			} else if (certificateChain.length < 1) {
-				throw new IllegalArgumentException("The certificate chain must not be empty!");
-			} else if (certificateTypes != null && certificateTypes.isEmpty()) {
-				throw new IllegalArgumentException("The certificate types must not be empty!");
-			} else if (certificateTypes != null) {
-				for (CertificateType certificateType : certificateTypes) {
-					if (!certificateType.isSupported()) {
-						throw new IllegalArgumentException(
-								"The certificate type " + certificateType + " is not supported!");
-					}
-				}
-			}
-			config.privateKey = privateKey;
-			config.certChain = Arrays.asList(SslContextUtil.asX509Certificates(certificateChain));
-			config.publicKey = config.certChain.get(0).getPublicKey();
-			if (certificateTypes == null) {
-				config.identityCertificateTypes = new ArrayList<>(1);
-				config.identityCertificateTypes.add(CertificateType.X_509);
-			} else {
-				config.identityCertificateTypes = certificateTypes;
-				if (!config.identityCertificateTypes.contains(CertificateType.X_509)) {
-					config.certChain = null;
-				}
-			}
+		public Builder setCertificateIdentityProvider(CertificateProvider certificateIdentityProvider) {
+			config.certificateIdentityProvider = certificateIdentityProvider;
 			return this;
 		}
 
@@ -2444,7 +1740,7 @@ public final class DtlsConnectorConfig {
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given certificate verifier is
 		 *             {@code null}
-		 * @see #setTrustCertificateTypes
+		 * @see DtlsConnectorConfig#getAdvancedCertificateVerifier()
 		 * @since 2.5
 		 */
 		public Builder setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier verifier) {
@@ -2456,11 +1752,13 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets a supplier of application level information for an authenticated peer's identity.
+		 * Sets a supplier of application level information for an authenticated
+		 * peer's identity.
 		 * 
 		 * @param supplier The supplier.
-		 * @return this  builder for command chaining.
+		 * @return this builder for command chaining.
 		 * @throws NullPointerException if supplier is {@code null}.
+		 * @see DtlsConnectorConfig#getApplicationLevelInfoSupplier()
 		 */
 		public Builder setApplicationLevelInfoSupplier(ApplicationLevelInfoSupplier supplier) {
 			if (supplier == null) {
@@ -2471,137 +1769,15 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the certificate types for the trust of the other peer.
-		 * 
-		 * In the order of preference.
-		 * 
-		 * If trusted certificates are provided with one of the setter below,
-		 * the certificate type are adjusted in the order RAW_PUBLIC_KEY and
-		 * X_509. This setter could be used to change that order. If a
-		 * certificate type is included in this list, but the related trusted
-		 * certificates are not provided, {@link #build()} will throw a
-		 * {@link IllegalStateException}.
-		 * 
-		 * @param certificateTypes certificate types in order of preference
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given certificate types is
-		 *             {@code null}
-		 * @throws IllegalArgumentException if the certificate types are empty
-		 * @see #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
-		 */
-		public Builder setTrustCertificateTypes(CertificateType... certificateTypes) {
-			if (certificateTypes == null) {
-				throw new NullPointerException("CertificateTypes must not be null!");
-			} else if (certificateTypes.length == 0) {
-				throw new IllegalArgumentException("CertificateTypes must not be empty!");
-			}
-			for (CertificateType certificateType : certificateTypes) {
-				if (!certificateType.isSupported()) {
-					throw new IllegalArgumentException(
-							"The certificate type " + certificateType + " is not supported!");
-				}
-			}
-			config.trustCertificateTypes = Arrays.asList(certificateTypes);
-			return this;
-		}
-
-		/**
-		 * Set maximum number of deferred processed outgoing application data
-		 * messages.
-		 * 
-		 * Application data messages sent during a handshake may be dropped or
-		 * processed deferred after the handshake. Set this to limit the maximum
-		 * number of messages, which are intended to be processed deferred. If
-		 * more messages are sent, these messages are dropped.
-		 * 
-		 * @param maxDeferredProcessedOutgoingApplicationDataMessages maximum
-		 *            number of deferred processed messages
-		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if the given limit is &lt; 0.
-		 */
-		public Builder setMaxDeferredProcessedOutgoingApplicationDataMessages(
-				int maxDeferredProcessedOutgoingApplicationDataMessages) {
-			if (maxDeferredProcessedOutgoingApplicationDataMessages < 0) {
-				throw new IllegalArgumentException(
-						"Max deferred processed outging application data messages must not be negative!");
-			}
-			config.maxDeferredProcessedOutgoingApplicationDataMessages = maxDeferredProcessedOutgoingApplicationDataMessages;
-			return this;
-		}
-
-		/**
-		 * Set maximum size of deferred processed incoming records.
-		 * 
-		 * Handshake records with future handshake message sequence number or
-		 * records with future epochs received during a handshake may be dropped
-		 * or processed deferred. Set this to limit the maximum size of all
-		 * records, which are intended to be processed deferred. If more records
-		 * are received, these records are dropped.
-		 * 
-		 * @param maxDeferredProcessedIncomingRecordsSize maximum size of all
-		 *            deferred handshake records
-		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if the given limit is &lt; 0.
-		 */
-		public Builder setMaxDeferredProcessedIncomingRecordsSize(int maxDeferredProcessedIncomingRecordsSize) {
-			if (maxDeferredProcessedIncomingRecordsSize < 0) {
-				throw new IllegalArgumentException(
-						"Max deferred processed incoming records size must not be negative!");
-			}
-			config.maxDeferredProcessedIncomingRecordsSize = maxDeferredProcessedIncomingRecordsSize;
-			return this;
-		}
-
-		/**
-		 * Sets the maximum number of active connections the connector should support.
-		 * <p>
-		 * An <em>active</em> connection is a connection that has been used within the
-		 * last <em>staleConnectionThreshold</em> seconds. After that it is considered
-		 * to be <em>stale</em>.
-		 * <p>
-		 * Once the maximum number of active connections is reached, new connections will
-		 * only be accepted by the connector, if <em>stale</em> connections exist (which will
-		 * be evicted one-by-one on an oldest-first basis).
-		 * <p>
-		 * The default value of this property is {@link DtlsConnectorConfig#DEFAULT_MAX_CONNECTIONS}.
-		 * 
-		 * @param maxConnections The maximum number of active connections to support.
-		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if the given limit is &lt; 1.
-		 * @see #setStaleConnectionThreshold(long)
-		 */
-		public Builder setMaxConnections(final int maxConnections) {
-			if (maxConnections < 1) {
-				throw new IllegalArgumentException("Max connections must be at least 1");
-			}
-			config.maxConnections = maxConnections;
-			return this;
-		}
-
-		/**
-		 * Sets the maximum number of seconds without any data being exchanged before a connection
-		 * is considered <em>stale</em>.
-		 * <p>
-		 * Once a connection becomes stale, it is eligible for eviction when a peer wants to establish a
-		 * new connection and the connector already has <em>maxConnections</em> connections with peers
-		 * established. Note that a connection is no longer considered stale, once data is being exchanged
-		 * over it before it got evicted.
-		 * 
-		 * @param threshold The number of seconds.
-		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if the given threshold is &lt; 1.
-		 * @see #setMaxConnections(int)
-		 */
-		public Builder setStaleConnectionThreshold(final long threshold) {
-			if (threshold < 1) {
-				throw new IllegalArgumentException("Threshold must be at least 1 second");
-			}
-			config.staleConnectionThreshold = threshold;
-			return this;
-		}
-
-		/**
 		 * Sets the connection id generator.
+		 * 
+		 * If no connection ID generator is provided, the value of
+		 * {@link DtlsConfig#DTLS_CONNECTION_ID_LENGTH} is used to create a
+		 * {@link SingleNodeConnectionIdGenerator}, if set. If additionally
+		 * {@link DtlsConfig#DTLS_CONNECTION_ID_NODE_ID} is available, a
+		 * {@link MultiNodeConnectionIdGenerator} is created, but requires a CID
+		 * length of at least 5 bytes throwing {@link IllegalStateException} on
+		 * less.
 		 * 
 		 * @param connectionIdGenerator connection id generator. {@code null}
 		 *            for not supported. The generator may only support the use
@@ -2609,238 +1785,10 @@ public final class DtlsConnectorConfig {
 		 *            case {@link ConnectionIdGenerator#useConnectionId()} must
 		 *            return {@code false}.
 		 * @return this builder for command chaining.
+		 * @see DtlsConnectorConfig#getConnectionIdGenerator()
 		 */
 		public Builder setConnectionIdGenerator(ConnectionIdGenerator connectionIdGenerator) {
 			config.connectionIdGenerator = connectionIdGenerator;
-			return this;
-		}
-
-		/**
-		 * Set the number of thread which should be used to handle DTLS
-		 * connection.
-		 * <p>
-		 * The default value is 6 * <em>#(CPU cores)</em>.
-		 * 
-		 * @param threadCount the number of threads.
-		 * @return this builder for command chaining.
-		 */
-		public Builder setConnectionThreadCount(int threadCount) {
-			config.connectionThreadCount = threadCount;
-			return this;
-		}
-
-		/**
-		 * Set the number of thread which should be used to receive
-		 * datagrams from the socket.
-		 * <p>
-		 * The default value is half of <em>#(CPU cores)</em>.
-		 * 
-		 * @param threadCount the number of threads.
-		 * @return this builder for command chaining.
-		 */
-		public Builder setReceiverThreadCount(int threadCount) {
-			config.receiverThreadCount = threadCount;
-			return this;
-		}
-
-		/**
-		 * Set the timeout of automatic session resumption in milliseconds.
-		 * <p>
-		 * The default value is {@code null}, for no automatic session
-		 * resumption. The configured value may be overridden by the endpoint
-		 * context attribute {@link DtlsEndpointContext#KEY_RESUMPTION_TIMEOUT}.
-		 * 
-		 * @param timeoutInMillis the number of milliseconds. Usually values
-		 *            around 30000 milliseconds are useful, depending on the
-		 *            setup of NATS on the path. Smaller timeouts are only
-		 *            useful for unit test, they would trigger too many
-		 *            resumption handshakes.
-		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if the timeout is below 1
-		 *             millisecond
-		 */
-		public Builder setAutoResumptionTimeoutMillis(Long timeoutInMillis) {
-			if (timeoutInMillis != null && timeoutInMillis < 1) {
-				throw new IllegalArgumentException("auto resumption timeout must not below 1!");
-			}
-			config.autoResumptionTimeoutMillis = timeoutInMillis;
-			return this;
-		}
-
-		/**
-		 * Sets whether the connector should support the use of the TLS
-		 * <a href="https://tools.ietf.org/html/rfc6066#section-3">
-		 * Server Name Indication extension</a> in the DTLS handshake.
-		 * <p>
-		 * The default value of this property is {@code null}. If this property
-		 * is not set explicitly, then the {@link Builder#build()} method
-		 * will set it to {@code true}.
-		 * 
-		 * @param flag {@code true} if SNI should be used.
-		 * @return this builder for command chaining.
-		 */
-		public Builder setSniEnabled(boolean flag) {
-			config.sniEnabled = flag;
-			return this;
-		}
-
-		/**
-		 * Sets the <em>Extended Master Secret</em> TLS extension mode.
-		 * 
-		 * <p>
-		 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627, Extended
-		 * Master Secret extension</a> and {@link ExtendedMasterSecretMode} for
-		 * details.
-		 * </p>
-		 * <p>
-		 * The default value of this property is {@code null}. If this property
-		 * is not set explicitly using
-		 * {@link Builder#setExtendedMasterSecretMode(ExtendedMasterSecretMode)},
-		 * then the {@link Builder#build()} method will set it to
-		 * {@link ExtendedMasterSecretMode#ENABLED}.
-		 * </p>
-		 * 
-		 * @param mode the extended master secret mode
-		 * @return this builder for command chaining.
-		 * @since 3.0
-		 */
-		public Builder setExtendedMasterSecretMode(ExtendedMasterSecretMode mode) {
-			config.extendedMasterSecretMode = mode;
-			return this;
-		}
-
-		/**
-		 * Sets threshold in percent of {@link #setMaxConnections(int)}, whether
-		 * a HELLO_VERIFY_REQUEST should be used also for session resumption.
-		 * 
-		 * Note: a value larger than 0 will call
-		 * {@link SessionCache#get(org.eclipse.californium.scandium.dtls.SessionId)}.
-		 * If that implementation is expensive, please ensure, that this value
-		 * is configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid
-		 * session ids may be spoofed and gets too expensive.
-		 * 
-		 * @param threshold 0 := always use HELLO_VERIFY_REQUEST, 1 ... 100 :=
-		 *            dynamically determine to use HELLO_VERIFY_REQUEST. Default
-		 *            is based on
-		 *            {@link DtlsConnectorConfig#DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}
-		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if threshold is not between 0 and 100
-		 */
-		public Builder setVerifyPeersOnResumptionThreshold(int threshold) {
-			if (threshold < 0 || threshold > 100) {
-				throw new IllegalArgumentException("threshold must be between 0 and 100, but is " + threshold + "!");
-			}
-			config.verifyPeersOnResumptionThreshold = threshold;
-			return this;
-		}
-
-		/**
-		 * Set whether session id is used by this server or not.
-		 * 
-		 * @param flag {@code true} if no session id is used by this server.
-		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if no session id should be used and
-		 *             the configuration is for client only.
-		 */
-		public Builder setNoServerSessionId(boolean flag) {
-			if (Boolean.TRUE.equals(config.clientOnly) && flag) {
-				throw new IllegalArgumentException("not applicable for client only!");
-			}
-			config.useNoServerSessionId = flag;
-			return this;
-		}
-
-		/**
-		 * Use anti replay filter.
-		 * 
-		 * @param enable {@code true} to enable filter. Default {@code true}.
-		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if window filter is active.
-		 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
-		 */
-		public Builder setUseAntiReplayFilter(boolean enable) {
-			if (enable && config.useExtendedWindowFilter != null && config.useExtendedWindowFilter != 0) {
-				throw new IllegalArgumentException("Window filter is active!");
-			}
-			config.useAntiReplayFilter = enable;
-			return this;
-		}
-
-		/**
-		 * Use extended window filter.
-		 * 
-		 * The value will be subtracted from to lower receive window boundary. A
-		 * value of {@code -1} will set that calculated value to {@code 0}.
-		 * Messages between lower receive window boundary and that calculated
-		 * value will pass the filter, for other messages the filter is applied.
-		 * 
-		 * @param level value to extend lower receive window boundary, {@code 0}
-		 *            to disable the extended lower boundary. For backwards
-		 *            compatibility use {@code -1}, to extend the lower boundary
-		 *            down to {@code 0}, Default {@code 0} for disabled.
-		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if anti replay window filter is
-		 *             active.
-		 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
-		 * @since 2.4
-		 */
-		public Builder setUseExtendedWindowFilter(int level) {
-			if (level != 0 && Boolean.TRUE.equals(config.useAntiReplayFilter)) {
-				throw new IllegalArgumentException("Anti replay filter is active!");
-			}
-			config.useExtendedWindowFilter = level;
-			return this;
-		}
-
-		/**
-		 * Use filter to update the ip-address from DTLS 1.2 CID records only
-		 * for newer records based on epoch/sequence_number.
-		 * 
-		 * Only used, if a connection ID generator
-		 * {@link #setConnectionIdGenerator(ConnectionIdGenerator)} is provided,
-		 * which "uses" CID. If the "anti-replay-filter is switched off, it's
-		 * not recommended to switch this off also!
-		 * 
-		 * @param enable {@code true} to enable filter, {@code false} to disable
-		 *            filter. Default {@code true}.
-		 * @return this builder for command chaining.
-		 */
-		public Builder setCidUpdateAddressOnNewerRecordFilter(boolean enable) {
-			config.useCidUpdateAddressOnNewerRecordFilter = enable;
-			return this;
-		}
-
-		/**
-		 * Use truncated certificate paths for client's certificate message.
-		 * 
-		 * Truncate certificate path according the received certificate
-		 * authorities in the {@link CertificateRequest} for the client's
-		 * {@link CertificateMessage}.
-		 * 
-		 * @param enable {@code true} to truncate the certificate path according
-		 *            the received certificate authorities. Default
-		 *            {@code true}.
-		 * @return this builder for command chaining.
-		 * @since 2.1
-		 */
-		public Builder setUseTruncatedCertificatePathForClientsCertificateMessage(boolean enable) {
-			config.useTruncatedCertificatePathForClientsCertificateMessage = enable;
-			return this;
-		}
-
-		/**
-		 * Use truncated certificate paths for validation.
-		 * 
-		 * Truncate certificate path according the available trusted
-		 * certificates before validation.
-		 * 
-		 * @param enable {@code true} to truncate the certificate path according
-		 *            the available trusted certificates. Default {@code true}.
-		 * @return this builder for command chaining.
-		 * @since 2.1
-		 */
-		public Builder setUseTruncatedCertificatePathForValidation(boolean enable) {
-			config.useTruncatedCertificatePathForValidation = enable;
 			return this;
 		}
 
@@ -2849,19 +1797,75 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param tag logging tag of configure instance
 		 * @return this builder for command chaining.
+		 * @see DtlsConnectorConfig#getLoggingTag()
 		 */
 		public Builder setLoggingTag(String tag) {
 			config.loggingTag = tag;
 			return this;
 		}
 
+		/**
+		 * Set connection listener.
+		 * 
+		 * @param connectionListener connection listener
+		 * @return this builder for command chaining.
+		 * @see DtlsConnectorConfig#getConnectionListener()
+		 */
 		public Builder setConnectionListener(ConnectionListener connectionListener) {
 			config.connectionListener = connectionListener;
 			return this;
 		}
 
-		private boolean isConfiguredWithKeyPair() {
-			return config.privateKey != null && config.publicKey != null;
+		/**
+		 * Sets the session store for {@link InMemoryConnectionStore}.
+		 * 
+		 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
+		 * session store must be provided directly to that implementation. In
+		 * that case, the configured session store here will be ignored.
+		 * 
+		 * @param sessionStore session store, or {@code null}, if not to be
+		 *            used.
+		 * @return this builder for command chaining.
+		 * 
+		 * @see DTLSConnector#createConnectionStore
+		 * @see DtlsConnectorConfig#getSessionStore()
+		 * @since 3.0
+		 */
+		public Builder setSessionStore(SessionStore sessionStore) {
+			config.sessionStore = sessionStore;
+			return this;
+		}
+
+		/**
+		 * Sets the resumption verifier.
+		 * 
+		 * If the client provides a session id in the client hello, this
+		 * verifier is used to ensure, that a valid session to resume is
+		 * available. An implementation may check a maximum time, or, if the
+		 * credentials are expired (e.g. x509 valid range). The default verifier
+		 * will just checks, if a DTLS session with that session id is available
+		 * in the {@link ResumptionSupportingConnectionStore}.
+		 * 
+		 * @param resumptionVerifier the resumption verifier
+		 * @return this builder for command chaining.
+		 * @see DtlsConnectorConfig#getResumptionVerifier()
+		 * @since 3.0
+		 */
+		public Builder setResumptionVerifier(ResumptionVerifier resumptionVerifier) {
+			config.resumptionVerifier = resumptionVerifier;
+			return this;
+		}
+
+		/**
+		 * Set certificate configuration helper.
+		 * 
+		 * @param helper custom certificate configuration helper
+		 * @return this builder for command chaining.
+		 * @since 3.0
+		 */
+		public Builder setCertificateHelper(CertificateConfigurationHelper helper) {
+			config.certificateConfigurationHelper = helper;
+			return this;
 		}
 
 		/**
@@ -2877,21 +1881,11 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Creates an instance of <code>DtlsConnectorConfig</code> based on the properties
-		 * set on this builder.
+		 * Creates an instance of {@code DtlsConnectorConfig} based on the
+		 * properties set on this builder.
 		 * <p>
-		 * If the <em>supportedCipherSuites</em> property has not been set, the
-		 * builder tries to derive a reasonable set of cipher suites from the
-		 * <em>pskStore</em> and <em>identity</em> properties as follows:
-		 * <ol>
-		 * <li>If only the <em>pskStore</em> is set: <code>{TLS_PSK_WITH_AES_128_CCM_8,
-		 * TLS_PSK_WITH_AES_128_CBC_SHA256}</code></li>
-		 * <li>If only the <em>identity</em> is set: <code>{TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-		 * TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256}</code></li>
-		 * <li>If both the <em>pskStore</em> and the <em>identity</em> are set:
-		 * <code>{TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-		 * TLS_PSK_WITH_AES_128_CCM_8, TLS_PSK_WITH_AES_128_CBC_SHA256}</code></li>
-		 * </ol>
+		 * If some parameter are not set, the builder tries to derive a
+		 * reasonable values from the other parameters.
 		 * 
 		 * @return the configuration object
 		 * @throws IllegalStateException if the configuration is inconsistent
@@ -2902,152 +1896,130 @@ public final class DtlsConnectorConfig {
 			if (config.address == null) {
 				config.address = new InetSocketAddress(0);
 			}
-			if (config.enableReuseAddress == null) {
-				config.enableReuseAddress = Boolean.FALSE;
+			if (config.useReuseAddress == null) {
+				config.useReuseAddress = Boolean.FALSE;
 			}
-			if (config.useTruncatedCertificatePathForClientsCertificateMessage == null) {
-				config.useTruncatedCertificatePathForClientsCertificateMessage = Boolean.TRUE;
+			Integer backoff = config.configuration.get(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF);
+			if (backoff != null && backoff >= config.getMaxRetransmissions()) {
+				throw new IllegalStateException("Backoff for handshake retransmissions (" + backoff
+						+ ") must be less than the maximum retransmissions (" + config.getMaxRetransmissions() + ")!");
 			}
-			if (config.useTruncatedCertificatePathForValidation == null) {
-				config.useTruncatedCertificatePathForValidation = Boolean.TRUE;
-			}
-			if (config.earlyStopRetransmission == null) {
-				config.earlyStopRetransmission = Boolean.TRUE;
-			}
-			if (config.retransmissionTimeout == null) {
-				config.retransmissionTimeout = DEFAULT_RETRANSMISSION_TIMEOUT_MS;
-			}
-			if (config.maxRetransmissions == null) {
-				config.maxRetransmissions = DEFAULT_MAX_RETRANSMISSIONS;
-			}
-			if (config.backOffRetransmission == null) {
-				config.backOffRetransmission = config.maxRetransmissions / 2;
-			}
-			if (config.maxFragmentedHandshakeMessageLength == null) {
-				config.maxFragmentedHandshakeMessageLength = DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH;
-			}
-			if (config.clientAuthenticationWanted == null) {
-				config.clientAuthenticationWanted = Boolean.FALSE;
-			}
-			if (config.clientOnly == null) {
-				config.clientOnly = Boolean.FALSE;
-			}
-			if (config.recommendedCipherSuitesOnly == null) {
-				config.recommendedCipherSuitesOnly = Boolean.TRUE;
-			}
-			if (config.recommendedSupportedGroupsOnly == null) {
-				config.recommendedSupportedGroupsOnly = Boolean.TRUE;
-			}
-			if (config.clientAuthenticationRequired == null) {
-				if (config.clientOnly) {
-					config.clientAuthenticationRequired = Boolean.FALSE;
-				} else {
-					config.clientAuthenticationRequired = !config.clientAuthenticationWanted;
-				}
-			}
-			if (config.serverOnly == null) {
-				config.serverOnly = Boolean.FALSE;
-			}
-			if (config.defaultHandshakeMode == null) {
-				if (config.serverOnly) {
-					config.defaultHandshakeMode = DtlsEndpointContext.HANDSHAKE_MODE_NONE;
-				} else {
-					config.defaultHandshakeMode = DtlsEndpointContext.HANDSHAKE_MODE_AUTO;
-				}
-			}
-			if (config.useNoServerSessionId == null) {
-				config.useNoServerSessionId = Boolean.FALSE;
-			}
-			if (config.outboundMessageBufferSize == null) {
-				config.outboundMessageBufferSize = 100000;
-			}
-			if (config.maxDeferredProcessedOutgoingApplicationDataMessages == null){
-				config.maxDeferredProcessedOutgoingApplicationDataMessages = DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES;
-			}
-			if (config.maxDeferredProcessedIncomingRecordsSize == null){
-				config.maxDeferredProcessedIncomingRecordsSize = DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE;
-			}
-			if (config.maxConnections == null){
-				config.maxConnections = DEFAULT_MAX_CONNECTIONS;
-			}
-			if (config.connectionThreadCount == null) {
-				config.connectionThreadCount = DEFAULT_EXECUTOR_THREAD_POOL_SIZE;
-			}
-			if (config.receiverThreadCount == null) {
-				config.receiverThreadCount = DEFAULT_RECEIVER_THREADS;
-			}
-			if (config.staleConnectionThreshold == null) {
-				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
-			}
-			if (config.maxTransmissionUnitLimit == null){
-				config.maxTransmissionUnitLimit = DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT;
-			}
-			if (config.sniEnabled == null) {
-				config.sniEnabled = Boolean.FALSE;
-			}
-			if (config.extendedMasterSecretMode == null) {
-				config.extendedMasterSecretMode = ExtendedMasterSecretMode.ENABLED;
-			}
-			if (config.useExtendedWindowFilter == null) {
-				config.useExtendedWindowFilter = 0;
-			}
-			if (config.useAntiReplayFilter == null) {
-				config.useAntiReplayFilter = config.useExtendedWindowFilter == 0;
-			}
-			if (config.useCidUpdateAddressOnNewerRecordFilter == null) {
-				config.useCidUpdateAddressOnNewerRecordFilter = Boolean.TRUE;
-			}
-			if (config.verifyPeersOnResumptionThreshold == null) {
-				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
-			}
-			if (config.trustCertificateTypes == null && config.advancedCertificateVerifier != null) {
-				config.trustCertificateTypes = config.advancedCertificateVerifier.getSupportedCertificateType();
-			} 
 
-			if (config.serverOnly && !config.clientAuthenticationRequired && !config.clientAuthenticationWanted
-					&& config.trustCertificateTypes != null) {
+			if (config.getRetransmissionTimeout() > config.getMaxRetransmissionTimeout()) {
+				throw new IllegalStateException("Retransmission timeout " + config.getRetransmissionTimeout()
+						+ " is more than the maximum " + config.getMaxRetransmissionTimeout() + "!");
+			}
+
+			if (config.getRetransmissionTimeout() <= 0) {
 				throw new IllegalStateException(
-						"configured trusted certificates or certificate verifier are not used for disabled client authentication!");
+						"Retransmission timeout " + config.getRetransmissionTimeout() + " must not be 0 or less!");
 			}
 
+			if (config.getMaxRetransmissionTimeout() <= 0) {
+				throw new IllegalStateException("Maximum retransmission timeout " + config.getMaxRetransmissionTimeout()
+						+ " must not be 0 or less!");
+			}
+
+			if (config.getMaxRetransmissions() < 1) {
+				throw new IllegalStateException(
+						"Maximum retransmissions " + config.getMaxRetransmissions() + " must not be less than 1!");
+			}
+
+			if (config.getRetransmissionRandomFactor() < 1.0F) {
+				throw new IllegalStateException("Retransmission timeout random factor "
+						+ config.getRetransmissionRandomFactor() + " must not be less than 1.0!");
+			}
+
+			if (config.getRetransmissionTimeoutScale() < 1.0F) {
+				throw new IllegalStateException("Retransmission timeout scale factor "
+						+ config.getRetransmissionTimeoutScale() + " must not be less than 1.0!");
+			}
+
+			if (config.getMaxTransmissionUnit() != null && config.getMaxTransmissionUnitLimit() != null) {
+				int mtu = config.getMaxTransmissionUnit();
+				int limit = config.getMaxTransmissionUnitLimit();
+				if (mtu > limit) {
+					throw new IllegalStateException(
+							"MTU (" + mtu + " bytes) is larger than the limit (" + limit + " bytes)!");
+				}
+			}
+
+			if (config.getDtlsRole() == DtlsRole.SERVER_ONLY) {
+				if (config.getCertificateAuthenticationMode() == CertificateAuthenticationMode.NONE
+						&& config.advancedCertificateVerifier != null) {
+					throw new IllegalStateException(
+							"configured certificate verifier is not used for client authentication mode NONE!");
+				}
+				if (config.getAutoHandshakeTimeoutMillis() != null) {
+					throw new IllegalStateException(
+							"DTLS_AUTO_HANDSHAKE_TIMEOUT must not be used with SERVER_ONLY!");
+				}
+			}
+
+			Integer cidCodePoint = config.useDeprecatedCid();
+			if (cidCodePoint != null) {
+				ExtensionType cidType = ExtensionType.getExtensionTypeById(cidCodePoint);
+				if (cidType == null) {
+					throw new IllegalStateException(cidCodePoint + " code point is not supported for extensions!");
+				}
+				if (cidType != ExtensionType.CONNECTION_ID
+						&& cidType.getReplacementType() != ExtensionType.CONNECTION_ID) {
+					throw new IllegalStateException(
+							cidCodePoint + " (" + cidType + ") is no supported CID extension code point!");
+				}
+			}
+
+			config.supportedGroups = config.configuration.get(DtlsConfig.DTLS_CURVES);
+			if (config.supportedGroups == null) {
+				config.supportedGroups = Collections.emptyList();
+			}
+			config.supportedSignatureAlgorithms = config.configuration
+					.get(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS);
+			if (config.supportedSignatureAlgorithms == null) {
+				config.supportedSignatureAlgorithms = Collections.emptyList();
+			}
+			config.supportedCertificatekeyAlgorithms = config.configuration
+					.get(DtlsConfig.DTLS_CERTIFICATE_KEY_ALGORITHMS);
+			if (config.supportedCertificatekeyAlgorithms == null) {
+				config.supportedCertificatekeyAlgorithms = Collections.emptyList();
+			}
+
+			if (config.cipherSuiteSelector == null && config.getDtlsRole() != DtlsRole.CLIENT_ONLY) {
+				config.cipherSuiteSelector = new DefaultCipherSuiteSelector();
+			}
+			if (config.resumptionVerifier == null && config.useServerSessionId()
+					&& config.getDtlsRole() != DtlsRole.CLIENT_ONLY) {
+				config.resumptionVerifier = new ConnectionStoreResumptionVerifier();
+			}
+
+			CertificateProvider provider = config.certificateIdentityProvider;
+			NewAdvancedCertificateVerifier verifier = config.advancedCertificateVerifier;
+
+			if (config.certificateConfigurationHelper == null) {
+				CertificateConfigurationHelper helper = new CertificateConfigurationHelper();
+				if (provider instanceof ConfigurationHelperSetup) {
+					((ConfigurationHelperSetup) provider).setupConfigurationHelper(helper);
+					config.certificateConfigurationHelper = helper;
+				}
+				if (verifier instanceof ConfigurationHelperSetup) {
+					((ConfigurationHelperSetup) verifier).setupConfigurationHelper(helper);
+					config.certificateConfigurationHelper = helper;
+				}
+			}
+
+			config.supportedCipherSuites = config.configuration.get(DtlsConfig.DTLS_CIPHER_SUITES);
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				determineCipherSuitesFromConfig();
 			}
 
-			if (config.supportedGroups == null) {
-				config.supportedGroups = Collections.emptyList();
-			}
-			if (config.supportedSignatureAlgorithms == null) {
-				config.supportedSignatureAlgorithms = Collections.emptyList();
-			}
-
-			if (config.cipherSuiteSelector == null && !config.clientOnly) {
-				config.cipherSuiteSelector = new DefaultCipherSuiteSelector();
-			}
-
 			// check cipher consistency
-			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
-				throw new IllegalStateException("Supported cipher suites must be set either " +
-						"explicitly or implicitly by means of setting the identity or PSK store");
-			}
-			for (CipherSuite cipherSuite : config.supportedCipherSuites) {
-				if (!cipherSuite.isSupported()) {
-					throw new IllegalStateException("cipher-suites " + cipherSuite + " is not supported by JVM!");
-				}
+			if (config.supportedCipherSuites.isEmpty()) {
+				throw new IllegalStateException("Supported cipher suites must be set either "
+						+ "explicitly or implicitly by means of setting the identity or PSK store");
 			}
 
-			if (config.trustCertificateTypes != null) {
-				if (config.advancedCertificateVerifier == null) {
-					throw new IllegalStateException(
-							"trusted certificates, trusted rpks, or certificate verifier must be set for trust certificates");
-				}
-				List<CertificateType> list = config.advancedCertificateVerifier.getSupportedCertificateType();
-				for (CertificateType type : config.trustCertificateTypes) {
-					if (!list.contains(type)) {
-						throw new IllegalStateException(
-								type + " is not supported by certificate verifier");
-					}
-				}
+			if (config.useRecommendedCipherSuitesOnly()) {
+				verifyRecommendedCipherSuitesOnly(config.supportedCipherSuites);
 			}
 
 			boolean certifacte = false;
@@ -3070,65 +2042,113 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException("Advanced PSK store set, but no PSK cipher suite!");
 			}
 
-			if (ecc) {
+			if (certifacte) {
 				if (config.supportedSignatureAlgorithms.isEmpty()) {
-					if (config.certChain == null && config.publicKey != null) {
-						config.supportedSignatureAlgorithms = SignatureAndHashAlgorithm
-								.getDefaultSignatureAlgorithms(config.publicKey);
-					} else {
-						config.supportedSignatureAlgorithms = SignatureAndHashAlgorithm
-								.getDefaultSignatureAlgorithms(config.certChain);
+					List<SignatureAndHashAlgorithm> algorithms = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
+					if (config.certificateConfigurationHelper != null) {
+						ListUtils.addIfAbsent(algorithms,
+								config.certificateConfigurationHelper.getDefaultSignatureAndHashAlgorithms());
 					}
+					config.supportedSignatureAlgorithms = algorithms;
 				}
-				if (config.supportedGroups.isEmpty()) {
-					config.supportedGroups = getDefaultSupportedGroups();
+				if (config.supportedCertificatekeyAlgorithms.isEmpty()) {
+					// certificate based cipher suites.
+					List<CertificateKeyAlgorithm> keyAlgorithms = new ArrayList<>();
+					if (SignatureAndHashAlgorithm.isSupportedAlgorithm(config.supportedSignatureAlgorithms,
+							CertificateKeyAlgorithm.EC)) {
+						ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.EC);
+					}
+					if (SignatureAndHashAlgorithm.isSupportedAlgorithm(config.supportedSignatureAlgorithms,
+							CertificateKeyAlgorithm.RSA)) {
+						ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.RSA);
+					}
+					if (config.getConfiguration().get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
+						ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.EC);
+					}
+					config.supportedCertificatekeyAlgorithms = keyAlgorithms;
 				}
 			} else {
 				if (!config.supportedSignatureAlgorithms.isEmpty()) {
 					throw new IllegalStateException(
 							"supported signature and hash algorithms set, but no ecdhe based cipher suite!");
 				}
-				if (!config.supportedGroups.isEmpty()) {
-					throw new IllegalStateException("supported groups set, but no ecdhe based cipher suite!");
-				}
-			}
-
-			if (!certifacte) {
-				if (config.privateKey != null || config.publicKey != null) {
-					throw new IllegalStateException("Identity set, but no certificate based cipher suite!");
+				if (provider != null) {
+					throw new IllegalStateException("certificate identity set, but no certificate based cipher suite!");
 				}
 				if (config.advancedCertificateVerifier != null) {
 					throw new IllegalStateException("certificate trust set, but no certificate based cipher suite!");
 				}
 			}
+			if (ecc) {
+				if (config.supportedGroups.isEmpty()) {
+					List<SupportedGroup> defaultGroups = new ArrayList<>(SupportedGroup.getPreferredGroups());
+					if (config.certificateConfigurationHelper != null) {
+						ListUtils.addIfAbsent(defaultGroups,
+								config.certificateConfigurationHelper.getDefaultSupportedGroups());
+					}
+					config.supportedGroups = defaultGroups;
+				}
+			} else {
+				if (!config.supportedGroups.isEmpty()) {
+					throw new IllegalStateException("supported groups set, but no ecdhe based cipher suite!");
+				}
+			}
 
-			if (config.certChain != null) {
-				X509Certificate certificate = config.certChain.get(0);
-				if (config.clientOnly) {
-					if (!CertPathUtil.canBeUsedForAuthentication(certificate, true)) {
-						throw new IllegalStateException("certificate has no proper key usage for clients!");
-					}
-				} else if (config.serverOnly) {
-					if (!CertPathUtil.canBeUsedForAuthentication(certificate, false)) {
-						throw new IllegalStateException("certificate has no proper key usage for servers!");
-					}
-				} else {
-					if (!CertPathUtil.canBeUsedForAuthentication(certificate, true)) {
-						throw new IllegalStateException("certificate has no proper key usage as clients!");
-					}
-					if (!CertPathUtil.canBeUsedForAuthentication(certificate, false)) {
-						throw new IllegalStateException("certificate has no proper key usage as servers!");
+			if (config.useRecommendedSupportedGroupsOnly()) {
+				verifyRecommendedSupportedGroupsOnly(config.supportedGroups);
+			}
+
+			if (config.useRecommendedSignatureAndHashAlgorithmsOnly()) {
+				verifyRecommendedSignatureAndHashAlgorithmsOnly(config.supportedSignatureAlgorithms);
+			}
+
+			if (config.certificateConfigurationHelper != null) {
+				config.certificateConfigurationHelper
+						.verifySignatureAndHashAlgorithmsConfiguration(config.supportedSignatureAlgorithms);
+				config.certificateConfigurationHelper.verifySupportedGroupsConfiguration(config.supportedGroups);
+				if (provider != null && provider.getSupportedCertificateTypes().contains(CertificateType.X_509)) {
+					if (config.getDtlsRole() == DtlsRole.CLIENT_ONLY) {
+						if (!config.certificateConfigurationHelper.canBeUsedForAuthentication(true)) {
+							throw new IllegalStateException("certificate has no proper key usage for clients!");
+						}
+					} else if (config.getDtlsRole() == DtlsRole.SERVER_ONLY) {
+						if (!config.certificateConfigurationHelper.canBeUsedForAuthentication(false)) {
+							throw new IllegalStateException("certificate has no proper key usage for servers!");
+						}
+					} else {
+						if (!config.certificateConfigurationHelper.canBeUsedForAuthentication(true)) {
+							throw new IllegalStateException("certificate has no proper key usage as clients!");
+						}
+						if (!config.certificateConfigurationHelper.canBeUsedForAuthentication(false)) {
+							throw new IllegalStateException("certificate has no proper key usage as servers!");
+						}
 					}
 				}
 			}
-			verifySignatureAndHashAlgorithms(config.supportedSignatureAlgorithms);
-			verifySupportedGroups(config.supportedGroups);
-			config.trustCertificateTypes = ListUtils.init(config.trustCertificateTypes);
-			config.identityCertificateTypes = ListUtils.init(config.identityCertificateTypes);
+			if (config.useHelloVerifyRequest() && !config.useHelloVerifyRequestForPsk()
+					&& !CipherSuite.containsPskBasedCipherSuite(config.supportedCipherSuites)) {
+				throw new IllegalStateException(
+						"HELLO_VERIFY_REQUEST disabled for PSK, requires at least one PSK cipher suite!");
+			}
+			config.supportedCertificatekeyAlgorithms = ListUtils.init(config.supportedCertificatekeyAlgorithms);
 			config.supportedCipherSuites = ListUtils.init(config.supportedCipherSuites);
 			config.supportedGroups = ListUtils.init(config.supportedGroups);
-			config.certChain = ListUtils.init(config.certChain);
 			config.supportedSignatureAlgorithms = ListUtils.init(config.supportedSignatureAlgorithms);
+			if (config.connectionIdGenerator == null) {
+				Integer cidLength = config.configuration.get(DtlsConfig.DTLS_CONNECTION_ID_LENGTH);
+				Integer cidNode = config.configuration.get(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID);
+				if (cidLength != null) {
+					if (cidNode != null) {
+						if (cidLength <= 4) {
+							throw new IllegalStateException(cidLength
+									+ " bytes are too small for multiple nodes CID! At least, 5 bytes are required.");
+						}
+						setConnectionIdGenerator(new MultiNodeConnectionIdGenerator(cidNode, cidLength));
+					} else {
+						setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
+					}
+				}
+			}
 			return config;
 		}
 
@@ -3142,25 +2162,27 @@ public final class DtlsConnectorConfig {
 		}
 
 		private void verifyCertificateBasedCipherConfig(CipherSuite suite) {
-			if (config.privateKey == null || config.publicKey == null) {
-				if (!config.clientOnly) {
-					throw new IllegalStateException("Identity must be set for configured " + suite.name());
+			if (config.getDtlsRole() == DtlsRole.CLIENT_ONLY) {
+				if (config.advancedCertificateVerifier == null) {
+					throw new IllegalStateException(
+							"certificate verifier must be set on client for configured " + suite.name());
 				}
 			} else {
-				String algorithm = suite.getCertificateKeyAlgorithm().name();
-				if (!algorithm.equals(config.privateKey.getAlgorithm())
-						|| !algorithm.equals(config.publicKey.getAlgorithm())) {
-					if (!algorithm.equals("EC")
-							|| !Asn1DerDecoder.isSupported(config.privateKey.getAlgorithm())
-							|| !Asn1DerDecoder.isSupported(config.publicKey.getAlgorithm())) {
-						throw new IllegalStateException(
-								"Keys must be " + algorithm + " capable for configured " + suite.name());
-					}
+				if (config.certificateIdentityProvider == null) {
+					throw new IllegalStateException("Identity must be set for configured " + suite.name());
 				}
-			}
-			if (config.clientOnly || config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
-				if (config.trustCertificateTypes == null) {
-					throw new IllegalStateException("trust must be set for configured " + suite.name());
+				List<CertificateKeyAlgorithm> keyAlgorithms = config.certificateIdentityProvider
+						.getSupportedCertificateKeyAlgorithms();
+				if (!keyAlgorithms.contains(suite.getCertificateKeyAlgorithm())) {
+					throw new IllegalStateException(
+							"One of the keys (" + keyAlgorithms + ") must be capable for configured " + suite.name());
+				}
+				if (config.getCertificateAuthenticationMode() != CertificateAuthenticationMode.NONE) {
+					if (config.advancedCertificateVerifier == null) {
+						throw new IllegalStateException(
+								"certificate verifier must be set for authentication using the configured "
+										+ suite.name());
+					}
 				}
 			}
 		}
@@ -3176,8 +2198,8 @@ public final class DtlsConnectorConfig {
 				}
 			}
 			if (message.length() > 0) {
-				throw new IllegalArgumentException("Not recommended cipher suites " + message
-						+ " used! (Requires to set recommendedCipherSuitesOnly to false.)");
+				throw new IllegalStateException("Not recommended cipher suites " + message
+						+ " used! (Requires to set DTLS_RECOMMENDED_CIPHER_SUITES_ONLY to false.)");
 			}
 		}
 
@@ -3193,7 +2215,24 @@ public final class DtlsConnectorConfig {
 			}
 			if (message.length() > 0) {
 				throw new IllegalStateException("Not recommended supported groups (curves) " + message
-						+ " used! (Requires to set recommendedSupportedGroupsOnly to false.)");
+						+ " used! (Requires to set DTLS_RECOMMENDED_CURVES_ONLY to false.)");
+			}
+		}
+
+		private void verifyRecommendedSignatureAndHashAlgorithmsOnly(
+				List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms) {
+			StringBuilder message = new StringBuilder();
+			for (SignatureAndHashAlgorithm signature : signatureAndHashAlgorithms) {
+				if (!signature.isRecommended()) {
+					if (message.length() > 0) {
+						message.append(", ");
+					}
+					message.append(signature.getJcaName());
+				}
+			}
+			if (message.length() > 0) {
+				throw new IllegalStateException("Not recommended signature and hash algorithms " + message
+						+ " used! (Requires to set DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY to false.)");
 			}
 		}
 
@@ -3201,99 +2240,46 @@ public final class DtlsConnectorConfig {
 			// user has not explicitly set cipher suites
 			// try to guess his intentions from properties he has set
 			List<CipherSuite> ciphers = new ArrayList<>();
-			boolean certificates = isConfiguredWithKeyPair() || config.trustCertificateTypes != null;
-			if (certificates) {
-				// currently only ECDSA is supported!
-				ciphers.addAll(CipherSuite.getEcdsaCipherSuites(config.recommendedCipherSuitesOnly));
+
+			if (config.certificateIdentityProvider != null || config.advancedCertificateVerifier != null) {
+				// certificate based cipher suites.
+				List<CertificateKeyAlgorithm> keyAlgorithms = new ArrayList<>();
+				if (config.getConfiguration().get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
+					if (config.supportedCertificatekeyAlgorithms.isEmpty()) {
+						// clients may operate anonymous. therefore ensure,
+						// EC is added in order to comply to RFC7252
+						ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.EC);
+						if (config.certificateIdentityProvider != null) {
+							ListUtils.addIfAbsent(keyAlgorithms,
+									config.certificateIdentityProvider.getSupportedCertificateKeyAlgorithms());
+						}
+					} else {
+						ListUtils.addIfAbsent(keyAlgorithms, config.supportedCertificatekeyAlgorithms);
+					}
+				} else if (config.certificateIdentityProvider != null) {
+					// server's must have certificate to support a cipher suite.
+					ListUtils.addIfAbsent(keyAlgorithms,
+							config.certificateIdentityProvider.getSupportedCertificateKeyAlgorithms());
+				}
+				if (!keyAlgorithms.isEmpty()) {
+					ciphers.addAll(CipherSuite.getCertificateCipherSuites(config.useRecommendedCipherSuitesOnly(),
+							keyAlgorithms));
+				}
 			}
 
 			if (config.advancedPskStore != null) {
 				if (config.advancedPskStore.hasEcdhePskSupported()) {
-					ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(config.recommendedCipherSuitesOnly,
-							KeyExchangeAlgorithm.ECDHE_PSK));
+					ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(
+							config.useRecommendedCipherSuitesOnly(), KeyExchangeAlgorithm.ECDHE_PSK));
 				}
-				ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(config.recommendedCipherSuitesOnly,
-						KeyExchangeAlgorithm.PSK));
+				ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(
+						config.useRecommendedCipherSuitesOnly(), KeyExchangeAlgorithm.PSK));
 			}
-			if (config.preselectedCipherSuites != null) {
-				List<CipherSuite> preselect = new ArrayList<>();
-				for (CipherSuite cipherSuite : config.preselectedCipherSuites) {
-					if (ciphers.contains(cipherSuite)) {
-						preselect.add(cipherSuite);
-					}
-				}
-				ciphers = preselect;
+			List<CipherSuite> preselectedCipherSuites = config.getPreselectedCipherSuites();
+			if (preselectedCipherSuites != null && !preselectedCipherSuites.isEmpty()) {
+				ciphers = CipherSuite.preselectCipherSuites(ciphers, preselectedCipherSuites);
 			}
 			config.supportedCipherSuites = ciphers;
-		}
-
-		private void verifySignatureAndHashAlgorithms(List<SignatureAndHashAlgorithm> list) {
-			if (config.publicKey != null) {
-				if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(list, config.publicKey) == null) {
-					throw new IllegalStateException("supported signature and hash algorithms doesn't match the public key!");
-				}
-				if (config.certChain != null) {
-					if (!SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(list, config.certChain)) {
-						throw new IllegalStateException(
-								"supported signature and hash algorithms doesn't match the certificate chain!");
-					}
-				}
-			}
-		}
-
-		private List<SupportedGroup> getDefaultSupportedGroups() {
-			List<SupportedGroup> defaultGroups = new ArrayList<>(SupportedGroup.getPreferredGroups());
-			if (config.certChain != null) {
-				for (X509Certificate certificate : config.certChain) {
-					addSupportedGroups(defaultGroups, certificate.getPublicKey());
-				}
-			} else {
-				addSupportedGroups(defaultGroups, config.publicKey);
-			}
-			return defaultGroups;
-		}
-
-		private void addSupportedGroups(List<SupportedGroup> defaultGroups, PublicKey publicKey) {
-			if (publicKey != null) {
-				SupportedGroup group = SupportedGroup.fromPublicKey(publicKey);
-				if (group != null && group.isUsable() && !defaultGroups.contains(group)) {
-					if (!config.recommendedSupportedGroupsOnly || group.isRecommended()) {
-						defaultGroups.add(group);
-					}
-				}
-			}
-		}
-
-		private void verifySupportedGroups(List<SupportedGroup> list) {
-			if (config.certChain != null) {
-				for (X509Certificate certificate : config.certChain) {
-					PublicKey publicKey = certificate.getPublicKey();
-					if (SupportedGroup.isEcPublicKey(publicKey)) {
-						verifySupportedGroups(list, publicKey);
-					}
-				}
-			} else {
-				verifySupportedGroups(list, config.publicKey);
-			}
-		}
-
-		private void verifySupportedGroups(List<SupportedGroup> list, PublicKey publicKey) {
-			if (publicKey != null) {
-				SupportedGroup group = SupportedGroup.fromPublicKey(publicKey);
-				if (group == null) {
-					throw new IllegalStateException("public key used with unknown group (curve)!");
-				}
-				if (!group.isUsable()) {
-					throw new IllegalStateException("public key used with unsupported group (curve) " + group.name() + "!");
-				}
-				if (!list.contains(group)) {
-					throw new IllegalStateException("public key used with not configured group (curve) " + group.name() + "!");
-				}
-				if (config.recommendedSupportedGroupsOnly && !group.isRecommended()) {
-					throw new IllegalStateException(
-							"public key used with unrecommended group (curve) " + group.name() + "!");
-				}
-			}
 		}
 	}
 }

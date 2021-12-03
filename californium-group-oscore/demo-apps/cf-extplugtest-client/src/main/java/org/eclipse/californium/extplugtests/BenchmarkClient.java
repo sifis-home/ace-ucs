@@ -62,16 +62,14 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.EndpointContextTracer;
+import org.eclipse.californium.core.coap.Message.OffloadMode;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.ResponseTimeout;
-import org.eclipse.californium.core.coap.Message.OffloadMode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
@@ -81,6 +79,13 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.IntegerDefinition;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.TimeDefinition;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -90,6 +95,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TimeStatistic;
 import org.eclipse.californium.extplugtests.resources.Feed;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyPairGenerator;
 import org.eclipse.californium.unixhealth.NetStatLogger;
@@ -117,11 +123,11 @@ public class BenchmarkClient {
 	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.extplugtests.statistics");
 
 	/**
-	 * File name for network configuration.
+	 * File name for configuration.
 	 */
-	private static final File CONFIG_FILE = new File("CaliforniumBenchmark.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumBenchmark3.properties");
 	/**
-	 * Header for network configuration.
+	 * Header for configuration.
 	 */
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Benchmark Client";
 	/**
@@ -142,51 +148,65 @@ public class BenchmarkClient {
 	private static final String DEFAULT_REQUESTS = "100";
 
 	/**
-	 * NetworkConfig key for number of threads used per client. {@code 0} to use
-	 * a shared thread pool.
+	 * Definition for number of threads used per client. {@code 0} to use a shared
+	 * thread pool.
 	 * <p>
 	 * Default: {@code 0}, use shared thread pool
 	 * <p>
-	 * Note: unfortunately the currently used synchronous socket requires at
-	 * least it's own receiver thread. So the number of threads is considered to
-	 * be used for the other components used by a client.
+	 * Note: unfortunately the currently used synchronous socket requires at least
+	 * it's own receiver thread. So the number of threads is considered to be used
+	 * for the other components used by a client.
 	 */
-	private static final String KEY_BENCHMARK_CLIENT_THREADS = "BENCHMARK_CLIENT_THREADS";
+	private static final IntegerDefinition BENCHMARK_CLIENT_THREADS = new IntegerDefinition("BENCHMARK_CLIENT_THREADS",
+			"Number of threads used per client. 0 to use a shared thread pool.");
+	/**
+	 * Response timeout for requests.
+	 * 
+	 * NON request may be limited by a smaller {@link CoapConfig#NON_LIFETIME}.
+	 * 
+	 * @since 3.1
+	 */
+	private static final TimeDefinition BENCHMARK_RESPONSE_TIMEOUT = new TimeDefinition("BENCHMARK_RESPONSE_TIMEOUT",
+			"Response timeout.", 30, TimeUnit.SECONDS);
 
 	private static final ThreadGroup CLIENT_THREAD_GROUP = new ThreadGroup("Client"); //$NON-NLS-1$
 
 	private static final NamedThreadFactory threadFactory = new DaemonThreadFactory("Client#", CLIENT_THREAD_GROUP);
 	/**
-	 * Special network configuration defaults handler.
+	 * Special configuration defaults handler.
 	 */
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
-			config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
-			config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-			config.setInt(Keys.NON_LIFETIME, 15 * 1000); // lifetime / timeout for non-requests
-			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
-			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
-			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
-			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
-			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 30 * 1000); // 20s
-			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 30 * 1000); // 20s
-			config.setInt(Keys.TCP_WORKER_THREADS, 2);
-			config.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 1); // enabled by cli option!
-			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 1);
-			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
-			config.setInt(Keys.PROTOCOL_STAGE_THREAD_COUNT, 1);
-			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 8192);
-			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 8192);
-			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 0);
-			config.setInt(KEY_BENCHMARK_CLIENT_THREADS, 0);
-			config.setInt(ClientInitializer.KEY_DTLS_RETRANSMISSION_TIMEOUT, 2000);
-			config.setInt(ClientInitializer.KEY_DTLS_RETRANSMISSION_MAX, 2);
+		public void applyDefinitions(Configuration config) {
+			config.set(BENCHMARK_CLIENT_THREADS, 0);
+			config.set(BENCHMARK_RESPONSE_TIMEOUT, 30, TimeUnit.SECONDS);
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
+			config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
+			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
+			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 1);
+			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1); // enabled by cli option!
+			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 12, TimeUnit.HOURS);
+			config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 30, TimeUnit.SECONDS);
+			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
+			config.set(TcpConfig.TCP_WORKER_THREADS, 2);
+			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 1);
+			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 1);
+			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
+			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
+			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
+			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
+			config.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 2);
+			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
+			config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 8192);
+			config.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, 8192);
+			config.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 0, TimeUnit.SECONDS); // disabled
 		}
 
 	};
@@ -265,6 +285,9 @@ public class BenchmarkClient {
 		@Option(names = "--handshakes-burst", description = "number of closes or full-handshakes in sequence.")
 		public Integer bursts;
 
+		@Option(names = "--nstart", description = "number of concurrent requests.")
+		public Integer nstart;
+
 		@ArgGroup(exclusive = false)
 		Reverse reverse;
 
@@ -328,6 +351,9 @@ public class BenchmarkClient {
 			if (bursts == null) {
 				Long value = StringUtil.getConfigurationLong("COAPS_HANDSHAKES_BURST");
 				bursts = value != null ? value.intValue() : 0;
+			}
+			if (requests < 1) {
+				requests = 1;
 			}
 		}
 	}
@@ -483,6 +509,8 @@ public class BenchmarkClient {
 
 	private static final TimeStatistic errorRttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
 
+	private static final TimeStatistic transmissionRttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
+
 	private static volatile String[] args;
 	private static volatile int clients;
 	private static volatile int overallRequests;
@@ -553,7 +581,7 @@ public class BenchmarkClient {
 	private final DTLSConnector dtlsConnector;
 
 	private final long ackTimeout;
-	private final long nonTimeout;
+	private final long responseTimeout;
 
 	private Request prepareRequest(CoapClient client, long c) {
 		if (overallRequestsDownCounter.get() == 0) {
@@ -600,8 +628,7 @@ public class BenchmarkClient {
 			request.setDestinationContext(destinationContext);
 		}
 		request.setURI(client.getURI());
-		ResponseTimeout timeout = new ResponseTimeout(request, request.isConfirmable() ? nonTimeout : nonTimeout,
-				executorService);
+		ResponseTimeout timeout = new ResponseTimeout(request, responseTimeout, executorService);
 		request.addMessageObserver(timeout);
 		request.addMessageObserver(retransmissionDetector);
 		return request;
@@ -610,6 +637,7 @@ public class BenchmarkClient {
 	private class TestHandler implements CoapHandler {
 
 		private final Request post;
+		private final long start = ClockUtil.nanoRealtime();
 
 		private TestHandler(final Request post) {
 			this.post = post;
@@ -698,11 +726,12 @@ public class BenchmarkClient {
 				boolean non = !post.isConfirmable();
 				String type = non ? "NON" : "CON";
 				long c = requestsCounter.get();
+				long time = ClockUtil.nanoRealtime() - start;
 				String msg = "";
 				if (post.getSendError() != null) {
 					msg = post.getSendError().getMessage();
 				} else if (post.isTimedOut()) {
-					msg = "timeout";
+					msg = "timeout (" + TimeUnit.NANOSECONDS.toSeconds(time) + "s)";
 				} else if (post.isRejected()) {
 					msg = "rejected";
 				}
@@ -759,6 +788,10 @@ public class BenchmarkClient {
 				}
 				dtlsReconnect = close || full || force;
 			}
+			if (dtlsReconnect) {
+				// reset destination context
+				client.setDestinationContext(null);
+			}
 			final boolean reconnect = dtlsReconnect;
 			final Request request = prepareRequest(client, c);
 			if (request == null) {
@@ -767,7 +800,6 @@ public class BenchmarkClient {
 			if (reconnect) {
 				connect.set(true);
 				EndpointContext destinationContext = request.getDestinationContext();
-				client.setDestinationContext(null);
 				if (forceHandshake < 0) {
 					forceHandshake = -forceHandshake;
 				}
@@ -792,7 +824,7 @@ public class BenchmarkClient {
 					}
 				} else {
 					destinationContext = MapBasedEndpointContext.setEntries(destinationContext,
-							DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL);
+							DtlsEndpointContext.ATTRIBUE_HANDSHAKE_MODE_FORCE_FULL);
 					request.setDestinationContext(destinationContext);
 				}
 			}
@@ -819,32 +851,31 @@ public class BenchmarkClient {
 	 * Create client.
 	 * 
 	 * @param index index of client. used for thread names.
-	 * @param intervalMin minimum notifies interval in milliseconds
-	 * @param intervalMax maximum notifies interval in milliseconds
+	 * @param reverse reverse configuration with minimum and maxium notifies interval
 	 * @param uri destination URI
 	 * @param endpoint local endpoint to exchange messages
-	 * @param executor
+	 * @param executor executor for client
 	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
 	 */
-	public BenchmarkClient(int index, Config.Reverse reverse, URI uri, Endpoint endpoint,
+	public BenchmarkClient(int index, Config.Reverse reverse, URI uri, CoapEndpoint endpoint,
 			ScheduledExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor) {
 		this.secure = CoAP.isSecureScheme(uri.getScheme());
-		Connector connector = ((CoapEndpoint)endpoint).getConnector();
+		Connector connector = endpoint.getConnector();
 		this.dtlsConnector = secure && connector instanceof DTLSConnector ? (DTLSConnector) connector : null;
-		this.id = "client-" + index;
+		this.id = endpoint.getTag();
 		this.uri = uri;
-		int maxResourceSize = endpoint.getConfig().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
+		Configuration config = endpoint.getConfig();
+		int maxResourceSize = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 		if (executor == null) {
-			int threads = endpoint.getConfig().getInt(KEY_BENCHMARK_CLIENT_THREADS);
+			int threads = config.get(BENCHMARK_CLIENT_THREADS);
 			this.executorService = ExecutorsUtil.newScheduledThreadPool(threads, threadFactory);
 			this.shutdown = true;
 		} else {
 			this.executorService = executor;
 			this.shutdown = false;
 		}
-		NetworkConfig config = endpoint.getConfig();
-		this.ackTimeout =  config.getLong(Keys.ACK_TIMEOUT);
-		this.nonTimeout =  config.getLong(Keys.NON_LIFETIME);
+		this.ackTimeout =  config.getTimeAsInt(CoapConfig.ACK_TIMEOUT, TimeUnit.MILLISECONDS);
+		this.responseTimeout =  config.getTimeAsInt(BENCHMARK_RESPONSE_TIMEOUT, TimeUnit.MILLISECONDS);
 		endpoint.addInterceptor(new MessageTracer());
 		endpoint.setExecutors(this.executorService, secondaryExecutor);
 		this.client = new CoapClient(uri);
@@ -875,14 +906,18 @@ public class BenchmarkClient {
 	}
 
 	private void addToStatistic(CoapResponse response) {
+		Long rtt = response.advanced().getApplicationRttNanos();
 		TimeStatistic statistic = errorRttStatistic;
 		if (connect.compareAndSet(true, false)) {
 			statistic = connectRttStatistic;
-		} else if (response.isSuccess()) {
+		} else {
 			statistic = rttStatistic;
+			Long transmissionRttNanos = response.advanced().getTransmissionRttNanos();
+			if (transmissionRttNanos != null && transmissionRttNanos != rtt) {
+				transmissionRttStatistic.add(transmissionRttNanos, TimeUnit.NANOSECONDS);
+			}
 		}
-		Long rtt = response.advanced().getRTT();
-		statistic.add(rtt, TimeUnit.MILLISECONDS);
+		statistic.add(rtt, TimeUnit.NANOSECONDS);
 	}
 
 	/**
@@ -977,6 +1012,15 @@ public class BenchmarkClient {
 				request.addMessageObserver(retransmissionDetector);
 				client.advanced(new TestHandler(request), request);
 			}
+			if (config.nstart != null) {
+				for (int counter=1; counter < config.nstart; ++counter) {
+					request = prepareRequest(client, c);
+					if (request != null) {
+						request.addMessageObserver(retransmissionDetector);
+						client.advanced(new TestHandler(request), request);
+					}
+				}
+			}
 		}
 	}
 
@@ -1042,12 +1086,12 @@ public class BenchmarkClient {
 	}
 
 	public static void main(String[] args) throws InterruptedException, IOException {
-
+		TcpConfig.register();
 		BenchmarkClient.args = args;
 		startManagamentStatistic();
-		config.networkConfigHeader = CONFIG_HEADER;
-		config.networkConfigDefaultHandler = DEFAULTS;
-		config.networkConfigFile = CONFIG_FILE;
+		config.configurationHeader = CONFIG_HEADER;
+		config.customConfigurationDefaultsProvider = DEFAULTS;
+		config.configurationFile = CONFIG_FILE;
 		ClientInitializer.init(args, config, false);
 
 		if (config.helpRequested) {
@@ -1064,12 +1108,12 @@ public class BenchmarkClient {
 
 		if (config.blockwiseOptions != null) {
 			if (config.blockwiseOptions.bertBlocks != null && config.blockwiseOptions.bertBlocks > 0) {
-				config.networkConfig.setInt(Keys.MAX_MESSAGE_SIZE, 1024);
-				config.networkConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, 1024);
-				config.networkConfig.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, config.blockwiseOptions.bertBlocks);
+				config.configuration.set(CoapConfig.MAX_MESSAGE_SIZE, 1024);
+				config.configuration.set(CoapConfig.PREFERRED_BLOCK_SIZE, 1024);
+				config.configuration.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, config.blockwiseOptions.bertBlocks);
 			} else if (config.blockwiseOptions.blocksize != null) {
-				config.networkConfig.setInt(Keys.MAX_MESSAGE_SIZE, config.blockwiseOptions.blocksize);
-				config.networkConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, config.blockwiseOptions.blocksize);
+				config.configuration.set(CoapConfig.MAX_MESSAGE_SIZE, config.blockwiseOptions.blocksize);
+				config.configuration.set(CoapConfig.PREFERRED_BLOCK_SIZE, config.blockwiseOptions.blocksize);
 			}
 		}
 
@@ -1078,10 +1122,10 @@ public class BenchmarkClient {
 		}
 
 		if (config.timeout != null) {
-			config.networkConfig.setLong(Keys.NON_LIFETIME, config.timeout);
+			config.configuration.set(CoapConfig.NON_LIFETIME, config.timeout, TimeUnit.MILLISECONDS);
 		}
 
-		offload = config.networkConfig.getBoolean(Keys.USE_MESSAGE_OFFLOADING);
+		offload = config.configuration.get(CoapConfig.USE_MESSAGE_OFFLOADING);
 
 		URI tempUri;
 		try {
@@ -1111,7 +1155,7 @@ public class BenchmarkClient {
 		ScheduledExecutorService executor = ExecutorsUtil
 				.newScheduledThreadPool(Runtime.getRuntime().availableProcessors(), new DaemonThreadFactory("Aux#"));
 
-		final ScheduledExecutorService connectorExecutor = config.networkConfig.getInt(KEY_BENCHMARK_CLIENT_THREADS) == 0 ? executor : null;
+		final ScheduledExecutorService connectorExecutor = config.configuration.get(BENCHMARK_CLIENT_THREADS) == 0 ? executor : null;
 		final boolean secure = CoAP.isSecureScheme(uri.getScheme());
 		final boolean dtls = secure && !CoAP.isTcpScheme(uri.getScheme());
 
@@ -1126,7 +1170,7 @@ public class BenchmarkClient {
 				!config.stop ? "none-stop " : "", secure ? "secure " : "", overallRequests, proxyMessage, uri);
 
 		if (config.reverse != null && overallReverseResponses > 0) {
-			if (config.reverse.min == config.reverse.max) {
+			if (config.reverse.min.equals(config.reverse.max)) {
 				System.out.format("Expect %d notifies, interval %d [ms]%n", overallReverseResponses,
 						config.reverse.min);
 			} else {
@@ -1165,6 +1209,7 @@ public class BenchmarkClient {
 		final AtomicBoolean errors = new AtomicBoolean();
 		health = new HealthStatisticLogger(uri.getScheme(), !CoAP.isTcpScheme(uri.getScheme()));
 		netstat = new NetStatLogger("udp");
+		final String tag = config.tag == null ? "client-" : config.tag;
 		final int pskOffset = config.pskIndex != null ? config.pskIndex : 0;
 		for (int index = 0; index < clients; ++index) {
 			final int currentIndex = index;
@@ -1194,8 +1239,6 @@ public class BenchmarkClient {
 					if (errors.get()) {
 						return;
 					}
-					CoapEndpoint.Builder endpointBuilder = new CoapEndpoint.Builder();
-					endpointBuilder.setNetworkConfig(config.networkConfig);
 					ClientConfig connectionConfig = config;
 					if (secure) {
 						if (rpk) {
@@ -1219,6 +1262,10 @@ public class BenchmarkClient {
 							connectionConfig = connectionConfig.create(identity, secret);
 						}
 					}
+					if (connectionConfig == config) {
+						connectionConfig = config.create();
+					}
+					connectionConfig.tag = tag + currentIndex;
 					CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(connectionConfig, connectorExecutor);
 					if (health.isEnabled()) {
 						coapEndpoint.addPostProcessInterceptor(health);
@@ -1279,7 +1326,8 @@ public class BenchmarkClient {
 		boolean stale = false;
 		startRequestNanos = System.nanoTime();
 		startReverseResponseNanos = startRequestNanos;
-		long lastRequestsCountDown = overallResponsesDownCounter.get();
+		long lastRequestsCountDown = overallRequestsDownCounter.get();
+		long lastResponsesCountDown = overallResponsesDownCounter.get();
 		long lastTransmissions = transmissionCounter.get();
 		long lastRetransmissions = retransmissionCounter.get();
 		long lastTransmissionErrrors = transmissionErrorCounter.get();
@@ -1296,33 +1344,37 @@ public class BenchmarkClient {
 		registerShutdown();
 		System.out.println("Benchmark started.");
 
-		long dtlsTime = System.nanoTime();
+		long staleTime = System.nanoTime();
+		long interval = config.interval == null ? 0 : TimeUnit.MILLISECONDS.toNanos(config.interval);
+		if (dtls) {
+			interval = Math.max(interval, DTLS_TIMEOUT_NANOS);
+		}
+		long staleTimeout = DEFAULT_TIMEOUT_NANOS + interval;
+		int count = 0;
 		// Wait with timeout or all requests send.
 		while (!overallRequestsDone.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
-			long currentRequestsCountDown = overallResponsesDownCounter.get();
+			long currentRequestsCountDown = overallRequestsDownCounter.get();
+			long currentResponsesCountDown = overallResponsesDownCounter.get();
 			int numberOfClients = clientCounter.get();
 			int connectsPending = initialConnectDownCounter.get();
-			long requestDifference = (lastRequestsCountDown - currentRequestsCountDown);
-			long currentOverallSentRequests = overallRequests - currentRequestsCountDown;
-			if ((requestDifference == 0 && currentRequestsCountDown < overallRequests)
+			long requestsDifference = (lastRequestsCountDown - currentRequestsCountDown);
+			long responsesDifference = (lastResponsesCountDown - currentResponsesCountDown);
+			long currentOverallSentRequests = overallRequests - currentResponsesCountDown;
+			if ((responsesDifference == 0 && currentResponsesCountDown < overallRequests)
 					|| (numberOfClients == 0)) {
 				// no new requests, clients are stale, or no clients left
 				// adjust start time with timeout
-				long dtlsTimeout = System.nanoTime() - dtlsTime;
-				if (!dtls || (dtlsTimeout - DTLS_TIMEOUT_NANOS) > 0) {
-					if (dtls) {
-						startRequestNanos += dtlsTimeout;
-					} else {
-						startRequestNanos += DEFAULT_TIMEOUT_NANOS;
-					}
+				long timeout = System.nanoTime() - staleTime;
+				if ((timeout - staleTimeout) > 0) {
+					startRequestNanos += timeout;
 					startReverseResponseNanos = startRequestNanos;
 					stale = true;
-					System.out.format("%d requests, stale (%d clients, %d pending)%n", currentOverallSentRequests,
+					System.out.format("[%04d]: %d requests, stale (%d clients, %d pending)%n", ++count, currentOverallSentRequests,
 							numberOfClients, connectsPending);
 					break;
 				}
 			} else {
-				dtlsTime = System.nanoTime();
+				staleTime = System.nanoTime();
 			}
 			long transmissions = transmissionCounter.get();
 			long transmissionsDifference = transmissions - lastTransmissions;
@@ -1337,6 +1389,7 @@ public class BenchmarkClient {
 			int honoCmdsDifference = honoCmds - lastHonoCmds;
 
 			lastRequestsCountDown = currentRequestsCountDown;
+			lastResponsesCountDown = currentResponsesCountDown;
 			lastTransmissions = transmissions;
 			lastRetransmissions = retransmissions;
 			lastTransmissionErrrors = transmissionErrors;
@@ -1344,15 +1397,16 @@ public class BenchmarkClient {
 			lastHonoCmds = honoCmds;
 
 			StringBuilder line = new StringBuilder();
+			line.append(String.format("[%04d]: ", ++count));
 			line.append(String.format("%d requests (%d reqs/s", currentOverallSentRequests,
-					roundDiv(requestDifference, DEFAULT_TIMEOUT_SECONDS)));
-			line.append(", ").append(formatRetransmissions(retransmissionsDifference, transmissionsDifference));
-			line.append(", ").append(formatTransmissionErrors(transmissionErrorsDifference, requestDifference));
+					roundDiv(responsesDifference, DEFAULT_TIMEOUT_SECONDS)));
+			line.append(", ").append(formatRetransmissions(retransmissionsDifference, transmissionsDifference, responsesDifference));
+			line.append(", ").append(formatTransmissionErrors(transmissionErrorsDifference, requestsDifference, responsesDifference));
 			if (unavailable > 0) {
-				line.append(", ").append(formatUnavailable(unavailableDifference, requestDifference));
+				line.append(", ").append(formatUnavailable(unavailableDifference, responsesDifference));
 			}
 			if (honoCmds > 0) {
-				line.append(", ").append(formatHonoCmds(honoCmdsDifference, requestDifference));
+				line.append(", ").append(formatHonoCmds(honoCmdsDifference, responsesDifference));
 			}
 			line.append(String.format(", %d clients", numberOfClients));
 			if (connectsPending > 0) {
@@ -1361,7 +1415,6 @@ public class BenchmarkClient {
 			line.append(")");
 			System.out.println(line);
 		}
-//		long overallSentRequests = overallRequests - overallResponsesDownCounter.get();
 		timeRequestNanos = System.nanoTime() - startRequestNanos;
 
 		boolean observe = false;
@@ -1395,23 +1448,23 @@ public class BenchmarkClient {
 					startReverseResponseNanos += time;
 					stale = true;
 					if (observe) {
-						System.out.format("%d notifies, stale (%d clients, %d observes)%n",
-								currentOverallReverseResponses, numberOfClients, observers);
+						System.out.format("[%04d]: %d notifies, stale (%d clients, %d observes)%n",
+								++count, currentOverallReverseResponses, numberOfClients, observers);
 					} else {
-						System.out.format("%d reverse-responses, stale (%d clients)%n", currentOverallReverseResponses,
-								numberOfClients);
+						System.out.format("[%04d]: %d reverse-responses, stale (%d clients)%n",
+								++count, currentOverallReverseResponses, numberOfClients);
 					}
 					break;
 				}
 				lastReverseResponsesCountDown = currentReverseResponsesCountDown;
 				if (observe) {
-					System.out.format("%d notifies (%d notifies/s, %d clients, %d observes)%n",
-							currentOverallReverseResponses,
+					System.out.format("[%04d]: %d notifies (%d notifies/s, %d clients, %d observes)%n",
+							++count, currentOverallReverseResponses,
 							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS),
 							numberOfClients, observers);
 				} else {
-					System.out.format("%d reverse-responses (%d reverse-responses/s, %d clients)%n",
-							currentOverallReverseResponses,
+					System.out.format("[%04d]: %d reverse-responses (%d reverse-responses/s, %d clients)%n",
+							++count, currentOverallReverseResponses,
 							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS),
 							numberOfClients);
 				}
@@ -1577,11 +1630,11 @@ public class BenchmarkClient {
 		}
 		long retransmissions = retransmissionCounter.get();
 		if (retransmissions > 0) {
-			statisticsLogger.info("{}", formatRetransmissions(retransmissions, overallSentRequests));
+			statisticsLogger.info("{}", formatRetransmissions(retransmissions, overallSentRequests, overallSentRequests));
 		}
 		long transmissionErrors = transmissionErrorCounter.get();
 		if (transmissionErrors > 0) {
-			statisticsLogger.info("{}", formatTransmissionErrors(transmissionErrors, overallSentRequests));
+			statisticsLogger.info("{}", formatTransmissionErrors(transmissionErrors, overallSentRequests, overallSentRequests));
 		}
 		if (overallSentRequests < overallRequests) {
 			if (done) {
@@ -1604,6 +1657,7 @@ public class BenchmarkClient {
 		statisticsLogger.info("connects          : {}", connectRttStatistic.getSummaryAsText());
 		statisticsLogger.info("success-responses : {}", rttStatistic.getSummaryAsText());
 		statisticsLogger.info("errors-responses  : {}", errorRttStatistic.getSummaryAsText());
+		statisticsLogger.info("single-blocks     : {}", transmissionRttStatistic.getSummaryAsText());
 
 		health.dump();
 		netstat.dump();
@@ -1620,27 +1674,26 @@ public class BenchmarkClient {
 		});
 	}
 
-	private static String formatRetransmissions(long retransmissions, long requests) {
+	private static String formatRetransmissions(long retransmissions, long requests, long responses) {
 		try (Formatter formatter = new Formatter()) {
 			if (requests > 0) {
-				return formatter
-						.format("%d retransmissions (%4.2f%%)", retransmissions, ((retransmissions * 100D) / requests))
-						.toString();
+				String amend = responses == 0 ? ", no responses received!" : "";
+				return formatter.format("%d retransmissions (%4.2f%%%s)", retransmissions,
+								((retransmissions * 100D) / requests), amend).toString();
 			} else {
-				return formatter.format("%d retransmissions (no response-messages received!)", retransmissions)
-						.toString();
+				return formatter.format("%d retransmissions", retransmissions).toString();
 			}
 		}
 	}
 
-	private static String formatTransmissionErrors(long transmissionErrors, long requests) {
+	private static String formatTransmissionErrors(long transmissionErrors, long requests, long responses) {
 		try (Formatter formatter = new Formatter()) {
 			if (requests > 0) {
-				return formatter.format("%d transmission errors (%4.2f%%)", transmissionErrors,
-						((transmissionErrors * 100D) / requests)).toString();
+				String amend = responses == 0 ? ", no responses received!" : "";
+				return formatter.format("%d transmission errors (%4.2f%%%s)", transmissionErrors,
+						((transmissionErrors * 100D) / requests), amend).toString();
 			} else {
-				return formatter.format("%d transmission errors (no response-messages received!)", transmissionErrors)
-						.toString();
+				return formatter.format("%d transmission errors", transmissionErrors).toString();
 			}
 		}
 	}

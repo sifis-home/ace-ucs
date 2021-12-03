@@ -31,21 +31,22 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.cli.ClientBaseConfig;
 import org.eclipse.californium.cli.ClientInitializer;
 import org.eclipse.californium.cli.ConnectorConfig;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -56,41 +57,36 @@ import picocli.CommandLine.Option;
  * It uses Cf's internal API for "deep message inspection."
  */
 public class PlugtestChecker {
-	private static final File CONFIG_FILE = new File("CaliforniumPlugtest.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumPlugtest3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Plugtest Client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 64;
 	public static final int PLUGTEST_BLOCK_SZX = 2; // 64 bytes
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
+		public void applyDefinitions(Configuration config) {
 			// adjust defaults for plugtest
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
-			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
-			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 300);
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
-			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
-			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
-			config.setInt(ClientInitializer.KEY_DTLS_RETRANSMISSION_TIMEOUT, 2000);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 300, TimeUnit.SECONDS);
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
+			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
+			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
+			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1);
+			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
+			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
 		}
 
 	};
 
 	static volatile boolean verbose;
-	
+
 	/** The server uri. */
 	private String serverURI = null;
-
-	/** The test map. */
-	private final Map<String, Class<?>> testMap = new HashMap<String, Class<?>>();
-
-	/** The test list. */
-	protected List<String> testsToRun = new ArrayList<String>();
 
 	/**
 	 * Default constructor. Loads with reflection each nested class that is a
@@ -104,16 +100,6 @@ public class PlugtestChecker {
 		}
 
 		this.serverURI = serverURI;
-
-		// fill the map with each nested class not abstract that instantiate
-		// TestClientAbstract
-		for (Class<?> clientTest : this.getClass().getDeclaredClasses()) {
-			if (!Modifier.isAbstract(clientTest.getModifiers())
-					&& (clientTest.getSuperclass() == TestClientAbstract.class)) {
-
-				this.testMap.put(clientTest.getSimpleName(), clientTest);
-			}
-		}
 	}
 
 	/**
@@ -141,7 +127,7 @@ public class PlugtestChecker {
 				}
 				ClientInitializer.print("   ", ConnectorConfig.MAX_WIDTH, names, System.out);
 			}
-			
+
 			List<Report> reports = new ArrayList<Report>();
 			// iterate for each chosen test
 			for (Class<?> testClass : tests) {
@@ -150,13 +136,20 @@ public class PlugtestChecker {
 				Constructor<?> cons = testClass.getConstructor(String.class);
 
 				TestClientAbstract testClient = (TestClientAbstract) cons.newInstance(serverURI);
-				testClient.waitForUntilTestHasTerminated();
+				try {
+					testClient.waitForUntilTestHasTerminated();
+				} catch (Throwable e) {
+					System.err.println("Error: " + e.getMessage());
+					break;
+				}
 				reports.add(testClient.getReport());
 			}
 
-			System.out.println("\n==== SUMMARY ====");
-			for (Report report : reports) {
-				report.print();
+			if (!reports.isEmpty()) {
+				System.out.println("\n==== SUMMARY ====");
+				for (Report report : reports) {
+					report.print();
+				}
 			}
 
 		} catch (InstantiationException e) {
@@ -196,9 +189,9 @@ public class PlugtestChecker {
 	public static void main(String[] args) throws IOException {
 
 		Config clientConfig = new Config();
-		clientConfig.networkConfigHeader = CONFIG_HEADER;
-		clientConfig.networkConfigDefaultHandler = DEFAULTS;
-		clientConfig.networkConfigFile = CONFIG_FILE;
+		clientConfig.configurationHeader = CONFIG_HEADER;
+		clientConfig.customConfigurationDefaultsProvider = DEFAULTS;
+		clientConfig.configurationFile = CONFIG_FILE;
 		ClientInitializer.init(args, clientConfig);
 
 		if (clientConfig.helpRequested) {
@@ -210,14 +203,24 @@ public class PlugtestChecker {
 
 		verbose = clientConfig.verbose;
 
-		clientConfig.ping &= !clientConfig.tcp;
+		if (clientConfig.tcp) {
+			clientConfig.ping = false;
+		} else if (clientConfig.secure
+				&& clientConfig.configuration.get(CoapConfig.RESPONSE_MATCHING) == MatcherMode.PRINCIPAL_IDENTITY) {
+			clientConfig.ping = true;
+		}
 
 		if (clientConfig.ping) {
 			System.out.println("===============\nCC31\n---------------");
-			if (ping(clientConfig.uri)) {
-				System.out.println("PASS: " + clientConfig.uri + " responds to ping");
-			} else {
-				System.out.println("FAIL:" + clientConfig.uri + " does not respond to ping, exiting...");
+			try {
+				if (ping(clientConfig.uri)) {
+					System.out.println("PASS: " + clientConfig.uri + " responds to ping");
+				} else {
+					System.out.println("FAIL:" + clientConfig.uri + " does not respond to ping, exiting...");
+					System.exit(-1);
+				}
+			} catch (Throwable ex) {
+				System.err.println("Error: " + clientConfig.uri + " - " + ex.getMessage());
 				System.exit(-1);
 			}
 		}
@@ -231,21 +234,19 @@ public class PlugtestChecker {
 		System.exit(0);
 	}
 
-	private static boolean ping(String address) {
-		try {
-			Request request = new Request(null);
-			request.setType(Type.CON);
-			request.setToken(Token.EMPTY);
-			request.setURI(address);
-
-			System.out.println("++++++ Sending Ping ++++++");
-			request.send().waitForResponse(5000);
-			return request.isRejected();
-
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
+	private static boolean ping(String address) throws Throwable {
+		Request request = new Request(null);
+		request.setType(Type.CON);
+		request.setToken(Token.EMPTY);
+		request.setURI(address);
+		TestClientAbstract.addContextObserver(request);
+		System.out.println("++++++ Sending Ping ++++++");
+		request.send().waitForResponse(5000);
+		Throwable sendError = request.getSendError();
+		if (sendError != null) {
+			throw sendError;
 		}
+		return request.isRejected();
 	}
 
 	public static String getLargeRequestPayload() {
@@ -273,7 +274,7 @@ public class PlugtestChecker {
 
 	@Command(name = "PlugtestChecker", version = "(c) 2014, Institute for Pervasive Computing, ETH Zurich.")
 	private static class Config extends ClientBaseConfig {
-		
+
 		@Option(names = "--no-ping", negatable = true, description = "use ping.")
 		public boolean ping = true;
 

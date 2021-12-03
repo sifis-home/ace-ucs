@@ -16,26 +16,22 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.math.BigInteger;
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
-import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
-import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
-import java.security.spec.ECPoint;
-import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
-import java.security.spec.KeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +39,7 @@ import java.util.Map;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -54,8 +51,14 @@ import javax.security.auth.Destroyable;
 
 /**
  * A helper class to execute the XDH and ECDHE key agreement and key generation.
- * Support X25519 and X448 with java 11.
- * 
+ * <p>
+ * Supports X25519 and X448 with java 11. Experimentally Bouncy Castle 1.69
+ * could be used as alternative JCE.
+ * <p>
+ * <b>Note:</b> No support for Bouncy Castle issues with or without relation to
+ * Californium could be provided! You may report issues as common, but it's not
+ * ensured, that they could be considered.
+ * <p>
  * A ECDHE key exchange starts with negotiating a curve. The possible curves are
  * listed at <a href=
  * "http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8">
@@ -66,7 +69,7 @@ import javax.security.auth.Destroyable;
  * directly a member, e.g. {@link SupportedGroup#X25519}, or get it by id
  * {@link SupportedGroup#fromId(int)} or by the curve-name
  * {@link SupportedGroup#valueOf(String)}.
- * 
+ * <p>
  * Once you have a curve negotiated, you create a instance of
  * {@link XECDHECryptography#XECDHECryptography(SupportedGroup)} providing this
  * curve as parameter. This will also create the ephemeral key-pair for the key
@@ -80,9 +83,8 @@ import javax.security.auth.Destroyable;
  * class only the encoded point and the {@link SupportedGroup} is used to do the
  * key exchange. Access to the {@link PrivateKey} nor {@link PublicKey} is
  * required outside.
- * 
  * <pre>
- * 
+ * <code>
  * SupportedGroup group = SupportedGroup.X25519;
  * 
  * // peer 1
@@ -91,7 +93,7 @@ import javax.security.auth.Destroyable;
  * 
  * // send group + encoded point to other peer
  * 
- * // peer 2, use received group 
+ * // peer 2, use received group
  * XECDHECryptography ecdhe2 = new XECDHECryptography(group);
  * byte[] point2 = ecdhe2.getEncodedPoint();
  * SecretKey secret2 = ecdhe2.generateSecret(point1);
@@ -100,12 +102,12 @@ import javax.security.auth.Destroyable;
  * 
  * // peer 1
  * SecretKey secret1 = ecdhe1.generateSecret(point2);
- * 
+ * </code>
  * </pre>
- * 
  * results in same secrets {@code secret1} and {@code secret2}.
  * 
- * @see <a href="https://tools.ietf.org/html/rfc7748">RFC 7748</a>
+ * @see <a href="https://tools.ietf.org/html/rfc7748" target="_blank">RFC
+ *      7748</a>
  * @since 2.3
  */
 public final class XECDHECryptography implements Destroyable {
@@ -116,23 +118,29 @@ public final class XECDHECryptography implements Destroyable {
 
 	// Static members /////////////////////////////////////////////////
 
+	static {
+		JceProviderUtil.init();
+	}
+
 	/**
 	 * The algorithm for the elliptic curve key pair generation.
 	 * 
 	 * See also <a href=
 	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#KeyPairGenerator"
-	 * >KeyPairGenerator Algorithms</a>.
+	 * target="_blank" >KeyPairGenerator Algorithms</a>.
 	 */
 	private static final String EC_KEYPAIR_GENERATOR_ALGORITHM = "EC";
 
-	private static final ThreadLocalKeyPairGenerator EC_KEYPAIR_GENERATOR = new ThreadLocalKeyPairGenerator(EC_KEYPAIR_GENERATOR_ALGORITHM);
+	private static final ThreadLocalKeyPairGenerator EC_KEYPAIR_GENERATOR = new ThreadLocalKeyPairGenerator(
+			EC_KEYPAIR_GENERATOR_ALGORITHM);
 
 	/**
 	 * X25519 and X448.
 	 */
 	private static final String XDH_KEYPAIR_GENERATOR_ALGORITHM = "XDH";
 
-	private static final ThreadLocalKeyPairGenerator XDH_KEYPAIR_GENERATOR = new ThreadLocalKeyPairGenerator(XDH_KEYPAIR_GENERATOR_ALGORITHM);
+	private static final ThreadLocalKeyPairGenerator XDH_KEYPAIR_GENERATOR = new ThreadLocalKeyPairGenerator(
+			XDH_KEYPAIR_GENERATOR_ALGORITHM);
 
 	private static final String EC_KEY_FACTORY_ALGORITHM = "EC";
 
@@ -140,7 +148,12 @@ public final class XECDHECryptography implements Destroyable {
 
 	private static final String XDH_KEY_FACTORY_ALGORITHM = "XDH";
 
-	private static final ThreadLocalKeyFactory XDH_KEY_FACTORY = new ThreadLocalKeyFactory(XDH_KEY_FACTORY_ALGORITHM);
+	/**
+	 * XDH key factory.
+	 * 
+	 * May be used for {@link XDHPublicKeyApi}.
+	 */
+	public static final ThreadLocalKeyFactory XDH_KEY_FACTORY = new ThreadLocalKeyFactory(XDH_KEY_FACTORY_ALGORITHM);
 
 	/**
 	 * Elliptic Curve Diffie-Hellman algorithm name. See also <a href=
@@ -149,58 +162,32 @@ public final class XECDHECryptography implements Destroyable {
 	 */
 	private static final String ECDH_KEY_AGREEMENT_ALGORITHM = "ECDH";
 
-	private static final ThreadLocalKeyAgreement ECDH_KEY_AGREEMENT = new ThreadLocalKeyAgreement(ECDH_KEY_AGREEMENT_ALGORITHM);
+	private static final ThreadLocalKeyAgreement ECDH_KEY_AGREEMENT = new ThreadLocalKeyAgreement(
+			ECDH_KEY_AGREEMENT_ALGORITHM);
 
 	/**
 	 * X25519 and X448.
 	 */
 	private static final String XDH_KEY_AGREEMENT_ALGORITHM = "XDH";
 
-	private static final ThreadLocalKeyAgreement XDH_KEY_AGREEMENT = new ThreadLocalKeyAgreement(XDH_KEY_AGREEMENT_ALGORITHM);
+	private static final ThreadLocalKeyAgreement XDH_KEY_AGREEMENT = new ThreadLocalKeyAgreement(
+			XDH_KEY_AGREEMENT_ALGORITHM);
 
 	/**
 	 * Use java 11 XDH via reflection.
 	 */
-	private static final Class<?> XECPublicKeyClass;
-	private static final Method XECPublicKeyGetU;
-	private static final Method XECPublicKeyGetParams;
-	private static final Method NamedParameterSpecGetName;
-	private static final Constructor<?> XECPublicKeySpecInit;
-
-	static {
-		Class<?> cls =null;
-		Method getParams = null;
-		Method getU = null;
-		Method getName = null;
-		Constructor<?> init = null;
-		try {
-			cls = Class.forName("java.security.spec.XECPublicKeySpec");
-			init = cls.getConstructor(AlgorithmParameterSpec.class, BigInteger.class);
-			cls = Class.forName("java.security.spec.NamedParameterSpec");
-			getName = cls.getMethod("getName");
-			cls = Class.forName("java.security.interfaces.XECPublicKey");
-			getU = cls.getMethod("getU");
-			getParams = cls.getMethod("getParams");
-		} catch (Throwable t) {
-			LOGGER.info("X25519/X448 not supported!");
-		}
-		XECPublicKeyClass = cls;
-		XECPublicKeyGetU = getU;
-		XECPublicKeyGetParams = getParams;
-		NamedParameterSpecGetName = getName;
-		XECPublicKeySpecInit = init;
-	}
+	private static volatile XDHPublicKeyApi xDHPublicKeyApi = XDHPublicKeyReflection.init();
 
 	/**
-	 * Map of {@link SupportedGroup#getId() to {@link SupportedGroup}.
+	 * Map of {@link SupportedGroup#getId()} to {@link SupportedGroup}.
 	 * 
-	 * @see {@link SupportedGroup#fromId(int)}.
+	 * @see SupportedGroup#fromId(int)
 	 */
 	private static final Map<Integer, SupportedGroup> EC_CURVE_MAP_BY_ID = new HashMap<>();
 	/**
-	 * Map of {@link SupportedGroup#getId() to {@link SupportedGroup}.
+	 * Map of {@link EllipticCurve} to {@link SupportedGroup}.
 	 * 
-	 * @see {@link SupportedGroup#fromId(int)}.
+	 * @see ECParameterSpec#getCurve()
 	 */
 	private static final Map<EllipticCurve, SupportedGroup> EC_CURVE_MAP_BY_CURVE = new HashMap<>();
 
@@ -246,10 +233,11 @@ public final class XECDHECryptography implements Destroyable {
 		} else {
 			throw new GeneralSecurityException(supportedGroup.name() + " not supported by KeyPairGenerator!");
 		}
-		privateKey = keyPair.getPrivate();
-		publicKey = keyPair.getPublic();
+		this.privateKey = keyPair.getPrivate();
+		this.publicKey = keyPair.getPublic();
 		this.supportedGroup = supportedGroup;
-		this.encodedPoint = encodedPoint(keyPair.getPublic());
+		this.encodedPoint = supportedGroup.encodedPoint(publicKey);
+		check("OUT: ", publicKey, encodedPoint);
 	}
 
 	/**
@@ -265,6 +253,7 @@ public final class XECDHECryptography implements Destroyable {
 
 	/**
 	 * Get the supported group (curve) of this key exchange.
+	 * 
 	 * @return supported group
 	 */
 	public SupportedGroup getSupportedGroup() {
@@ -290,64 +279,35 @@ public final class XECDHECryptography implements Destroyable {
 	 * @param encodedPoint the other peer's public key as encoded point
 	 * @return the premaster secret
 	 * @throws NullPointerException if encodedPoint is {@code null}.
-	 * @throws GeneralSecurityException if a crypt error occurred.
+	 * @throws GeneralSecurityException if a crypto error occurred.
 	 */
 	public SecretKey generateSecret(byte[] encodedPoint) throws GeneralSecurityException {
-		if (encodedPoint == null) {
-			throw new NullPointerException("encoded point must not be null!");
+		if (privateKey == null) {
+			throw new IllegalStateException("private key must not be destroyed");
 		}
-		PublicKey peerPublicKey;
-		int keySize = supportedGroup.getKeySizeInBytes();
-		// extract public key
-		if (supportedGroup.getAlgorithmName().equals(EC_KEYPAIR_GENERATOR_ALGORITHM)) {
-			int left = encodedPoint.length - 1;
-			if (encodedPoint[0] == Asn1DerDecoder.EC_PUBLIC_KEY_UNCOMPRESSED && left % 2 == 0 && left / 2 == keySize) {
-				left /= 2;
-				byte[] encoded = new byte[keySize];
-				System.arraycopy(encodedPoint, 1, encoded, 0, keySize);
-				BigInteger x = new BigInteger(1, encoded);
-				System.arraycopy(encodedPoint, 1 + keySize, encoded, 0, keySize);
-				BigInteger y = new BigInteger(1, encoded);
-				ECParameterSpec ecParams = ((ECPrivateKey)privateKey).getParams();
-				KeySpec publicKeySpec = new ECPublicKeySpec(new ECPoint(x, y), ecParams);
-				KeyFactory keyFactory = EC_KEY_FACTORY.currentWithCause();
-				peerPublicKey = keyFactory.generatePublic(publicKeySpec);
-			} else {
-				throw new GeneralSecurityException(
-						"DHE: failed to decoded point! " + supportedGroup.name());
-			}
-		} else {
-			BigInteger u = new BigInteger(1, revert(encodedPoint, keySize));
-			KeySpec spec = getXECPublicKeySpec(supportedGroup.name(), u);
-			KeyFactory keyFactory = XDH_KEY_FACTORY.currentWithCause();
-			peerPublicKey = keyFactory.generatePublic(spec);
-		}
-		check("IN: ", peerPublicKey, encodedPoint);
-		return generateSecret(peerPublicKey);
-	}
-
-	/**
-	 * Runs the specified key agreement algorithm (ECDH) to generate the
-	 * premaster secret.
-	 * 
-	 * @param peerPublicKey
-	 *            the other peer's ephemeral public key.
-	 * @return the premaster secret.
-	 * @throws GeneralSecurityException if a crypt error occurred.
-	 */
-	private SecretKey generateSecret(PublicKey peerPublicKey) throws GeneralSecurityException {
+		PublicKey peersPublicKey = supportedGroup.decodedPoint(encodedPoint);
 		KeyAgreement keyAgreement = null;
 		if (supportedGroup.getAlgorithmName().equals(EC_KEYPAIR_GENERATOR_ALGORITHM)) {
 			keyAgreement = ECDH_KEY_AGREEMENT.currentWithCause();
-		} else if (supportedGroup.getAlgorithmName().equals(XDH_KEYPAIR_GENERATOR_ALGORITHM)) {
+		} else if (xDHPublicKeyApi != null
+				&& supportedGroup.getAlgorithmName().equals(XDH_KEYPAIR_GENERATOR_ALGORITHM)) {
 			keyAgreement = XDH_KEY_AGREEMENT.currentWithCause();
+		} else {
+			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JCE!");
 		}
-		keyAgreement.init(privateKey);
-		keyAgreement.doPhase(peerPublicKey, true);
-		byte[] secret = keyAgreement.generateSecret();
-		SecretKey secretKey = SecretUtil.create(secret, "TlsPremasterSecret");
-		Bytes.clear(secret);
-		return secretKey;
+		check("IN: ", peersPublicKey, encodedPoint);
+
+		try {
+			keyAgreement.init(privateKey);
+			keyAgreement.doPhase(peersPublicKey, true);
+			byte[] secret = keyAgreement.generateSecret();
+			SecretKey secretKey = SecretUtil.create(secret, "TlsPremasterSecret");
+			Bytes.clear(secret);
+			return secretKey;
+		} catch(InvalidKeyException ex) {
+			LOGGER.warn("Fail: {} {}", supportedGroup.name(), ex.getMessage());
+			throw ex;
+		}
 	}
 
 	@Override
@@ -358,39 +318,6 @@ public final class XECDHECryptography implements Destroyable {
 	@Override
 	public boolean isDestroyed() {
 		return privateKey == null;
-	}
-
-	/**
-	 * Get public key as encoded point.
-	 * 
-	 * The key exchange contains the used curve by its
-	 * {@link SupportedGroup#getId()}, therefore the ASN.1
-	 * {@link PublicKey#getEncoded()} is not required.
-	 * 
-	 * @param publicKey public key
-	 * @return encoded point to be sent to the other peer
-	 * @throws GeneralSecurityException if the public key could not be converted
-	 *             into a encoded point.
-	 */
-	private byte[] encodedPoint(PublicKey publicKey) throws GeneralSecurityException {
-		byte[] result = null;
-		int keySizeInBytes = supportedGroup.getKeySizeInBytes();
-		try {
-			if (supportedGroup.getAlgorithmName().equals(EC_KEYPAIR_GENERATOR_ALGORITHM)) {
-				ECPublicKey ecPublicKey = (ECPublicKey) publicKey;
-				result = encodePoint(ecPublicKey.getW(), keySizeInBytes);
-			} else if (supportedGroup.getAlgorithmName().equals(XDH_KEYPAIR_GENERATOR_ALGORITHM)) {
-				BigInteger u = getXECPublicKeyU(publicKey);
-				result = revert(u.toByteArray(), keySizeInBytes);
-			}
-		} catch (RuntimeException ex) {
-			throw new GeneralSecurityException("DHE: failed to encoded point! " + supportedGroup.name(), ex);
-		}
-		if (result == null) {
-			throw new GeneralSecurityException("DHE: failed to encoded point! " + supportedGroup.name());
-		}
-		check("OUT: ", publicKey, result);
-		return result;
 	}
 
 	private void check(String tag, PublicKey publicKey, byte[] point) throws GeneralSecurityException {
@@ -412,119 +339,14 @@ public final class XECDHECryptography implements Destroyable {
 		}
 	}
 
-	// Serialization //////////////////////////////////////////////////
-
-	private BigInteger getXECPublicKeyU(PublicKey publicKey) throws GeneralSecurityException {
-		if (XECPublicKeyGetU == null) {
-			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JRE!");
-		}
-		try {
-			return (BigInteger) XECPublicKeyGetU.invoke(publicKey);
-		} catch (Exception e) {
-			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JRE!", e);
-		}
-	}
-
-	private KeySpec getXECPublicKeySpec(String name, BigInteger u) throws GeneralSecurityException {
-		if (XECPublicKeySpecInit == null) {
-			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JRE!");
-		}
-		try {
-			ECGenParameterSpec parameterSpec = new ECGenParameterSpec(name);
-			return (KeySpec) XECPublicKeySpecInit.newInstance(parameterSpec, u);
-		} catch (Exception e) {
-			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JRE!", e);
-		}
-	}
-
-	private static String getXECPublicKeyName(PublicKey publicKey) throws GeneralSecurityException {
-		if (XECPublicKeyGetParams == null || NamedParameterSpecGetName == null) {
-			throw new GeneralSecurityException("X25519/X448 not supported by JRE!");
-		}
-		try {
-			Object params = XECPublicKeyGetParams.invoke(publicKey);
-			return (String) NamedParameterSpecGetName.invoke(params);
-		} catch (Exception e) {
-			throw new GeneralSecurityException("X25519/X448 not supported by JRE!");
-		}
-	}
-
 	/**
-	 * Get offset for none zero data.
+	 * The <em>Supported Groups</em> as defined in the official <a href=
+	 * "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8"
+	 * target="_blank"> IANA Transport Layer Security (TLS) Parameters</a>.
 	 * 
-	 * @param byteArray bytes to check for first none zero value
-	 * @return offset of first none zero value
-	 */
-	private static int noneZeroOffset(byte[] byteArray) {
-		int offset = 0;
-		while (offset < byteArray.length && byteArray[offset] == 0) {
-			++offset;
-		}
-		return offset;
-	}
-
-	/**
-	 * Revert provided bytes into a array of provided size.
-	 * 
-	 * Strip leading zeros of the provided array. Adjust size of resulting array
-	 * by append zeros.
-	 * 
-	 * @param byteArray array to revert
-	 * @param size size of reverse array
-	 * @return reverse array with appended padding zeros
-	 */
-	private static byte[] revert(byte[] byteArray, int size) {
-		int offset = noneZeroOffset(byteArray);
-		int length = byteArray.length - offset;
-		if (length > size) {
-			throw new IllegalArgumentException("big integer array exceeds size! " + length + " > " + size);
-		}
-		byte[] result = new byte[size];
-		for (int index = 0; index < length; ++index) {
-			result[length - 1 - index] = byteArray[index + offset];
-		}
-		return result;
-	}
-
-	/**
-	 * Encodes an EC point according to the X9.62 specification.
-	 * 
-	 * @param point
-	 *            the EC point to be encoded.
-	 * @param keySizeInBytes
-	 *            the keysize in bytes.
-	 * @return the encoded EC point.
-	 */
-	private static byte[] encodePoint(ECPoint point, int keySizeInBytes) {
-		// get field size in bytes (rounding up)
-
-		byte[] xb = point.getAffineX().toByteArray();
-		byte[] yb = point.getAffineY().toByteArray();
-		int xbOffset = noneZeroOffset(xb);
-		int xbLength = xb.length - xbOffset;
-		int ybOffset = noneZeroOffset(yb);
-		int ybLength = yb.length - ybOffset;
-
-		if ((xbLength > keySizeInBytes) || (ybLength > keySizeInBytes)) {
-			throw new IllegalArgumentException("ec point exceeds size! " + xbLength + "," + ybLength + " > " + keySizeInBytes);
-		}
-
-		// 1 byte (compression state) + twice field size
-		byte[] encoded = new byte[1 + (keySizeInBytes * 2)];
-		encoded[0] = Asn1DerDecoder.EC_PUBLIC_KEY_UNCOMPRESSED; // uncompressed
-		System.arraycopy(xb, xbOffset, encoded, keySizeInBytes + 1 - xbLength, xbLength);
-		System.arraycopy(yb, ybOffset, encoded, encoded.length - ybLength, ybLength);
-
-		return encoded;
-	}
-
-	/**
-	 * The <em>Supported Groups</em> as defined in the official
-	 * <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8">
-	 * IANA Transport Layer Security (TLS) Parameters</a>.
-	 * 
-	 * Also see <a href="http://tools.ietf.org/html/rfc4492#section-5.1.1">RFC 4492,
-	 * Section 5.1.1 Supported Elliptic Curves Extension</a>.
+	 * Also see
+	 * <a href="https://tools.ietf.org/html/rfc4492#section-5.1.1" target=
+	 * "_blank">RFC 4492, Section 5.1.1 Supported Elliptic Curves Extension</a>.
 	 */
 	public enum SupportedGroup {
 
@@ -556,22 +378,24 @@ public final class XECDHECryptography implements Destroyable {
 		brainpoolP256r1(26, false),
 		brainpoolP384r1(27, false),
 		brainpoolP512r1(28, false),
+		X25519(29, 32, XDH_KEYPAIR_GENERATOR_ALGORITHM, true),
+		X448(30, 56, XDH_KEYPAIR_GENERATOR_ALGORITHM, true),
 		ffdhe2048(256, false),
 		ffdhe3072(257, false),
 		ffdhe4096(258, false),
 		ffdhe6144(259, false),
 		ffdhe8192(260, false),
 		arbitrary_explicit_prime_curves(65281, false),
-		arbitrary_explicit_char2_curves(65282, false),
-
-		X25519(29, 32, XDH_KEYPAIR_GENERATOR_ALGORITHM, true),
-		X448(30, 56, XDH_KEYPAIR_GENERATOR_ALGORITHM, true);
+		arbitrary_explicit_char2_curves(65282, false);
 
 		private final int id;
 		private final String algorithmName;
 		private final int keySizeInBytes;
+		private final int encodedPointSizeInBytes;
 		private final boolean usable;
 		private final boolean recommended;
+		private final byte[] asn1header;
+		private final ThreadLocalKeyFactory keyFactory;
 
 		/**
 		 * Create supported group.
@@ -586,20 +410,28 @@ public final class XECDHECryptography implements Destroyable {
 			this.recommended = recommended;
 			EllipticCurve curve = null;
 			int keySize = 0;
+			int publicKeySize = 0;
+			byte[] header = null;
 			try {
 				KeyPairGenerator keyPairGenerator = EC_KEYPAIR_GENERATOR.currentWithCause();
 				ECGenParameterSpec genParams = new ECGenParameterSpec(name());
-				keyPairGenerator.initialize(genParams);
-				ECPublicKey apub = (ECPublicKey) keyPairGenerator.generateKeyPair().getPublic();
-				curve= apub.getParams().getCurve();
+				keyPairGenerator.initialize(genParams, RandomManager.currentSecureRandom());
+				ECPublicKey publicKey = (ECPublicKey) keyPairGenerator.generateKeyPair().getPublic();
+				curve = publicKey.getParams().getCurve();
 				keySize = (curve.getField().getFieldSize() + Byte.SIZE - 1) / Byte.SIZE;
+				publicKeySize = keySize * 2 + 1;
 				EC_CURVE_MAP_BY_CURVE.put(curve, this);
+				header = publicKey.getEncoded();
+				header = Arrays.copyOf(header, header.length - publicKeySize);
 			} catch (Throwable e) {
-				LOGGER.trace("Group [{}] is not supported by JRE! {}", name(), e.getMessage());
+				LOGGER.trace("Group [{}] is not supported by JCE! {}", name(), e.getMessage());
 				curve = null;
 			}
 			this.keySizeInBytes = keySize;
+			this.encodedPointSizeInBytes = publicKeySize;
+			this.asn1header = header;
 			this.usable = curve != null;
+			this.keyFactory = EC_KEY_FACTORY;
 			EC_CURVE_MAP_BY_ID.put(code, this);
 		}
 
@@ -617,18 +449,24 @@ public final class XECDHECryptography implements Destroyable {
 			this.id = code;
 			this.algorithmName = algorithmName;
 			this.keySizeInBytes = keySizeInBytes;
+			this.encodedPointSizeInBytes = keySizeInBytes;
 			this.recommended = recommended;
+			byte[] header = null;
 			boolean usable = false;
 			try {
 				KeyPairGenerator keyPairGenerator = XDH_KEYPAIR_GENERATOR.currentWithCause();
 				ECGenParameterSpec params = new ECGenParameterSpec(name());
-				keyPairGenerator.initialize(params);
-				keyPairGenerator.generateKeyPair();
+				keyPairGenerator.initialize(params, RandomManager.currentSecureRandom());
+				PublicKey publicKey = keyPairGenerator.generateKeyPair().getPublic();
+				header = publicKey.getEncoded();
+				header = Arrays.copyOf(header, header.length - keySizeInBytes);
 				usable = true;
 			} catch (Throwable e) {
-				LOGGER.trace("Group [{}] is not supported by JRE! {}", name(), e.getMessage());
+				LOGGER.trace("Group [{}] is not supported by JCE! {}", name(), e.getMessage());
 			}
 			this.usable = usable;
+			this.asn1header = header;
+			this.keyFactory = XDH_KEY_FACTORY;
 			EC_CURVE_MAP_BY_ID.put(code, this);
 		}
 
@@ -641,16 +479,66 @@ public final class XECDHECryptography implements Destroyable {
 			return id;
 		}
 
+		/**
+		 * Get algorithm name.
+		 * 
+		 * @return algorithm name
+		 */
 		public String getAlgorithmName() {
 			return algorithmName;
+		}
+
+		/**
+		 * Get public key as encoded point.
+		 * 
+		 * @param publicKey public key
+		 * @return encoded point, or {@code null}, if not supported
+		 * @throws NullPointerException if publicKey is {@code null}.
+		 * @throws GeneralSecurityException if a encoding is not supported
+		 * @since 3.0
+		 */
+		public byte[] encodedPoint(PublicKey publicKey) throws GeneralSecurityException {
+			if (publicKey == null) {
+				throw new NullPointerException("public key must not be null!");
+			}
+			byte[] result = publicKey.getEncoded();
+			if (result == null) {
+				throw new GeneralSecurityException(name() + " not supported!");
+			}
+			return Arrays.copyOfRange(result, asn1header.length, result.length);
+		}
+
+		/**
+		 * Get public key from encoded point
+		 * 
+		 * @param encodedPoint encoded point
+		 * @return public key
+		 * @throws NullPointerException if encoded point is {@code null}.
+		 * @throws IllegalArgumentException if encoded point has mismatching
+		 *             length.
+		 * @throws GeneralSecurityException if an error occurred
+		 * @since 3.0
+		 */
+		public PublicKey decodedPoint(byte[] encodedPoint) throws GeneralSecurityException {
+			if (encodedPoint == null) {
+				throw new NullPointerException("encoded point must not be null!");
+			}
+			if (encodedPointSizeInBytes != encodedPoint.length) {
+				throw new IllegalArgumentException("encoded point must have " + encodedPointSizeInBytes + " bytes, not "
+						+ encodedPoint.length + "!");
+			}
+			byte[] encodedKey = Bytes.concatenate(asn1header, encodedPoint);
+			X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encodedKey);
+			KeyFactory factory = keyFactory.currentWithCause();
+			return factory.generatePublic(keySpec);
 		}
 
 		/**
 		 * Gets the group for a given id.
 		 * 
 		 * @param id the id
-		 * @return the group or {@code null} if no group with the given id
-		 *          is (currently) registered
+		 * @return the group or {@code null} if no group with the given id is
+		 *         (currently) registered
 		 */
 		public static SupportedGroup fromId(int id) {
 			return EC_CURVE_MAP_BY_ID.get(id);
@@ -659,18 +547,18 @@ public final class XECDHECryptography implements Destroyable {
 		/**
 		 * Gets the group for a given public key.
 		 * 
-		 * @param publicKey the public key 
-		 * @return the group or {@code null}, if no group with the given id
-		 *          is (currently) registered
+		 * @param publicKey the public key
+		 * @return the group or {@code null}, if no group with the given id is
+		 *         (currently) registered
 		 */
 		public static SupportedGroup fromPublicKey(PublicKey publicKey) {
 			if (publicKey != null) {
 				if (publicKey instanceof ECPublicKey) {
 					ECParameterSpec params = ((ECPublicKey) publicKey).getParams();
 					return EC_CURVE_MAP_BY_CURVE.get(params.getCurve());
-				} else if (XECPublicKeyClass != null && XECPublicKeyClass.isInstance(publicKey)) {
+				} else if (xDHPublicKeyApi != null && xDHPublicKeyApi.isSupporting(publicKey)) {
 					try {
-						String name = getXECPublicKeyName(publicKey);
+						String name = xDHPublicKeyApi.getCurveName(publicKey);
 						return SupportedGroup.valueOf(name);
 					} catch (GeneralSecurityException ex) {
 
@@ -701,10 +589,9 @@ public final class XECDHECryptography implements Destroyable {
 		public static boolean isEcPublicKey(PublicKey publicKey) {
 			if (publicKey instanceof ECPublicKey) {
 				return true;
-			} else if (XECPublicKeyClass != null && XECPublicKeyClass.isInstance(publicKey)) {
-				return true;
+			} else {
+				return xDHPublicKeyApi != null && xDHPublicKeyApi.isSupporting(publicKey);
 			}
-			return false;
 		}
 
 		/**
@@ -720,7 +607,7 @@ public final class XECDHECryptography implements Destroyable {
 			for (X509Certificate certificate : certificateChain) {
 				PublicKey publicKey = certificate.getPublicKey();
 				if (isEcPublicKey(publicKey)) {
-					SupportedGroup group = fromPublicKey(certificate.getPublicKey());
+					SupportedGroup group = fromPublicKey(publicKey);
 					if (group == null || !group.isUsable() || !list.contains(group)) {
 						return false;
 					}
@@ -730,7 +617,7 @@ public final class XECDHECryptography implements Destroyable {
 		}
 
 		/**
-		 * Returns size of public key in bytes.
+		 * Returns size of the key in bytes.
 		 * 
 		 * @return key size in bytes
 		 */
@@ -739,10 +626,20 @@ public final class XECDHECryptography implements Destroyable {
 		}
 
 		/**
+		 * Returns size of the encoded point in bytes.
+		 * 
+		 * @return encoded point size in bytes
+		 * @since 3.0
+		 */
+		public int getEncodedPointSizeInBytes() {
+			return encodedPointSizeInBytes;
+		}
+
+		/**
 		 * Checks whether this group can be used on this platform.
 		 * 
-		 * @return <code>true</code> if the group's domain params are known
-		 *            and the JRE's crypto provider supports it
+		 * @return {@code true}, if the group's domain params are known and the
+		 *         JRE's crypto provider supports it
 		 */
 		public boolean isUsable() {
 			return usable;
@@ -753,14 +650,24 @@ public final class XECDHECryptography implements Destroyable {
 		}
 
 		/**
-		 * Gets all <code>SupportedGroup</code>s that can be used on this
-		 * platform.
+		 * Gets all {@code SupportedGroup}s that can be used on this platform.
 		 * 
 		 * @return the supported groups as unmodifiable list.
 		 * @see #isUsable()
 		 */
 		public static List<SupportedGroup> getUsableGroups() {
 			return Initialize.USABLE_GROUPS;
+		}
+
+		/**
+		 * Gets all {@code SupportedGroup}s that can be used on this platform as array.
+		 * 
+		 * @return the supported groups as array.
+		 * @see #isUsable()
+		 * @since 3.0
+		 */
+		public static SupportedGroup[] getUsableGroupsArray() {
+			return Initialize.USABLE_GROUPS.toArray(new SupportedGroup[Initialize.USABLE_GROUPS.size()]);
 		}
 
 		/**
@@ -807,6 +714,165 @@ public final class XECDHECryptography implements Destroyable {
 			}
 			USABLE_GROUPS = Collections.unmodifiableList(usableGroups);
 			PREFERRED_GROUPS = Collections.unmodifiableList(preferredGroups);
+		}
+	}
+
+	/**
+	 * Set {@link XDHPublicKeyApi} implementation.
+	 * <p>
+	 * As default, java 11 is supported by a implementation using reflection (in
+	 * order to prevent a hard dependency to java 11). Bouncy Castle 1.69 is
+	 * experimentally also supported using a implementation based on reflection
+	 * (as well, to prevent a hard dependency). Ensure, Bouncy Castle is set as
+	 * provider before access.
+	 * <pre>
+	 * <code>
+	 * Security.removeProvider("BC");
+	 * BouncyCastleProvider bouncyCastleProvider = new BouncyCastleProvider();
+	 * Security.insertProviderAt(bouncyCastleProvider, 1);
+	 * </code>
+	 * </pre>
+	 * <b>Note:</b> No support for Bouncy Castle issues with or without relation
+	 * to Californium could be provided! You may report issues as common, but
+	 * it's not ensured, that they could be considered.
+	 * <p>
+	 * If other XDH providers are used, or the reflection ones should be
+	 * replaced, provide that custom implementation as parameter.
+	 * <p>
+	 * e.g. Bouncy Castle (simple example, no support):
+	 * <pre>
+	 * <code>
+	 * Security.removeProvider("BC");
+	 * BouncyCastleProvider bouncyCastleProvider = new BouncyCastleProvider();
+	 * Security.insertProviderAt(bouncyCastleProvider, 1);
+	 * XECDHECryptography.XDHPublicKeyApi api = new XECDHECryptography.XDHPublicKeyApi() {
+	 * 
+	 * 	&#64;Override
+	 * 	public boolean isSupporting(PublicKey publicKey) {
+	 * 		return publicKey instanceof BCXDHPublicKey;
+	 * 	}
+	 * 
+	 * 	&#64;Override
+	 * 	public String getCurveName(PublicKey publicKey) throws GeneralSecurityException {
+	 * 		return ((BCXDHPublicKey) publicKey).getAlgorithm();
+	 * 	}
+	 * 
+	 * };
+	 * XECDHECryptography.setXDHPublicKeyApi(api);
+	 * </code>
+	 * </pre>
+	 * 
+	 * @param api {@link XDHPublicKeyApi} implementation
+	 */
+	public static void setXDHPublicKeyApi(XDHPublicKeyApi api) {
+		xDHPublicKeyApi = api;
+	}
+
+	/**
+	 * API for XDH (X25519/X448) public keys.
+	 * 
+	 * @since 3.0
+	 */
+	public interface XDHPublicKeyApi {
+
+		/**
+		 * Check, if provided public key is a XDH (X25519/X448) public key
+		 * supported by this implementation.
+		 * 
+		 * @param publicKey public key to check.
+		 * @return {@code true}, if public key is a XDH (X25519/X448) public key
+		 *         and supported by this implementation.
+		 */
+		boolean isSupporting(PublicKey publicKey);
+
+		/**
+		 * Gets curve name of the public key.
+		 * 
+		 * @param publicKey public key.
+		 * @return curve name
+		 * @throws GeneralSecurityException if not supported by this
+		 *             implementation
+		 * @see #isSupporting(PublicKey)
+		 */
+		String getCurveName(PublicKey publicKey) throws GeneralSecurityException;
+
+	}
+
+	/**
+	 * Implementation of {@link XDHPublicKeyApi} based on reflection running on
+	 * java 11 XDH, or, experimentally, Bouncy Castle 1.69.
+	 * 
+	 * @since 3.0
+	 */
+	private static class XDHPublicKeyReflection implements XDHPublicKeyApi {
+
+		private final Class<?> XECPublicKeyClass;
+		private final Method XECPublicKeyGetParams;
+		private final Method NamedParameterSpecGetName;
+
+		private XDHPublicKeyReflection(Class<?> XECPublicKeyClass) {
+			if (XECPublicKeyClass == null) {
+				throw new NullPointerException("XECPublicKeyClass must not be null!");
+			}
+			this.XECPublicKeyClass = XECPublicKeyClass;
+			this.XECPublicKeyGetParams = null;
+			this.NamedParameterSpecGetName = null;
+		}
+
+		private XDHPublicKeyReflection(Class<?> XECPublicKeyClass, Method XECPublicKeyGetParams,
+				Method NamedParameterSpecGetName) {
+			if (XECPublicKeyClass == null) {
+				throw new NullPointerException("XECPublicKeyClass must not be null!");
+			}
+			if (XECPublicKeyGetParams == null) {
+				throw new NullPointerException("XECPublicKeyGetParams must not be null!");
+			}
+			if (NamedParameterSpecGetName == null) {
+				throw new NullPointerException("NamedParameterSpecGetName must not be null!");
+			}
+			this.XECPublicKeyClass = XECPublicKeyClass;
+			this.XECPublicKeyGetParams = XECPublicKeyGetParams;
+			this.NamedParameterSpecGetName = NamedParameterSpecGetName;
+		}
+
+		@Override
+		public boolean isSupporting(PublicKey publicKey) {
+			return XECPublicKeyClass.isInstance(publicKey);
+		}
+
+		@Override
+		public String getCurveName(PublicKey publicKey) throws GeneralSecurityException {
+			if (XECPublicKeyClass.isInstance(publicKey)) {
+				if (XECPublicKeyGetParams != null && NamedParameterSpecGetName != null) {
+					try {
+						Object params = XECPublicKeyGetParams.invoke(publicKey);
+						return (String) NamedParameterSpecGetName.invoke(params);
+					} catch (Exception e) {
+						throw new GeneralSecurityException("X25519/X448 not supported by JRE!", e);
+					}
+				} else {
+					return publicKey.getAlgorithm();
+				}
+			}
+			throw new GeneralSecurityException(publicKey.getAlgorithm() + " not supported!");
+		}
+
+		private static XDHPublicKeyApi init() {
+			try {
+				if (JceProviderUtil.usesBouncyCastle()) {
+					Class<?> cls = Class.forName("org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey");
+					return new XDHPublicKeyReflection(cls);
+				} else {
+					Class<?> cls = Class.forName("java.security.spec.NamedParameterSpec");
+					Method getName = cls.getMethod("getName");
+					cls = Class.forName("java.security.interfaces.XECPublicKey");
+					Method getParams = cls.getMethod("getParams");
+					return new XDHPublicKeyReflection(cls, getParams, getName);
+				}
+			} catch (Throwable t) {
+				LOGGER.info("X25519/X448 not supported!");
+				return null;
+			}
 		}
 	}
 }

@@ -25,41 +25,46 @@ import java.net.URISyntaxException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 
 
 public class GETClient {
 
-	private static final File CONFIG_FILE = new File("Californium.properties");
-	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Fileclient";
+	private static final File CONFIG_FILE = new File("Californium3.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024; // 2 MB
 	private static final int DEFAULT_BLOCK_SIZE = 512;
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	static {
+		CoapConfig.register();
+		UdpConfig.register();
+	}
+
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 		}
 	};
 
 	/*
 	 * Application entry point.
-	 * 
 	 */	
 	public static void main(String args[]) {
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		NetworkConfig.setStandard(config);
-		
+		Configuration config = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		Configuration.setStandard(config);
+
 		URI uri = null; // URI parameter of the request
-		
+
 		if (args.length > 0) {
-			
+
 			// input URI from command line arguments
 			try {
 				uri = new URI(args[0]);
@@ -67,37 +72,36 @@ public class GETClient {
 				System.err.println("Invalid URI: " + e.getMessage());
 				System.exit(-1);
 			}
-			
+
 			CoapClient client = new CoapClient(uri);
 
-			CoapResponse response = null;
 			try {
-				response = client.get();
+				CoapResponse response = client.get();
+				if (response != null) {
+
+					System.out.println(response.getCode());
+					System.out.println(response.getOptions());
+					if (args.length > 1) {
+						try (FileOutputStream out = new FileOutputStream(args[1])) {
+							out.write(response.getPayload());
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					} else {
+						System.out.println(response.getResponseText());
+
+						System.out.println(System.lineSeparator() + "ADVANCED" + System.lineSeparator());
+						// access advanced API with access to more details through
+						// .advanced()
+						System.out.println(Utils.prettyPrint(response));
+					}
+				} else {
+					System.out.println("No response received.");
+				}
 			} catch (ConnectorException | IOException e) {
 				System.err.println("Got an error: " + e);
 			}
 
-			if (response!=null) {
-				
-				System.out.println(response.getCode());
-				System.out.println(response.getOptions());
-				if (args.length > 1) {
-					try (FileOutputStream out = new FileOutputStream(args[1])) {
-						out.write(response.getPayload());
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				} else {
-					System.out.println(response.getResponseText());
-					
-					System.out.println(System.lineSeparator() + "ADVANCED" + System.lineSeparator());
-					// access advanced API with access to more details through
-					// .advanced()
-					System.out.println(Utils.prettyPrint(response));
-				}
-			} else {
-				System.out.println("No response received.");
-			}
 			client.shutdown();
 		} else {
 			// display help

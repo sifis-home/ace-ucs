@@ -40,9 +40,9 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
@@ -54,6 +54,7 @@ import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -65,12 +66,15 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This test checks for correct MID namespaces and deduplication.
  */
 @Category(Medium.class)
 public class DeduplicationTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(DeduplicationTest.class);
 
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
@@ -91,14 +95,16 @@ public class DeduplicationTest {
 
 	@Before
 	public void setup() throws Exception {
-		NetworkConfig config = network.createTestConfig().setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
+		Configuration config = network.createTestConfig()
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
 				// client retransmits after 200 ms
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128).setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
-				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
-		clientConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL);
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 128)
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_INIT_RANDOM, 1F);
+		clientConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL, config);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint coapEndpoint = builder.build();
 		coapEndpoint.addInterceptor(clientInterceptor);
 		coapEndpoint.addPostProcessInterceptor(health);
@@ -106,9 +112,9 @@ public class DeduplicationTest {
 		cleanup.add(client);
 		client.addInterceptor(new MessageTracer());
 		client.start();
-		server = createLockstepEndpoint(client.getAddress());
+		server = createLockstepEndpoint(client.getAddress(), config);
 		cleanup.add(server);
-		System.out.println("Client binds to port " + client.getAddress().getPort());
+		LOGGER.info("Client binds to port {}", client.getAddress().getPort());
 	}
 
 	@After
@@ -118,7 +124,6 @@ public class DeduplicationTest {
 
 	@Test
 	public void testGET() throws Exception {
-		System.out.println("Simple GET:");
 		String path = "test";
 		String payload = "possible conflict";
 
@@ -174,7 +179,6 @@ public class DeduplicationTest {
 
 	@Test
 	public void testGETWithReliabilityLayerParameters() throws Exception {
-		System.out.println("Simple GET (with ReliabilityLayerParameters):");
 		String path = "test";
 
 		Builder builder = ReliabilityLayerParameters.builder().applyConfig(network.getStandardTestConfig());
@@ -220,7 +224,6 @@ public class DeduplicationTest {
 	@Test
 	public void testGETSendError() throws Exception {
 		clientConnector.setDrops(0);
-		System.out.println("Simple GET (send error):");
 		String path = "test";
 
 		CountingMessageObserver observer = new CountingMessageObserver();
@@ -241,7 +244,6 @@ public class DeduplicationTest {
 
 	@Test
 	public void testGETWithRetransmissionAndDtlsHandshakeMode() throws Exception {
-		System.out.println("Simple GET with retransmission and dtls handshake mode:");
 		String path = "test";
 
 		Builder builder = ReliabilityLayerParameters.builder().applyConfig(network.getStandardTestConfig());
@@ -251,8 +253,7 @@ public class DeduplicationTest {
 		builder.ackRandomFactor(1.0F);
 
 		EndpointContext destination = new AddressEndpointContext(server.getSocketAddress());
-		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
-				DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE);
 		Request request = createRequest(GET, path, server);
 		request.setDestinationContext(destination);
 		request.setReliabilityLayerParameters(builder.build());
@@ -266,8 +267,7 @@ public class DeduplicationTest {
 		assertThat(request.getEffectiveDestinationContext().getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(DtlsEndpointContext.HANDSHAKE_MODE_NONE));
 
 		destination = new AddressEndpointContext(server.getSocketAddress());
-		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
-				DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_FORCE);
 		request = createRequest(GET, path, server);
 		request.setDestinationContext(destination);
 		request.setReliabilityLayerParameters(builder.build());

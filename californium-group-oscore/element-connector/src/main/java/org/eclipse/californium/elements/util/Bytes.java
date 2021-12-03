@@ -186,7 +186,23 @@ public class Bytes {
 	 */
 	public static byte[] createBytes(Random generator, int size) {
 		byte[] byteArray = new byte[size];
-		generator.nextBytes(byteArray);
+		try {
+			generator.nextBytes(byteArray);
+		} catch (IllegalArgumentException ex) {
+			if (ex.getMessage().contains("Number of bits per request limited ")) {
+				// Bouncy Castle limits the SecureRandom to 32k
+				if (size > 4096) {
+					byte[] part = new byte[4096];
+					int offset = 0;
+					while (offset < size) {
+						generator.nextBytes(part);
+						int fill = Math.min(size - offset, part.length);
+						System.arraycopy(part, 0, byteArray, offset, fill);
+						offset += fill;
+					}
+				}
+			}
+		}
 		return byteArray;
 	}
 
@@ -234,7 +250,7 @@ public class Bytes {
 	}
 
 	/**
-	 * Indicates whether some bytes are "equal to" each other.
+	 * Checks, whether some bytes are "equal to" each other.
 	 * 
 	 * @param a first bytes to check
 	 * @param b second bytes to check

@@ -29,12 +29,14 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 
 /**
@@ -275,19 +277,40 @@ public class CoapExchange {
 	}
 
 	/**
-	 * Respond a overload.
+	 * Respond a overload caused by this specific client.
 	 * 
-	 * Current implementation use 5.03. May be changed, if RFC
-	 * "https://draft-ietf-core-too-many-reqs" gets adopted.
-	 *
-	 * Note: since 2.3, error responses for multicast requests are not sent. (See
+	 * Note: this error response is not sent for multicast requests. (See
 	 * {@link UdpMulticastConnector} for receiving multicast requests).
+	 * {@link NoResponseOption} is considered as well, what may cause to send
+	 * this error responses also for multicast requests.
+	 * 
+	 * @param seconds estimated time in seconds after which the client may retry
+	 *            to send requests.
+	 * 
+	 * @see Exchange#sendResponse(Response)
+	 * @see <a href="https://tools.ietf.org/html/rfc8516" target="_blank">RFC8516 - Too Many Requests</a>
+	 * @since 3.0
+	 */
+	public void respondClientOverload(int seconds) {
+		setMaxAge(seconds);
+		respond(ResponseCode.TOO_MANY_REQUESTS);
+	}
+
+	/**
+	 * Respond a overload caused by a general server overload.
+	 * 
+	 * Note: since 2.3, this error response is not sent for multicast requests.
+	 * (See {@link UdpMulticastConnector} for receiving multicast requests).
+	 * 
+	 * Note: since 3.0, {@link NoResponseOption} is considered. That may cause
+	 * to send this error responses also for multicast requests.
 	 * 
 	 * @param seconds estimated time in seconds after which the client may retry
 	 *            to send requests.
 	 * 
 	 * @see Exchange#sendResponse(Response)
 	 * @since 2.3 error responses for multicast requests are not sent
+	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void respondOverload(int seconds) {
 		setMaxAge(seconds);
@@ -310,10 +333,14 @@ public class CoapExchange {
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
 	 * {@link UdpMulticastConnector} for receiving multicast requests).
 	 * 
+	 * Note: since 3.0, {@link NoResponseOption} is considered. That may cause
+	 * to send error responses also for multicast requests.
+	 * 
 	 * @param code the response code
 	 * 
 	 * @see Exchange#sendResponse(Response)
 	 * @since 2.3 error responses for multicast requests are not sent
+	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void respond(ResponseCode code) {
 		respond(new Response(code));
@@ -325,7 +352,10 @@ public class CoapExchange {
 	 * Fills in {@link #locationPath}, {@link #locationQuery}, {@link #maxAge},
 	 * and/or {@link #eTag}, if set before.
 	 * 
+	 * Note: since 3.0, {@link NoResponseOption} is considered.
+	 * 
 	 * @param payload the payload as string
+	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void respond(String payload) {
 		respond(ResponseCode.CONTENT, payload);
@@ -346,11 +376,15 @@ public class CoapExchange {
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
 	 * {@link UdpMulticastConnector} for receiving multicast requests).
 	 * 
+	 * Note: since 3.0, {@link NoResponseOption} is considered. That may cause
+	 * to send error responses also for multicast requests.
+	 * 
 	 * @param code the response code
 	 * @param payload the payload
 	 * 
 	 * @see Exchange#sendResponse(Response)
 	 * @since 2.3 error responses for multicast requests are not sent
+	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void respond(ResponseCode code, String payload) {
 		Response response = new Response(code);
@@ -374,11 +408,15 @@ public class CoapExchange {
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
 	 * {@link UdpMulticastConnector} for receiving multicast requests).
 	 *
+	 * Note: since 3.0, {@link NoResponseOption} is considered. That may cause
+	 * to send error responses also for multicast requests.
+	 * 
 	 * @param code the response code
 	 * @param payload the payload
 	 * 
 	 * @see Exchange#sendResponse(Response)
 	 * @since 2.3 error responses for multicast requests are not sent
+	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void respond(ResponseCode code, byte[] payload) {
 		Response response = new Response(code);
@@ -401,12 +439,16 @@ public class CoapExchange {
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
 	 * {@link UdpMulticastConnector} for receiving multicast requests).
 	 * 
+	 * Note: since 3.0, {@link NoResponseOption} is considered. That may cause
+	 * to send error responses also for multicast requests.
+	 * 
 	 * @param code the response code
 	 * @param payload the payload
 	 * @param contentFormat the Content-Format of the payload
 	 * 
 	 * @see Exchange#sendResponse(Response)
 	 * @since 2.3 error responses for multicast requests are not sent
+	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void respond(ResponseCode code, byte[] payload, int contentFormat) {
 		Response response = new Response(code);
@@ -430,12 +472,16 @@ public class CoapExchange {
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
 	 * {@link UdpMulticastConnector} for receiving multicast requests).
 	 *
+	 * Note: since 3.0, {@link NoResponseOption} is considered. That may cause
+	 * to send error responses also for multicast requests.
+	 * 
 	 * @param code the response code
 	 * @param payload the payload
 	 * @param contentFormat the Content-Format of the payload
 	 * 
 	 * @see Exchange#sendResponse(Response)
 	 * @since 2.3 error responses for multicast requests are not sent
+	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void respond(ResponseCode code, String payload, int contentFormat) {
 		Response response = new Response(code);
@@ -453,10 +499,14 @@ public class CoapExchange {
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
 	 * {@link UdpMulticastConnector} for receiving multicast requests).
 	 * 
+	 * Note: since 3.0, {@link NoResponseOption} is considered. That may cause
+	 * to send error responses also for multicast requests.
+	 * 
 	 * @param response the response
 	 * 
 	 * @see Exchange#sendResponse(Response)
 	 * @since 2.3 error responses for multicast requests are not sent
+	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void respond(Response response) {
 		if (response == null)
@@ -484,8 +534,9 @@ public class CoapExchange {
 	private EndpointContext applyHandshakeMode() {
 		EndpointContext context = exchange.getCurrentRequest().getSourceContext();
 		if (handshakeMode != null && context.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE) == null) {
-			context = MapBasedEndpointContext.addEntries(context, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
-					handshakeMode);
+			Attributes attributes = new Attributes();
+			attributes.add(DtlsEndpointContext.KEY_HANDSHAKE_MODE, handshakeMode);
+			context = MapBasedEndpointContext.addEntries(context, attributes);
 		}
 		return context;
 	}

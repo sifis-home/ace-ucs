@@ -30,12 +30,13 @@ import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
+import org.eclipse.californium.scandium.util.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,18 +47,14 @@ import org.slf4j.LoggerFactory;
  * This message, if sent, will immediately follow the {@link ServerKeyExchange} message (if it is sent;
  * otherwise, this message follows the server's {@link CertificateMessage} message).
  * 
- * @see <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246, 7.4.4. Certificate Request</a>
+ * @see <a href="https://tools.ietf.org/html/rfc5246#section-7.4.4" target="_blank">RFC 5246, 7.4.4. Certificate Request</a>
  */
 @NoPublicAPI
 public final class CertificateRequest extends HandshakeMessage {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateRequest.class);
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	/* See http://tools.ietf.org/html/rfc5246#section-7.4.4 for message format. */
-
-	private static final String THREE_TABS = "\t\t\t";
 
 	private static final int CERTIFICATE_TYPES_LENGTH_BITS = 8;
 
@@ -73,14 +70,10 @@ public final class CertificateRequest extends HandshakeMessage {
 
 	private static final int MAX_LENGTH_CERTIFICATE_AUTHORITIES = (1 << 16) - 1;
 
-	// Members ////////////////////////////////////////////////////////
-
 	private final List<ClientCertificateType> certificateTypes = new ArrayList<>();
 	private final List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms = new ArrayList<>();
 	private final List<X500Principal> certificateAuthorities = new ArrayList<>();
 	private int certificateAuthoritiesEncodedLength = 0;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Initializes an empty certificate request.
@@ -89,6 +82,7 @@ public final class CertificateRequest extends HandshakeMessage {
 	}
 
 	/**
+	 * Create certificate request.
 	 * 
 	 * @param certificateTypes
 	 *            the list of allowed client certificate types.
@@ -112,8 +106,6 @@ public final class CertificateRequest extends HandshakeMessage {
 		}
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public HandshakeType getMessageType() {
 		return HandshakeType.CERTIFICATE_REQUEST;
@@ -134,30 +126,30 @@ public final class CertificateRequest extends HandshakeMessage {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		String indentation2 = StringUtil.indentation(indent + 2);
 		if (!certificateTypes.isEmpty()) {
-			sb.append("\t\tClient certificate type:").append(StringUtil.lineSeparator());
+			sb.append(indentation).append("Client certificate type:").append(StringUtil.lineSeparator());
 			for (ClientCertificateType type : certificateTypes) {
-				sb.append(THREE_TABS).append(type).append(StringUtil.lineSeparator());
+				sb.append(indentation2).append(type).append(StringUtil.lineSeparator());
 			}
 		}
 		if (!supportedSignatureAlgorithms.isEmpty()) {
-			sb.append("\t\tSignature and hash algorithm:").append(StringUtil.lineSeparator());
+			sb.append(indentation).append("Signature and hash algorithm:").append(StringUtil.lineSeparator());
 			for (SignatureAndHashAlgorithm algo : supportedSignatureAlgorithms) {
-				sb.append(THREE_TABS).append(algo).append(StringUtil.lineSeparator());
+				sb.append(indentation2).append(algo).append(StringUtil.lineSeparator());
 			}
 		}
 		if (!certificateAuthorities.isEmpty()) {
-			sb.append("\t\tCertificate authorities:").append(StringUtil.lineSeparator());
+			sb.append(indentation).append("Certificate authorities:").append(StringUtil.lineSeparator());
 			for (X500Principal subject : certificateAuthorities) {
-				sb.append(THREE_TABS).append(subject.getName()).append(StringUtil.lineSeparator());
+				sb.append(indentation2).append(subject.getName()).append(StringUtil.lineSeparator());
 			}
 		}
 		return sb.toString();
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {
@@ -220,39 +212,35 @@ public final class CertificateRequest extends HandshakeMessage {
 		return new CertificateRequest(certificateTypes, supportedSignatureAlgorithms, certificateAuthorities);
 	}
 
-	// Enums //////////////////////////////////////////////////////////
-
 	/**
 	 * Certificate types that the client may offer. See <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246</a> for
+	 * href="https://tools.ietf.org/html/rfc5246#section-7.4.4" target="_blank">RFC 5246</a> for
 	 * details.
 	 */
 	public static enum ClientCertificateType {
 
-		RSA_SIGN(1, true, "RSA"),
-		DSS_SIGN(2, true, "DSA"),
-		RSA_FIXED_DH(3, false, "DH"),
-		DSS_FIXED_DH(4, false, "DH"),
-		RSA_EPHEMERAL_DH_RESERVED(5, false, "DH"),
-		DSS_EPHEMERAL_DH_RESERVED(6, false, "DH"),
-		FORTEZZA_DMS_RESERVED(20, false, "UNKNOWN"),
-		ECDSA_SIGN(64, true, "EC", Asn1DerDecoder.EDDSA, Asn1DerDecoder.OID_ED25519, Asn1DerDecoder.OID_ED448),
-		RSA_FIXED_ECDH(65, false, "DH"),
-		ECDSA_FIXED_ECDH(66, false, "DH");
+		RSA_SIGN(1, CertificateKeyAlgorithm.RSA),
+		DSS_SIGN(2, CertificateKeyAlgorithm.DSA),
+		RSA_FIXED_DH(3, null),
+		DSS_FIXED_DH(4, null),
+		RSA_EPHEMERAL_DH_RESERVED(5, null),
+		DSS_EPHEMERAL_DH_RESERVED(6, null),
+		FORTEZZA_DMS_RESERVED(20, null),
+		ECDSA_SIGN(64, CertificateKeyAlgorithm.EC),
+		RSA_FIXED_ECDH(65, null),
+		ECDSA_FIXED_ECDH(66, null);
 
 		private final int code;
-		private final boolean requiresSigningCapability;
-		private final String[] jcaAlgorithms;
+		private final CertificateKeyAlgorithm keyAlgorithm;
 
-		private ClientCertificateType(int code, boolean requiresSigningCapability, String... algorithms) {
+		private ClientCertificateType(int code, CertificateKeyAlgorithm algorithm) {
 			this.code = code;
-			this.jcaAlgorithms = algorithms;
-			this.requiresSigningCapability = requiresSigningCapability;
+			this.keyAlgorithm = algorithm;
 		}
 
 		/**
 		 * Gets this certificate type's binary code as defined by
-		 * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246, Section 7.4.4</a>.
+		 * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.4" target="_blank">RFC 5246, Section 7.4.4</a>.
 		 * 
 		 * @return The code.
 		 */
@@ -266,7 +254,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		 * @return {@code true} if signing capability is required.
 		 */
 		public boolean requiresSigningCapability() {
-			return requiresSigningCapability;
+			return keyAlgorithm != null;
 		}
 
 		/**
@@ -276,18 +264,22 @@ public final class CertificateRequest extends HandshakeMessage {
 		 * @return {@code true} if this certificate type is compatible with the given key algorithm.
 		 */
 		public boolean isCompatibleWithKeyAlgorithm(String algorithm) {
-			algorithm = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, algorithm);
-			for (String jcaAlgorithm : jcaAlgorithms) {
-				if (jcaAlgorithm.equalsIgnoreCase(algorithm)) {
-					return true;
-				}
-			}
-			return false;
+			return keyAlgorithm == null ? false : keyAlgorithm.isCompatible(algorithm);
+		}
+
+		/**
+		 * Gets the certificate key algorithm.
+		 * 
+		 * @return certificate key algorithm
+		 * @since 3.0
+		 */
+		public CertificateKeyAlgorithm getCertificateKeyAlgorithm() {
+			return keyAlgorithm;
 		}
 
 		/**
 		 * Gets a certificate type by its code as defined by
-		 * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246, Section 7.4.4</a>.
+		 * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.4" target="_blank">RFC 5246, Section 7.4.4</a>.
 		 * 
 		 * @param code The code.
 		 * @return The certificate type or {@code null} if the given code is not defined.
@@ -302,8 +294,6 @@ public final class CertificateRequest extends HandshakeMessage {
 		}
 	}
 
-	// Getters and Setters ////////////////////////////////////////////
-
 	/**
 	 * Adds a certificate type to the list of supported certificate types.
 	 * 
@@ -311,6 +301,20 @@ public final class CertificateRequest extends HandshakeMessage {
 	 */
 	public void addCertificateType(ClientCertificateType certificateType) {
 		certificateTypes.add(certificateType);
+	}
+
+	/**
+	 * Adds a certificate key type to the list of supported certificate types.
+	 * 
+	 * @param certificateKeyAlgorithm The key algorithm to add.
+	 * @since 3.0
+	 */
+	public void addCertificateType(CertificateKeyAlgorithm certificateKeyAlgorithm) {
+		for (ClientCertificateType clientCertificateType : ClientCertificateType.values()) {
+			if (clientCertificateType.getCertificateKeyAlgorithm() == certificateKeyAlgorithm) {
+				addCertificateType(clientCertificateType);
+			}
+		}
 	}
 
 	/**
@@ -336,26 +340,6 @@ public final class CertificateRequest extends HandshakeMessage {
 	 */
 	public void addSignatureAlgorithms(List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms) {
 		supportedSignatureAlgorithms.addAll(signatureAndHashAlgorithms);
-	}
-
-	/**
-	 * Select received supported signature and hash algorithms by the supported
-	 * signature and hash algorithms of this peer.
-	 * 
-	 * Ensure, that the other peer doesn't sent unsupported signature and hash
-	 * algorithms by this peer.
-	 * 
-	 * @param supportedSignatureAndHashAlgorithms supported signature and hash
-	 *            algorithms of this peer
-	 */
-	public void selectSignatureAlgorithms(List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms) {
-		List<SignatureAndHashAlgorithm> removes = new ArrayList<>();
-		for (SignatureAndHashAlgorithm algo :this.supportedSignatureAlgorithms) {
-			if (!supportedSignatureAndHashAlgorithms.contains(algo)) {
-				removes.add(algo);
-			}
-		}
-		this.supportedSignatureAlgorithms.removeAll(removes);
 	}
 
 	/**
@@ -417,6 +401,20 @@ public final class CertificateRequest extends HandshakeMessage {
 	}
 
 	/**
+	 * Gets the certificate key algorithms that the client may offer.
+	 *
+	 * @return The certificate key algorithms (never {@code null}.
+	 * @since 3.0
+	 */
+	public List<CertificateKeyAlgorithm> getCertificateKeyAlgorithms() {
+		List<CertificateKeyAlgorithm> types = new ArrayList<>();
+		for (ClientCertificateType type : certificateTypes) {
+			ListUtils.addIfAbsent(types, type.getCertificateKeyAlgorithm());
+		}
+		return types;
+	}
+
+	/**
 	 * Checks if a given key is compatible with the client certificate types supported by the server.
 	 * 
 	 * @param key The key.
@@ -443,7 +441,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		String algorithm = cert.getPublicKey().getAlgorithm();
 		for (ClientCertificateType type : certificateTypes) {
 			if (!type.isCompatibleWithKeyAlgorithm(algorithm)) {
-				LOGGER.debug("type: {}, is not compatible with KeyAlgorithm[{}]: {}", type, algorithm);
+				LOGGER.debug("type: {}, is not compatible with KeyAlgorithm[{}]", type, algorithm);
 				continue;
 			}
 			// KeyUsage is an optional extension which may be used to restrict
@@ -474,31 +472,47 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * Gets the signature algorithm that is compatible with a given public key.
 	 * 
 	 * @param key The public key.
-	 * @return A signature algorithm that can be used with the given key or {@code null} if
-	 *         the given key is not compatible with any of the supported certificate types
-	 *         or any of the supported signature algorithms.
+	 * @param clientSupportedSignatureAlgorithms The signature algorithms
+	 *            supported by the client.
+	 * @return A signature algorithm that can be used with the given key or
+	 *         {@code null} if the given key is not compatible with any of the
+	 *         supported certificate types or any of the supported signature
+	 *         algorithms.
+	 * @since 3.0 (added clientSupportedSignatureAlgorithms)
 	 */
-	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(PublicKey key) {
-
+	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(PublicKey key,
+			List<SignatureAndHashAlgorithm> clientSupportedSignatureAlgorithms) {
 		if (isSupportedKeyType(key)) {
-			return SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(supportedSignatureAlgorithms, key);
-		} 
+			List<SignatureAndHashAlgorithm> negotiated = SignatureAndHashAlgorithm
+					.getCommonSignatureAlgorithms(supportedSignatureAlgorithms, clientSupportedSignatureAlgorithms);
+			return SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(negotiated, key);
+		}
 		return null;
 	}
 
 	/**
-	 * Gets a signature algorithm that is compatible with a given certificate chain.
+	 * Gets a signature algorithm that is compatible with a given certificate
+	 * chain.
 	 * 
 	 * @param chain The certificate chain.
-	 * @return A signature algorithm that can be used with the key contained in the given chain's
-	 *         end entity certificate or {@code null} if any of the chain's certificates is not
-	 *         compatible with any of the supported certificate types or any of the supported signature algorithms.
+	 * @param clientSupportedSignatureAlgorithms The signature algorithms
+	 *            supported by the client.
+	 * @return A signature algorithm that can be used with the key contained in
+	 *         the given chain's end entity certificate or {@code null} if any
+	 *         of the chain's certificates is not compatible with any of the
+	 *         supported certificate types or any of the supported signature
+	 *         algorithms.
 	 */
-	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(List<X509Certificate> chain) {
+	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(List<X509Certificate> chain, List<SignatureAndHashAlgorithm> clientSupportedSignatureAlgorithms) {
 		X509Certificate certificate = chain.get(0);
 		if (isSupportedKeyType(certificate)) {
+			List<SignatureAndHashAlgorithm> negotiated = SignatureAndHashAlgorithm
+					.getCommonSignatureAlgorithms(supportedSignatureAlgorithms, clientSupportedSignatureAlgorithms);
+
 			SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm
-					.getSupportedSignatureAlgorithm(supportedSignatureAlgorithms, certificate.getPublicKey());
+					.getSupportedSignatureAlgorithm(negotiated, certificate.getPublicKey());
+			// use the signature algorithms of the other peer to check the chain.
+			// only the other peer verifies the signatures of the chain
 			if (signatureAndHashAlgorithm != null
 					&& SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(supportedSignatureAlgorithms, chain)) {
 				return signatureAndHashAlgorithm;

@@ -23,12 +23,16 @@ import static org.junit.Assert.assertFalse;
 
 import java.util.List;
 
+import javax.net.ssl.X509KeyManager;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.util.ServerName;
 
 public final class DtlsTestTools extends TestCertificatesTools {
@@ -41,6 +45,17 @@ public final class DtlsTestTools extends TestCertificatesTools {
 	}
 
 	private DtlsTestTools() {
+	}
+
+	public static X509KeyManager getDtlsServerKeyManager() {
+		X509KeyManager keyManager = null;
+		if (XECDHECryptography.SupportedGroup.X25519.isUsable() && JceProviderUtil.isSupported(Asn1DerDecoder.ED25519)) {
+			keyManager = TestCertificatesTools.getServerEdDsaKeyManager();
+		}
+		if (keyManager == null) {
+			keyManager = TestCertificatesTools.getServerKeyManager();
+		}
+		return keyManager;
 	}
 
 	public static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg) {
@@ -138,7 +153,7 @@ public final class DtlsTestTools extends TestCertificatesTools {
 	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record} instances.
 	 * 
 	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
-	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
+	 * defined in <a href="https://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">RFC6347, Section 4.3.1</a>.
 	 * 
 	 * @param byteArray the raw binary representation containing one or more DTLSCiphertext structures
 	 * @param cidGenerator the connection id generator. May be {@code null}.

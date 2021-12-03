@@ -21,7 +21,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 /**
  * Extended master secret extension.
  * <p>
- * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a> and
+ * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a> and
  * {@link ExtendedMasterSecretMode}for additional details.
  * 
  * @since 3.0
@@ -38,15 +38,13 @@ public final class ExtendedMasterSecretExtension extends HelloExtension {
 	}
 
 	@Override
-	public int getLength() {
-		// 2 bytes indicating extension type,
-		// 2 bytes overall length,
-		return (TYPE_BITS + LENGTH_BITS) / Byte.SIZE;
+	protected int getExtensionLength() {
+		return 0;
 	}
 
 	@Override
-	protected void addExtensionData(final DatagramWriter writer) {
-		writer.write(0, LENGTH_BITS);
+	protected void writeExtensionTo(DatagramWriter writer) {
+		// empty
 	}
 
 	/**

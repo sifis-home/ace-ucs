@@ -436,6 +436,9 @@ public class Base64
 	 * It's possible, though silly, to specify ORDERED <b>and</b> URLSAFE
 	 * in which case one of them will be picked, though there is
 	 * no guarantee as to which one will be picked.
+	 * 
+	 * @param options options, {@link #URL_SAFE} or {@link #ORDERED}
+	 * @return alphabet
 	 */
 	private final static byte[] getAlphabet( int options ) {
 		if ((options & URL_SAFE) == URL_SAFE) {
@@ -454,6 +457,9 @@ public class Base64
 	 * It's possible, though silly, to specify ORDERED and URL_SAFE
 	 * in which case one of them will be picked, though there is
 	 * no guarantee as to which one will be picked.
+	 * 
+	 * @param options options, {@link #URL_SAFE} or {@link #ORDERED}
+	 * @return decodabet
 	 */
 	private final static byte[] getDecodabet( int options ) {
 		if( (options & URL_SAFE) == URL_SAFE) {
@@ -488,6 +494,7 @@ public class Base64
 	 * @param b4 A reusable byte array to reduce array instantiation
 	 * @param threeBytes the array to convert
 	 * @param numSigBytes the number of significant bytes in your array
+	 * @param options options, {@link #URL_SAFE}, {@link #ORDERED}, or {@link #NO_PADDING}
 	 * @return four byte array in Base64 notation.
 	 * @since 1.5.1
 	 */
@@ -517,6 +524,7 @@ public class Base64
 	 * @param numSigBytes the number of significant bytes in your array
 	 * @param destination the array to hold the conversion
 	 * @param destOffset the index where output will be put
+	 * @param options options, {@link #URL_SAFE}, {@link #ORDERED}, or {@link #NO_PADDING}
 	 * @return the <var>destination</var> array
 	 * @since 1.3
 	 */
@@ -1580,7 +1588,7 @@ public class Base64
 		{
 			// Set up some useful variables
 			java.io.File file = new java.io.File( filename );
-			byte[] buffer = new byte[ Math.max((int)(file.length() * 1.4+1),40) ]; // Need max() for math on small files (v2.2.1); Need +1 for a few corner cases (v2.3.5)
+			byte[] buffer = new byte[ Math.max((int)(file.length() * 1.4 + 1),40) ]; // Need max() for math on small files (v2.2.1); Need +1 for a few corner cases (v2.3.5)
 			int length   = 0;
 			int numBytes = 0;
 

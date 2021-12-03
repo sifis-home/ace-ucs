@@ -62,23 +62,24 @@ public class MulticastCleanupMessageObserver extends CleanupMessageObserver {
 
 	@Override
 	public void onSent(boolean retransmission) {
-		cleanup = scheduledExecutor.schedule(new Runnable() {
+		if (!retransmission) {
+			cleanup = scheduledExecutor.schedule(new Runnable() {
 
-			@Override
-			public void run() {
-				exchange.execute(new Runnable() {
-					@Override
-					public void run() {
-						if (exchange.getResponse() == null) {
-							exchange.getRequest().setCanceled(true);
-						} else {
-							exchange.setComplete();
-							exchange.getRequest().onTransferComplete();
+				@Override
+				public void run() {
+					exchange.execute(new Runnable() {
+						@Override
+						public void run() {
+							if (exchange.getResponse() == null) {
+								exchange.getRequest().setCanceled(true);
+							} else {
+								exchange.setComplete();
+							}
 						}
-					}
-				});
-			}
-		}, multicastLifetime, TimeUnit.MILLISECONDS);
+					});
+				}
+			}, multicastLifetime, TimeUnit.MILLISECONDS);
+		}
 	}
 
 	@Override

@@ -32,27 +32,18 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
-import java.net.URI;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.core.observe.ObserveRelation;
@@ -63,6 +54,8 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * CoapResource is a basic implementation of a resource. Extend this class to
@@ -135,7 +128,6 @@ import org.eclipse.californium.core.server.resources.ResourceObserver;
  * ResourceObserver is invoked whenever the name or path of a resource changes,
  * when a child resource is added or removed or when a CoAP observe relation is
  * added or canceled.
- * // TODO: make example with createClient().get() 
  */
 public  class CoapResource implements Resource {
 
@@ -340,72 +332,22 @@ public  class CoapResource implements Resource {
 		 * and added to the exchange. Otherwise, there is no such relation.
 		 * Remember that different paths might lead to this resource.
 		 */
-		
+
 		final ObserveRelation relation = exchange.getRelation();
 		if (relation == null || relation.isCanceled()) {
 			return; // because request did not try to establish a relation
 		}
-		if (CoAP.ResponseCode.isSuccess(response.getCode())) {
+		if (response.isSuccess()) {
 
 			if (!relation.isEstablished()) {
 				relation.setEstablished();
 				addObserveRelation(relation);
-			} else if (observeType != null) {
+			} else if (observeType != null && response.getType() == null) {
 				// The resource can control the message type of the notification
 				response.setType(observeType);
 			}
 			response.getOptions().setObserve(notificationOrderer.getCurrent());
 		} // ObserveLayer takes care of the else case
-	}
-
-	/**
-	 * Creates a {@link CoapClient} that uses the same executor as this resource
-	 * and one of the endpoints that this resource belongs to. If no executor is
-	 * defined by this resource or any parent, the client will not have an
-	 * executor (it still works). If this resource is not yet added to a server
-	 * or the server has no endpoints, the client has no specific endpoint and
-	 * will use Californium's default endpoint.
-	 * 
-	 * @return the CoAP client
-	 */
-	public CoapClient createClient() {
-		CoapClient client = new CoapClient();
-		client.setExecutors(getExecutor(), getSecondaryExecutor(), false);
-		final List<Endpoint> endpoints = getEndpoints();
-		if (!endpoints.isEmpty()) {
-			client.setEndpoint(endpoints.get(0));
-		}
-		return client;
-	}
-
-	/**
-	 * Creates a {@link CoapClient} that uses the same executor as this resource
-	 * and one of the endpoints that this resource belongs to. If no executor is
-	 * defined by this resource or any parent, the client will not have an
-	 * executor (it still works). If this resource is not yet added to a server
-	 * or the server has no endpoints, the client has no specific endpoint and
-	 * will use Californium's default endpoint.
-	 * 
-	 * @param uri the uri
-	 * @return the CoAP client
-	 */
-	public CoapClient createClient(URI uri) {
-		return createClient().setURI(uri.toString());
-	}
-
-	/**
-	 * Creates a {@link CoapClient} that uses the same executor as this resource
-	 * and one of the endpoints that this resource belongs to. If no executor is
-	 * defined by this resource or any parent, the client will not have an
-	 * executor (it still works). If this resource is not yet added to a server
-	 * or the server has no endpoints, the client has no specific endpoint and
-	 * will use Californium's default endpoint.
-	 *
-	 * @param uri the URI string
-	 * @return the CoAP client
-	 */
-	public CoapClient createClient(String uri) {
-		return createClient().setURI(uri);
 	}
 
 	/* (non-Javadoc)
@@ -491,27 +433,17 @@ public  class CoapResource implements Resource {
 	 */
 	@Override
 	public synchronized boolean delete(Resource child) {
-		final Resource deleted = delete(child.getName());
-		if (deleted == child) {
-			child.setParent(null);
-			child.setPath(null);
-			for (ResourceObserver obs : observers) {
-				obs.removedChild(child);
+		if (child.getParent() == this) {
+			if (children.remove(child.getName(), child)) {
+				child.setParent(null);
+				child.setPath(null);
+				for (ResourceObserver obs : observers) {
+					obs.removedChild(child);
+				}
+				return true;
 			}
-			return true;
 		}
 		return false;
-	}
-
-	/**
-	 * Removes the child with the specified name and returns it. If no child
-	 * with the specified name is found, the return value is null.
-	 * 
-	 * @param name the name
-	 * @return the deleted resource or null
-	 */
-	public synchronized Resource delete(String name) {
-		return children.remove(name);
 	}
 
 	/**
@@ -523,21 +455,63 @@ public  class CoapResource implements Resource {
 		if (parent != null) {
 			parent.delete(this);
 		}
-		
+
 		if (isObservable()) {
 			clearAndNotifyObserveRelations(ResponseCode.NOT_FOUND);
 		}
 	}
 
 	/**
+	 * Cancel all observe relations to CoAP clients.
+	 * 
+	 * The relations are canceled asynchronous using
+	 * {@link Exchange#execute(Runnable)}. Therefore the relations may still be
+	 * valid after returning, but the will be canceled afterwards.
+	 * 
+	 * @see #clearAndNotifyObserveRelations
+	 */
+	public void clearObserveRelations() {
+		clearAndNotifyObserveRelations(null, null);
+	}
+
+	/**
 	 * Remove all observe relations to CoAP clients and notify them that the
 	 * observe relation has been canceled.
 	 * 
-	 * @param code
-	 *            the error code why the relation was terminated
-	 *            (e.g., 4.04 after deletion)
+	 * The relations are canceled asynchronous using
+	 * {@link Exchange#execute(Runnable)}. Therefore the relations may still be
+	 * valid after returning, but the will be canceled afterwards.
+	 * 
+	 * @param code the error code why the relation was terminated (e.g., 4.04
+	 *            after deletion).
+	 * @throws IllegalArgumentException if code is not an error code.
+	 * @see #clearAndNotifyObserveRelations
+	 * @since 3.0 (throws IllegalArgumentException)
 	 */
 	public void clearAndNotifyObserveRelations(ResponseCode code) {
+		clearAndNotifyObserveRelations(null, code);
+	}
+
+	/**
+	 * Remove all observe relations to CoAP clients and notify them that the
+	 * observe relation has been canceled.
+	 * 
+	 * The relations are canceled asynchronous using
+	 * {@link Exchange#execute(Runnable)}. Therefore the relations may still be
+	 * valid after returning, but the will be canceled afterwards.
+	 * 
+	 * @param filter filter to select set of relations. {@code null}, if all
+	 *            clients should be notified.
+	 * @param code the error code why the relation was terminated (e.g., 4.04
+	 *            after deletion). May be {@code null}, if no response should be
+	 *            send.
+	 * @throws IllegalArgumentException if code is not an error code.
+	 * @since 3.0
+	 */
+	public void clearAndNotifyObserveRelations(final ObserveRelationFilter filter, final ResponseCode code) {
+		if (code != null && code.isSuccess()) {
+			throw new IllegalArgumentException("Only error-responses are supported, not a " + code + "/" + code.name() + "!");
+		}
 		/*
 		 * draft-ietf-core-observe-08, chapter 3.2 Notification states:
 		 * In the event that the resource changes in a way that would cause
@@ -548,17 +522,23 @@ public  class CoapResource implements Resource {
 		 * This method is called, when the resource is deleted.
 		 */
 		for (ObserveRelation relation : observeRelations) {
-			relation.cancel();
-			relation.getExchange().sendResponse(new Response(code));
-		}
-	}
+			final Exchange exchange = relation.getExchange();
+			exchange.execute(new Runnable() {
 
-	/**
-	 * Cancel all observe relations to CoAP clients.
-	 */
-	public void clearObserveRelations() {
-		for (ObserveRelation relation : observeRelations) {
-			relation.cancel();
+				@Override
+				public void run() {
+					ObserveRelation relation = exchange.getRelation();
+					if (relation != null && relation.isEstablished()) {
+						if (code != null && (null == filter || filter.accept(relation))) {
+							Response response = new Response(code);
+							response.setType(Type.CON);
+							exchange.sendResponse(response);
+						} else {
+							relation.cancel();
+						}
+					}
+				}
+			});
 		}
 	}
 
@@ -593,7 +573,7 @@ public  class CoapResource implements Resource {
 	 * @see org.eclipse.californium.core.server.resources.Resource#addObserver(org.eclipse.californium.core.server.resources.ResourceObserver)
 	 */
 	@Override
-	public synchronized void addObserver(ResourceObserver observer) {
+	public void addObserver(ResourceObserver observer) {
 		observers.add(observer);
 	}
 
@@ -601,7 +581,7 @@ public  class CoapResource implements Resource {
 	 * @see org.eclipse.californium.core.server.resources.Resource#removeObserver(org.eclipse.californium.core.server.resources.ResourceObserver)
 	 */
 	@Override
-	public synchronized void removeObserver(ResourceObserver observer) {
+	public void removeObserver(ResourceObserver observer) {
 		observers.remove(observer);
 	}
 
@@ -816,7 +796,7 @@ public  class CoapResource implements Resource {
 	 * executor, the thread that has called this method performs the
 	 * notification.
 	 * 
-	 * @param filter filter to select set of relations. <code>null</code>, if
+	 * @param filter filter to select set of relations. {@code null}, if
 	 *            all clients should be notified.
 	 * @throws IllegalStateException if method is called recursively from
 	 *             current thread (without executor).
@@ -854,7 +834,7 @@ public  class CoapResource implements Resource {
 	 * request that has established the relation.
 	 * 
 	 * @param filter filter to select set of relations. 
-	 *               <code>null</code>, if all clients should be notified.
+	 *               {@code null}, if all clients should be notified.
 	 */
 	protected void notifyObserverRelations(final ObserveRelationFilter filter) {
 		notificationOrderer.getNextObserveNumber();
@@ -876,14 +856,9 @@ public  class CoapResource implements Resource {
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#getExecutor()
 	 */
-	public ExecutorService getExecutor() {
+	public Executor getExecutor() {
 		final Resource parent = getParent();
 		return parent != null ? parent.getExecutor() : null;
-	}
-
-	public ScheduledThreadPoolExecutor getSecondaryExecutor() {
-		final Resource parent = getParent();
-		return parent != null ? parent.getSecondaryExecutor() : null;
 	}
 
 	/**
@@ -924,15 +899,4 @@ public  class CoapResource implements Resource {
 		semaphore.acquire();
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.server.resources.Resource#getEndpoints()
-	 */
-	public List<Endpoint> getEndpoints() {
-		final Resource parent = getParent();
-		if (parent == null) {
-			return Collections.emptyList();
-		} else {
-			return parent.getEndpoints();
-		}
-	}
 }

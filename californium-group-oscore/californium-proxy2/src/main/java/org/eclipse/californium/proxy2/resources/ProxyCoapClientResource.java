@@ -162,7 +162,9 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 			}
 		} catch (TranslationException e) {
 			LOGGER.debug("Proxy-uri option malformed: {}", e.getMessage());
-			exchange.sendResponse(new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED));
+			Response response = new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED);
+			response.setPayload(e.getMessage());
+			exchange.sendResponse(response);
 		} catch (Exception e) {
 			LOGGER.warn("Failed to execute request: {}", e.getMessage(), e);
 			exchange.sendResponse(new Response(ResponseCode.INTERNAL_SERVER_ERROR));

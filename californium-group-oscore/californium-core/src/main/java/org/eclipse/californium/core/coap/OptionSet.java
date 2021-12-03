@@ -30,6 +30,8 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Bytes;
+
 /**
  * {@code OptionSet} is a collection of all options of a request or a response.
  * {@code OptionSet} provides methods to add, remove and modify all options
@@ -81,13 +83,14 @@ public final class OptionSet {
 	private Integer      size2;
 	private Integer      observe;
 	private byte[]       oscore;
+	private NoResponseOption no_response;
 
 	// Arbitrary options
 	private List<Option> others;
 
 	/**
-	 * {@code true} if URI-path or URI-query are set independent from
-	 * {@link Request#setURI}. Preserve them from being cleand up, if the URI
+	 * {@code true}, if URI-path or URI-query are set independent from
+	 * {@link Request#setURI}. Preserve them from being cleaned up, if the URI
 	 * doesn't contain them.
 	 */
 	private boolean explicitUriOptions;
@@ -119,6 +122,7 @@ public final class OptionSet {
 		size2               = null;
 		observe             = null;
 		oscore              = null;
+		no_response         = null;
 
 		others              = null; // new LinkedList<>();
 	}
@@ -147,10 +151,8 @@ public final class OptionSet {
 		proxy_uri           = origin.proxy_uri;
 		proxy_scheme        = origin.proxy_scheme;
 
-		if (origin.block1 != null)
-			block1          = new BlockOption(origin.block1);
-		if (origin.block2 != null)
-			block2          = new BlockOption(origin.block2);
+		block1              = origin.block1;
+		block2              = origin.block2;
 
 		size1               = origin.size1;
 		size2               = origin.size2;
@@ -158,6 +160,7 @@ public final class OptionSet {
 		if(origin.oscore != null) {
 			oscore          = origin.oscore.clone();
 		}
+		no_response         = origin.no_response;
 		others              = copyList(origin.others);
 	}
 
@@ -182,7 +185,7 @@ public final class OptionSet {
 			uri_query_list.clear();
 		accept = null;
 		if (location_query_list != null)
-			location_path_list.clear();
+			location_query_list.clear();
 		proxy_uri = null;
 		proxy_scheme = null;
 		block1 = null;
@@ -191,6 +194,7 @@ public final class OptionSet {
 		size2 = null;
 		observe = null;
 		oscore = null;
+		no_response = null;
 		if (others != null)
 			others.clear();
 	}
@@ -401,7 +405,9 @@ public final class OptionSet {
 	 */
 	public OptionSet addETag(byte[] etag) {
 		checkOptionValue(OptionNumberRegistry.ETAG, etag);
-		getETags().add(etag);
+		if (!containsETag(etag)) {
+			getETags().add(etag.clone());
+		}
 		return this;
 	}
 
@@ -410,9 +416,20 @@ public final class OptionSet {
 	 * 
 	 * @param etag the ETag to remove
 	 * @return this OptionSet for a fluent API.
+	 * @throws NullPointerException if the etag is {@code null}
+	 * @throws IllegalArgumentException if the etag has less than 1 or more than
+	 *             8 bytes.
 	 */
 	public OptionSet removeETag(byte[] etag) {
-		getETags().remove(etag);
+		checkOptionValue(OptionNumberRegistry.ETAG, etag);
+		if (etag_list != null) {
+			for (int index = 0; index < etag_list.size(); ++index) {
+				if (Arrays.equals(etag_list.get(index), etag)) {
+					etag_list.remove(index);
+					break;
+				}
+			}
+		}
 		return this;
 	}
 
@@ -728,15 +745,22 @@ public final class OptionSet {
 	 * "http://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats">IANA
 	 * Registry</a>).
 	 * 
-	 * @param format the Content-Format ID
+	 * @param format the Content-Format ID. Use value
+	 *            {@link MediaTypeRegistry#UNDEFINED} to
+	 *            {@link #removeContentFormat()}.
 	 * @return this OptionSet for a fluent API.
 	 * @throws IllegalArgumentException if value is out of range {@code 0} to
-	 *             {@link MediaTypeRegistry#MAX_TYPE} (since 3.0).
+	 *             {@link MediaTypeRegistry#MAX_TYPE} and not
+	 *             {@link MediaTypeRegistry#UNDEFINED} (since 3.0).
 	 * @see MediaTypeRegistry
 	 */
 	public OptionSet setContentFormat(int format) {
-		OptionNumberRegistry.assertValue(OptionNumberRegistry.CONTENT_FORMAT, format);
-		content_format = format;
+		if (MediaTypeRegistry.UNDEFINED == format) {
+			content_format = null;
+		} else {
+			OptionNumberRegistry.assertValue(OptionNumberRegistry.CONTENT_FORMAT, format);
+			content_format = format;
+		}
 		return this;
 	}
 
@@ -1422,7 +1446,65 @@ public final class OptionSet {
 	}
 
 	/**
-	 * Checks if an arbitrary option is present.
+	 * Gets the NoResponse option.
+	 * 
+	 * @return the NoResponse option, or, {@code null}, if the option is not present
+	 * @since 3.0
+	 */
+	public NoResponseOption getNoResponse() {
+		return no_response;
+	}
+
+	/**
+	 * Checks, if the NoResponse option is present.
+	 * 
+	 * @return {@code true}, if present
+	 * @since 3.0
+	 */
+	public boolean hasNoResponse() {
+		return no_response != null;
+	}
+
+	/**
+	 * Sets the NoResponse option value.
+	 * 
+	 * @param noResponse the NoResponse pattern
+	 * @return this OptionSet for a fluent API.
+	 * @since 3.0
+	 */
+	public OptionSet setNoResponse(int noResponse) {
+		this.no_response = new NoResponseOption(noResponse);
+		return this;
+	}
+
+	/**
+	 * Sets the NoResponse option value.
+	 * 
+	 * @param noResponse the NoResponse option
+	 * @return this OptionSet for a fluent API.
+	 * @since 3.0
+	 */
+	public OptionSet setNoResponse(NoResponseOption noResponse) {
+		this.no_response = noResponse;
+		return this;
+	}
+
+	/**
+	 * Removes the NoResponse option.
+	 * 
+	 * @return this OptionSet for a fluent API.
+	 * @since 3.0
+	 */
+	public OptionSet removeNoResponse() {
+		this.no_response = null;
+		return this;
+	}
+
+	/**
+	 * Checks, if an arbitrary option is present.
+	 * 
+	 * Note: implementation uses {@link #asSortedList()} and is therefore not
+	 * recommended to be called too frequently.
 	 * 
 	 * @param number the option number
 	 * @return {@code true}, if present
@@ -1473,7 +1555,7 @@ public final class OptionSet {
 			for (byte[] value : etag_list)
 				options.add(new Option(OptionNumberRegistry.ETAG, value));
 		if (hasIfNoneMatch())
-			options.add(new Option(OptionNumberRegistry.IF_NONE_MATCH));
+			options.add(new Option(OptionNumberRegistry.IF_NONE_MATCH, Bytes.EMPTY));
 		if (hasUriPort())
 			options.add(new Option(OptionNumberRegistry.URI_PORT, getUriPort()));
 		if (location_path_list != null)
@@ -1512,6 +1594,8 @@ public final class OptionSet {
 			options.add(new Option(OptionNumberRegistry.SIZE2, getSize2()));
 		if (hasOscore())
 			options.add(new Option(OptionNumberRegistry.OSCORE, getOscore()));
+		if (hasNoResponse())
+			options.add(getNoResponse().toOption());
 
 		if (others != null)
 			options.addAll(others);
@@ -1526,6 +1610,38 @@ public final class OptionSet {
 
 	void resetExplicitUriOptions() {
 		explicitUriOptions = false;
+	}
+
+	/**
+	 * Add options.
+	 * 
+	 * @param options list with options to add
+	 * @return this OptionSet for a fluent API.
+	 * @since 3.0
+	 */
+	public OptionSet addOptions(Option... options) {
+		if (options != null) {
+			for (Option option : options) {
+				addOption(option);
+			}
+		}
+		return this;
+	}
+
+	/**
+	 * Add options.
+	 * 
+	 * @param options list with options to add
+	 * @return this OptionSet for a fluent API.
+	 * @since 3.0
+	 */
+	public OptionSet addOptions(List<Option> options) {
+		if (options != null) {
+			for (Option option : options) {
+				addOption(option);
+			}
+		}
+		return this;
 	}
 
 	/**
@@ -1598,6 +1714,9 @@ public final class OptionSet {
 		case OptionNumberRegistry.OSCORE:
 			setOscore(option.getValue());
 			break;
+		case OptionNumberRegistry.NO_RESPONSE:
+			setNoResponse(option.getIntegerValue());
+			break;
 		default:
 			getOthersInternal().add(option);
 		}
@@ -1607,14 +1726,15 @@ public final class OptionSet {
 	/**
 	 * Add other option bypassing the validation check.
 	 * 
-	 * If standard options are added by this function, the validation check is
-	 * bypassed! That maybe used for tests, but will result in failing
-	 * communication, if used for something else. Please use
+	 * If standard options are added by this function, the additional validation
+	 * checks are bypassed! That maybe used for tests, but will result in
+	 * failing communication, if used for something else. Please use
 	 * {@link #addOption(Option)} for all options, including others, which are
 	 * not intended for tests.
 	 * 
 	 * @param option the Option object to add
 	 * @return this OptionSet for a fluent API.
+	 * @see Option#setValueUnchecked(byte[])
 	 * @since 2.3
 	 */
 	public OptionSet addOtherOption(Option option) {

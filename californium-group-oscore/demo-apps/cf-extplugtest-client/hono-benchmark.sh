@@ -52,12 +52,12 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-2.6.0-SNAPSHOT.jar
+CF_JAR=cf-extplugtest-client-3.1.0-SNAPSHOT.jar
 CF_JAR_FIND='cf-extplugtest-client-*.jar'
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
 
-export CALIFORNIUM_STATISTIC="2.6.0-hono"
+export CALIFORNIUM_STATISTIC="3.1.0-hono"
 
 # store psk credentials in "hono.psk"
 #   format:
@@ -79,10 +79,10 @@ else
 fi
 
 if [ -z "$1" ]  ; then
-	kubectl="kubectl"
-	if ! [ -x "$(command -v kubectl)" ]; then
-	  if [ -x "$(command -v microk8s.kubectl)" ]; then
-	     kubectl="microk8s.kubectl"
+	kubectl="microk8s.kubectl"
+	if ! [ -x "$(command -v microk8s.kubectl)" ]; then
+	  if [ -x "$(command -v kubectl)" ]; then
+	     kubectl="kubectl"
 	  else
 	     echo "missing kubectl, please provid hono-host!"
 	     exit 1
@@ -120,6 +120,7 @@ USE_NONESTOP=--no-stop
 MULTIPLIER=10
 : "${REQS:=$((5 * $MULTIPLIER))}"
 : "${UDP_CLIENTS:=$((1 * $CLIENTS_MULTIPLIER))}"
+: "${USE_PAYLOAD:=--payload-format}"
 
 if [ ! -s ${CF_JAR} ] ; then
 # search for given version
@@ -172,28 +173,28 @@ benchmark_all()
 {
    if [ ${USE_NO_CAC} -ne 0 ]  && [ ${USE_CON} -ne 0 ]  ; then 
       if [ ${USE_TELEMETRY} -ne 0 ] ; then 
-         benchmark_udp "telemetry"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "telemetry"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
       if [ ${USE_EVENT} -ne 0 ] ; then 
-         benchmark_udp "event"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL} --
+         benchmark_udp "event"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
    fi
    if [ ${USE_NO_CAC} -ne 0 ]  && [ ${USE_NON} -ne 0 ]  ; then 
       if [ ${USE_TELEMETRY} -ne 0 ] ; then 
-         benchmark_udp "telemetry"  --hono --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "telemetry"  --hono --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
    fi
    if [ ${USE_CAC} -ne 0 ]  && [ ${USE_CON} -ne 0 ]; then 
       if [ ${USE_TELEMETRY} -ne 0 ] ; then 
-         benchmark_udp "telemetry?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "telemetry?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
       if [ ${USE_EVENT} -ne 0 ] ; then 
-         benchmark_udp "event?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "event?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
    fi
    if [ ${USE_CAC} -ne 0 ]  && [ ${USE_NON} -ne 0 ]; then 
       if [ ${USE_TELEMETRY} -ne 0 ] ; then 
-         benchmark_udp "telemetry?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "telemetry?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
    fi
 }

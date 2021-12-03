@@ -29,9 +29,9 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Assert;
@@ -40,6 +40,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -53,11 +55,14 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class StartStopTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(StartStopTest.class);
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	public static final String SERVER_1_RESPONSE = "This is server one";
 	public static final String SERVER_2_RESPONSE = "This is server two";
+	private static final long TIMEOUT_MILLIS = 1000;
+	private static final long PAUSE_MILLIS = 100;
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
@@ -67,16 +72,16 @@ public class StartStopTest {
 
 	@Before
 	public void setupServers() throws Exception {
-		NetworkConfig config = network.getStandardTestConfig();
+		Configuration config = network.getStandardTestConfig();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		Endpoint serverEndpoint = builder.build();
 		serverEndpoint.start();
 		uri = TestTools.getUri(serverEndpoint, "res");
 
 		builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setInetSocketAddress(serverEndpoint.getAddress());
 
 		server1 = new CoapServer(config);
@@ -89,7 +94,7 @@ public class StartStopTest {
 		cleanup.add(server1);
 
 		builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setInetSocketAddress(serverEndpoint.getAddress());
 
 		server2 = new CoapServer(config);
@@ -106,36 +111,47 @@ public class StartStopTest {
 
 	@Test
 	public void test() throws Exception {
-		System.out.println("Start server 1");
+		LOGGER.info("Start server 1");
 		server1.start();
 		sendRequestAndExpect(SERVER_1_RESPONSE);
-
-		for (int i=1;i<4;i++) {
-			System.out.println("loop: " + i + " stop server 1 and start server 2");
+		for (int loop = 1; loop < 4; loop++) {
+			LOGGER.info("loop: {} stop server 1 and start server 2", loop);
 			server1.stop();
-			Thread.sleep(100); // sometimes Travis does not free the port immediately
+			// sometimes Travis does not free the port immediately
+			Thread.sleep(PAUSE_MILLIS);
 			EndpointManager.clear(); // forget all duplicates
-			server2.start();
+			try {
+				server2.start();
+			} catch (RuntimeException ex) {
+				LOGGER.error("loop: {} starting server 2", loop, ex);
+				throw ex;
+			}
 			sendRequestAndExpect(SERVER_2_RESPONSE);
 
-			System.out.println("loop: " + i + " stop server 2 and start server 1");
+			LOGGER.info("loop: {} stop server 2 and start server 1", loop);
 			server2.stop();
-			Thread.sleep(100); // sometimes Travis does not free the port immediately
+			// sometimes Travis does not free the port immediately
+			Thread.sleep(PAUSE_MILLIS);
 			EndpointManager.clear(); // forget all duplicates
-			server1.start();
+			try {
+				server1.start();
+			} catch (RuntimeException ex) {
+				LOGGER.error("loop: {} starting server 1", loop, ex);
+				throw ex;
+			}
 			sendRequestAndExpect(SERVER_1_RESPONSE);
 		}
 
-		System.out.println("Stop server 1");
+		LOGGER.info("Stop server 1");
 		server1.stop();
 	}
 
 	private void sendRequestAndExpect(String expected) throws Exception {
-		System.out.println();
-		Thread.sleep(100);
+		LOGGER.info("send request");
+		Thread.sleep(PAUSE_MILLIS);
 		Request request = Request.newGet();
 		request.setURI(uri);
-		Response response = request.send().waitForResponse(2000);
+		Response response = request.send().waitForResponse(TIMEOUT_MILLIS);
 		Assert.assertNotNull("missing response", response);
 		Assert.assertEquals("not expected response", expected, response.getPayloadString());
 	}

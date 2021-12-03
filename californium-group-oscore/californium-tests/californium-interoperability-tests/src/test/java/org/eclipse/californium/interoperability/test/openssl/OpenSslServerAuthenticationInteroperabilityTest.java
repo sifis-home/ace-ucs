@@ -15,12 +15,15 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.openssl;
 
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
+import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.PSK;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.TRUST;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -28,10 +31,14 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.interoperability.test.ConnectorUtil;
 import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.interoperability.test.ShutdownUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -39,6 +46,7 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -65,8 +73,6 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 			ScandiumUtil.PORT);
 	private static final String ACCEPT = "127.0.0.1:" + ScandiumUtil.PORT;
 
-	private static final long TIMEOUT_MILLIS = 2000;
-
 	private static OpenSslProcessUtil processUtil;
 	private static ScandiumUtil scandiumUtil;
 	private static CipherSuite cipherSuite;
@@ -77,27 +83,35 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		ProcessResult result = processUtil.getOpenSslVersion(TIMEOUT_MILLIS);
 		assumeNotNull(result);
 		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
-		String os = System.getProperty("os.name");
-		if (os.startsWith("Windows")) {
-			assumeFalse("Windows openssl server 1.1.1 seems to be broken!", result.contains("OpenSSL 1\\.1\\.1[abcd]"));
-		}
+		processUtil.assumeServerVersion();
+
 		scandiumUtil = new ScandiumUtil(true);
 		cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 	}
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException {
-		if (processUtil != null) {
-			processUtil.shutdown();
-		}
+		ShutdownUtil.shutdown(scandiumUtil, processUtil);
+	}
+
+	@Before
+	public void start() {
+		processUtil.setTag(name.getName());
 	}
 
 	@After
 	public void stop() throws InterruptedException {
-		if (scandiumUtil != null) {
-			scandiumUtil.shutdown();
-		}
-		processUtil.shutdown();
+		ShutdownUtil.shutdown(scandiumUtil, processUtil);
+	}
+
+	@Test
+	public void testOpenSslServerPsk() throws Exception {
+		processUtil.assumePskServerVersion();
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+		String cipher = processUtil.startupServer(ACCEPT, PSK, cipherSuite);
+
+		scandiumUtil.start(BIND, null, cipherSuite);
+		connect(cipher);
 	}
 
 	@Test
@@ -128,9 +142,9 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	public void testOpenSslServerFullTrustTrustAll() throws Exception {
 		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setUseTruncatedCertificatePathForClientsCertificateMessage(false);
-		scandiumUtil.start(BIND, false, dtlsBuilder, null, cipherSuite);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH, false);
+		scandiumUtil.start(BIND, dtlsBuilder, null, cipherSuite);
 		connect(cipher);
 	}
 
@@ -185,25 +199,25 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerX25519() throws Exception {
-		assumeTrue("X25519 not support by JRE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
 		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setSupportedGroups(SupportedGroup.X25519, SupportedGroup.secp256r1);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.X25519, SupportedGroup.secp256r1);
 
-		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher, "Shared Elliptic groups: X25519");
 	}
 
 	@Test
 	public void testOpenSslServerX448() throws Exception {
-		assumeTrue("X448 not support by JRE", XECDHECryptography.SupportedGroup.X448.isUsable());
+		assumeTrue("X448 not support by JCE", XECDHECryptography.SupportedGroup.X448.isUsable());
 		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setSupportedGroups(SupportedGroup.X448, SupportedGroup.secp256r1);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.X448, SupportedGroup.secp256r1);
 
-		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher, "Shared Elliptic groups: X448");
 	}
 
@@ -211,10 +225,10 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	public void testOpenSslServerPrime256v1() throws Exception {
 		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setSupportedGroups(SupportedGroup.secp256r1);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.secp256r1);
 
-		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher, "Shared Elliptic (groups|curves): P-256");
 	}
 
@@ -222,22 +236,38 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	public void testOpenSslServerSecP384r1() throws Exception {
 		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setSupportedGroups(SupportedGroup.secp384r1, SupportedGroup.secp256r1);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.secp384r1, SupportedGroup.secp256r1);
 
-		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher, "Shared Elliptic (groups|curves): P-384");
 	}
 
 	@Test
+	public void testOpenSslServerBrainpoolP384r1() throws Exception {
+		assumeTrue("BrainpoolP384r1 not support by JCE", XECDHECryptography.SupportedGroup.brainpoolP384r1.isUsable());
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, SERVER_CERTIFICATE, "brainpoolP384r1:prime256v1", null,
+				cipherSuite);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY, false)
+				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.brainpoolP384r1, SupportedGroup.secp256r1)
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
+
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		connect(cipher, "Shared Elliptic (groups|curves): brainpoolP384r1:P-256");
+	}
+
+	@Test
 	public void testOpenSslServerRsaTrustTrustRoot() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, TRUST, SERVER_RSA_CERTIFICATE,
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, SERVER_CA_RSA_CERTIFICATE,
 				OpenSslProcessUtil.DEFAULT_CURVES, OpenSslProcessUtil.DEFAULT_SIGALGS, cipherSuite);
 
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA,
-				SignatureAndHashAlgorithm.SHA256_WITH_RSA);
-		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA,
+						SignatureAndHashAlgorithm.SHA256_WITH_RSA);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher);
 	}
 
@@ -245,12 +275,29 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	public void testOpenSslServerRsaChainTrustRoot() throws Exception {
 		CipherSuite[] ciphers = { CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8 };
+		String cipher = processUtil.startupServer(ACCEPT, CHAIN, SERVER_CA_RSA_CERTIFICATE, null, null, ciphers);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA,
+						SignatureAndHashAlgorithm.SHA256_WITH_RSA);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, ciphers);
+		connect(cipher);
+	}
+
+	@Test
+	public void testOpenSslServerRsaTrustRoot() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+		CipherSuite[] ciphers = { cipherSuite, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8 };
 		String cipher = processUtil.startupServer(ACCEPT, CHAIN, SERVER_RSA_CERTIFICATE, null, null, ciphers);
 
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA,
-				SignatureAndHashAlgorithm.SHA256_WITH_RSA);
-		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, ciphers);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA,
+						SignatureAndHashAlgorithm.SHA256_WITH_RSA);
+		scandiumUtil.loadCredentials(ConnectorUtil.CLIENT_RSA_NAME);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, ciphers);
 		connect(cipher);
 	}
 

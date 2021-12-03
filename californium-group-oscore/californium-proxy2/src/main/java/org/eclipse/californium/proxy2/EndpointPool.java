@@ -25,7 +25,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +41,9 @@ public class EndpointPool implements ClientEndpoints {
 	 */
 	protected final int size;
 	/**
-	 * Network configuration for new endpoints.
+	 * Configuration for new endpoints.
 	 */
-	protected final NetworkConfig config;
+	protected final Configuration config;
 	/**
 	 * Pool of endpoints.
 	 */
@@ -68,32 +68,34 @@ public class EndpointPool implements ClientEndpoints {
 	protected String scheme;
 
 	/**
-	 * Create endpoint pool with specific network configuration and executors
+	 * Create endpoint pool with specific configuration and executors
 	 * and initializes the pool.
 	 * 
 	 * @param size size of pool
 	 * @param init initial size of pool
-	 * @param config network configuration to create endpoints.
+	 * @param config configuration to create endpoints.
 	 * @param mainExecutor main executor for endpoints
 	 * @param secondaryExecutor secondary executor for endpoints
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public EndpointPool(int size, int init, NetworkConfig config, ScheduledExecutorService mainExecutor,
+	public EndpointPool(int size, int init, Configuration config, ScheduledExecutorService mainExecutor,
 			ScheduledExecutorService secondaryExecutor) {
 		this(size, config, mainExecutor, secondaryExecutor);
 		this.scheme = init(init);
 	}
 
 	/**
-	 * Create endpoint pool with specific network configuration and executors.
+	 * Create endpoint pool with specific configuration and executors.
 	 * 
-	 * Requries extra initialization of the pool calling {@link #init(int)}.
+	 * Requires extra initialization of the pool calling {@link #init(int)}.
 	 * 
 	 * @param size size of pool
-	 * @param config network configuration to create endpoints.
+	 * @param config configuration to create endpoints.
 	 * @param mainExecutor main executor for endpoints
 	 * @param secondaryExecutor secondary executor for endpoints
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	protected EndpointPool(int size, NetworkConfig config, ScheduledExecutorService mainExecutor,
+	protected EndpointPool(int size, Configuration config, ScheduledExecutorService mainExecutor,
 			ScheduledExecutorService secondaryExecutor) {
 		this.size = size;
 		this.pool = new ArrayBlockingQueue<>(size);
@@ -142,7 +144,7 @@ public class EndpointPool implements ClientEndpoints {
 	 * Get endpoint from pool.
 	 * 
 	 * @return An Endpoint that is not in use.
-	 * @throws IOException if an i/o error occurrs creating a new endpoint.
+	 * @throws IOException if an i/o error occurs creating a new endpoint.
 	 */
 	protected Endpoint getEndpoint() throws IOException {
 		Endpoint endpoint = pool.poll();
@@ -156,13 +158,14 @@ public class EndpointPool implements ClientEndpoints {
 	/**
 	 * Create new endpoint.
 	 * 
-	 * Maybe overriden to create endpoints using other schemes and protocols.
+	 * Maybe overridden to create endpoints using other schemes and protocols.
 	 * 
 	 * @return new created endpoint.
-	 * @throws IOException
+	 * @throws IOException if the endpoint could not be started, e.g. because
+	 *             the endpoint's port is already in use.
 	 */
 	protected Endpoint createEndpoint() throws IOException {
-		Endpoint endpoint = new CoapEndpoint.Builder().setNetworkConfig(config).build();
+		Endpoint endpoint = new CoapEndpoint.Builder().setConfiguration(config).build();
 		endpoint.setExecutors(mainExecutor, secondaryExecutor);
 		try {
 			endpoint.start();

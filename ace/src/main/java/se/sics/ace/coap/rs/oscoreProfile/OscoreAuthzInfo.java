@@ -50,6 +50,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.coap.CoapReq;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
@@ -112,6 +113,17 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	    LOGGER.log(Level.INFO, "received message: " + msg);
 	    CBORObject cbor = null;
 	    
+		if (msg instanceof CoapReq) {
+			// Check that the content-format is application/ace+cbor
+			if (((CoapReq) msg).getOptions().getContentFormat() != Constants.APPLICATION_ACE_CBOR) {
+				LOGGER.info("Invalid content-format");
+				CBORObject map = CBORObject.NewMap();
+				map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+				map.Add(Constants.ERROR_DESCRIPTION, "Invalid content-format");
+				return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+			}
+		}
+ 
         try {
             cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
         } catch (Exception e) {
@@ -164,18 +176,32 @@ public class OscoreAuthzInfo extends AuthzInfo {
         
         }
         
-        CBORObject token = cbor.get(
-                CBORObject.FromObject(Constants.ACCESS_TOKEN));
+        CBORObject token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
-            LOGGER.info("Missing mandatory parameter 'access_token'");
+            LOGGER.info("Missing parameter 'access_token'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Missing mandatory parameter 'access_token'");
+            map.Add(Constants.ERROR_DESCRIPTION, "Missing mandatory parameter 'access_token'");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
-        
-        Message reply = super.processToken(token, msg);
+        if (!token.getType().equals(CBORType.ByteString)) {
+            LOGGER.info("Invalid parameter type for 'access_token', it must be a byte-string");
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
+
+        CBORObject tokenAsCbor = CBORObject.DecodeFromBytes(token.GetByteString());
+        if (!tokenAsCbor.getType().equals(CBORType.ByteString) && !tokenAsCbor.getType().equals(CBORType.Array)) {
+            LOGGER.info("Failed deserialization of parameter 'access_token'");
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION,"Failed deserialization of parameter 'access_token'");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
+
+        Message reply = super.processToken(tokenAsCbor, msg);
         if (reply.getMessageCode() != Message.CREATED) {
             return reply;
         }

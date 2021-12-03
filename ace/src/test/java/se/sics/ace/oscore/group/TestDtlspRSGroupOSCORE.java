@@ -35,16 +35,11 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
-import java.security.Signature;
-import java.security.SignatureException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,14 +59,15 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
@@ -83,6 +79,8 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
@@ -100,7 +98,6 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
 import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
-import se.sics.ace.oscore.group.TestOscorepRSGroupOSCORE.GroupOSCORESubResourcePubKey;
 import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
@@ -1022,10 +1019,10 @@ public class TestDtlspRSGroupOSCORE {
     			// The group mode is used. The PoP evidence is a signature
     			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     			    
-					if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_EC2))
-    			        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-					else if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_OKP))
-    			        signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+    			    if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_EC2))
+        			    signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+    			    else if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_OKP))
+        			    signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
     			    // This should never happen, due to the previous sanity checks
     			    if (signKeyCurve == 0) {
@@ -3582,8 +3579,11 @@ public class TestDtlspRSGroupOSCORE {
       
   	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
 
+  	    Configuration dtlsConfig = Configuration.getStandard();
+  	    dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+  	    dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
       
-  	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
+  	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
               .setAddress(
                       new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
 
@@ -3593,16 +3593,14 @@ public class TestDtlspRSGroupOSCORE {
                 new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
   	    config.setAdvancedCertificateVerifier(verifier);
 
-  	    config.setSupportedCipherSuites(new CipherSuite[]{
-               CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-               CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
   	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
-		config.setAdvancedPskStore(psk);
-  	    config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-  	    config.setClientAuthenticationRequired(true);
+  	    config.setAdvancedPskStore(psk);
+  	    config.setCertificateIdentityProvider(
+                new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
+
   	    DTLSConnector connector = new DTLSConnector(config.build());
   	    CoapEndpoint cep = new Builder().setConnector(connector)
-               .setNetworkConfig(NetworkConfig.getStandard()).build();
+               .setConfiguration(Configuration.getStandard()).build();
   	    rs.addEndpoint(cep);
   	    //Add a CoAP (no 's') endpoint for authz-info
   	    CoapEndpoint aiep = new Builder().setInetSocketAddress(

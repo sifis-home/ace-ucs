@@ -32,7 +32,7 @@ public final class BlockOption {
 	/**
 	 * SZX for BERT blockwise.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc8323#section-6">RFC8323, 6.
+	 * See <a href="https://tools.ietf.org/html/rfc8323#section-6" target="_blank">RFC8323, 6.
 	 * Block-Wise Transfer and Reliable Transports</a>.
 	 * 
 	 * @since 3.0
@@ -65,28 +65,11 @@ public final class BlockOption {
 	}
 
 	/**
-	 * Instantiates a new block option with the same values as the specified
-	 * block option.
-	 * 
-	 * @param origin the origin
-	 * @throws NullPointerException if the specified block option is null
-	 */
-	public BlockOption(final BlockOption origin) {
-		if (origin == null) {
-			throw new NullPointerException("origin must not be null");
-		} else {
-			this.szx = origin.getSzx();
-			this.m = origin.isM();
-			this.num = origin.getNum();
-		}
-	}
-
-	/**
 	 * Instantiates a new block option from the specified bytes (1-3 bytes).
 	 *
 	 * @param value the bytes
 	 * @throws NullPointerException if the specified bytes are null
-	 * @throws IllegalArgumentException if the specified value's length larger than 3
+	 * @throws IllegalArgumentException if the specified value's length is larger than 3
 	 */
 	public BlockOption(final byte[] value) {
 
@@ -116,7 +99,7 @@ public final class BlockOption {
 	 * 
 	 * @return {@code true}, if BERT is used, {@code false}, otherwise.
 	 * @see #BERT_SZX See
-	 *      <a href="https://tools.ietf.org/html/rfc8323#section-6">RFC8323, 6.
+	 *      <a href="https://tools.ietf.org/html/rfc8323#section-6" target="_blank">RFC8323, 6.
 	 *      Block-Wise Transfer and Reliable Transports</a>.
 	 * @since 3.0
 	 */
@@ -234,6 +217,25 @@ public final class BlockOption {
 		return num * szx2Size(szx);
 	}
 
+	/**
+	 * Convert to generic {@link Option}.
+	 * 
+	 * @param number either {@link OptionNumberRegistry#BLOCK1} or
+	 *            {@link OptionNumberRegistry#BLOCK2}.
+	 * @return generic option.
+	 * @throws IllegalArgumentException if number is neither
+	 *             {@link OptionNumberRegistry#BLOCK1} nor
+	 *             {@link OptionNumberRegistry#BLOCK2}.
+	 * @since 3.0
+	 */
+	public Option toOption(int number) {
+		if (number != OptionNumberRegistry.BLOCK1 && number != OptionNumberRegistry.BLOCK2) {
+			throw new IllegalArgumentException("Block Option must be either block1(" + OptionNumberRegistry.BLOCK1
+					+ ") or block2(" + OptionNumberRegistry.BLOCK2 + "), not " + number + "!");
+		}
+		return new Option(number, getValue());
+	}
+
 	@Override
 	public String toString() {
 		return String.format("(szx=%d/%d, m=%b, num=%d)", szx, szx2Size(szx), m, num);
@@ -258,7 +260,7 @@ public final class BlockOption {
 
 	/**
 	 * Gets the 3-bit SZX code for a block size as specified by
-	 * <a href="https://tools.ietf.org/html/rfc7959#section-2.2">RFC 7959, Section 2.2</a>:
+	 * <a href="https://tools.ietf.org/html/rfc7959#section-2.2" target="_blank">RFC 7959, Section 2.2</a>:
 	 * 
 	 * <pre>
 	 * 16 bytes = 2^4 --&gt; 0

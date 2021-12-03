@@ -27,7 +27,7 @@ import org.eclipse.californium.elements.util.NoPublicAPI;
 /**
  * An abstraction of the DTLS record layer's capabilities for sending records to
  * peers. MTU values according
- * <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit">MTU - Wikipedia</a>.
+ * <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit" target="_blank">MTU - Wikipedia</a>.
  */
 @NoPublicAPI
 public interface RecordLayer {
@@ -116,6 +116,15 @@ public interface RecordLayer {
 	 * @param connection connection to process record.
 	 */
 	void processRecord(Record record, Connection connection);
+
+	/**
+	 * Process handshake exceptions occurred outside the direct processing of records.
+	 * 
+	 * @param connection affected connection
+	 * @param error handshake exception
+	 * @since 3.0
+	 */
+	void processHandshakeException(Connection connection, HandshakeException error);
 
 	/**
 	 * Report dropped record

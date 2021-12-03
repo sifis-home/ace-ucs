@@ -19,7 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -43,8 +42,12 @@ public class CoapResponse {
 	 * Instantiates a new coap response.
 	 *
 	 * @param response the response
+	 * @throws NullPointerException if response is {@code null}
 	 */
 	protected CoapResponse(Response response) {
+		if (response == null) {
+			throw new NullPointerException("Response must not be null!");
+		}
 		this.response = response;
 	}
 
@@ -63,7 +66,7 @@ public class CoapResponse {
 	 * @return true, if is success
 	 */
 	public boolean isSuccess() {
-		return CoAP.ResponseCode.isSuccess(response.getCode());
+		return response.isSuccess();
 	}
 
 	/**
@@ -111,5 +114,10 @@ public class CoapResponse {
 	 */
 	public Response advanced() {
 		return response;
+	}
+
+	@Override
+	public String toString() {
+		return response.toString();
 	}
 }

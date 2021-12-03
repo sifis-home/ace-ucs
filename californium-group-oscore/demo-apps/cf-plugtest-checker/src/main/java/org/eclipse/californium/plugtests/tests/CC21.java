@@ -17,6 +17,7 @@ package org.eclipse.californium.plugtests.tests;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -95,7 +96,7 @@ public class CC21 extends TestClientAbstract {
 				if (verbose) {
 					System.out.println("Response received");
 					System.out.println("Time elapsed (ms): "
-							+ response.getRTT());
+							+ TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 					Utils.prettyPrint(response);
 				}
 
@@ -109,6 +110,7 @@ public class CC21 extends TestClientAbstract {
 				request = new Request(Code.GET, Type.CON);
 				request.getOptions().addETag(etagStep3);
 
+				addContextObserver(request);
 				request.setURI(uri);
 
 				request.send();
@@ -121,7 +123,7 @@ public class CC21 extends TestClientAbstract {
 					if (verbose) {
 						System.out.println("Response received");
 						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
+								+ TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 						Utils.prettyPrint(response);
 					}
 
@@ -132,6 +134,7 @@ public class CC21 extends TestClientAbstract {
 							.getETags().get(0), "ETag");
 
 					request = new Request(Code.PUT, Type.CON);
+					addContextObserver(request);
 					request.setURI(uri);
 					request.setPayload("It should change");
 					request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
@@ -142,6 +145,7 @@ public class CC21 extends TestClientAbstract {
 					// Part C
 					request = new Request(Code.GET, Type.CON);
 					request.getOptions().addETag(etagStep3);
+					addContextObserver(request);
 
 					request.setURI(uri);
 
@@ -155,7 +159,7 @@ public class CC21 extends TestClientAbstract {
 						if (verbose) {
 							System.out.println("Response received");
 							System.out.println("Time elapsed (ms): "
-									+ response.getRTT());
+									+ TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 							Utils.prettyPrint(response);
 						}
 

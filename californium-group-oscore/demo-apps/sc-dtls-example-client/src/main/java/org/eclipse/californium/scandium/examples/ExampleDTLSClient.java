@@ -38,12 +38,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,10 +65,28 @@ public class ExampleDTLSClient {
 	private static CountDownLatch messageCounter;
 
 	private static String payload = "HELLO WORLD";
-	
+
+	static {
+		DtlsConfig.register();
+	}
+
+	/**
+	 * Special configuration defaults handler.
+	 */
+	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
+
+		@Override
+		public void applyDefinitions(Configuration config) {
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0);
+			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2);
+			config.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
+		}
+
+	};
+
 	private DTLSConnector dtlsConnector;
 	private AtomicInteger clientMessageCounter = new AtomicInteger();
-	
+
 	public ExampleDTLSClient() {
 		try {
 			// load key store
@@ -74,13 +96,14 @@ public class ExampleDTLSClient {
 			Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, "root", TRUST_STORE_PASSWORD);
 
-			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+			Configuration configuration = Configuration.createWithFile(Configuration.DEFAULT_FILE, "DTLS example client", DEFAULTS);
+
+			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
 			builder.setAdvancedPskStore(new AdvancedSinglePskStore("Client_identity", "secretPSK".getBytes()));
-			builder.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
-					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+			builder.setCertificateIdentityProvider(new SingleCertificateProvider(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
+					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
 			builder.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
 					.setTrustedCertificates(trustedCertificates).setTrustAllRPKs().build());
-			builder.setConnectionThreadCount(1);
 			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector.setRawDataReceiver(new RawDataChannel() {
 

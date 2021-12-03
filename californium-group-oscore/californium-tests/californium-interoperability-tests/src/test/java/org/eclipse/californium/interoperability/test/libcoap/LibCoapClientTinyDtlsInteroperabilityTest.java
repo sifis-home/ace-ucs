@@ -15,8 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
+import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.PSK;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.RPK;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 
@@ -26,14 +29,19 @@ import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.interoperability.test.ShutdownUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -53,7 +61,6 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 			ScandiumUtil.PORT);
 	private static final String DESTINATION = "127.0.0.1:" + ScandiumUtil.PORT;
 	private static final String DESTINATION_URL = "coaps://" + DESTINATION + "/";
-	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static LibCoapProcessUtil processUtil;
 	private static CaliforniumUtil californiumUtil;
@@ -70,21 +77,17 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException {
-		if (californiumUtil != null) {
-			californiumUtil.shutdown();
-			californiumUtil = null;
-		}
-		if (processUtil != null) {
-			processUtil.shutdown();
-		}
+		ShutdownUtil.shutdown(californiumUtil, processUtil);
+	}
+
+	@Before
+	public void start() {
+		processUtil.setTag(name.getName());
 	}
 
 	@After
 	public void stop() throws InterruptedException {
-		if (californiumUtil != null) {
-			californiumUtil.shutdown();
-		}
-		processUtil.shutdown();
+		ShutdownUtil.shutdown(californiumUtil, processUtil);
 	}
 
 	@Test
@@ -101,9 +104,9 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 	@Test
 	public void testLibCoapClientTinyDtlsPskMultiFragment() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-		builder.setEnableMultiHandshakeMessageRecords(true);
-		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
+		californiumUtil.start(BIND, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -111,11 +114,11 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 	}
 
 	@Test
-	public void testLibCoapClientTinyDtlsPskNoSessionIdt() throws Exception {
+	public void testLibCoapClientTinyDtlsPskNoSessionId() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-		builder.setNoServerSessionId(true);
-		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_SERVER_USE_SESSION_ID, false);
+		californiumUtil.start(BIND, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -129,19 +132,32 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		californiumUtil.start(BIND, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
-		ProcessResult result = connect("Hello, CoAP!", "Greetings!");
-		assertTrue(result.contains("certificate \\(11\\)"));
-		assertTrue(result.contains("certificate_verify \\(15\\)"));
+		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)", "certificate_verify \\(15\\)");
 		californiumUtil.assertPrincipalType(RawPublicKeyIdentity.class);
 	}
 
+	@Test
+	public void testLibCoapClientTinyDtlsRpkAnonymousClient() throws Exception {
+		processUtil.assumeMinVersion("4.3.0");
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
+		Configuration configuration = new Configuration();
+		configuration.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
+		californiumUtil.start(BIND, builder, null, cipherSuite);
+
+		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
+		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)");
+		assertNull(californiumUtil.getPrincipal());
+	}
+
 	public ProcessResult connect(String sendMessage, String... patterns) throws Exception {
+		long timeout = REQUEST_TIMEOUT_MILLIS.get();
 		if (patterns != null) {
 			for (String check : patterns) {
-				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
+				assertTrue("missing " + check + " (" + timeout + "ms)", processUtil.waitConsole(check, timeout));
 			}
 		}
-		californiumUtil.assertReceivedData(sendMessage, TIMEOUT_MILLIS);
+		californiumUtil.assertReceivedData(sendMessage, timeout);
 		return processUtil.stop(TIMEOUT_MILLIS);
 	}
 }

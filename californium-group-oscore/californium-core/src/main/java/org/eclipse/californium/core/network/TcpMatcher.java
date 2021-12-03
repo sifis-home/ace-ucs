@@ -55,12 +55,12 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * Matcher that runs over reliable TCP/TLS protocol.
  * 
  * Based on
- * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02">draft-ietf-core-coap-tcp-tls-02</a>.
+ * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02" target="_blank">draft-ietf-core-coap-tcp-tls-02</a>.
  */
 public final class TcpMatcher extends BaseMatcher {
 
@@ -88,15 +88,16 @@ public final class TcpMatcher extends BaseMatcher {
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore The store to use for keeping track of message
 	 *            exchanges.
-	 * @param executor executor to be used for exchanges.
 	 * @param endpointContextMatcher endpoint context matcher to relate
 	 *            responses with requests
-	 * @throws NullPointerException if one of the parameters is {@code null}.
+	 * @param executor executor to be used for exchanges.
+	 * @throws NullPointerException if any of the parameters is {@code null}.
+	 * @since 3.0 (changed parameter to Configuration, moved executor to end of parameter list)
 	 */
-	public TcpMatcher(NetworkConfig config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
-			ObservationStore observationStore, MessageExchangeStore exchangeStore, Executor executor,
-			EndpointContextMatcher endpointContextMatcher) {
-		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, executor);
+	public TcpMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
+			ObservationStore observationStore, MessageExchangeStore exchangeStore, EndpointContextMatcher endpointContextMatcher,
+			Executor executor) {
+		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, endpointContextMatcher, executor);
 		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
@@ -125,7 +126,7 @@ public final class TcpMatcher extends BaseMatcher {
 
 				@Override
 				public void onSendError(Throwable error) {
-					observeRelation.cancel();
+					observeRelation.cleanup();
 				}
 			});
 		}
@@ -146,7 +147,8 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public void receiveRequest(final Request request, final EndpointReceiver receiver) {
 
-		final Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, executor);
+		Object peer = endpointContextMatcher.getEndpointIdentity(request.getSourceContext());
+		final Exchange exchange = new Exchange(request, peer, Exchange.Origin.REMOTE, executor);
 		exchange.setRemoveHandler(exchangeRemoveHandler);
 		exchange.execute(new Runnable() {
 

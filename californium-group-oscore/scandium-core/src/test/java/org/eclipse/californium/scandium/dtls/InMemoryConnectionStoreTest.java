@@ -33,8 +33,10 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Random;
 
-import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -44,10 +46,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-@Category(Small.class)
+@Category(Medium.class)
 public class InMemoryConnectionStoreTest {
 	@Rule
 	public ThreadsRule cleanup = new ThreadsRule();
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	private static final int INITIAL_CAPACITY = 10;
 	InMemoryConnectionStore store;
@@ -99,29 +103,26 @@ public class InMemoryConnectionStoreTest {
 	}
 
 	@Test
-	public void testFindRetrievesLocalConnection() {
+	public void testFindRetrievesLocalSession() {
 		// given a connection store containing a connection with a peer
 		store.put(con);
-		store.putEstablishedSession(con.getEstablishedSession(), con);
 		// when retrieving the connection for the given peer
-		Connection connectionWithPeer = store.find(sessionId);
-		assertThat(connectionWithPeer, is(con));
+		DTLSSession session = store.find(sessionId);
+		assertThat(session, is(con.getEstablishedSession()));
 	}
 
 	@Test
 	public void testFindRetrievesSharedConnection() {
 
-		// GIVEN an empty connection store with a cached session shared by another node
-		SessionCache sessionCache = new InMemorySessionCache();
-		sessionCache.put(con.getEstablishedSession());
-		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
+		// GIVEN an empty connection store with a session store shared by another node
+		SessionStore sessionStore = new TestInMemorySessionStore(true);
+		sessionStore.put(con.getEstablishedSession());
+		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore);
 
 		// WHEN retrieving the connection for the given peer
-		Connection connectionWithPeer = store.find(sessionId);
+		DTLSSession resumeSession = store.find(sessionId);
 
 		// THEN assert that the retrieved connection contains a session ticket
-		assertThat(connectionWithPeer, is(notNullValue()));
-		DTLSSession resumeSession = connectionWithPeer.getResumeSession();
 		assertThat(resumeSession, is(notNullValue()));
 		assertThat(resumeSession.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
 	}
@@ -129,23 +130,20 @@ public class InMemoryConnectionStoreTest {
 	@Test
 	public void testFindRemovesStaleConnectionFromStore() {
 
-		// GIVEN a connection store with a cached session shared by another node
+		// GIVEN a connection store with a session store shared by another node
 		// and a (local) connection based on this session
-		SessionCache sessionCache = new InMemorySessionCache();
-		sessionCache.put(con.getEstablishedSession());
-		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
+		SessionStore sessionStore = new TestInMemorySessionStore(true);
+		sessionStore.put(con.getEstablishedSession());
+		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore);
 		store.attach(null);
 		store.put(con);
-		store.putEstablishedSession(con.getEstablishedSession(), con);
-		InetSocketAddress peerAddress = con.getPeerAddress();
 
-		// WHEN the session is removed from the cache (e.g. because it became stale)
-		sessionCache.remove(con.getEstablishedSession().getSessionIdentifier());
+		// WHEN the session is removed from the session store (e.g. because it became stale)
+		sessionStore.remove(con.getEstablishedSession().getSessionIdentifier());
 
-		// THEN assert that the connection has been removed from the local cache
-		Connection connectionToResume = store.find(sessionId);
-		assertThat(connectionToResume, is(nullValue()));
-		assertThat(store.get(peerAddress), is(nullValue()));
+		// THEN assert that the connection has been removed from the local store
+		DTLSSession sessionToResume = store.find(sessionId);
+		assertThat(sessionToResume, is(nullValue()));
 	}
 
 	@Test
@@ -154,7 +152,7 @@ public class InMemoryConnectionStoreTest {
 		store.put(con);
 
 		// when clearing the store
-		store.remove(con);
+		store.remove(con, true);
 
 		// assert that the executor is shutdown
 		assertThat(con.getExecutor().isShutdown(), is(true));
@@ -243,21 +241,29 @@ public class InMemoryConnectionStoreTest {
 		DTLSSession session = con1.getEstablishedSession();
 		InetSocketAddress address = con1.getPeerAddress();
 		assertTrue(store.put(con1));
-		
-		assertThat(store.find(session.getSessionIdentifier()), is(con1));
+
+		assertThat(store.find(session.getSessionIdentifier()), is(session));
 
 		Connection con2 =  newConnection(52L);
 		con2.resetContext();
 		assertTrue(store.put(con2));
-		assertThat(store.find(session.getSessionIdentifier()), is(con1));
+		assertThat(store.find(session.getSessionIdentifier()), is(session));
 
 		// assert that the store has two entries
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 2));
 
-		// resume session => established
-		store.putEstablishedSession(session, con2);
+		DTLSContext dtlsContext = new DTLSContext(0);
+		dtlsContext.getSession().set(session);
+		con2.getSessionListener().contextEstablished(null, dtlsContext);
 
-		assertThat(store.find(session.getSessionIdentifier()), is(con2));
+		assertThat(con2.getEstablishedSession(), is(notNullValue()));
+
+		// resume session => established
+		store.putEstablishedSession(con2);
+
+		DTLSSession resumeSession = store.find(session.getSessionIdentifier());
+		assertThat(resumeSession, is(notNullValue()));
+		assertThat(resumeSession, is(con2.getEstablishedSession()));
 		assertThat(store.get(address), is(nullValue()));
 		assertThat(con1.getPeerAddress(), is(nullValue()));
 
@@ -276,7 +282,7 @@ public class InMemoryConnectionStoreTest {
 		InetSocketAddress address = con1.getPeerAddress();
 		assertTrue(store.put(con1));
 		
-		assertThat(store.find(session.getSessionIdentifier()), is(con1));
+		assertThat(store.find(session.getSessionIdentifier()), is(con1.getEstablishedSession()));
 
 		Connection con2 =  newConnection(51L);
 		con2.resetContext();
@@ -285,18 +291,26 @@ public class InMemoryConnectionStoreTest {
 		// assert that the store has two entries
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 2));
 
-		assertThat(store.find(session.getSessionIdentifier()), is(con1));
+		assertThat(store.find(session.getSessionIdentifier()), is(con1.getEstablishedSession()));
 
 		assertThat(store.get(address), is(con2));
 		assertThat(con1.getPeerAddress(), is(nullValue()));
 
+		DTLSContext dtlsContext = new DTLSContext(0);
+		dtlsContext.getSession().set(session);
+		con2.getSessionListener().contextEstablished(null, dtlsContext);
+
+		assertThat(con2.getEstablishedSession(), is(notNullValue()));
+
 		// resume session => established
-		store.putEstablishedSession(session, con2);
+		store.putEstablishedSession(con2);
 
 		// assert that the store has one entry
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 1));
 
-		assertThat(store.find(session.getSessionIdentifier()), is(con2));
+		DTLSSession resumeSession = store.find(session.getSessionIdentifier());
+		assertThat(resumeSession, is(notNullValue()));
+		assertThat(resumeSession, is(con2.getEstablishedSession()));
 	}
 
 	@Test
@@ -331,6 +345,8 @@ public class InMemoryConnectionStoreTest {
 
 	@Test
 	public void testSaveAndLoadMaliciousConnections() throws Exception {
+		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class);
+
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 		assertTrue(store.put(con));
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 1));
@@ -383,7 +399,7 @@ public class InMemoryConnectionStoreTest {
 	private Connection newConnection(long ip) throws HandshakeException, UnknownHostException {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
-		Connection con = new Connection(peerAddress, new SyncSerialExecutor());
+		Connection con = new Connection(peerAddress).setConnectorContext(TestSynchroneExecutor.TEST_EXECUTOR, null);
 		DTLSContext dtlsContext = DTLSContextTest.newEstablishedServerDtlsContext(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		con.getSessionListener().contextEstablished(null, dtlsContext);
 		return con;

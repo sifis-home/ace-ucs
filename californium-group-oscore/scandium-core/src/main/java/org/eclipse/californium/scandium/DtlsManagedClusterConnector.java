@@ -20,6 +20,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
@@ -28,14 +29,17 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
-import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -110,23 +114,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	 */
 	public DtlsManagedClusterConnector(DtlsConnectorConfig configuration,
 			DtlsClusterConnectorConfig clusterConfiguration) {
-		this(configuration, clusterConfiguration, (SessionCache) null);
-	}
-
-	/**
-	 * Create dtls connector with dynamic cluster support.
-	 * 
-	 * @param configuration dtls configuration
-	 * @param clusterConfiguration cluster internal connector configuration
-	 * @param sessionCache session cache. May be {@code null}.
-	 * @throws IllegalArgumentException if the configuration doesn't provide a
-	 *             cid generator, or the cid generator only supports, but
-	 *             doesn't use cids, or the cid generator is no
-	 *             {@link NodeConnectionIdGenerator}.
-	 */
-	public DtlsManagedClusterConnector(DtlsConnectorConfig configuration,
-			DtlsClusterConnectorConfig clusterConfiguration, SessionCache sessionCache) {
-		this(configuration, clusterConfiguration, createConnectionStore(configuration, sessionCache));
+		this(configuration, clusterConfiguration, createConnectionStore(configuration));
 	}
 
 	/**
@@ -148,25 +136,72 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 		Integer mgmtSendBuffer = addConditionally(config.getSocketSendBufferSize(), MAX_DATAGRAM_OFFSET);
 		if (identity != null) {
 			SecretKey secretkey = clusterConfiguration.getSecretKey();
-			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
-					.setAddress(clusterConfiguration.getAddress()).setReceiverThreadCount(0).setMaxConnections(1024)
-					.setSocketReceiveBufferSize(mgmtReceiveBuffer).setSocketSendBufferSize(mgmtSendBuffer)
-					.setAdvancedPskStore(new AdvancedSinglePskStore(identity, secretkey));
+			String tag = configuration.getLoggingTag();
+			if (tag == null || tag.isEmpty()) {
+				tag = "dtls-cluster-mgmt";
+			} else {
+				tag = StringUtil.normalizeLoggingTag(tag);
+				tag += "dtls-cluster-mgmt";
+			}
+			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration.getConfiguration())
+					.setLoggingTag(tag)
+					.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 500, TimeUnit.MILLISECONDS)
+					.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 3)
+					.set(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF, 0)
+					.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 1024)
+					.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 0)
+					.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, mgmtReceiveBuffer)
+					.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, mgmtSendBuffer)
+					.setAddress(clusterConfiguration.getAddress())
+					.setAdvancedPskStore(new AdvancedSinglePskStore(identity, secretkey))
+					.setConnectionListener(new ConnectionListener() {
+
+						@Override
+						public void updateExecution(Connection connection) {
+						}
+
+						@Override
+						public boolean onConnectionUpdatesSequenceNumbers(Connection connection,
+								boolean writeSequenceNumber) {
+							return false;
+						}
+
+						@Override
+						public void onConnectionRemoved(Connection connection) {
+							LOGGER.info("cluster-node {}: lost connection {}!", getNodeID(),
+									connection.getPeerAddress());
+						}
+
+						@Override
+						public boolean onConnectionMacError(Connection connection) {
+							return false;
+						}
+
+						@Override
+						public void onConnectionEstablished(Connection connection) {
+						}
+
+						@Override
+						public void beforeExecution(Connection connection) {
+						}
+
+						@Override
+						public void afterExecution(Connection connection) {
+						}
+					});
 			SecretUtil.destroy(secretkey);
 			this.clusterManagementConnector = new ClusterManagementDtlsConnector(builder.build());
+
 			this.useClusterMac = clusterConfiguration.useClusterMac();
 			this.protocol = this.useClusterMac ? PROTOCOL_MANAGEMENT_DTLS_MAC : PROTOCOL_MANAGEMENT_DTLS;
 		} else {
+			Configuration config = new Configuration();
+			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 0);
+			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 2);
+			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, mgmtReceiveBuffer);
+			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, mgmtSendBuffer);
 			ClusterManagementUdpConnector udpConnector = new ClusterManagementUdpConnector(
-					clusterConfiguration.getAddress());
-			udpConnector.setReceiverThreadCount(0);
-			udpConnector.setSenderThreadCount(2);
-			if (mgmtReceiveBuffer != null) {
-				udpConnector.setReceiveBufferSize(mgmtReceiveBuffer);
-			}
-			if (mgmtSendBuffer != null) {
-				udpConnector.setSendBufferSize(mgmtSendBuffer);
-			}
+					clusterConfiguration.getAddress(), config);
 			this.clusterManagementConnector = udpConnector;
 			this.useClusterMac = false;
 			this.protocol = PROTOCOL_MANAGEMENT_UDP;
@@ -262,9 +297,9 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 								getNodeID(), protocol, StringUtil.byteArray2Hex(mac2), StringUtil.byteArray2Hex(mac3));
 					}
 					if (clusterHealth != null) {
-						if (type == RECORD_TYPE_INCOMING) {
+						if (RECORD_TYPE_INCOMING.equals(type)) {
 							clusterHealth.badForwardMessage();
-						} else if (type == RECORD_TYPE_OUTGOING) {
+						} else if (RECORD_TYPE_OUTGOING.equals(type)) {
 							clusterHealth.badBackwardMessage();
 						}
 					}
@@ -291,7 +326,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 				DTLSContext context = ((DTLSConnector) clusterManagementConnector)
 						.getDtlsContextByAddress((InetSocketAddress) clusterPacket.getSocketAddress());
 				if (context == null) {
-					throw new IOException("Cluster MAC could not be generated! Missing session.");
+					throw new IOException("Cluster MAC could not be generated! Missing dtls context.");
 				}
 				Mac mac = context.getThreadLocalClusterWriteMac();
 				if (mac == null) {
@@ -403,8 +438,8 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	 */
 	private class ClusterManagementUdpConnector extends UDPConnector {
 
-		public ClusterManagementUdpConnector(InetSocketAddress bindAddress) {
-			super(bindAddress);
+		public ClusterManagementUdpConnector(InetSocketAddress bindAddress, Configuration configuration) {
+			super(bindAddress, configuration);
 		}
 
 		@Override
@@ -435,7 +470,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	/**
 	 * Cluster management connector using DTLS.
 	 */
-	private class ClusterManagementDtlsConnector extends DTLSConnector  {
+	private class ClusterManagementDtlsConnector extends DTLSConnector {
 
 		public ClusterManagementDtlsConnector(DtlsConnectorConfig configuration) {
 			super(configuration);
@@ -453,7 +488,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 			if (isRunning()) {
 				return;
 			}
-			init(bindAddress, clusterInternalSocket, config.getMaxTransmissionUnit());
+			super.init(bindAddress, clusterInternalSocket, config.getMaxTransmissionUnit());
 		}
 
 		@Override

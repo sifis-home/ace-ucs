@@ -17,6 +17,7 @@ package org.eclipse.californium.plugtests.tests;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -67,6 +68,7 @@ public class CO09 extends TestClientAbstract {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
+		addContextObserver(request);
 		request.setURI(uri);
 
 		// for observing
@@ -113,7 +115,7 @@ public class CO09 extends TestClientAbstract {
 					// print response info
 					if (verbose) {
 						System.out.println("Response received");
-						System.out.println("Time elapsed (ms): " + response.getRTT());
+						System.out.println("Time elapsed (ms): " + TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 						Utils.prettyPrint(response);
 					}
 
@@ -132,6 +134,7 @@ public class CO09 extends TestClientAbstract {
 			// Client is requested to update the /obs resource on Server
 			System.out.println("+++++ Sending PUT +++++");
 			Request asyncRequest = new Request(Code.PUT, Type.CON);
+			addContextObserver(asyncRequest);
 			asyncRequest.setPayload(newValue);
 			asyncRequest.getOptions().setContentFormat(contentType);
 			asyncRequest.setURI(uri);

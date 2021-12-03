@@ -1,4 +1,6 @@
-apply plugin: 'com.android.application'
+plugins {
+    id 'com.android.application'
+}
 
 repositories {
     mavenLocal()
@@ -8,19 +10,33 @@ repositories {
 }
 
 android {
-    compileSdkVersion 22
+    signingConfigs {
+        cali {
+
+            // requires a "gradle.properties" file with the
+            // RELEASE_??? properties below in the ".gradle" folder.         
+
+            storeFile file(RELEASE_STORE_FILE)
+            storePassword RELEASE_STORE_PASSWORD
+            keyPassword RELEASE_KEY_PASSWORD
+            keyAlias RELEASE_KEY_ALIAS
+        }
+    }
+    compileSdkVersion 30
+    buildToolsVersion "30.0.3"
 
     defaultConfig {
         applicationId "org.eclipse.californium.examples.android"
         minSdkVersion 19
-        targetSdkVersion 22
+        targetSdkVersion 30
         versionCode 1
         versionName "1.0"
     }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.cali
         }
     }
 
@@ -37,12 +53,14 @@ android {
     }
 }
 
+
 dependencies {
+    def californiumVersion = '3.0.0-SNAPSHOT'
+
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'com.android.support:appcompat-v7:22.2.1'
-    implementation 'org.eclipse.californium:californium-core:2.6.0-SNAPSHOT'
-    implementation 'org.eclipse.californium:element-connector:2.6.0-SNAPSHOT'
-    implementation 'org.eclipse.californium:scandium:2.6.0-SNAPSHOT'
-    implementation 'org.eclipse.californium:demo-certs:2.6.0-SNAPSHOT'
+    implementation 'org.eclipse.californium:californium-core:' + californiumVersion
+    implementation 'org.eclipse.californium:element-connector:' + californiumVersion
+    implementation 'org.eclipse.californium:scandium:' + californiumVersion
+    implementation 'org.eclipse.californium:demo-certs:' + californiumVersion
     implementation 'com.github.tony19:logback-android:1.1.1-11'
 }

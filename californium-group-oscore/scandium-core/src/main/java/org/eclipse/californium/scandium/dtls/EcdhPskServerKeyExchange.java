@@ -25,11 +25,11 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
 /**
  * {@link ServerKeyExchange} message for PSK-ECDH based key exchange methods.
  * Contains the server's ephemeral public key as encoded point and the PSK
- * hint. See <a href="https://tools.ietf.org/html/rfc5489#section-2">RFC
+ * hint. See <a href="https://tools.ietf.org/html/rfc5489#section-2" target="_blank">RFC
  * 5489</a> for details. It is assumed, that the server's ECDH public key is not
  * in the servers's certificate, so it must be provided here.
  * 
- * According <a href= "https://tools.ietf.org/html/rfc8422#section-5.1.1">RFC
+ * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target="_blank">RFC
  * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only "named curves" are
  * valid, the "prime" and "char2" curve descriptions are deprecated. Also only
  * "UNCOMPRESSED" as point format is valid, the other formats have been
@@ -46,7 +46,7 @@ public final class EcdhPskServerKeyExchange extends ECDHServerKeyExchange {
 	/**
 	 * Creates a new key exchange message with psk hint as clear text and ServerDHParams.
 	 * 
-	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-3">RFC 4279</a>
+	 * @see <a href="https://tools.ietf.org/html/rfc4279#section-3" target="_blank">RFC 4279</a>
 	 * @param pskHint preshared key hint in clear text
 	 * @param ecdhe {@code XECDHECryptography} including the supported group and the peer's public key
 	 * @throws NullPointerException if the arguments pskHint or ecdhe are {@code null}
@@ -102,15 +102,17 @@ public final class EcdhPskServerKeyExchange extends ECDHServerKeyExchange {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("PSK Identity Hint: ");
 		if (hint.isEmpty()) {
-			sb.append("\t\tPSK Identity Hint: ").append("psk hint not present");
+			sb.append("not present");
 		} else {
-			sb.append("\t\tPSK Identity Hint: ").append(hint);
+			sb.append(hint);
 		}
 		sb.append(StringUtil.lineSeparator());
-		sb.append(super.toString());
 
 		return sb.toString();
 	}

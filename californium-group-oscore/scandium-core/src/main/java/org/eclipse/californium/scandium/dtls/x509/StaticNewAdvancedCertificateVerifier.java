@@ -15,6 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.x509;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
@@ -32,6 +34,7 @@ import javax.security.auth.x500.X500Principal;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -41,6 +44,7 @@ import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
+import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +55,10 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 2.5
  */
-public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertificateVerifier {
+public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertificateVerifier, ConfigurationHelperSetup {
+
+	private static final X509Certificate[] X509_TRUST_ALL = new X509Certificate[0];
+	private static final RawPublicKeyIdentity[] RPK_TRUST_ALL = new RawPublicKeyIdentity[0];
 
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
@@ -78,10 +85,12 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	 * @param trustedRPKs trusted RPK identities. {@code null} not support RPK,
 	 *            empty, to trust all.
 	 * @param supportedCertificateTypes list of supported certificate type in
-	 *            order of preference.
-	 * @throws IllegalArgumentException if both verifier are {@code null}.
-	 * @throws NullPointerException if the list of supported certificate types
-	 *             is {@code null}
+	 *            order of preference. {@code null} to create a list based on
+	 *            the provided trusts with Raw Public key before x509.
+	 * @throws IllegalArgumentException if both, trustedCertificates and
+	 *             trustedRPKs, are {@code null}, the supportedCertificateTypes
+	 *             is empty, or the trusts for an provided certificate type are
+	 *             {@code null}.
 	 */
 	public StaticNewAdvancedCertificateVerifier(X509Certificate[] trustedCertificates,
 			RawPublicKeyIdentity[] trustedRPKs, List<CertificateType> supportedCertificateTypes) {
@@ -113,13 +122,24 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	}
 
 	@Override
-	public List<CertificateType> getSupportedCertificateType() {
+	public void setupConfigurationHelper(CertificateConfigurationHelper helper) {
+		helper.addConfigurationDefaultsForTrusts(trustedCertificates);
+		if (trustedRPKs != null) {
+			for (RawPublicKeyIdentity identity : trustedRPKs) {
+				helper.addConfigurationDefaultsForTrusts(identity.getKey());
+			}
+		}
+	}
+
+	@Override
+	public List<CertificateType> getSupportedCertificateTypes() {
 		return supportedCertificateTypes;
 	}
 
 	@Override
-	public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName,
-			boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
+	public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverNames,
+			InetSocketAddress remotePeer, boolean clientUsage, boolean verifySubject, boolean truncateCertificatePath,
+			CertificateMessage message) {
 		try {
 			CertPath certChain = message.getCertificateChain();
 			if (certChain == null) {
@@ -143,20 +163,23 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 					throw new HandshakeException("x509 verification not enabled!", alert);
 				}
 				try {
-					CertPath certPath = message.getCertificateChain();
 					if (!message.isEmpty()) {
-						Certificate certificate = certPath.getCertificates().get(0);
+						Certificate certificate = certChain.getCertificates().get(0);
 						if (certificate instanceof X509Certificate) {
-							if (!CertPathUtil.canBeUsedForAuthentication((X509Certificate) certificate, clientUsage)) {
+							X509Certificate x509Certificate = (X509Certificate) certificate;
+							if (!CertPathUtil.canBeUsedForAuthentication(x509Certificate, clientUsage)) {
 								LOGGER.debug("Certificate validation failed: key usage doesn't match");
 								AlertMessage alert = new AlertMessage(AlertLevel.FATAL,
 										AlertDescription.BAD_CERTIFICATE);
 								throw new HandshakeException("Key Usage doesn't match!", alert);
 							}
+							if (verifySubject) {
+								verifyCertificatesSubject(serverNames, remotePeer, x509Certificate);
+							}
 						}
+						certChain = CertPathUtil.validateCertificatePathWithIssuer(truncateCertificatePath, certChain,
+								trustedCertificates);
 					}
-					certChain = CertPathUtil.validateCertificatePathWithIssuer(truncateCertificatePath, certPath,
-							trustedCertificates);
 					return new CertificateVerificationResult(cid, certChain, null);
 				} catch (GeneralSecurityException e) {
 					if (LOGGER.isTraceEnabled()) {
@@ -171,6 +194,67 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 		} catch (HandshakeException e) {
 			LOGGER.debug("Certificate validation failed!", e);
 			return new CertificateVerificationResult(cid, e, null);
+		}
+	}
+
+	/**
+	 * Verify the certificate's subject.
+	 * 
+	 * Considers both destination variants, server names and inet address and
+	 * verifies that using the certificate's subject CN and subject alternative
+	 * names.
+	 * 
+	 * @param serverNames server names
+	 * @param peer remote peer
+	 * @param certificate server's certificate
+	 * @throws HandshakeException if the verification fails.
+	 * @throws NullPointerException if the certificate or both identities, the
+	 *             servernames and peer, is {@code null}.
+	 * @since 3.0
+	 */
+	public void verifyCertificatesSubject(ServerNames serverNames, InetSocketAddress peer, X509Certificate certificate)
+			throws HandshakeException {
+		if (certificate == null) {
+			throw new NullPointerException("Certficate must not be null!");
+		}
+		if (serverNames == null && peer == null) {
+			// nothing to verify
+			return;
+		}
+		String literalIp = null;
+		String hostname = null;
+		if (peer != null) {
+			hostname = StringUtil.toHostString(peer);
+			InetAddress destination = peer.getAddress();
+			if (destination != null) {
+				literalIp = destination.getHostAddress();
+			}
+		}
+		if (serverNames != null) {
+			ServerName serverName = serverNames.getServerName(ServerName.NameType.HOST_NAME);
+			if (serverName != null) {
+				hostname = serverName.getNameAsString();
+			}
+		}
+		if (hostname != null && hostname.equals(literalIp)) {
+			hostname = null;
+		}
+		if (hostname != null) {
+			if (!CertPathUtil.matchDestination(certificate, hostname)) {
+				String cn = CertPathUtil.getSubjectsCn(certificate);
+				LOGGER.debug("Certificate {} validation failed: destination doesn't match", cn);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+				throw new HandshakeException("Certificate " + cn + ": Destination '" + hostname + "' doesn't match!",
+						alert);
+			}
+		} else {
+			if (!CertPathUtil.matchLiteralIP(certificate, literalIp)) {
+				String cn = CertPathUtil.getSubjectsCn(certificate);
+				LOGGER.debug("Certificate {} validation failed: literal IP doesn't match", cn);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+				throw new HandshakeException("Certificate " + cn + ": Literal IP " + literalIp + " doesn't match!",
+						alert);
+			}
 		}
 	}
 
@@ -211,7 +295,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 			if (trustedCertificates == null) {
 				this.trustedCertificates = null;
 			} else if (trustedCertificates.length == 0) {
-				this.trustedCertificates = new X509Certificate[0];
+				this.trustedCertificates = X509_TRUST_ALL;
 			} else {
 				X509Certificate[] certificates = SslContextUtil.asX509Certificates(trustedCertificates);
 				SslContextUtil.ensureUniqueCertificates(certificates);
@@ -221,7 +305,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 		}
 
 		public Builder setTrustAllCertificates() {
-			this.trustedCertificates = new X509Certificate[0];
+			this.trustedCertificates = X509_TRUST_ALL;
 			return this;
 
 		}
@@ -232,7 +316,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 		}
 
 		public Builder setTrustAllRPKs() {
-			this.trustedRPKs = new RawPublicKeyIdentity[0];
+			this.trustedRPKs = RPK_TRUST_ALL;
 			return this;
 		}
 

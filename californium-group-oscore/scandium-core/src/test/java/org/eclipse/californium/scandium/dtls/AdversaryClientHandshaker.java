@@ -21,8 +21,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import javax.crypto.SecretKey;
-
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -48,37 +46,33 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	 * @throws IllegalStateException if the message digest required for
 	 *             computing the FINISHED message hash cannot be instantiated.
 	 * @throws NullPointerException if session, recordLayer or config is
-	 *             <code>null</code>
+	 *             {@code null}
 	 */
 	public AdversaryClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
 			DtlsConnectorConfig config) {
-		super(false, session, recordLayer, timer, connection, config);
+		super(null, recordLayer, timer, connection, config, false);
+		getSession().set(session);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
+	protected void completeProcessingServerHelloDone() throws HandshakeException {
 
-		applyMasterSecret(masterSecret);
+		DTLSSession session = getSession();
+		if (session.getCipherSuite().isEccBased()) {
+			expectEcc();
+		}
 
 		/*
 		 * Third, send CertificateVerify message if necessary.
 		 */
-		if (certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
-			CertificateType clientCertificateType = getSession().sendCertificateType();
-			if (!isSupportedCertificateType(clientCertificateType, supportedClientCertificateTypes)) {
-				throw new HandshakeException(
-						"Server wants to use not supported client certificate type " + clientCertificateType,
-						new AlertMessage(
-								AlertLevel.FATAL,
-								AlertDescription.ILLEGAL_PARAMETER));
-			}
-
-			// prepare handshake messages
-
-			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages);
-
+		SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm = session.getSignatureAndHashAlgorithm();
+		if (negotiatedSignatureAndHashAlgorithm != null) {
+			// valid negotiated signature and hash algorithm
+			// prepare certificate verify message
+			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey,
+					handshakeMessages);
 			wrapMessage(flight5, certificateVerify);
 		}
 
@@ -96,17 +90,9 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		// can't do this on the fly, since there is no explicit ordering of
 		// messages
 		MessageDigest md = getHandshakeMessageDigest();
-		MessageDigest mdWithClientFinished;
-		try {
-			mdWithClientFinished = (MessageDigest) md.clone();
-		} catch (CloneNotSupportedException e) {
-			throw new HandshakeException(
-					"Cannot create FINISHED message",
-					new AlertMessage(
-							AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
-		}
+		MessageDigest mdWithClientFinished = cloneMessageDigest(md);
 
-		Finished finished = new Finished(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient(), md.digest());
+		Finished finished = createFinishedMessage(md.digest());
 		wrapMessage(flight5, finished);
 
 		// compute handshake hash with client's finished message also
@@ -122,6 +108,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 			public List<Record> getRecords(int maxDatagramSize, int maxFragmentSize, boolean useMultiHandshakeMessageRecords)
 					throws HandshakeException {
 				try {
+					DTLSContext context = getDtlsContext();
 					Record record = new Record(ContentType.APPLICATION_DATA, context.getWriteEpoch(), new ApplicationMessage(data),
 							context, true, 0);
 					return Arrays.asList(record);

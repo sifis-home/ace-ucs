@@ -37,13 +37,9 @@ public class ServerName {
 	private final int hashCode;
 
 	private ServerName(final NameType type, final byte[] name) {
-		if (type == null) {
-			throw new NullPointerException("Name type must be provided!");
-		}
 		this.type = type;
 		this.name = name;
 		this.hashCode = 31 * Arrays.hashCode(name) + type.hashCode();
-		
 	}
 
 	/**
@@ -78,7 +74,7 @@ public class ServerName {
 	 * @return The new instance.
 	 * @throws NullPointerException if the host name is {@code null}.
 	 * @throws IllegalArgumentException if the given name is not a valid host name
-	 *               as per <a href="http://tools.ietf.org/html/rfc1123">RFC 1123</a>.
+	 *               as per <a href="https://tools.ietf.org/html/rfc1123" target="_blank">RFC 1123</a>.
 	 */
 	public static ServerName fromHostName(final String hostName) {
 		if (hostName == null) {
@@ -88,6 +84,15 @@ public class ServerName {
 		} else {
 			throw new IllegalArgumentException("not a valid host name");
 		}
+	}
+	/**
+	 * Gets the name's length.
+	 * 
+	 * @return The name's length.
+	 * @since 3.0
+	 */
+	public int getLength() {
+		return name.length;
 	}
 
 	/**

@@ -28,7 +28,7 @@ import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
  * A 32-byte value provided by the client and the server in the
  * {@link ClientHello} respectively in the {@link ServerHello} used later in the
  * protocol to compute the premaster secret. See <a
- * href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a> for the
+ * href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246</a> for the
  * message format.
  */
 public class Random extends Bytes {
@@ -41,7 +41,7 @@ public class Random extends Bytes {
 	 * Sets the random bytes explicitly.
 	 * 
 	 * @param randomBytes the bytes to use
-	 * @throws NullPointerException if the given array is <code>null</code>
+	 * @throws NullPointerException if the given array is {@code null}
 	 * @throws IllegalArgumentException if the given array's length is not 32
 	 */
 	public Random(byte[] randomBytes) {
@@ -51,8 +51,7 @@ public class Random extends Bytes {
 		}
 	}
 
-	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
 		byte[] randomBytes = getBytes();
 		// get the UNIX timestamp from the first 4 bytes
@@ -65,13 +64,20 @@ public class Random extends Bytes {
 
 		Date date = new Date(gmtUnixTime * 1000L);
 
-		sb.append("\t\t\tGMT Unix Time: ").append(date).append(StringUtil.lineSeparator());
+		String indentation = StringUtil.indentation(indent);
+
+		sb.append(indentation).append("GMT Unix Time: ").append(date).append(StringUtil.lineSeparator());
 
 		// output the remaining 28 random bytes
 		byte[] rand = Arrays.copyOfRange(randomBytes, 4, 32);
-		sb.append("\t\t\tRandom Bytes: ").append(StringUtil.byteArray2Hex(rand)).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Random Bytes: ").append(StringUtil.byteArray2Hex(rand)).append(StringUtil.lineSeparator());
 
 		return sb.toString();
+	}
+
+	@Override
+	public String toString() {
+		return toString(0);
 	}
 
 	/**

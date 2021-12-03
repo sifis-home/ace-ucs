@@ -45,14 +45,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextUtil;
+import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,23 +65,34 @@ public class ReliabilityLayer extends AbstractLayer {
 	/** The logger. */
 	protected final static Logger LOGGER = LoggerFactory.getLogger(ReliabilityLayer.class);
 
+	protected final ReliabilityLayerParameters defaultReliabilityLayerParameters;
+
 	/** The random numbers generator for the back-off timer */
 	private final Random rand = new Random();
-
-	private final ReliabilityLayerParameters defaultReliabilityLayerParameters;
 
 	private final AtomicInteger counter = new AtomicInteger();
 
 	/**
-	 * Constructs a new reliability layer. Changes to the configuration are
-	 * observed and automatically applied.
+	 * Leisure for multicast server in milliseconds.
+	 * 
+	 * @since 3.0
+	 */
+	private final int maxLeisureMillis;
+
+	/**
+	 * Constructs a new reliability layer.
 	 * 
 	 * @param config the configuration
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public ReliabilityLayer(NetworkConfig config) {
+	public ReliabilityLayer(Configuration config) {
 		defaultReliabilityLayerParameters = ReliabilityLayerParameters.builder().applyConfig(config).build();
-		LOGGER.info("ReliabilityLayer uses ACK_TIMEOUT={}, ACK_RANDOM_FACTOR={}, and ACK_TIMEOUT_SCALE={} as default",
-				defaultReliabilityLayerParameters.getAckTimeout(), defaultReliabilityLayerParameters.getAckRandomFactor(),
+		maxLeisureMillis = config.getTimeAsInt(CoapConfig.LEISURE, TimeUnit.MILLISECONDS);
+		LOGGER.trace("Max. leisure for multicast server={}ms", maxLeisureMillis);
+		LOGGER.trace("ReliabilityLayer uses ACK_TIMEOUT={}ms, MAX_ACK_TIMEOUT={}ms, ACK_RANDOM_FACTOR={}, and ACK_TIMEOUT_SCALE={} as default",
+				defaultReliabilityLayerParameters.getAckTimeout(),
+				defaultReliabilityLayerParameters.getMaxAckTimeout(),
+				defaultReliabilityLayerParameters.getAckRandomFactor(),
 				defaultReliabilityLayerParameters.getAckTimeoutScale());
 	}
 
@@ -88,10 +100,13 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * Schedules a retransmission for confirmable messages.
 	 */
 	@Override
-	public void sendRequest(final Exchange exchange, final Request request) {
+	public void sendRequest(Exchange exchange, Request request) {
+		LOGGER.debug("{} send request", exchange);
+		prepareRequest(exchange, request);
+		lower().sendRequest(exchange, request);
+	}
 
-		LOGGER.debug("{} send request, failed transmissions: {}", exchange, exchange.getFailedTransmissionCount());
-
+	protected void prepareRequest(Exchange exchange, Request request) {
 		if (request.getType() == null) {
 			request.setType(Type.CON);
 		}
@@ -100,14 +115,17 @@ public class ReliabilityLayer extends AbstractLayer {
 			prepareRetransmission(exchange, new RetransmissionTask(exchange, request) {
 
 				public void retransmit() {
+					Request request = (Request) message;
 					if (request.getEffectiveDestinationContext() != request.getDestinationContext()) {
 						exchange.resetEndpointContext();
 					}
-					sendRequest(exchange, request);
+					LOGGER.debug("{} send request, failed transmissions: {}", exchange,
+							exchange.getFailedTransmissionCount());
+					updateRetransmissionTimeout(exchange, getReliabilityLayerParameters());
+					lower().sendRequest(exchange, request);
 				}
 			});
 		}
-		lower().sendRequest(exchange, request);
 	}
 
 	/**
@@ -117,43 +135,63 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * CON or NON with a separate response.
 	 */
 	@Override
-	public void sendResponse(final Exchange exchange, final Response response) {
+	public void sendResponse(Exchange exchange, Response response) {
+		LOGGER.debug("{} send response {}", exchange, response);
+		prepareResponse(exchange, response);
+		if (exchange.getCurrentRequest().isMulticast() && response.getType() == Type.NON) {
+			int leisure;
+			synchronized (rand) {
+				leisure = rand.nextInt(maxLeisureMillis);
+			}
+			DelayedResponseTask task = new DelayedResponseTask(exchange, response);
+			ScheduledFuture<?> f = executor.schedule(task, leisure, TimeUnit.MILLISECONDS);
+			exchange.setRetransmissionHandle(f);
+		} else {
+			lower().sendResponse(exchange, response);
+		}
+	}
 
-		LOGGER.debug("{} send response {}, failed transmissions: {}", exchange, response,
-				exchange.getFailedTransmissionCount());
+	protected void prepareResponse(Exchange exchange, Response response) {
 
 		// If a response type is set, we do not mess around with it.
 		// Only if none is set, we have to decide for one here.
-
+		Request currentRequest = exchange.getCurrentRequest();
 		Type respType = response.getType();
 		if (respType == null) {
-			Type reqType = exchange.getCurrentRequest().getType();
-			if (exchange.getCurrentRequest().acknowledge()) {
+			Type reqType = currentRequest.getType();
+			if (currentRequest.acknowledge()) {
 				// send piggy-backed response
 				response.setType(Type.ACK);
-				response.setMID(exchange.getCurrentRequest().getMID());
 			} else {
 				// send separate CON or NON response depending on the request's type
 				response.setType(reqType);
 			}
-
-			LOGGER.trace("{} switched response message type from {} to {} (request was {})", exchange, respType,
-					response.getType(), reqType);
-
-		} else if (respType == Type.ACK || respType == Type.RST) {
-			response.setMID(exchange.getCurrentRequest().getMID());
+			respType = response.getType();
+			LOGGER.trace("{} set response type to {} (request was {})", exchange, respType, reqType);
+		} else if (respType == Type.RST) {
+			currentRequest.setRejected(true);
+		} else if (respType == Type.ACK) {
+			currentRequest.acknowledge();
+		} else {
+			currentRequest.setAcknowledged(true);
+		}
+		if (respType == Type.ACK || respType == Type.RST) {
+			response.setMID(currentRequest.getMID());
 		}
 
-		if (response.getType() == Type.CON) {
+		if (respType == Type.CON) {
 			LOGGER.debug("{} prepare retransmission for {}", exchange, response);
 			prepareRetransmission(exchange, new RetransmissionTask(exchange, response) {
 
 				public void retransmit() {
-					sendResponse(exchange, response);
+					Response response = (Response) message;
+					LOGGER.debug("{} send response {}, failed transmissions: {}", exchange, response,
+							exchange.getFailedTransmissionCount());
+					updateRetransmissionTimeout(exchange, getReliabilityLayerParameters());
+					lower().sendResponse(exchange, response);
 				}
 			});
 		}
-		lower().sendResponse(exchange, response);
 	}
 
 	/**
@@ -170,27 +208,10 @@ public class ReliabilityLayer extends AbstractLayer {
 			LOGGER.info("Endpoint is being destroyed: skipping retransmission");
 			return;
 		}
-
 		exchange.setRetransmissionHandle(null); // cancel before reschedule
 		updateRetransmissionTimeout(exchange, task.getReliabilityLayerParameters());
 
-		task.message.addMessageObserver(new MessageObserverAdapter(true) {
-
-			@Override
-			public void onSent(boolean retransmission) {
-				task.message.removeMessageObserver(this);
-				if (!exchange.isComplete()) {
-					exchange.execute(new Runnable() {
-
-						@Override
-						public void run() {
-							task.startTimer();
-						}
-					});
-				}
-			}
-
-		});
+		task.message.addMessageObserver(task);
 	}
 
 	/**
@@ -203,10 +224,11 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * anything.
 	 */
 	@Override
-	public void receiveRequest(final Exchange exchange, final Request request) {
+	public void receiveRequest(Exchange exchange, Request request) {
 
 		if (request.isDuplicate()) {
-			if (exchange.getSendNanoTimestamp() > request.getNanoTimestamp()) {
+			long send = exchange.getSendNanoTimestamp();
+			if (send == 0 || (send - request.getNanoTimestamp()) > 0) {
 				// received before response was sent
 				int count = counter.incrementAndGet();
 				LOGGER.debug("{}: {} duplicate request {}, server sent response delayed, ignore request", count,
@@ -216,50 +238,46 @@ public class ReliabilityLayer extends AbstractLayer {
 
 			// Request is a duplicate, so resend ACK, RST or response
 			exchange.retransmitResponse();
-			Response currentResponse = exchange.getCurrentResponse();
-			if (currentResponse != null) {
-				Type type = currentResponse.getType();
+			Request previousRequest = exchange.getCurrentRequest();
+			Response previousResponse = exchange.getCurrentResponse();
+			if (previousResponse != null) {
+				Type type = previousResponse.getType();
 				if (type == Type.NON || type == Type.CON) {
-					// separate response
-					if (request.isConfirmable()) {
+					if (request.acknowledge()) {
 						// resend ACK,
 						// comply to RFC 7252, 4.2, cross-layer behavior
-						if (request.acknowledge()) {
-							EmptyMessage ack = EmptyMessage.newACK(request);
-							sendEmptyMessage(exchange, ack);
-						}
+						EmptyMessage ack = EmptyMessage.newACK(request);
+						sendEmptyMessage(exchange, ack);
 					}
 					if (type == Type.CON) {
 						// retransmission cycle
-						if (currentResponse.isAcknowledged()) {
+						if (previousResponse.isAcknowledged()) {
 							LOGGER.debug("{} request duplicate: ignore, response already acknowledged!", exchange);
 						} else {
-							int failedCount = exchange.getFailedTransmissionCount() + 1;
-							exchange.setFailedTransmissionCount(failedCount);
+							int failedCount = exchange.incrementFailedTransmissionCount();
 							LOGGER.debug("{} request duplicate: retransmit response, failed: {}, response: {}",
-									exchange, failedCount, currentResponse);
-							currentResponse.retransmitting();
-							sendResponse(exchange, currentResponse);
+									exchange, failedCount, previousResponse);
+							previousResponse.retransmitting();
+							sendResponse(exchange, previousResponse);
 						}
 						return;
-					} else if (currentResponse.isNotification()) {
+					} else if (previousResponse.isNotification()) {
 						// notifications are kept in the exchange store, so
 						// prepare retransmission counter for retransmission
-						int failedCount = exchange.getFailedTransmissionCount() + 1;
-						exchange.setFailedTransmissionCount(failedCount);
+						exchange.incrementFailedTransmissionCount();
 					}
 				}
 				LOGGER.debug("{} respond with the current response to the duplicate request", exchange);
 				// Do not restart retransmission cycle
-				lower().sendResponse(exchange, currentResponse);
+				lower().sendResponse(exchange, previousResponse);
 
-			} else if (exchange.getCurrentRequest().isAcknowledged()) {
+			} else if (previousRequest.isAcknowledged()) {
 				LOGGER.debug("{} duplicate request was acknowledged but no response computed yet. Retransmit ACK",
 						exchange);
 				EmptyMessage ack = EmptyMessage.newACK(request);
 				sendEmptyMessage(exchange, ack);
 
-			} else if (exchange.getCurrentRequest().isRejected()) {
+			} else if (previousRequest.isRejected()) {
 				LOGGER.debug("{} duplicate request was rejected. Reject again", exchange);
 				EmptyMessage rst = EmptyMessage.newRST(request);
 				sendEmptyMessage(exchange, rst);
@@ -285,28 +303,38 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * we stop it here and do not forward it to the upper layer.
 	 */
 	@Override
-	public void receiveResponse(final Exchange exchange, final Response response) {
+	public void receiveResponse(Exchange exchange, Response response) {
+		if (processResponse(exchange, response)) {
+			upper().receiveResponse(exchange, response);
+		}
+	}
 
-		exchange.setFailedTransmissionCount(0);
+	protected boolean processResponse(Exchange exchange, Response response) {
+
 		exchange.setRetransmissionHandle(null);
 
 		if (response.getType() == Type.CON) {
 			boolean ack = true;
 			if (response.isDuplicate()) {
-				if (response.getNanoTimestamp() < exchange.getSendNanoTimestamp()) {
+				long send = exchange.getSendNanoTimestamp();
+				if (send == 0 || (send - response.getNanoTimestamp()) > 0) {
 					// received response duplicate before ACK/RST
 					// or last request retransmission was sent
 					// => drop response
-					// Note: if the response is received the 1. time, no ACK nor RST was sent
-					// so far. Therefore the send timestamp is related to the request
-					// retransmission only. In that case always ACK/RST to try stopping future
+					// Note: if the response is received the 1. time, no ACK nor
+					// RST was sent
+					// so far. Therefore the send timestamp is related to the
+					// request
+					// retransmission only. In that case always ACK/RST to try
+					// stopping future
 					// response retransmissions.
 					int count = counter.incrementAndGet();
 					LOGGER.debug("{}: {} duplicate response {}, server sent ACK delayed, ignore response", count,
 							exchange, response);
-					return;
+					return false;
 				}
-				// resend last ack or rst, don't update, request state may have changed!
+				// resend last ack or rst, don't update, request state may have
+				// changed!
 				if (response.isRejected()) {
 					ack = false;
 					LOGGER.debug("{} reject duplicate CON response, request canceled.", exchange);
@@ -336,10 +364,11 @@ public class ReliabilityLayer extends AbstractLayer {
 			if (response.getType() != Type.CON) {
 				LOGGER.debug("{} ignoring duplicate response", exchange);
 			}
+			return false;
 		} else {
 			exchange.getCurrentRequest().setAcknowledged(true);
 			exchange.setCurrentResponse(response);
-			upper().receiveResponse(exchange, response);
+			return true;
 		}
 	}
 
@@ -348,9 +377,14 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * acknowledged or rejected respectively and cancel its retransmission.
 	 */
 	@Override
-	public void receiveEmptyMessage(final Exchange exchange, final EmptyMessage message) {
+	public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
+		if (processEmptyMessage(exchange, message)) {
+			upper().receiveEmptyMessage(exchange, message);
+		}
+	}
 
-		exchange.setFailedTransmissionCount(0);
+	protected boolean processEmptyMessage(final Exchange exchange, final EmptyMessage message) {
+
 		exchange.setRetransmissionHandle(null);
 		// TODO: If this is an observe relation, the current response might not
 		// be the one that is being acknowledged. The current response might
@@ -374,10 +408,9 @@ public class ReliabilityLayer extends AbstractLayer {
 			currentMessage.setRejected(true);
 		} else {
 			LOGGER.warn("{} received empty message that is neither ACK nor RST: {}", exchange, message);
-			return;
+			return false;
 		}
-
-		upper().receiveEmptyMessage(exchange, message);
+		return true;
 	}
 
 	/**
@@ -392,7 +425,8 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * @see Exchange#setCurrentTimeout(int)
 	 * @see Exchange#getFailedTransmissionCount()
 	 */
-	protected void updateRetransmissionTimeout(final Exchange exchange, ReliabilityLayerParameters reliabilityLayerParameters) {
+	protected void updateRetransmissionTimeout(final Exchange exchange,
+			ReliabilityLayerParameters reliabilityLayerParameters) {
 		int timeout;
 		if (exchange.getFailedTransmissionCount() == 0) {
 			/*
@@ -400,17 +434,20 @@ public class ReliabilityLayer extends AbstractLayer {
 			 * random number between ACK_TIMEOUT and (ACK_TIMEOUT *
 			 * ACK_RANDOM_FACTOR)
 			 */
-			timeout = getRandomTimeout(reliabilityLayerParameters.getAckTimeout(), reliabilityLayerParameters.getAckRandomFactor());
+			exchange.setTimeoutScale(reliabilityLayerParameters.getAckTimeoutScale());
+			timeout = getRandomTimeout(reliabilityLayerParameters.getAckTimeout(),
+					reliabilityLayerParameters.getAckRandomFactor());
 		} else {
-			timeout = (int) (reliabilityLayerParameters.getAckTimeoutScale() * exchange.getCurrentTimeout());
+			timeout = (int) (exchange.getTimeoutScale() * exchange.getCurrentTimeout());
 		}
+		timeout = Math.min(reliabilityLayerParameters.getMaxAckTimeout(), timeout);
 		exchange.setCurrentTimeout(timeout);
 	}
 
 	/**
-	 * Returns a random timeout between the specified min and max.
+	 * Returns a random timeout between the specified minimum and maximum.
 	 * 
-	 * @param ackTimeout ack timeout in milliseconds
+	 * @param ackTimeout acknowledge timeout in milliseconds
 	 * @param randomFactor random factor. Intended to be above 1.5.
 	 * @return a random value between ackTimeout and ackTimeout * randomFactor
 	 */
@@ -418,9 +455,31 @@ public class ReliabilityLayer extends AbstractLayer {
 		if (randomFactor <= 1.0) {
 			return ackTimeout;
 		}
-		int delta = (int)(ackTimeout * randomFactor) - ackTimeout;
+		int delta = (int) (ackTimeout * randomFactor) - ackTimeout + 1;
 		synchronized (rand) {
-			return ackTimeout + rand.nextInt(delta + 1);
+			return ackTimeout + rand.nextInt(delta);
+		}
+	}
+
+	private class DelayedResponseTask implements Runnable {
+
+		protected final Exchange exchange;
+		protected final Response response;
+
+		private DelayedResponseTask(Exchange exchange, Response response) {
+			this.exchange = exchange;
+			this.response = response;
+		}
+
+		@Override
+		public void run() {
+			exchange.execute(new Runnable() {
+
+				@Override
+				public void run() {
+					lower().sendResponse(exchange, response);
+				}
+			});
 		}
 	}
 
@@ -430,12 +489,13 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * but where the retransmission method calls sendRequest and sendResponse
 	 * respectively.
 	 */
-	protected abstract class RetransmissionTask implements Runnable {
+	protected abstract class RetransmissionTask extends MessageObserverAdapter implements Runnable {
 
-		private final Exchange exchange;
-		private final Message message;
+		protected final Exchange exchange;
+		protected final Message message;
 
-		public RetransmissionTask(final Exchange exchange, final Message message) {
+		private RetransmissionTask(Exchange exchange, Message message) {
+			super(true);
 			this.exchange = exchange;
 			this.message = message;
 		}
@@ -453,8 +513,36 @@ public class ReliabilityLayer extends AbstractLayer {
 			return parameters;
 		}
 
+		private boolean isInTransit() {
+			if (message.isAcknowledged() || exchange.isComplete()) {
+				return false;
+			}
+			Message current;
+			if (exchange.isOfLocalOrigin()) {
+				current = exchange.getCurrentRequest();
+			} else {
+				current = exchange.getCurrentResponse();
+			}
+			return message == current;
+		}
+
+		@Override
+		public void onSent(boolean retransmission) {
+			// onSent is called from different threads then onAcknowledgement or onResponse
+			// therefore the call may occur out of order related to these other callbacks.
+			if (isInTransit()) {
+				exchange.execute(new Runnable() {
+
+					@Override
+					public void run() {
+						startTimer();
+					}
+				});
+			}
+		}
+
 		public void startTimer() {
-			if (!exchange.isComplete()) {
+			if (isInTransit()) {
 				int timeout = exchange.getCurrentTimeout();
 				ScheduledFuture<?> f = executor.schedule(this, timeout, TimeUnit.MILLISECONDS);
 				exchange.setRetransmissionHandle(f);
@@ -484,15 +572,16 @@ public class ReliabilityLayer extends AbstractLayer {
 					LOGGER.debug("Timeout: for {}, {}", exchange, message);
 					return;
 				}
-				int failedCount = exchange.getFailedTransmissionCount() + 1;
-				if (failedCount == 1) {
-					EndpointContext context = EndpointContextUtil
-							.getFollowUpEndpointContext(message.getDestinationContext(), exchange.getEndpointContext());
-					message.setEffectiveDestinationContext(context);
+				Message current;
+				if (exchange.isOfLocalOrigin()) {
+					current = exchange.getCurrentRequest();
+				} else {
+					current = exchange.getCurrentResponse();
 				}
-				exchange.setFailedTransmissionCount(failedCount);
-
-				LOGGER.debug("Timeout: for {} retry {} of {}", exchange, failedCount, message);
+				if (message != current) {
+					LOGGER.debug("Timeout: for {}, message has changed!", exchange);
+					return;
+				}
 
 				if (message.isAcknowledged()) {
 					LOGGER.trace("Timeout: for {} message already acknowledged, cancel retransmission of {}", exchange,
@@ -508,23 +597,39 @@ public class ReliabilityLayer extends AbstractLayer {
 					LOGGER.trace("Timeout: for {}, {} is canceled, do not retransmit", exchange, message);
 					return;
 
-				} else if (failedCount <= getReliabilityLayerParameters().getMaxRetransmit()) {
-					LOGGER.debug("Timeout: for {} retransmit message, failed: {}, message: {}", exchange, failedCount,
-							message);
-
-					// Trigger MessageObservers
-					message.retransmitting();
-
-					// MessageObserver might have canceled
-					if (message.isCanceled()) {
-						LOGGER.trace("Timeout: for {}, {} got canceled, do not retransmit", exchange, message);
-						return;
-					}
-					retransmit();
 				} else {
-					LOGGER.debug("Timeout: for {} retransmission limit reached, exchange failed, message: {}", exchange,
-							message);
-					exchange.setTimedOut(message);
+					int failedCount = exchange.incrementFailedTransmissionCount();
+					if (failedCount == 1) {
+						EndpointContext context = EndpointContextUtil
+								.getFollowUpEndpointContext(message.getDestinationContext(), exchange.getEndpointContext());
+						message.setEffectiveDestinationContext(context);
+					}
+					LOGGER.debug("Timeout: for {} retry {} of {}", exchange, failedCount, message);
+					int max = getReliabilityLayerParameters().getMaxRetransmit();
+					if (failedCount <= max) {
+
+						LOGGER.debug("Timeout: for {} retransmit message, failed-count: {}, message: {}", exchange,
+								failedCount, message);
+
+						// Trigger MessageObservers
+						message.retransmitting();
+
+						// MessageObserver might have canceled or completed
+						if (message.isCanceled()) {
+							LOGGER.trace("Timeout: for {}, {} got canceled, do not retransmit", exchange, message);
+							return;
+						}
+						if (exchange.isComplete()) {
+							LOGGER.debug("Timeout: for {}, {} got completed, do not retransmit", exchange, message);
+							return;
+						}
+						retransmit();
+					} else {
+						LOGGER.debug(
+								"Timeout: for {} retransmission limit {} reached, exchange failed with timeout {} ms, message: {}",
+								exchange, max, exchange.getCurrentTimeout(), message);
+						exchange.setTimedOut(message);
+					}
 				}
 			} catch (Exception e) {
 				LOGGER.error("Exception for {} in MessageObserver: {}", exchange, e.getMessage(), e);

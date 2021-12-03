@@ -34,22 +34,28 @@ package se.sics.ace.coap.as;
 import java.net.InetSocketAddress;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
+
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 
 import se.sics.ace.AceException;
 import se.sics.ace.TimeProvider;
@@ -173,39 +179,39 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
             add(this.introspect);    
         }
 
-       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
-               .setAddress(new InetSocketAddress(port));
-
-        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
-        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
-        certTypes.add(CertificateType.X_509);
-        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
-                new RawPublicKeyIdentity[0], certTypes);
-        config.setAdvancedCertificateVerifier(verifier);
+       Configuration dtlsConfig = Configuration.getStandard();
+       dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
+       dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
 
        if (asymmetricKey != null && 
                asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2 ) {
            LOGGER.info("Starting CoapsAS with PSK and RPK");
-           config.setSupportedCipherSuites(new CipherSuite[]{
-                   CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-                   CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+           dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
        } else {
            LOGGER.info("Starting CoapsAS with PSK only");
-           config.setSupportedCipherSuites(new CipherSuite[]{
-                   CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+           dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
        }
+        
+       DtlsConnectorConfig.Builder config =  new DtlsConnectorConfig.Builder(dtlsConfig)
+               .setAddress(new InetSocketAddress(port));
+
+       ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+       certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+       certTypes.add(CertificateType.X_509);
+       AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+               new RawPublicKeyIdentity[0], certTypes);
+       config.setAdvancedCertificateVerifier(verifier);
+
        config.setAdvancedPskStore(db);
        if (asymmetricKey != null) {
-           config.setIdentity(asymmetricKey.AsPrivateKey(), 
-                   asymmetricKey.AsPublicKey());
+           config.setCertificateIdentityProvider(
+                   new SingleCertificateProvider(asymmetricKey.AsPrivateKey(), asymmetricKey.AsPublicKey()));
        }
-       config.setClientAuthenticationRequired(true);
-       config.setSniEnabled(false);
        DTLSConnector connector = new DTLSConnector(config.build());
        
        addEndpoint(new CoapEndpoint.Builder()
-               .setConnector(connector).setNetworkConfig(
-                       NetworkConfig.getStandard()).build());
+               .setConnector(connector).setConfiguration(
+                       Configuration.getStandard()).build());
        //Add a CoAP (no 's') endpoint for error messages
        //CoapEndpoint coap = new CoapEndpointBuilder().setInetSocketAddress(
        //       new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();

@@ -55,8 +55,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
@@ -64,13 +62,13 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.TokenGenerator.Scope;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
-import org.eclipse.californium.elements.EndpointIdentityResolver;
-import org.eclipse.californium.elements.UdpEndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@code MessageExchangeStore} that manages all exchanges in local memory.
@@ -85,9 +83,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private final ConcurrentMap<KeyToken, Exchange> exchangesByToken = new ConcurrentHashMap<>();
 	private volatile boolean enableStatus;
 
-	private final NetworkConfig config;
+	private final Configuration config;
 	private final TokenGenerator tokenGenerator;
-	private final EndpointIdentityResolver endpointIdentityResolver;
 	private final String tag;
 	private volatile boolean running = false;
 	private volatile Deduplicator deduplicator;
@@ -101,9 +98,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 * @param config the configuration to use.
 	 * 
 	 * @throws NullPointerException if config is {@code null}
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public InMemoryMessageExchangeStore(NetworkConfig config) {
-		this(null, config, new RandomTokenGenerator(config), new UdpEndpointContextMatcher());
+	public InMemoryMessageExchangeStore(Configuration config) {
+		this(null, config, new RandomTokenGenerator(config));
 	}
 
 	/**
@@ -111,35 +109,38 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 * 
 	 * @param config the configuration to use.
 	 * @param tokenProvider the TokenProvider which provides CoAP tokens.
-	 * @param endpointResolver the endpoint resolver which provides endpoint
-	 *            identity.
-	 * @throws NullPointerException if one or the parameter is {@code null}
+	 * @throws NullPointerException if one of the parameter is {@code null}
+	 * @since 3.0 (changed parameter to Configuration, removed endpointResolver)
 	 */
-	public InMemoryMessageExchangeStore(NetworkConfig config, TokenGenerator tokenProvider,
-			EndpointIdentityResolver endpointResolver) {
-		this(null, config, tokenProvider, endpointResolver);
+	public InMemoryMessageExchangeStore(Configuration config, TokenGenerator tokenProvider) {
+		this(null, config, tokenProvider);
 	}
 
-	public InMemoryMessageExchangeStore(String tag, NetworkConfig config, TokenGenerator tokenProvider,
-			EndpointIdentityResolver endpointResolver) {
+	/**
+	 * Creates a new store for configuration values.
+	 * 
+	 * @param tag logging tag
+	 * @param config the configuration to use.
+	 * @param tokenProvider the TokenProvider which provides CoAP tokens.
+	 * @throws NullPointerException if one of the parameter, except tag, is
+	 *             {@code null}
+	 * @since 3.0 (changed parameter to Configuration, removed endpointResolver)
+	 */
+	public InMemoryMessageExchangeStore(String tag, Configuration config, TokenGenerator tokenProvider) {
 		if (config == null) {
 			throw new NullPointerException("Configuration must not be null");
 		}
 		if (tokenProvider == null) {
 			throw new NullPointerException("TokenProvider must not be null");
 		}
-		if (endpointResolver == null) {
-			throw new NullPointerException("EndpointContextResolver must not be null");
-		}
 		this.tokenGenerator = tokenProvider;
-		this.endpointIdentityResolver = endpointResolver;
 		this.config = config;
 		this.tag = StringUtil.normalizeLoggingTag(tag);
 		LOGGER.debug("{}using TokenProvider {}", tag, tokenProvider.getClass().getName());
 	}
 
 	private void startStatusLogging() {
-		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
+		final long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && executor != null) {
@@ -151,7 +152,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 						dump(5);
 					}
 				}
-			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -227,7 +228,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				message.setMID(mid);
 			} catch (IllegalStateException ex) {
 				String code = CoAP.toCodeString(message.getRawCode());
-				LOGGER.warn("{}cannot send message {}-{} to {}, {}", tag, message.getType(), code,
+				LOGGER.debug("{}cannot send message {}-{} to {}, {}", tag, message.getType(), code,
 						StringUtil.toLog(dest), ex.getMessage());
 			}
 		}
@@ -237,13 +238,12 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private KeyMID registerWithMessageId(final Exchange exchange, final Message message) {
 		enableStatus = true;
 		exchange.assertIncomplete(message);
-		Object peer = endpointIdentityResolver.getEndpointIdentity(message.getDestinationContext());
 		KeyMID key;
 		int mid = message.getMID();
 		if (Message.NONE == mid) {
 			mid = assignMessageId(message);
 			if (Message.NONE != mid) {
-				key = new KeyMID(mid, peer);
+				key = new KeyMID(mid, exchange.getPeersIdentity());
 				if (exchangesByMID.putIfAbsent(key, exchange) != null) {
 					throw new IllegalArgumentException(String.format(
 							"generated mid [%d] already in use, cannot register %s", mid, exchange));
@@ -253,7 +253,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				key = null;
 			}
 		} else {
-			key = new KeyMID(mid, peer);
+			key = new KeyMID(mid, exchange.getPeersIdentity());
 			Exchange existingExchange = exchangesByMID.putIfAbsent(key, exchange);
 			if (existingExchange != null) {
 				if (existingExchange != exchange) {
@@ -278,7 +278,6 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		enableStatus = true;
 		Request request = exchange.getCurrentRequest();
 		exchange.assertIncomplete(request);
-		Object peer = endpointIdentityResolver.getEndpointIdentity(request.getDestinationContext());
 		KeyToken key;
 		Token token = request.getToken();
 		if (token == null) {
@@ -286,7 +285,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			do {
 				token = tokenGenerator.createToken(scope);
 				request.setToken(token);
-				key = tokenGenerator.getKeyToken(token, peer);
+				key = tokenGenerator.getKeyToken(token, exchange.getPeersIdentity());
 			} while (exchangesByToken.putIfAbsent(key, exchange) != null);
 			LOGGER.debug("{}{} added with generated token {}, {}", tag, exchange, key, request);
 		} else {
@@ -295,7 +294,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				// ping, no exchange by token required!
 				return;
 			}
-			key = tokenGenerator.getKeyToken(token, peer);
+			key = tokenGenerator.getKeyToken(token, exchange.getPeersIdentity());
 			Exchange previous = exchangesByToken.put(key, exchange);
 			if (previous == null) {
 				BlockOption block2 = request.getOptions().getBlock2();
@@ -480,6 +479,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	/**
 	 * Dump collection of exchange entries.
 	 * 
+	 * @param <K> key type, {@link KeyMID} or {@link KeyToken}
 	 * @param logMaxExchanges maximum number of exchanges to include in dump.
 	 * @param exchangeEntries collection with exchanges entries
 	 */
@@ -488,8 +488,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			Exchange exchange = exchangeEntry.getValue();
 			Request origin = exchange.getRequest();
 			Request current = exchange.getCurrentRequest();
-			String pending = exchange.getRetransmissionHandle() == null ? "" : "/pending";
-			if (origin != current && !origin.getToken().equals(current.getToken())) {
+			String pending = exchange.isTransmissionPending() ? "/pending" : "";
+			if (origin != null && origin != current && !origin.getToken().equals(current.getToken())) {
 				HEALTH_LOGGER.debug("  {}, {}, retransmission {}{}, org {}, {}, {}", exchangeEntry.getKey(),
 						exchange, exchange.getFailedTransmissionCount(), pending, origin.getToken(),
 						current, exchange.getCurrentResponse());

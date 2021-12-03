@@ -158,13 +158,23 @@ public class X509CertPath extends AbstractExtensiblePrincipal<X509CertPath> {
 	}
 
 	/**
-	 * Gets the Subject DN of the asserted identity of this certificate path.
+	 * Gets the subject DN of the asserted identity of this certificate path.
 	 * 
 	 * @return The subject.
 	 */
 	@Override
 	public String getName() {
 		return target.getSubjectX500Principal().getName();
+	}
+
+	/**
+	 * Gets the CN of the subject DN.
+	 * 
+	 * @return CN, or {@code null}, if not available.
+	 * @since 3.0
+	 */
+	public String getCN() {
+		return CertPathUtil.getSubjectsCn(target);
 	}
 
 	/**

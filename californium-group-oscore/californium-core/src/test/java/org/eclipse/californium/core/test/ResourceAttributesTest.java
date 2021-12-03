@@ -37,23 +37,27 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointObserver;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.MatcherTestUtils;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Category(Small.class)
 public class ResourceAttributesTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ResourceAttributesTest.class);
+
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
@@ -93,7 +97,7 @@ public class ResourceAttributesTest {
 				.toString();
 		DiscoveryResource discovery = new DiscoveryResource(root);
 		String serialized = discovery.discoverTree(root, new LinkedList<String>());
-		System.out.println(serialized);
+		LOGGER.info(serialized);
 		Assert.assertEquals(expectedTree, serialized);
 	}
 
@@ -106,7 +110,7 @@ public class ResourceAttributesTest {
 
 		DiscoveryResource discovery = new DiscoveryResource(root);
 		String serialized = discovery.discoverTree(root, request.getOptions().getUriQuery());
-		System.out.println(serialized);
+		LOGGER.info(serialized);
 		Assert.assertEquals(expectedTree, serialized);
 	}
 
@@ -114,18 +118,23 @@ public class ResourceAttributesTest {
 	public void testDiscoveryMultiFiltering() {
 		Request request = Request.newGet();
 		request.setURI("coap://localhost/.well-known/core?rt=light-lux&rt=temprature-cel");
-	
-		Exchange exchange = new Exchange(request, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-		exchange.setRequest(request);
+
+		final Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 		exchange.setEndpoint(new DummyEndpoint());
-		
-		DiscoveryResource discovery = new DiscoveryResource(root);
-		
-		discovery.handleRequest(exchange);
-		System.out.println(exchange.getResponse().getPayloadString());
+		exchange.execute(new Runnable() {
+
+			@Override
+			public void run() {
+				DiscoveryResource discovery = new DiscoveryResource(root);
+
+				discovery.handleRequest(exchange);
+			}
+		});
+
+		LOGGER.info(exchange.getResponse().getPayloadString());
 		Assert.assertEquals(ResponseCode.BAD_OPTION, exchange.getResponse().getCode());
 	}
-	
+
 	private static class DummyEndpoint implements Endpoint {
 
 		@Override
@@ -210,7 +219,7 @@ public class ResourceAttributesTest {
 		}
 
 		@Override
-		public NetworkConfig getConfig() {
+		public Configuration getConfig() {
 			return null;
 		}
 

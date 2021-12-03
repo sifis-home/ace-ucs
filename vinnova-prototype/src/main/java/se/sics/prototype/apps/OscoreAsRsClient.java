@@ -44,7 +44,6 @@ import com.upokecenter.cbor.CBORObject;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.client.GetToken;
-import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObject;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
@@ -86,6 +85,8 @@ public class OscoreAsRsClient {
 	static final InetAddress groupB_multicastIP = new InetSocketAddress("224.0.1.192", 0).getAddress();
 	
     static HashMapCtxDB db = new HashMapCtxDB();
+    
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
     // Each set of the list refers to a different size of Recipient IDs.
     // The element with index 0 includes as elements Recipient IDs with size 1 byte.
@@ -253,7 +254,7 @@ public class OscoreAsRsClient {
         byte[] senderId = KeyStorage.aceSenderIds.get(clientID);
         byte[] recipientId = KeyStorage.aceSenderIds.get("AS");
         OSCoreCtx ctx = new OSCoreCtx(key128, true, null, senderId, recipientId,
-                null, null, null, null);
+                null, null, null, null, MAX_UNFRAGMENTED_SIZE);
         
         Response response = OSCOREProfileRequestsGroupOSCORE.getToken(
 				tokenURI, params, ctx, db);

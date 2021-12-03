@@ -19,18 +19,17 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.junit.Before;
@@ -47,9 +46,10 @@ public class CbcBlockCipherTest {
 	static final long SEQUENCE_NO = 5;
 	static final int TYPE_APPL_DATA = 23;
 	static final int EPOCH = 0;
-	
-	static final Random random = new SecureRandom();
-	
+
+	// only for unit test
+	static final Random random = new Random();
+
 	// byte representation of a 128 bit AES symmetric key
 	static final SecretKey aesKey = new SecretKeySpec(Bytes.createBytes(random, 16), "AES");
 	static final SecretKey aesKey256 = new SecretKeySpec(Bytes.createBytes(random, 32), "AES");
@@ -57,17 +57,14 @@ public class CbcBlockCipherTest {
 	static final SecretKey aesMacKey = new SecretKeySpec(Bytes.createBytes(random, 16), "AES");
 	static final SecretKey aesMacKey256 = new SecretKeySpec(Bytes.createBytes(random, 32), "AES");
 
-	static boolean strongEncryptionAvailable;
-
 	@BeforeClass
-	public static void checksetUp() throws Exception {
-		strongEncryptionAvailable = Cipher.getMaxAllowedKeyLength("AES") > 128;
+	public static void init() {
+		JceProviderUtil.init();
 	}
 
 	@Parameterized.Parameters
 	public static List<Object[]> parameters() {
-		// Trying different messages size to hit sharp corners in Coap-over-TCP
-		// spec
+		// Trying different messages size to hit sharp corners in Coap-over-TCP spec
 		List<Object[]> parameters = new ArrayList<>();
 		parameters.add(new Object[] { 0, 2 });
 		parameters.add(new Object[] { 5, 2 });
@@ -138,7 +135,7 @@ public class CbcBlockCipherTest {
 	 */
 	@Test(expected = InvalidMacException.class)
 	public void testAes256and128CryptionFails() throws Exception {
-		assumeTrue("requires strong encryption enabled", strongEncryptionAvailable);
+		assumeTrue("requires strong encryption enabled", JceProviderUtil.hasStrongEncryption());
 		byte[] encryptedData = CbcBlockCipher.encrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, aesKey256, aesMacKey256, additionalData, payloadData);
 		CbcBlockCipher.decrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, aesKey, aesMacKey, additionalData, encryptedData);
 	}
@@ -150,7 +147,7 @@ public class CbcBlockCipherTest {
 	 */
 	@Test
 	public void testAes256Sha384ryption() throws Exception {
-		assumeTrue("requires strong encryption enabled", strongEncryptionAvailable);
+		assumeTrue("requires strong encryption enabled", JceProviderUtil.hasStrongEncryption());
 		byte[] encryptedData = CbcBlockCipher.encrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, aesKey256, aesMacKey256, additionalData, payloadData);
 		byte[] decryptedData = CbcBlockCipher.decrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, aesKey256, aesMacKey256, additionalData, encryptedData);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
@@ -163,7 +160,7 @@ public class CbcBlockCipherTest {
 	 */
 	@Test
 	public void testAes256ShaCryption() throws Exception {
-		assumeTrue("requires strong encryption enabled", strongEncryptionAvailable);
+		assumeTrue("requires strong encryption enabled", JceProviderUtil.hasStrongEncryption());
 		byte[] encryptedData = CbcBlockCipher.encrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, aesKey256, aesMacKey256, additionalData, payloadData);
 		byte[] decryptedData = CbcBlockCipher.decrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, aesKey256, aesMacKey256, additionalData, encryptedData);
 		assertTrue(Arrays.equals(decryptedData, payloadData));

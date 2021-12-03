@@ -274,6 +274,17 @@ public class Introspect implements Endpoint, AutoCloseable {
         // retrieve the full set of claims, or only to the activeness of the token.
         if (accessLevel.equals(PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS)) {
             // We have access to all claims; add them to reply.
+        	
+        	if (claims.get((short)0) != null) {
+        		// This Access Token was originally created with the EXI claim and without the
+        		// EXP claim, which was later artificially added to enable purging upon expiration.
+        		//
+        		// In order to provide the Resource Server with the Access Token like it was originally
+        		// created, such an EXP claim as well as the "sentinel claim" with CBOR key 0 are removed.
+        		claims.remove((short)0);
+        		claims.remove(Constants.EXP);
+        	}
+        	
             payload = Constants.getCBOR(claims);
         }
         else {
@@ -306,8 +317,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         if (token.getType().equals(CBORType.Array)) {
             try {
                 // Get the RS id (audience) from the COSE KID header.
-				org.eclipse.californium.cose.Message coseRaw = org.eclipse.californium.cose.Message
-						.DecodeFromBytes(
+            	org.eclipse.californium.cose.Message coseRaw = org.eclipse.californium.cose.Message.DecodeFromBytes(
                         token.EncodeToBytes());
                 CBORObject kid = coseRaw.findAttribute(HeaderKeys.KID);
                 Set<String> aud = new HashSet<>();

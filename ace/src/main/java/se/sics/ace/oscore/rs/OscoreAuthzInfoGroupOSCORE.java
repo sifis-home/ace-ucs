@@ -48,11 +48,11 @@ import org.eclipse.californium.oscore.OSException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -138,6 +138,17 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	    boolean provideEcdhInfo = false;
 	    boolean invalid = false;
 	    
+		if (msg instanceof CoapReq) {
+			// Check that the content-format is application/ace+cbor
+			if (((CoapReq) msg).getOptions().getContentFormat() != Constants.APPLICATION_ACE_CBOR) {
+				LOGGER.info("Invalid content-format");
+				CBORObject map = CBORObject.NewMap();
+				map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+				map.Add(Constants.ERROR_DESCRIPTION, "Invalid content-format");
+				return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+			}
+		}
+	    
         try {
             cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
         } catch (Exception e) {
@@ -188,16 +199,30 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	        }
         }
         
-        
         token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
-            LOGGER.info("Missing mandatory paramter 'access_token'");
+            LOGGER.info("Missing parameter 'access_token'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Missing mandatory parameter 'access_token'");
+            map.Add(Constants.ERROR_DESCRIPTION, "Missing mandatory parameter 'access_token'");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
+        if (!token.getType().equals(CBORType.ByteString)) {
+            LOGGER.info("Invalid parameter type for 'access_token', it must be a byte-string");
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
+
+        CBORObject tokenAsCbor = CBORObject.DecodeFromBytes(token.GetByteString());
+        if (!tokenAsCbor.getType().equals(CBORType.ByteString) && !tokenAsCbor.getType().equals(CBORType.Array)) {
+            LOGGER.info("Invalid parameter type for 'access_token', must be present and byte-string");
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION,"Failed deserialization of parameter 'access_token'");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }        
         
         if (cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO))) {
     		if (cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).equals(CBORObject.Null)) {
@@ -222,7 +247,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
-        Message reply = super.processToken(token, msg);
+        Message reply = super.processToken(tokenAsCbor, msg);
         if (reply.getMessageCode() != Message.CREATED) {
             return reply;
         }
@@ -280,7 +305,6 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	    				// with the selected Recipient ID is actually still not present
 	        			if (db.getContext(recipientId) != null) {
 	        				// A Security Context with this Recipient ID exists!
-                            LOGGER.info("A Security Context with this Recipient ID exists!");
 	        				install = false;
 	        			}        			
 	    			}
@@ -290,12 +314,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	        		}
 	            	
 	    			if (install)
-	    			{
 	    				db.addContext(ctx);
-                        System.out.println("Server: Installing Security Context with Recipient ID: "
-                                + ctx.getRecipientIdString() + " ID Context: "
-                                + Utils.bytesToHex(ctx.getIdContext()) + "\r\n");
-	    			}
 	    			else {
 	    	            LOGGER.info("An OSCORE Security Context with the same Recipient ID"
 					               + " has been installed while running the OSCORE profile");

@@ -26,18 +26,16 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 
-
 /**
  * The supported point formats extension.
  * 
- * According <a href= "https://tools.ietf.org/html/rfc8422#section-5.1.1">RFC
- * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only only "UNCOMPRESSED"
- * as point format is valid, the other formats have been deprecated.
+ * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target=
+ * "_blank">RFC 8422, 5.1.1. Supported Elliptic Curves Extension</a> only only
+ * "UNCOMPRESSED" as point format is valid, the other formats have been
+ * deprecated.
  */
 @NoPublicAPI
 public class SupportedPointFormatsExtension extends HelloExtension {
-
-	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int LIST_LENGTH_BITS = 8;
 
@@ -50,9 +48,8 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	 * 
 	 * @since 2.3
 	 */
-	public static final SupportedPointFormatsExtension DEFAULT_POINT_FORMATS_EXTENSION = new SupportedPointFormatsExtension(EC_POINT_FORMATS);
-
-	// Members ////////////////////////////////////////////////////////
+	public static final SupportedPointFormatsExtension DEFAULT_POINT_FORMATS_EXTENSION = new SupportedPointFormatsExtension(
+			EC_POINT_FORMATS);
 
 	/**
 	 * Items in here are ordered according to the client's preferences (favorite
@@ -60,48 +57,40 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	 */
 	private final List<ECPointFormat> ecPointFormatList;
 
-	// Constructors ///////////////////////////////////////////////////
-
 	private SupportedPointFormatsExtension(List<ECPointFormat> ecPointFormatList) {
 		super(ExtensionType.EC_POINT_FORMATS);
 		this.ecPointFormatList = ecPointFormatList;
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	public boolean contains(ECPointFormat format) {
 		return ecPointFormatList.contains(format);
 	}
 
 	@Override
-	public int getLength() {
-		// fixed: type (2 bytes), length (2 bytes), list length (1 byte)
-		// variable: number of point formats
-		return 5 + ecPointFormatList.size();
-	}
-
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\t\t\tLength: ").append(getLength() - 4);
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tEC point formats length: ").append(getLength() - 5);
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tElliptic Curves Point Formats (").append(ecPointFormatList.size()).append("):");
-
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		String indentation2 = StringUtil.indentation(indent + 2);
+		sb.append(indentation).append("Elliptic Curves Point Formats (").append(ecPointFormatList.size())
+				.append(" formats):").append(StringUtil.lineSeparator());
 		for (ECPointFormat format : ecPointFormatList) {
-			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tEC point format: ").append(format.toString());
+			sb.append(indentation2).append("EC point format: ").append(format).append(StringUtil.lineSeparator());
 		}
 
 		return sb.toString();
 	}
 
-	// Serialization //////////////////////////////////////////////////
+	@Override
+	protected int getExtensionLength() {
+		// fixed: list length (1 byte)
+		// variable: number of point formats
+		return 1 + ecPointFormatList.size();
+	}
 
 	@Override
-	protected void addExtensionData(DatagramWriter writer) {
-		int listLength = ecPointFormatList.size();
+	protected void writeExtensionTo(DatagramWriter writer) {
 		// list length + list length field (1 byte)
-		writer.write(listLength + 1, LENGTH_BITS);
-		writer.write(listLength, LIST_LENGTH_BITS);
+		writer.write(ecPointFormatList.size(), LIST_LENGTH_BITS);
 
 		for (ECPointFormat format : ecPointFormatList) {
 			writer.write(format.getId(), POINT_FORMAT_BITS);
@@ -126,16 +115,13 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 		}
 	}
 
-	// EC point format Enum ///////////////////////////////////////////
-
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc4492#section-5.1.2">RFC 4492,
+	 * See <a href="https://tools.ietf.org/html/rfc4492#section-5.1.2">RFC 4492,
 	 * 5.1.2. Supported Point Formats Extension</a>.
 	 */
 	public enum ECPointFormat {
-		UNCOMPRESSED(0),
-		ANSIX962_COMPRESSED_PRIME(1),
-		ANSIX962_COMPRESSED_CHAR2(2);
+
+		UNCOMPRESSED(0), ANSIX962_COMPRESSED_PRIME(1), ANSIX962_COMPRESSED_CHAR2(2);
 
 		private final int id;
 
