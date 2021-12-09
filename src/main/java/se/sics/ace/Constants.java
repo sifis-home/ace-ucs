@@ -298,7 +298,7 @@ public class Constants {
     /** 
      * OAuth introspection endpoint abbreviations =============================
      */
-
+    
     /**
      * The issuer of an access token
      */
@@ -373,6 +373,22 @@ public class Constants {
 	/**
 	 * CWT claims abbreviations ===============================================
 	 */
+    
+    /**
+     * Abbreviation for the sentinel claim used only for token storage at the AS.
+     * That is, this claim is not included in the access token sent on the wire.
+     * 
+     * In case of introspection, this claim signals that the EXP claim has been
+     * added after the actual creation of the access token, if this was initially
+     * created with the EXI claim but without the EXP claim.
+     * 
+     * The "sentinel claim" has CBOR abbreviation 0, which is reserved.
+     * A value smaller than -65536 ("private use") would be more appropriate,
+     * but it would not be representable through the short integer type already
+     * used for the keys in the maps encoding claim sets.
+     */
+	public static final short LATE_ADDED_EXP = 0;
+    
 	//iss = 1
 	//sub = 2
 	//aud = 3

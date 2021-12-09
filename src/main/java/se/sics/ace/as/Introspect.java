@@ -275,13 +275,13 @@ public class Introspect implements Endpoint, AutoCloseable {
         if (accessLevel.equals(PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS)) {
             // We have access to all claims; add them to reply.
         	
-        	if (claims.get((short)0) != null) {
+        	if (claims.containsKey(Constants.LATE_ADDED_EXP)) {
         		// This Access Token was originally created with the EXI claim and without the
         		// EXP claim, which was later artificially added to enable purging upon expiration.
         		//
-        		// In order to provide the Resource Server with the Access Token like it was originally
-        		// created, such an EXP claim as well as the "sentinel claim" with CBOR key 0 are removed.
-        		claims.remove((short)0);
+        		// In order to provide the Resource Server with the Access Token like it was
+        		// originally created, such an EXP claim as well as the "sentinel claim" are removed.
+        		claims.remove(Constants.LATE_ADDED_EXP);
         		claims.remove(Constants.EXP);
         	}
         	
