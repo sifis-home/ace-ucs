@@ -43,7 +43,7 @@ import se.sics.ace.as.DBConnector;
 /**
  * This class handles proper MySQL Db SQL.
  *
- * @author Sebastian Echeverria and Marco Tiloca
+ * @author Sebastian Echeverria and Marco Tiloca and Marco Rasori
  *
  */
 public class MySQLDBAdapter implements SQLDBAdapter {
@@ -215,9 +215,10 @@ public class MySQLDBAdapter implements SQLDBAdapter {
 
         String createTokenLog = "CREATE TABLE IF NOT EXISTS "
                 + this.dbName + "."
-                + DBConnector.cti2clientTable + "("
+                + DBConnector.cti2PeersTable + "("
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
+                + DBConnector.rsIdsColumn + " varchar(255) NOT NULL,"
                 + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
         
         String createGrant2Cti = "CREATE TABLE IF NOT EXISTS "
@@ -236,6 +237,20 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
                 + DBConnector.claimValueColumn + " varbinary(255));";
 
+        String createTrl =  "CREATE TABLE IF NOT EXISTS "
+                + this.dbName + "."
+                + DBConnector.trlTable + "("
+                + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
+                + DBConnector.clientIdColumn + " varchar(255) NOT NULL, "
+                + DBConnector.rsIdsColumn + " varchar(255) NOT NULL,"
+                + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
+
+        String createCti2TokenHash =  "CREATE TABLE IF NOT EXISTS "
+                + this.dbName + "."
+                + DBConnector.tokenHashTable + "("
+                + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
+                + DBConnector.tokenHashColumn + " varchar(255) NOT NULL,"
+                + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
 
         try (Connection rootConn = getRootConnection(rootPwd);
              Statement stmt = rootConn.createStatement()) {
@@ -256,6 +271,8 @@ public class MySQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createTokenLog);
             stmt.execute(createGrant2Cti);
             stmt.execute(createGrant2RSInfo);
+            stmt.execute(createTrl);
+            stmt.execute(createCti2TokenHash);
             rootConn.close();
             stmt.close();
         } catch (SQLException e) {
