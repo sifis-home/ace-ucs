@@ -45,7 +45,7 @@ import se.sics.ace.AceException;
  * This interface provides database connectivity methods for the 
  * Attribute Authority.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
  *
  */
 public interface DBConnector {
@@ -251,10 +251,16 @@ public interface DBConnector {
 
     //******************New table********************************   
     /**
-     * The table saving the association between cti and client identifier
-     *     Note: This table uses ctiColumn and clientIdColumn
+     * The table saving the association between cti, client identifier,
+	 * and resource servers
+     *     Note: This table uses ctiColumn, clientIdColumn, and rsIdsColumn
      */
-    public String cti2clientTable = "TokenLog";
+    public String cti2PeersTable = "TokenLog";
+
+	/**
+	 * The column name for cti counter
+	 */
+	public String rsIdsColumn = "rsIdsColumn";
     
     //******************New table********************************      
     /**
@@ -280,6 +286,34 @@ public interface DBConnector {
      * and the claimValueColum
      */
     public String grant2RSInfoTable = "RsInfoForGrant";    
+
+	//******************New table********************************
+	/**
+	 * The table containing active sessions (UCS)
+	 */
+	public String sessionTable = "Sessions";
+
+	/**
+	 * The column name for the session identifier
+	 */
+	public String sessionIdColumn = "SessionId";
+
+	//******************New table********************************
+	/**
+	 * The table for the trl
+	 */
+	public String trlTable = "Trl";
+
+	//******************New table********************************
+	/**
+	 * The table that maps between token identifier (cti) and token hash
+	 */
+	public String tokenHashTable = "TokenHashes";
+
+	/**
+	 * The column name for the token hash
+	 */
+	public String tokenHashColumn = "TokenHash";
 
 	/**
 	 * Gets a common profile supported by a specific audience and client.
@@ -674,13 +708,14 @@ public interface DBConnector {
     public void saveExiSequenceNumber(int sn, String rsId) throws AceException;
     
     /**
-     * Save a mapping from token identifier to client identifier for
-     *  a newly issued token.
+     * Save a mapping from token identifier to client identifier
+	 * and resource servers for a newly issued token.
      * @param cti  the token identifier Base64 encoded
      * @param clientId  the client identifier
+	 * @param rsIds  the set of resource server identifiers
      * @throws AceException
      */
-    public void addCti2Client(String cti, String clientId) throws AceException;
+    public void addCti2Peers(String cti, String clientId, Set<String> rsIds) throws AceException;
 
 	/**
 	 * Get list of all registered client ids.
@@ -708,7 +743,36 @@ public interface DBConnector {
      * @throws AceException
      */
     public Set<String> getCtis4Client(String clientId) throws AceException;
-    
+
+	/**
+	 * Get the resource servers identifiers that hold a given token
+	 * identified by its cti.
+	 *
+	 * @param cti  the cti of the token Base64 encoded
+	 * @return  the set of resource servers identifiers
+	 * @throws AceException
+	 */
+	public Set<String> getRss4Cti(String cti) throws AceException;
+
+	/**
+	 * Get the token identifiers (cti) for a given resource server.
+	 *
+	 * @param rsId  the resource server identifier
+	 * @return a set of token identifiers Base64 encoded
+	 * @throws AceException
+	 */
+	public Set<String> getCtis4Rs(String rsId) throws AceException;
+
+	/**
+	 * Get the client and resource servers identifiers for given token
+	 * identified by its cti.
+	 *
+	 * @param cti  the cti of the token Base64 encoded
+	 * @return  the set of client and resource servers identifiers
+	 * @throws AceException
+	 */
+	public Set<String> getPeers4Cti(String cti) throws AceException;
+
     /**
      * Get the cti of a token for an authorization grant code.
      * Note that the code is a byte-string Base64 encoded.
@@ -765,7 +829,104 @@ public interface DBConnector {
      * @throws AceException
      */
     public boolean isGrantValid(String code) throws AceException;
-    
+
+	/**
+	 * Save a mapping from token identifier to the hash computed
+	 * on the access token
+	 *
+	 * @param cti  the token identifier Base64 encoded
+	 * @param tokenHash  the token hash
+	 *
+	 * @throws AceException
+	 */
+	public void addCti2TokenHash(String cti, String tokenHash) throws AceException;
+
+	/**
+	 * Adds a token identifier and the pertaining peers
+	 * to the revoked token table (trl)
+	 *
+	 * @param cti  the token identifier of the revoked token
+	 * @param clientId  the pertaining client identifier
+	 * @param rsId  the pertaining resource server identifier
+	 *
+	 * @throws AceException
+	 */
+	public void addRevokedToken(String cti, String clientId, Set<String> rsId) throws AceException;
+
+	/**
+	 * Adds a token identifier and the pertaining peers
+	 * to the revoked token table (trl)
+	 *
+	 * @param cti  the token identifier of the revoked token
+	 *
+	 * @throws AceException
+	 */
+	public void addRevokedToken(String cti) throws AceException;
+
+
+	/**
+	 * Deletes an expired token from the revoked token table (trl)
+	 *
+	 * @param cti  the token identifier to delete
+	 *
+	 * @throws AceException
+	 */
+	public void deleteExpiredToken(String cti) throws AceException;
+
+	/**
+	 * Deletes a token from the token hash table, given the ti
+	 *
+	 * @param cti  the token identifier of the token to delete
+	 *
+	 * @throws AceException
+	 */
+	public void deleteTokenHash(String cti) throws AceException;
+
+	/**
+	 * Get the peers pertaining to the provided token identifier
+	 *
+	 * @param cti  the token identifier to lookup
+	 *
+	 * @return  the set of pertaining peers (peers associated with the provided token hash)
+	 * @throws AceException
+	 */
+	public Set<String> getPertainingPeers(String cti) throws AceException;
+
+	/**
+	 * Get the token identifiers pertaining to the requesting identifier
+	 *
+	 * @param peerId  the client or resource server identifier
+	 *
+	 * @return  the set of pertaining tokens
+	 * @throws AceException
+	 */
+	public Set<String> getPertainingTokens(String peerId) throws AceException;
+
+	/**
+	 * Get the expiration time of the given token identifier
+	 *
+	 * @param cti  the token identifier of the token to lookup
+	 *
+	 * @throws AceException
+	 */
+	public long getExpirationTime(String cti) throws AceException;
+
+//	/**
+//	 * Get the hash values of a set of token identifiers
+//	 *
+//	 * @param cti  the set of token identifiers to lookup
+//	 *
+//	 * @throws AceException
+//	 */
+//	public Set<String> getTokenHashes(Set<String> cti) throws AceException;
+
+	/**
+	 * Get a map built from the table that contains ctis and token hashes
+	 **
+	 * @throws AceException
+	 */
+	public Map<String, String> getTokenHashMap() throws AceException;
+
 	/**
 	 * Close the connections. After this any other method calls to this
 	 * object will lead to an exception.

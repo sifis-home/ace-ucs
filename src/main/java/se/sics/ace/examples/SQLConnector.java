@@ -35,12 +35,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -56,7 +51,7 @@ import se.sics.ace.as.DBConnector;
 /**
  * This class provides SQL database connectivity for the Attribute Authority.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
  *
  */
 public class SQLConnector implements DBConnector, AutoCloseable {
@@ -420,9 +415,9 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	protected PreparedStatement updateExiSn;
 	
     /**
-     * A prepared INSERT statement to insert a new token to client mapping.
+     * A prepared INSERT statement to insert a new token to peers mapping.
      */
-    protected PreparedStatement insertCti2Client;
+    protected PreparedStatement insertCti2Peers;
     
     /**
      * A prepared SELECT statement to select the client identifier holding a
@@ -440,7 +435,19 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * held by a client
      */
     protected PreparedStatement selectCtisByClient;
-    
+
+	/**
+	 * A prepared SELECT statement to select the client identifier holding a
+	 * token identified by its cti.
+	 */
+	protected PreparedStatement selectRssByCti;
+
+	/**
+	 * A prepared SELECT statement to select the token identifiers (cti)
+	 * issued for a resource server
+	 */
+	protected PreparedStatement selectCtisByRs;
+
     /**
      * A prepared SELECT statement to select the token identifier (cti) 
      * for an authorization grant
@@ -481,7 +488,46 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * A prepared SELECT statement to check if a grant is marked invalid
      */
     protected PreparedStatement selectGrantValid;
-    
+
+	/**
+	 * A prepared INSERT statement to add a cti and the associated token hash
+	 */
+	protected PreparedStatement insertCti2TokenHash;
+
+	/**
+	 * A prepared INSERT statement to add a token identifier and pertaining peers to the trl
+	 */
+	protected PreparedStatement insertRevokedToken;
+
+	/**
+	 * A prepared DELETE statement to remove a token identifier from the trl
+	 */
+	protected PreparedStatement deleteExpiredToken;
+
+	/**
+	 * A prepared DELETE statement to remove a token from the tokenHash table, given the cti
+	 */
+	protected PreparedStatement deleteTokenHash;
+	/**
+	 * A prepared SELECT statement to get peers pertaining to a token identifier
+	 */
+	protected PreparedStatement selectPertainingPeers;
+
+	/**
+	 * A prepared SELECT statement to get token identifiers pertaining to a peer
+	 */
+	protected PreparedStatement selectPertainingTokens;
+
+	/**
+	 * A prepared SELECT statement to get the expiration time of a specific token
+	 */
+	protected PreparedStatement selectExpirationTimeOfToken;
+
+	/**
+	 * A prepared SELECT statement to get the content of the token hash table
+	 */
+	protected PreparedStatement selectCtisToTokenHashes;
+
     /**
      * The singleton instance of this connector
      */
@@ -812,10 +858,10 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                	    + " WHERE " + DBConnector.rsIdColumn
 		                	    + "=?;"));
 		
-		this.insertCti2Client = this.conn.prepareStatement(
+		this.insertCti2Peers = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
-		                + DBConnector.cti2clientTable
-		                + " VALUES (?,?);"));
+		                + DBConnector.cti2PeersTable
+		                + " VALUES (?,?,?);"));
 
 		this.selectAllClients = this.conn.prepareStatement("SELECT "
 		        + DBConnector.clientIdColumn + " FROM "
@@ -824,15 +870,30 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		this.selectClientByCti = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
 		                + DBConnector.clientIdColumn + " FROM "
-		                + DBConnector.cti2clientTable
-		                + " WHERE " + DBConnector.ctiColumn + "=?;"));   
+		                + DBConnector.cti2PeersTable
+		                + " WHERE " + DBConnector.ctiColumn + "=?;"));
 
-		this.selectCtisByClient= this.conn.prepareStatement(
+		this.selectRssByCti = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("SELECT "
+						+ DBConnector.rsIdsColumn + " FROM "
+						+ DBConnector.cti2PeersTable
+						+ " WHERE " + DBConnector.ctiColumn + "=?;"));
+
+		this.selectCtisByClient = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
 		                + DBConnector.ctiColumn + " FROM "
-		                + DBConnector.cti2clientTable
-		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));  
-		
+		                + DBConnector.cti2PeersTable
+		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));
+
+		this.selectCtisByRs = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("SELECT "
+						+ DBConnector.ctiColumn + " FROM "
+						+ DBConnector.cti2PeersTable
+						+ " WHERE " + DBConnector.rsIdsColumn + " =?"
+						+ " OR " + DBConnector.rsIdsColumn + " LIKE CONCAT( ?,'%')"
+						+ " OR " + DBConnector.rsIdsColumn + " LIKE CONCAT( '%',?,'%')"
+						+ " OR " + DBConnector.rsIdsColumn + " LIKE CONCAT( '%',?);"));
+
 		this.selectCtisByGrant = this.conn.prepareStatement(
                 dbAdapter.updateEngineSpecificSQL("SELECT "
                         + DBConnector.ctiColumn + " FROM "
@@ -873,7 +934,54 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                         + DBConnector.grantValidColumn + " FROM "
                         + DBConnector.grant2ctiTable
                         + " WHERE " + DBConnector.grantColumn + "=?;"));
-                        
+
+		this.insertCti2TokenHash = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("INSERT INTO "
+						+ DBConnector.tokenHashTable
+						+ " VALUES (?,?);"));
+
+		this.insertRevokedToken = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("INSERT INTO "
+						+ DBConnector.trlTable
+						+ " VALUES (?,?,?);"));
+
+		this.deleteExpiredToken = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("DELETE FROM "
+						+ DBConnector.trlTable
+						+ " WHERE " + DBConnector.ctiColumn + "=?;"));
+
+		this.deleteTokenHash = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("DELETE FROM "
+						+ DBConnector.tokenHashTable
+						+ " WHERE " + DBConnector.ctiColumn + "=?;"));
+
+		this.selectPertainingPeers = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("SELECT "
+						+ DBConnector.clientIdColumn + ", "
+						+ DBConnector.rsIdsColumn + " FROM "
+						+ DBConnector.trlTable
+						+ " WHERE " + DBConnector.ctiColumn + "=?;"));
+
+		this.selectPertainingTokens = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("SELECT "
+						+ DBConnector.ctiColumn + " FROM "
+						+ DBConnector.trlTable
+						+ " WHERE " + DBConnector.clientIdColumn + "=?"
+						+ " OR " + DBConnector.rsIdsColumn + " =?"
+						+ " OR " + DBConnector.rsIdsColumn + " LIKE CONCAT( ?,'%')"
+						+ " OR " + DBConnector.rsIdsColumn + " LIKE CONCAT( '%',?,'%')"
+						+ " OR " + DBConnector.rsIdsColumn + " LIKE CONCAT( '%',?);"));
+
+		this.selectExpirationTimeOfToken = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("SELECT "
+						+ DBConnector.claimValueColumn + " FROM "
+						+ DBConnector.claimsTable
+						+ " WHERE (" + DBConnector.claimNameColumn + "=" + Constants.EXP
+						+ ") AND ( " + DBConnector.ctiColumn + "=?);"));
+
+		this.selectCtisToTokenHashes = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("SELECT * FROM "
+						+ DBConnector.tokenHashTable + ";"));
 	}
 	
 	/**
@@ -1998,17 +2106,20 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     }
     
     @Override
-    public synchronized void addCti2Client(String cti, String clientId) 
+    public synchronized void addCti2Peers(String cti, String clientId, Set<String> rsIds)
             throws AceException {
-        if (cti == null || clientId == null) {
+        if (cti == null || clientId == null || rsIds == null) {
             throw new AceException(
-                    "addCti2Client() requires non-null parameters");
+                    "addCti2Peers() requires non-null parameters");
         }
         try {
-            this.insertCti2Client.setString(1, cti);
-            this.insertCti2Client.setString(2, clientId);
-            this.insertCti2Client.execute();
-            this.insertCti2Client.clearParameters();
+			String rsIdsStr = String.join(",", rsIds);
+
+            this.insertCti2Peers.setString(1, cti);
+            this.insertCti2Peers.setString(2, clientId);
+			this.insertCti2Peers.setString(3, rsIdsStr);
+			this.insertCti2Peers.execute();
+            this.insertCti2Peers.clearParameters();
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
@@ -2039,7 +2150,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             ResultSet result = this.selectClientByCti.executeQuery();
             this.selectClientByCti.clearParameters();
             if (result.next()) {
-                String clientId = result.getString(DBConnector.clientIdColumn);
+				String clientId = result.getString(DBConnector.clientIdColumn);
                 result.close();
                 return clientId;
             }
@@ -2073,6 +2184,89 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         return ctis;
     }
 
+	/**
+	 * Get the resource servers identifiers that hold a given token
+	 * identified by its cti.
+	 *
+	 * @param cti  the cti of the token Base64 encoded
+	 * @return  the set of resource servers identifiers
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Set<String> getRss4Cti(String cti) throws AceException {
+		if (cti == null) {
+			throw new AceException("getRss4Cti() requires non-null cti");
+		}
+		try {
+			this.selectRssByCti.setString(1, cti);
+			ResultSet result = this.selectRssByCti.executeQuery();
+			this.selectRssByCti.clearParameters();
+			if (result.next()) {
+				String rss = result.getString(DBConnector.rsIdsColumn);
+				result.close();
+				String[] values = rss.split(",");
+				Set<String> rsIds = new HashSet<>(Arrays.asList(values));
+				return rsIds;
+			}
+			result.close();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+		return new HashSet<String>();
+	}
+
+	/**
+	 * Get the token identifiers (cti) for a given resource server.
+	 *
+	 * @param rsId  the resource server identifier
+	 * @return a set of token identifiers Base64 encoded
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Set<String> getCtis4Rs(String rsId) throws AceException {
+		if (rsId == null) {
+			throw new AceException("getCtis4Rs() requires non-null rsId");}
+
+		Set<String> ctis = new HashSet<>();
+		try {
+			this.selectCtisByRs.setString(1, rsId); // first and only
+			this.selectCtisByRs.setString(2, rsId + ","); // first of many
+			this.selectCtisByRs.setString(3, "," + rsId + ","); // middle
+			this.selectCtisByRs.setString(4, "," + rsId); // last
+			ResultSet result = this.selectCtisByRs.executeQuery();
+			this.selectCtisByRs.clearParameters();
+			while (result.next()) {
+				ctis.add(result.getString(DBConnector.ctiColumn));
+			}
+			result.close();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+		return ctis;
+	}
+
+	/**
+	 * Get the client and resource servers identifiers for given token
+	 * identified by its cti.
+	 *
+	 * @param cti  the cti of the token Base64 encoded
+	 * @return  the set of client and resource servers identifiers
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Set<String> getPeers4Cti(String cti) throws AceException {
+		if (cti == null) {
+			throw new AceException("getRss4Cti() requires non-null cti");
+		}
+
+		Set<String> peerIds = getRss4Cti(cti);
+		String clientId = getClient4Cti(cti);
+		if (clientId != null)
+			peerIds.add(clientId);
+
+		return peerIds;
+	}
+
     @Override
     public String getCti4Grant(String code) throws AceException {
         if (code == null) {
@@ -2085,7 +2279,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             ResultSet result = this.selectCtisByGrant.executeQuery();
             this.selectCtisByGrant.clearParameters();
             while (result.next()) {
-                cti = (result.getString(DBConnector.ctiColumn));      
+                cti = (result.getString(DBConnector.ctiColumn));
             }
             result.close();
         } catch (SQLException e) {
@@ -2214,28 +2408,290 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
         return valid;
     }
-    
-    /**
-     * Extensibility method to allow other modules to prepare statements.
-     * 
-     * @param statement  the statement string
-     * 
-     * @return the prepared statement
-     * @throws AceException 
-     * 
-     */
-    public PreparedStatement prepareStatement(String statement) throws AceException {
-        PreparedStatement stmt = null;
-        try {
-            stmt = this.conn.prepareStatement(
-                    this.adapter.updateEngineSpecificSQL(statement));
-        } catch (SQLException e) {
-           throw new AceException(e.getMessage());
-        }
-        return stmt;
-        
-    }
-    
+
+	/**
+	 * Save a mapping from token identifier to the hash computed
+	 * on the access token
+	 *
+	 * @param cti  the token identifier Base64 encoded
+	 * @param tokenHash  the token hash
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void addCti2TokenHash(String cti, String tokenHash)
+			throws AceException {
+		if (cti == null || tokenHash == null) {
+			throw new AceException(
+					"addCti2TokenHash() requires non-null parameters");
+		}
+		try {
+			this.insertCti2TokenHash.setString(1, cti);
+			this.insertCti2TokenHash.setString(2, tokenHash);
+			this.insertCti2TokenHash.execute();
+			this.insertCti2TokenHash.clearParameters();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+	}
+
+	/**
+	 * Add a token identifier and the pertaining peers
+	 * to the revoked token table (trl)
+	 *
+	 * @param cti  the token identifier of the revoked token
+	 * @param clientId  the pertaining client identifier
+	 * @param rsIds  the pertaining resource server identifiers (comma separated)
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void addRevokedToken(String cti, String clientId, Set<String> rsIds) throws AceException {
+		if (cti == null || cti.isEmpty()) {
+			throw new AceException(
+					"addRevokedToken() requires non-null, non-empty token identifier");
+		}
+		if (clientId == null || clientId.isEmpty()) {
+			throw new AceException(
+					"addRevokedToken() requires non-null, non-empty client identifier");
+		}
+		if (rsIds == null || rsIds.isEmpty()) {
+			throw new AceException(
+					"addRevokedToken() requires non-null, non-empty resource server identifier(s)");
+		}
+		String rsIdsStr = String.join(",", rsIds);
+		try {
+			this.insertRevokedToken.setString(1, cti);
+			this.insertRevokedToken.setString(2, clientId);
+			this.insertRevokedToken.setString(3, rsIdsStr);
+			this.insertRevokedToken.execute();
+			this.insertRevokedToken.clearParameters();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+	}
+
+	/**
+	 * Adds a token identifier and the pertaining peers
+	 * to the revoked token table (trl)
+	 *
+	 * @param cti  the token identifier of the revoked token
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void addRevokedToken(String cti) throws AceException{
+		if (cti == null || cti.isEmpty()) {
+			throw new AceException(
+					"addRevokedToken() requires non-null, non-empty token identifier");
+		}
+
+		String clientId = this.getClient4Cti(cti);
+		Set<String> rsIds = this.getRss4Cti(cti);
+		//String rsIdsStr = String.join(",", rsIds);
+
+		this.addRevokedToken(cti, clientId, rsIds);
+	}
+
+
+	/**
+	 * Deletes an expired token from the revoked token table (trl)
+	 *
+	 * @param cti  the token identifier of the token to delete
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void deleteExpiredToken(String cti) throws AceException {
+		if (cti == null || cti.isEmpty()) {
+			throw new AceException(
+					"deleteExpiredToken() requires non-null, non-empty token identifier");
+		}
+		try {
+			this.deleteExpiredToken.setString(1, cti);
+			this.deleteExpiredToken.execute();
+			this.deleteExpiredToken.clearParameters();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+	}
+
+	/**
+	 * Deletes a token from the token hash table, given the ti
+	 *
+	 * @param cti  the token identifier of the token to delete
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void deleteTokenHash(String cti) throws AceException {
+		if (cti == null || cti.isEmpty()) {
+			throw new AceException(
+					"deleteTokenHash() requires non-null, non-empty token identifier");
+		}
+		try {
+			this.deleteTokenHash.setString(1, cti);
+			this.deleteTokenHash.execute();
+			this.deleteTokenHash.clearParameters();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+	}
+
+	/**
+	 * Get the peers pertaining to the provided token identifier
+	 *
+	 * @param cti  the token identifier to lookup
+	 *
+	 * @return  the set of pertaining peers (peers associated with the provided token identifier)
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Set<String> getPertainingPeers(String cti) throws AceException {
+		if (cti == null || cti.isEmpty()) {
+			throw new AceException(
+					"getPertainingPeers() requires non-null, non-empty token identifier");
+		}
+		try {
+			this.selectPertainingPeers.setString(1, cti);
+			ResultSet result = this.selectPertainingPeers.executeQuery();
+			this.selectPertainingPeers.clearParameters();
+			if (result.next()) {
+				String rss = result.getString(DBConnector.rsIdsColumn);
+				String[] values = rss.split(",");
+
+				Set<String> peers = new HashSet<>(Arrays.asList(values));
+				peers.add(result.getString(DBConnector.clientIdColumn));
+
+				result.close();
+				return peers;
+			}
+			result.close();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+		return new HashSet<>();
+	}
+
+	/**
+	 * Get the token identifiers pertaining to the requesting peer identifier
+	 *
+	 * @param peerId  the client or resource server identifier
+	 *
+	 * @return  the set of pertaining token identifiers
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Set<String> getPertainingTokens(String peerId) throws AceException {
+		if (peerId == null || peerId.isEmpty()) {
+			throw new AceException(
+					"getPertainingTokens() requires non-null, non-empty peer identifier");
+		}
+		Set<String> tokens = new HashSet<>();
+		try {
+			this.selectPertainingTokens.setString(1, peerId);
+			this.selectPertainingTokens.setString(2, peerId);
+			this.selectPertainingTokens.setString(3, peerId + ",");
+			this.selectPertainingTokens.setString(4, "," + peerId + ",");
+			this.selectPertainingTokens.setString(5, "," + peerId);
+			ResultSet result = this.selectPertainingTokens.executeQuery();
+			this.selectPertainingTokens.clearParameters();
+			while (result.next()) {
+				tokens.add(result.getString(DBConnector.ctiColumn));
+			}
+			result.close();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+		return tokens;
+	}
+
+	/**
+	 * Get the expiration time of the given token identifier
+	 *
+	 * @param cti  the token identifier of the token to lookup
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized long getExpirationTime(String cti) throws AceException {
+		if (cti == null || cti.isEmpty()) {
+			throw new AceException(
+					"getExpirationTime() requires non-null, non-empty token identifier");
+		}
+		try {
+			this.selectExpirationTimeOfToken.setString(1, cti);
+			ResultSet result = this.selectExpirationTimeOfToken.executeQuery();
+			this.selectExpirationTimeOfToken.clearParameters();
+			if (result.next()) {
+				byte[] rawTime = result.getBytes(DBConnector.claimValueColumn);
+				CBORObject cborTime = CBORObject.DecodeFromBytes(rawTime);
+				result.close();
+				return cborTime.AsInt64();
+			}
+			result.close();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+		return 0L;
+	}
+
+//	/**
+//	 * Get the hash values of a set of token identifiers
+//	 *
+//	 * @param cti  the set of token identifiers to lookup
+//	 *
+//	 * @throws AceException
+//	 */
+//	@Override
+//	public synchronized Set<String> getTokenHashes(Set<String> cti) throws AceException {
+//
+//	}
+
+	/**
+	 * Get a map built from the table that contains ctis and token hashes
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Map<String, String> getTokenHashMap() throws AceException {
+		Map<String, String> ctisToTokenHashes = new HashMap<>();
+		try{
+			ResultSet result = this.selectCtisToTokenHashes.executeQuery();
+			while (result.next()) {
+				ctisToTokenHashes.put(
+						result.getString(DBConnector.ctiColumn),
+						result.getString(DBConnector.tokenHashColumn));
+			}
+			result.close();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+		return ctisToTokenHashes;
+	}
+
+
+	/**
+	 * Extensibility method to allow other modules to prepare statements.
+	 *
+	 * @param statement  the statement string
+	 *
+	 * @return the prepared statement
+	 * @throws AceException
+	 *
+	 */
+	public PreparedStatement prepareStatement(String statement) throws AceException {
+		PreparedStatement stmt = null;
+		try {
+			stmt = this.conn.prepareStatement(
+					this.adapter.updateEngineSpecificSQL(statement));
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+		return stmt;
+
+	}
+
     /**
      * Get the SQL database adapter.  This method is for external modules 
      * that need access to the database.
