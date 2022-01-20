@@ -49,6 +49,8 @@ import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.PDP;
 import se.sics.ace.Constants;
 import se.sics.ace.Util;
+import se.sics.ace.as.RevocationHandler;
+import se.sics.ace.as.Token;
 import se.sics.ace.examples.SQLConnector;
 
 /**
@@ -58,7 +60,7 @@ import se.sics.ace.examples.SQLConnector;
  * 
  * NOTE: This PDP needs a SQL connector it won't work with other DBConnectors.
  * 
- * @author Marco Tiloca
+ * @author Marco Tiloca and Marco Rasori
  *
  */
 public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
@@ -113,6 +115,9 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
     private PreparedStatement selectOSCOREGroupManagers;
     
     private Map<String, Short> rolesToInt = new HashMap<>();
+
+	private RevocationHandler rh = null;
+	private Token t;
 
 	/**
 	 * Constructor, can supply an initial configuration.
@@ -331,7 +336,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 	}
 
 	@Override
-	public Object canAccess(String clientId, Set<String> aud, Object scope) 
+	public Object canAccess(String clientId, Set<String> aud, Object scope, int evaluationId)
 				throws AceException {
 	    if (clientId == null) {
             throw new AceException(
@@ -892,5 +897,40 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
             throw new AceException(e.getMessage());
         }
     }
-    
+
+	@Override
+	public void updateSessionsWithCti(String tokenHash, int evaluationId) throws AceException{
+		if (evaluationId >= 0) {
+			throw new AceException("evaluationId must be negative for a PDP not supporting revocation");
+		}
+	}
+
+	@Override
+	public void terminatePendingSessions(int evaluationId) throws AceException {
+		if (evaluationId >= 0) {
+			throw new AceException("evaluationId must be negative for a PDP not supporting revocation");
+		}
+	}
+
+	@Override
+	public void setRevocationHandler(RevocationHandler rh) {
+		this.rh = rh;
+	}
+
+	@Override
+	public void revokeToken(String cti) throws AceException {
+		if (this.rh != null)
+			this.rh.revoke(cti);
+		t.removeToken(cti);
+//        else
+//            throw new AceException("Cannot revoke the token: Revocation Handler not initialized.");
+	}
+
+	@Override
+	public void removeSessions4Cti(String tokenHash) { }
+
+	@Override
+	public void setTokenEndpoint(Token t) {
+		this.t = t;
+	}
 }

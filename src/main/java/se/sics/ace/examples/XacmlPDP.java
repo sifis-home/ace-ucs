@@ -34,10 +34,7 @@ package se.sics.ace.examples;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.net.URI;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
+import java.util.*;
 
 import org.wso2.balana.PDPConfig;
 import org.wso2.balana.attr.StringAttribute;
@@ -52,11 +49,13 @@ import org.wso2.balana.xacml3.Attributes;
 
 import se.sics.ace.AceException;
 import se.sics.ace.as.PDP;
+import se.sics.ace.as.RevocationHandler;
+import se.sics.ace.as.Token;
 
 /**
  * A PDP that uses XACML to provide access control decisions.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Rasori
  *
  */
 public class XacmlPDP implements PDP {
@@ -129,7 +128,9 @@ public class XacmlPDP implements PDP {
 	private String defaultAud;
 	
 	private String defaultScope;
-	
+	private RevocationHandler rh = null;
+	private Token t = null;
+
 	/**
 	 * Constructor, load policy files from a directory.
 	 * 
@@ -193,7 +194,7 @@ public class XacmlPDP implements PDP {
 	}
 
 	@Override
-	public String canAccess(String clientId, Set<String> aud, Object scopes) 
+	public String canAccess(String clientId, Set<String> aud, Object scopes, int evaluationId)
 			throws AceException {
 		Set<Attributes> attributes = new HashSet<>();
 		StringAttribute subjectAV = new StringAttribute(clientId);
@@ -314,4 +315,42 @@ public class XacmlPDP implements PDP {
 		}
 		return result;
 	}
+
+	@Override
+	public void updateSessionsWithCti(String tokenHash, int evaluationId) throws AceException{
+		if (evaluationId >= 0) {
+			throw new AceException("evaluationId must be negative for a PDP not supporting revocation");
+		}
+	}
+
+	@Override
+	public void terminatePendingSessions(int evaluationId) throws AceException {
+		if (evaluationId >= 0) {
+			throw new AceException("evaluationId must be negative for a PDP not supporting revocation");
+		}
+	}
+
+	@Override
+	public void setRevocationHandler(RevocationHandler rh) {
+		this.rh = rh;
+	}
+
+	@Override
+	public void revokeToken(String cti) throws AceException {
+		if (this.rh != null)
+			this.rh.revoke(cti);
+
+		t.removeToken(cti);
+//        else
+//            throw new AceException("Cannot revoke the token: Revocation Handler not initialized.");
+	}
+
+	@Override
+	public void removeSessions4Cti(String tokenHash) { }
+
+	@Override
+	public void setTokenEndpoint(Token t) {
+		this.t = t;
+	}
 }
+

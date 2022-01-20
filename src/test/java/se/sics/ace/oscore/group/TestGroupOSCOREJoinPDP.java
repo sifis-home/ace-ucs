@@ -64,7 +64,7 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 /**
  * Test the GroupOSCOREJoinPDP class.
  * 
- * @author Marco Tiloca
+ * @author Marco Tiloca and Marco Rasori
  *
  */
 public class TestGroupOSCOREJoinPDP {
@@ -296,10 +296,10 @@ public class TestGroupOSCOREJoinPDP {
     	assert(pdp.canAccessToken("clientA"));
     	Set<String> aud1 = Collections.singleton("rs1");
     	Set<String> aud2 = Collections.singleton("rs2");
-    	assert(pdp.canAccess("clientA", aud2, "r_light").equals("r_light"));
-    	assert(pdp.canAccess("clientC", aud1, "r_temp")==null);
-    	assert(pdp.canAccess("clientA", aud1, "r_temp").equals("r_temp"));
-    	assert(pdp.canAccess("clientB", aud1, "r_config")==null);
+    	assert(pdp.canAccess("clientA", aud2, "r_light", -1).equals("r_light"));
+    	assert(pdp.canAccess("clientC", aud1, "r_temp", -1)==null);
+    	assert(pdp.canAccess("clientA", aud1, "r_temp", -1).equals("r_temp"));
+    	assert(pdp.canAccess("clientB", aud1, "r_config", -1)==null);
     	assert(pdp.getIntrospectAccessLevel("rs1").equals(PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS));
         assert(pdp.getIntrospectAccessLevel("rs8").equals(PDP.IntrospectAccessLevel.ACTIVE_ONLY));
     	assert(!pdp.canAccessToken("clientF"));
@@ -322,8 +322,8 @@ public class TestGroupOSCOREJoinPDP {
     	Set<String> aud1 = Collections.singleton("rs1");
     	Set<String> aud2 = Collections.singleton("rs2");
     	Set<String> aud4 = Collections.singleton("rs4");
-    	assert(pdp.canAccess("clientG", aud1, "r_temp")==null);
-    	assert(pdp.canAccess("clientG", aud2, "r_light").equals("r_light"));
+    	assert(pdp.canAccess("clientG", aud1, "r_temp", -1)==null);
+    	assert(pdp.canAccess("clientG", aud2, "r_light", -1).equals("r_light"));
     	
     	String gid = new String("feedca570000");
     	String gid2 = new String("feedca570001");
@@ -342,7 +342,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope), byteStringScope));
+    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope, -1), byteStringScope));
     	
     	// The requested role is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
@@ -355,7 +355,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope), byteStringScope));
+    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope, -1), byteStringScope));
     	
     	// The requested role is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
@@ -368,7 +368,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientH", aud4, byteStringScope), byteStringScope));
+    	assert(Arrays.equals((byte[])pdp.canAccess("clientH", aud4, byteStringScope, -1), byteStringScope));
 
     	// Access to the specified group is not allowed
     	cborArrayScope = CBORObject.NewArray();
@@ -381,7 +381,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", aud4, byteStringScope)==null);
+    	assert(pdp.canAccess("clientG", aud4, byteStringScope, -1)==null);
     	
     	// The requested role is not allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
@@ -394,7 +394,7 @@ public class TestGroupOSCOREJoinPDP {
     		
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientH", aud4, byteStringScope)==null);
+    	assert(pdp.canAccess("clientH", aud4, byteStringScope, -1)==null);
     	
     	// The requested role is not allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
@@ -407,7 +407,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", aud4, byteStringScope)==null);
+    	assert(pdp.canAccess("clientG", aud4, byteStringScope, -1)==null);
     	
     	
     	// Tests for joining with multiple roles
@@ -439,8 +439,8 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayScope.Add(cborArrayEntry);
     	bysteStringScope2 = cborArrayScope.EncodeToBytes();
     	
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope), byteStringScope) ||
-    	       Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope), bysteStringScope2));
+    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope, -1), byteStringScope) ||
+    	       Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope, -1), bysteStringScope2));
     	
     	// Access to the specified group is not allowed
     	cborArrayScope = CBORObject.NewArray();
@@ -455,7 +455,7 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
-    	assert(pdp.canAccess("clientG", aud4, byteStringScope)==null);
+    	assert(pdp.canAccess("clientG", aud4, byteStringScope, -1)==null);
     	    	
 
     	// Only one role out of the two requested ones is allowed in the specified group
@@ -482,7 +482,7 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayScope.Add(cborArrayEntry);
     	bysteStringScope2 = cborArrayScope.EncodeToBytes();
     	
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientH", aud4, byteStringScope), bysteStringScope2));
+    	assert(Arrays.equals((byte[])pdp.canAccess("clientH", aud4, byteStringScope, -1), bysteStringScope2));
     	
     	
     	// None of the requested ones is allowed in the specified group
@@ -499,7 +499,7 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	    	
-    	assert(pdp.canAccess("clientH", aud4, byteStringScope)==null);
+    	assert(pdp.canAccess("clientH", aud4, byteStringScope, -1)==null);
     	
     }
     
@@ -526,22 +526,22 @@ public class TestGroupOSCOREJoinPDP {
         pdp.addAccess("testC", "testRS1", "testScope2");
         pdp.addAccess("testC", "testRS2", "testScope3");
         pdp.addAccess("testC", "testRS3", "testScope4");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1").
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1", -1).
         		equals("testScope1"));
-        assert(pdp.canAccess("testC", Collections.singleton("testRS1"),"testScope1 testScope2 testScope3").
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"),"testScope1 testScope2 testScope3", -1).
         		equals("testScope1 testScope2"));
-        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3").
+        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3", -1).
         		equals("testScope3"));
-        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4").
+        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4", -1).
         		equals("testScope4"));
         
         pdp.revokeAccess("testC", "testRS3", "testScope4");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4", -1) == null);
         
         pdp.revokeAllRsAccess("testC", "testRS1");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1", -1) == null);
         
         pdp.revokeAllAccess("testC");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3", -1) == null);
     }
 }
