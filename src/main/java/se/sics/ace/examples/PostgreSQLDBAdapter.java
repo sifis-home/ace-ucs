@@ -44,7 +44,7 @@ import java.util.Properties;
 /**
  * This class handles proper PostgreSQL Db SQL.
  *
- * @author Sebastian Echeverria
+ * @author Sebastian Echeverria and Marco Rasori
  *
  */
 public class PostgreSQLDBAdapter implements SQLDBAdapter {
@@ -244,9 +244,10 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + " VALUES (0);";
 
         String createTokenLog = "CREATE TABLE "
-                + DBConnector.cti2clientTable + "("
+                + DBConnector.cti2PeersTable + "("
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
+                + DBConnector.rsIdsColumn + " varchar(255) NOT NULL,"
                 + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
         
         String createGrant2Cti = "CREATE TABLE "
