@@ -70,7 +70,7 @@ import se.sics.ace.examples.SQLConnector;
 /**
  * Test the introspection endpoint library.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
  *
  */
 public class TestIntrospect {
@@ -163,7 +163,7 @@ public class TestIntrospect {
         cnf.Add(Constants.COSE_KEY_CBOR, publicKey.AsCBOR());
         claims.put(Constants.CNF, cnf);
         db.addToken(ctiStr, claims);
-        db.addCti2Client(ctiStr, "client1");
+        db.addCti2Peers(ctiStr, "client1", new HashSet<String>(){{add("actuators");}});
         
         cti = new byte[]{0x01};
         ctiStr =  Base64.getEncoder().encodeToString(cti);
@@ -174,7 +174,7 @@ public class TestIntrospect {
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         claims.put(Constants.CNF, cnf);
         db.addToken(ctiStr, claims);
-        db.addCti2Client(ctiStr, "client1");
+        db.addCti2Peers(ctiStr, "client1", new HashSet<String>(){{add("sensors");}});
         
         cti = new byte[]{0x02};
         String cti3Str =  Base64.getEncoder().encodeToString(cti);
@@ -185,8 +185,23 @@ public class TestIntrospect {
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         claims.put(Constants.CNF, cnf);
         db.addToken(cti3Str, claims);
-        db.addCti2Client(cti3Str, "client1");
-        
+        db.addCti2Peers(cti3Str, "client1", new HashSet<String>(){{add("actuators");}});
+
+        cti = new byte[]{0x03};
+        String cti4Str =  Base64.getEncoder().encodeToString(cti);
+        claims.clear();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
+        claims.put(Constants.EXI, CBORObject.FromObject(2000000L));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime() + 2000000L));
+        claims.put(Constants.LATE_ADDED_EXP, CBORObject.True);
+        //note: EXP and LATE_ADD_EXP claims are only in the AS database
+        //      and not in the set of claims returned to the client
+        //      when the token is issued.
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        claims.put(Constants.CNF, cnf);
+        db.addToken(cti4Str, claims);
+        db.addCti2Peers(cti4Str, "client1", new HashSet<String>(){{add("sensors");}});
         
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w",
@@ -268,7 +283,7 @@ public class TestIntrospect {
      */
     @Test
     public void testSuccessNotExistInactive() throws Exception {
-        CBORObject notExist = CBORObject.FromObject(new byte[] {0x03});
+        CBORObject notExist = CBORObject.FromObject(new byte[] {0x04});
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.TOKEN, CBORObject.FromObject(notExist.EncodeToBytes()));
         Message response = i.processMessage(new LocalMessage(-1, "rs1", "TestAS", params));
@@ -307,9 +322,46 @@ public class TestIntrospect {
         
         CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
-        assert(params.get(Constants.ACTIVE).equals(CBORObject.True)); 
+        assert(params.get(Constants.ACTIVE).equals(CBORObject.True));
     }
-    
+
+    /**
+     * Test the introspect endpoint. Valid CWT token issued with only the EXI claim
+     * is returned with only the EXI claim.
+     * EXP and LATE_ADDED_EXP claims (present internally for expiration purposes)
+     * are removed before sending the response.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testAddExpClaim() throws Exception {
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.SCOPE, CBORObject.FromObject("rw_valve r_pressure foobar"));
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x03}));
+
+        // Add the audience as the KID in the header, so it can be referenced by introspection requests.
+        CBORObject requestedAud = CBORObject.NewArray();
+        requestedAud.Add("rs1");
+        Map<HeaderKeys, CBORObject> uHeaders = new HashMap<>();
+        uHeaders.put(HeaderKeys.KID, requestedAud);
+
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(privateKey, coseP.getAlg().AsCBOR());
+        params.clear();
+        params.put(Constants.TOKEN, CBORObject.FromObject(token.encode(ctx,null, uHeaders).EncodeToBytes()));
+
+        Message response = i.processMessage(new LocalMessage(-1, "rs1", "TestAS", params));
+        assert(response.getMessageCode() == Message.CREATED);
+
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(params.get(Constants.ACTIVE).equals(CBORObject.True));
+        assert(params.containsKey(Constants.EXI));
+        assert(!params.containsKey(Constants.LATE_ADDED_EXP));
+        assert(!params.containsKey(Constants.EXP));
+    }
+
     /**
      * Test the introspect endpoint. Expired token purged before introspected.
      * 
