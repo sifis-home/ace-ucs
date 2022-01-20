@@ -59,7 +59,7 @@ import se.sics.ace.examples.KissTime;
  * The Junit tests are in TestCoAPClient, 
  * which will automatically start this server.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Rasori
  *
  */
 public class DtlsASTestServer
@@ -144,8 +144,8 @@ public class DtlsASTestServer
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
-        db.addCti2Client(cti, "clientA");
-        
+        db.addCti2Peers(cti, "clientA", new HashSet<String>(){{add("actuators");}});
+
         cti = Base64.getEncoder().encodeToString(new byte[]{0x01});
         claims = new HashMap<>();
         claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
@@ -153,11 +153,12 @@ public class DtlsASTestServer
         claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
-        db.addCti2Client(cti, "clientA");
+        db.addCti2Peers(cti, "clientA", new HashSet<String>(){{add("aud1");}});
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new KissPDP(db);
-        
+        boolean pdpHandlesRevocations = false;
+
         //Initialize data in PDP
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addTokenAccess("clientA");
@@ -207,7 +208,7 @@ public class DtlsASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new DtlsAS("AS", db, pdp, time, asymmKey);
+        as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asymmKey);
         as.start();
         System.out.println("Server starting");
     }

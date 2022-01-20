@@ -61,7 +61,7 @@ import se.sics.ace.examples.KissTime;
  * The Junit tests are in TestCoAPClient, 
  * which will automatically start this server.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
  *
  */
 public class OscoreASTestServer
@@ -187,12 +187,13 @@ public class OscoreASTestServer
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
-        db.addCti2Client(cti, "clientA");  
-        
-        
+        db.addCti2Peers(cti, "clientA", new HashSet<String>(){{add("actuators");}});
+
+
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new KissPDP(db);
-        
+        boolean phpHandlesRevocations = false;
+
         //Initialize data in PDP
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addTokenAccess("clientA");
@@ -242,7 +243,7 @@ public class OscoreASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new OscoreAS(myName, db, pdp, time, asymmKey,"token", "introspect",
+        as = new OscoreAS(myName, db, pdp, phpHandlesRevocations, time, asymmKey,"token", "introspect", "trl", false,
                           CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true,
                           peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
         

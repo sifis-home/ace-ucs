@@ -74,7 +74,7 @@ import se.sics.ace.examples.SQLConnector;
 
 /**
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
  */
 public class TestAuthzInfo {
     
@@ -244,8 +244,8 @@ public class TestAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x01});
         //Make introspection succeed
         db.addToken(ctiStr, params);
-        db.addCti2Client(ctiStr, "client1");
-        
+        db.addCti2Peers(ctiStr, "client1", new HashSet<String>(){{add("aud1");}});
+
         //this overwrites the scope
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -388,8 +388,8 @@ public class TestAuthzInfo {
         
         //Make introspection succeed
         db.addToken(ctiStr, claims);
-        db.addCti2Client(ctiStr, "client1");
-        
+        db.addCti2Peers(ctiStr, "client1", new HashSet<String>(){{add("");}});
+
         claims.put(Constants.CNF, publicKey.AsCBOR());
         claims.put(Constants.SCOPE, CBORObject.FromObject("r+/s/light rwx+/a/led w+/dtls")); 
         claims.put(Constants.ISS, CBORObject.FromObject("coap://as.example.com"));
@@ -432,8 +432,9 @@ public class TestAuthzInfo {
         
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x05}), params);
-        db.addCti2Client(ctiStr, "client1");
-        
+        db.addCti2Peers(ctiStr, "client1", new HashSet<String>(){{add("aud1");}});
+
+
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.ISS, CBORObject.FromObject("FalseAS"));
         CWT token = new CWT(params);
@@ -498,8 +499,9 @@ public class TestAuthzInfo {
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x07}), params);
-        db.addCti2Client(ctiStr, "client1");
-        
+        db.addCti2Peers(ctiStr, "client1", new HashSet<String>(){{add("");}});
+
+
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("blah"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -536,7 +538,8 @@ public class TestAuthzInfo {
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x08}), params);
-        db.addCti2Client(ctiStr, "client1");
+        db.addCti2Peers(ctiStr, "client1", new HashSet<String>(){{add("aud1");}});
+
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
@@ -583,7 +586,7 @@ public class TestAuthzInfo {
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x09}), params);
-        db.addCti2Client(ctiStr, "client1");  
+        db.addCti2Peers(ctiStr, "client1", new HashSet<String>(){{add("aud1");}});
 
         
         CWT token = new CWT(params);
@@ -639,7 +642,8 @@ public class TestAuthzInfo {
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(ctiB), params);
-        db.addCti2Client(ctiStr, "client1");  
+        db.addCti2Peers(ctiStr, "client1", new HashSet<String>(){{add("aud1");}});
+
 
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -674,8 +678,8 @@ public class TestAuthzInfo {
         ctiStr = Base64.getEncoder().encodeToString(ctiB);
         
         db.addToken(Base64.getEncoder().encodeToString(ctiB), params);
-        db.addCti2Client(ctiStr, "client1");
-        
+        db.addCti2Peers(ctiStr, "client1", new HashSet<String>(){{add("aud1");}});
+
         token = new CWT(params);
         request = new LocalMessage(0, null, "rs1", token.encode(ctx));     
         response = (LocalMessage)ai.processMessage(request);
