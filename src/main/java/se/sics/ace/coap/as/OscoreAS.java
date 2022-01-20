@@ -31,10 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.coap.as;
 
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapServer;
@@ -48,10 +45,9 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import COSE.OneKey;
 
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.as.Introspect;
-import se.sics.ace.as.PDP;
-import se.sics.ace.as.Token;
+import se.sics.ace.as.*;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 
 /**
@@ -88,10 +84,21 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      */
     Introspect i = null;
 
+    /**
+     * The trl endpoint
+     */
+    Trl r = null;
+
     private OscoreAceEndpoint token;
 
     private OscoreAceEndpoint introspect;
-    
+
+    private AceObservableEndpoint trl;
+
+    private RevocationHandler rh;
+
+    private Timer timer;
+
     private final static int MAX_UNFRAGMENTED_SIZE = 4096;
     
     /**
@@ -100,6 +107,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @param asId  identifier of the AS
      * @param db    database connector of the AS
      * @param pdp   PDP for deciding who gets which token
+     * @param pdpHandlesRevocations   true if the pdp implements a revocation mechanism
      * @param time  time provider, must not be null
      * @param asymmetricKey  asymmetric key pair of the AS or 
      *      null if it hasn't any
@@ -110,14 +118,14 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * 
      */
     public OscoreAS(String asId, CoapDBConnector db, 
-            PDP pdp, TimeProvider time, 
+            PDP pdp, boolean pdpHandlesRevocations, TimeProvider time,
             OneKey asymmetricKey, int port,
             Map<String, String> peerNamesToIdentities,
             Map<String, String> peerIdentitiesToNames,
             Map<String, String> myIdentities) 
                     throws AceException, OSException {
-        this(asId, db, pdp, time, asymmetricKey, "token", "introspect", port,
-                null, false, (short)0, false, peerNamesToIdentities,
+        this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey, "token", "introspect",
+                "trl", false, port, null, false, (short)0, false, peerNamesToIdentities,
                 peerIdentitiesToNames, myIdentities);
     }
     
@@ -128,6 +136,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @param asId  identifier of the AS
      * @param db    database connector of the AS
      * @param pdp   PDP for deciding who gets which token
+     * @param pdpHandlesRevocations   true if the pdp implements a revocation mechanism
      * @param time  time provider, must not be null
      * @param asymmetricKey  asymmetric key pair of the AS or 
      *      null if it hasn't any
@@ -135,12 +144,12 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @throws OSException 
      * 
      */
-    public OscoreAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
+    public OscoreAS(String asId, CoapDBConnector db, PDP pdp, boolean pdpHandlesRevocations, TimeProvider time,
             OneKey asymmetricKey, Map<String, String> peerNamesToIdentities,
             Map<String, String> peerIdentitiesToNames,
             Map<String, String> myIdentities) throws AceException, OSException {
-        this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
-                CoAP.DEFAULT_COAP_PORT, null, false, (short)0, false,
+        this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey, "token", "introspect",
+                "trl", false, CoAP.DEFAULT_COAP_PORT, null, false, (short)0, false,
                 peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
     }
     
@@ -151,6 +160,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @param asId  identifier of the AS
      * @param db    database connector of the AS
      * @param pdp   PDP for deciding who gets which token
+     * @param pdpHandlesRevocations   true if the pdp implements a revocation mechanism
      * @param time  time provider, must not be null
      * @param asymmetricKey  asymmetric key pair of the AS or 
      *      null if it hasn't any
@@ -159,6 +169,9 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @param introspectName  the name of the introspect endpoint 
      *      (will be converted into the address as well), if this is null,
      *      no introspection endpoint will be offered
+     * @param trlName the name of the trl endpoint
+     *      (will be converted into the address as well), if this is null,
+     *      no observable endpoint for notification of TRL changes will be offered
      * @param port  the port number to run the server on
      * @param claims  the claim types to include in tokens issued by this 
      *                AS, can be null to use default set
@@ -172,14 +185,26 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @throws OSException 
      * 
      */
-    public OscoreAS(String asId, CoapDBConnector db,
-            PDP pdp, TimeProvider time, OneKey asymmetricKey, String tokenName,
-            String introspectName, int port, Set<Short> claims, 
-            boolean setAudHeader, short masterSaltSize, boolean provideIdContext,
-            Map<String, String> peerNamesToIdentities,
-            Map<String, String> peerIdentitiesToNames,
-            Map<String, String> myIdentities) throws AceException, OSException {
-        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader,
+    public OscoreAS(String asId,
+                    CoapDBConnector db,
+                    PDP pdp,
+                    boolean pdpHandlesRevocations,
+                    TimeProvider time,
+                    OneKey asymmetricKey,
+                    String tokenName,
+                    String introspectName,
+                    String trlName,
+                    boolean useRevocationHandler,
+                    int port,
+                    Set<Short> claims,
+                    boolean setAudHeader,
+                    short masterSaltSize,
+                    boolean provideIdContext,
+                    Map<String, String> peerNamesToIdentities,
+                    Map<String, String> peerIdentitiesToNames,
+                    Map<String, String> myIdentities) throws AceException, OSException {
+
+        this.t = new Token(asId, pdp, pdpHandlesRevocations, db, time, asymmetricKey, claims, setAudHeader,
         				   masterSaltSize, provideIdContext, peerIdentitiesToNames);
         this.token = new OscoreAceEndpoint(tokenName, this.t);
         add(this.token);
@@ -193,6 +218,28 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             this.introspect = new OscoreAceEndpoint(introspectName, this.i);
             add(this.introspect);    
         }
+
+        if (trlName != null) {
+            if (!useRevocationHandler)
+                LOGGER.warning("Starting Trl without RevocationHandler");
+                        // The endpoint will be observable,
+                        // but notifications will never be sent to peers
+                        // since no revocations will occur
+            this.r = new Trl(db, peerIdentitiesToNames);
+            this.trl = new AceObservableEndpoint(trlName, this.r);
+            add(this.trl);
+        }
+
+        if (useRevocationHandler) {
+            this.rh = new RevocationHandler(db, time, peerIdentitiesToNames, trl);
+            pdp.setRevocationHandler(this.rh);
+//            // to remove, it triggers a revocation. Only for test purposes
+//            // while implementing the revoke method on the pdp
+//            timer = new Timer();
+//            timer.schedule(new UpdateTask(rh), 10000);
+        }
+        pdp.setTokenEndpoint(t);
+
         this.addEndpoint(new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(CoAP.DEFAULT_COAP_PORT)
@@ -202,11 +249,34 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
 
     }
 
+//    /**
+//     * Scheduled task to revoke a given token. (Temporary and for test purposes)
+//     */
+//        public class UpdateTask extends TimerTask {
+//
+//        RevocationHandler rh;
+//
+//        public UpdateTask(RevocationHandler rh) {
+//            this.rh = rh;
+//        }
+//
+//        @Override
+//        public void run() {
+//            try{
+//                System.out.println("START REVOKE METHOD");
+//                rh.revoke("AAAAAAAAAAA=");  // put here the token cti you want to revoke
+//            } catch (AceException e) {
+//                LOGGER.info(e.getMessage());
+//                System.out.println("FAILED REVOKE METHOD");
+//            }
+//        }
+//    }
+
+
     /**
      * Load the OSCORE contexts from the database
      * 
      * @param db  the database connector
-     * @param asId  the AS identifier
      * @param peerNamesToIdentities  mapping between the names of the peers and their OSCORE identities
      * @param myIdentities  mapping between the names of the peers and the OSCORE identities that the AS uses with them
      * 
@@ -240,7 +310,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             byte[] recipientId = idPair.getSenderId();
             byte[] contextIdBis = idPair.getContextId();
             
-            // This are all error conditions; skipped this peer and proceed to the next one
+            // These are all error conditions; skipped this peer and proceed to the next one
             if (!Arrays.equals(contextId, contextIdBis)) {
             	continue;
             }

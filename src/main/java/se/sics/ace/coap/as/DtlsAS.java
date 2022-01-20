@@ -37,6 +37,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapServer;
@@ -59,9 +61,7 @@ import org.eclipse.californium.elements.config.Configuration;
 
 import se.sics.ace.AceException;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.as.Introspect;
-import se.sics.ace.as.PDP;
-import se.sics.ace.as.Token;
+import se.sics.ace.as.*;
 
 /**
  * An authorization server listening to CoAP requests
@@ -70,7 +70,7 @@ import se.sics.ace.as.Token;
  * Create an instance of this server with the constructor then call
  * CoapsAS.start();
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
  *
  */
 public class DtlsAS extends CoapServer implements AutoCloseable {
@@ -91,9 +91,20 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      */
     Introspect i = null;
 
+    /**
+     * The trl endpoint
+     */
+    Trl r = null;
+
     private CoapDtlsEndpoint token;
 
     private CoapDtlsEndpoint introspect;
+
+    private AceObservableEndpoint trl;
+
+    private RevocationHandler rh;
+
+    private Timer timer;
 
     /**
      * Constructor.
@@ -110,10 +121,12 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      * @throws CoseException 
      * 
      */
-    public DtlsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
-            OneKey asymmetricKey, int port) 
+    public DtlsAS(String asId, CoapDBConnector db,
+                  PDP pdp, boolean pdpHandlesRevocations, TimeProvider time,
+                  OneKey asymmetricKey, int port)
                     throws AceException, CoseException {
-        this(asId, db, pdp, time, asymmetricKey, "token", "introspect", port,
+        this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey,
+                "token", "introspect", "trl", false, port,
                 null, false);
     }
     
@@ -124,6 +137,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      * @param asId  identifier of the AS
      * @param db    database connector of the AS
      * @param pdp   PDP for deciding who gets which token
+     * @param pdpHandlesRevocations   true if the pdp implements a revocation mechanism
      * @param time  time provider, must not be null
      * @param asymmetricKey  asymmetric key pair of the AS for RPK handshakes,
      *   can be null if the AS only ever does PSK handshakes
@@ -131,9 +145,12 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      * @throws CoseException 
      * 
      */
-    public DtlsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
-            OneKey asymmetricKey) throws AceException, CoseException {
-        this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
+    public DtlsAS(String asId, CoapDBConnector db,
+                  PDP pdp, boolean pdpHandlesRevocations, TimeProvider time,
+                  OneKey asymmetricKey)
+                    throws AceException, CoseException {
+        this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey,
+                "token", "introspect", "trl", false,
                 CoAP.DEFAULT_COAP_SECURE_PORT, null, false);
     }
     
@@ -145,12 +162,15 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      * @param pdp   PDP for deciding who gets which token
      * @param time  time provider, must not be null
      * @param asymmetricKey  asymmetric key pair of the AS for RPK handshakes,
-     *   can be null if the AS only ever does PSK handshakes
+     *      can be null if the AS only ever does PSK handshakes
      * @param tokenName  the name of the token endpoint 
-     *  (will be converted into the address as well)
+     *      (will be converted into the address as well)
      * @param introspectName  the name of the introspect endpoint 
-     *  (will be converted into the address as well), if this is null,
-     *  no introspection endpoint will be offered
+     *      (will be converted into the address as well), if this is null,
+     *      no introspection endpoint will be offered
+     * @param trlName the name of the trl endpoint
+     *      (will be converted into the address as well), if this is null,
+     *      no observable endpoint for notification of TRL changes will be offered
      * @param port  the port number to run the server on
      * @param claims  the claim types to include in tokens issued by this 
      *                AS, can be null to use default set.
@@ -160,12 +180,23 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      * @throws CoseException 
      * 
      */
-    public DtlsAS(String asId, CoapDBConnector db, PDP pdp, 
-            TimeProvider time, OneKey asymmetricKey, String tokenName,
-            String introspectName, int port, Set<Short> claims, 
-            boolean setAudHeader) 
+    public DtlsAS(String asId,
+                  CoapDBConnector db,
+                  PDP pdp,
+                  boolean pdpHandlesRevocations,
+                  TimeProvider time,
+                  OneKey asymmetricKey,
+                  String tokenName,
+                  String introspectName,
+                  String trlName,
+                  boolean useRevocationHandler,
+                  int port,
+                  Set<Short> claims,
+                  boolean setAudHeader)
                     throws AceException, CoseException {
-        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader, null);
+
+        this.t = new Token(asId, pdp, pdpHandlesRevocations, db,
+                time, asymmetricKey, claims, setAudHeader, null);
         this.token = new CoapDtlsEndpoint(tokenName, this.t);
         add(this.token);
         
@@ -179,9 +210,32 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
             add(this.introspect);    
         }
 
-       Configuration dtlsConfig = Configuration.getStandard();
+        if (trlName != null) {
+            if (!useRevocationHandler)
+                LOGGER.warning("Starting Trl without RevocationHandler");
+                        // The endpoint will be observable,
+                        // but notifications will never be sent to peers
+                        // since no revocations will occur
+            this.r = new Trl(db, null);  // double check
+            this.trl = new AceObservableEndpoint(trlName, this.r);
+            add(this.trl);
+        }
+
+        if (useRevocationHandler) {
+            this.rh = new RevocationHandler(db, time, null, trl);
+            pdp.setRevocationHandler(this.rh);
+//            // to remove, it triggers a revocation. Only for test purposes
+//            // while implementing the revoke method on the pdp
+//            timer = new Timer();
+//            timer.schedule(new DtlsAS.UpdateTask(rh), 15000);
+        }
+        pdp.setTokenEndpoint(t);
+
+        Configuration dtlsConfig = Configuration.getStandard();
        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+
+
 
        if (asymmetricKey != null && 
                asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2 ) {
@@ -217,6 +271,29 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
        //       new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
        //addEndpoint(coap);
     }
+
+//    /**
+//     * Scheduled task to revoke a given token. (Temporary and for test purposes)
+//     */
+//    public class UpdateTask extends TimerTask {
+//
+//        RevocationHandler rh;
+//
+//        public UpdateTask(RevocationHandler rh) {
+//            this.rh = rh;
+//        }
+//
+//        @Override
+//        public void run() {
+//            try{
+//                System.out.println("START REVOKE METHOD");
+//                rh.revoke("AAAAAAAAAAA=");  // put here the token cti you want to revoke
+//            } catch (AceException e) {
+//                LOGGER.info(e.getMessage());
+//                System.out.println("FAILED REVOKE METHOD");
+//            }
+//        }
+//    }
 
     @Override
     public void close() throws Exception {
