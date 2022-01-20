@@ -72,7 +72,7 @@ import se.sics.ace.examples.SQLConnector;
 /**
  * Test the token endpoint class.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
  *
  */
 public class TestToken {
@@ -85,7 +85,8 @@ public class TestToken {
     private static String ctiStr1;
     private static String ctiStr2;
     private static KissPDP pdp = null;
-    
+    private static Boolean pdpHandlesRevocations;
+
     /**
      * Set up tests.
      * @throws AceException 
@@ -288,6 +289,8 @@ public class TestToken {
         db.addToken(ctiStr2, claims);
         
         pdp = new KissPDP(db);
+        pdpHandlesRevocations = false;
+
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addTokenAccess(rpkid.getName());
         pdp.addTokenAccess("clientA");
@@ -329,7 +332,7 @@ public class TestToken {
         pdp.addAccess("clientE", "rs3", "r_pressure");
         pdp.addAccess("clientE", "rs3", "failTokenType");
         
-        t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
+        t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
     }
     
     /**
@@ -776,7 +779,7 @@ public class TestToken {
     public void testTokenConfig() throws Exception {
         Set<Short> tokenConfig = new HashSet<>();
         tokenConfig.add(Constants.CTI);
-        t = new Token("testAS2", pdp, db, new KissTime(), privateKey, tokenConfig, false, null);
+        t = new Token("testAS2", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, tokenConfig, false, null);
         
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
@@ -800,7 +803,7 @@ public class TestToken {
         assert(claims.size() == 1);
         
         db.deleteToken(ctiStr);
-        t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
+        t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
     }
     
     /**

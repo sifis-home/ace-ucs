@@ -76,7 +76,7 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 /**
  * Test the token endpoint class.
  * 
- * @author Marco Tiloca
+ * @author Marco Tiloca and Marco Rasori
  *
  */
 public class TestTokenGroupOSCORE {
@@ -89,7 +89,8 @@ public class TestTokenGroupOSCORE {
     private static String cti1;
     private static String cti2;
     private static GroupOSCOREJoinPDP pdp = null;
-    
+    private static Boolean pdpHandlesRevocations;
+
     /**
      * Set up tests.
      * @throws AceException 
@@ -402,6 +403,8 @@ public class TestTokenGroupOSCORE {
         
         
         pdp = new GroupOSCOREJoinPDP(db);
+        pdpHandlesRevocations = false;
+
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addTokenAccess(rpkid.getName());
         pdp.addTokenAccess("clientA");
@@ -465,7 +468,7 @@ public class TestTokenGroupOSCORE {
         Set<String> aud11 = Collections.singleton("aud11");
         pdp.addOSCOREGroupManagers("rs11", aud11);
         
-        t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
+        t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
     }
     
     /**
@@ -1868,7 +1871,7 @@ public class TestTokenGroupOSCORE {
     public void testTokenConfig() throws Exception {
         Set<Short> tokenConfig = new HashSet<>();
         tokenConfig.add(Constants.CTI);
-        t = new Token("testAS2", pdp, db, new KissTime(), privateKey, tokenConfig, false, null);
+        t = new Token("testAS2", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, tokenConfig, false, null);
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("r_pressure"));
@@ -1892,7 +1895,7 @@ public class TestTokenGroupOSCORE {
         assert(claims.size() == 1);
         
         db.deleteToken(ctiStr);
-        t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
+        t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
     }
     
     /**

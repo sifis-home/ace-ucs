@@ -59,7 +59,7 @@ import se.sics.ace.examples.KissTime;
  * The Junit tests are in TestCoAPClient, 
  * which will automatically start this server.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Rasori
  *
  */
 public class PlugtestAS {
@@ -244,7 +244,8 @@ public class PlugtestAS {
         
         //Setup PDP
         pdp = new KissPDP(db);
-    
+        boolean pdpHandlesRevocations = false;
+
         //Initialize data in PDP
         pdp.addTokenAccess("client2");
         pdp.addTokenAccess(clientId); //client3
@@ -277,7 +278,8 @@ public class PlugtestAS {
         claims.add(Constants.CNF);
         claims.add(Constants.PROFILE);
         
-        as = new DtlsAS("AS", db, pdp, time, asRPK, "token", "introspect",                
+        as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asRPK,
+                "token", "introspect", null, false,
                 5689, claims, true);
         as.start();
         System.out.println("Server starting");
