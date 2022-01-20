@@ -34,12 +34,7 @@ package se.sics.ace.as;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -47,6 +42,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 
 import com.upokecenter.cbor.CBORObject;
@@ -84,7 +80,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * is generated with 
  * org.eclipse.californium.scandium.auth.RawPublicKeyIdentity.getName()
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
  *
  */
 public class Token implements Endpoint, AutoCloseable {
@@ -162,10 +158,11 @@ public class Token implements Endpoint, AutoCloseable {
 	 static {
 	     defaultClaims.add(Constants.CTI);
 	     defaultClaims.add(Constants.ISS);
-	     defaultClaims.add(Constants.EXI);
+	     //defaultClaims.add(Constants.EXI);
 	     defaultClaims.add(Constants.AUD);
 	     defaultClaims.add(Constants.SCOPE);
 	     defaultClaims.add(Constants.CNF);
+		 defaultClaims.add(Constants.EXP); //added to test expiration
 	 }
 	 
 	 /**
@@ -244,13 +241,24 @@ public class Token implements Endpoint, AutoCloseable {
 	  * messages are structured base64 strings encoding the Context ID and Sender ID for that peer 
 	 */ 
 	private Map<String, String> peerIdentitiesToNames = null;
-	 
-	 
+
+	/**
+	 * Counter for the number of access evaluations done, i.e., number of times the canAccess method
+	 * has been invoked
+	 */
+	private int evalCounter = 0;
+
+	/**
+	 * If true, the provided PDP handles revocation process
+	 */
+	private final boolean pdpHandlesRevocations;
+
 	/**
 	 * Constructor using default set of claims.
 	 * 
 	 * @param asId  the identifier of this AS
 	 * @param pdp   the PDP for deciding access
+	 * @param pdpHandlesRevocations true if the provided PDP supports revocation, false otherwise
 	 * @param db  the database connector
 	 * @param time  the time provider
 	 * @param privateKey  the private key of the AS or null if there isn't any
@@ -258,10 +266,10 @@ public class Token implements Endpoint, AutoCloseable {
 	 * 
 	 * @throws AceException  if fetching the cti from the database fails
 	 */	
-	public Token(String asId, PDP pdp, DBConnector db, 
+	public Token(String asId, PDP pdp, boolean pdpHandlesRevocations, DBConnector db,
 	        TimeProvider time, OneKey privateKey,
 	        Map<String, String> peerIdentitiesToNames) throws AceException {
-	    this(asId, pdp, db, time, privateKey, defaultClaims, false, (short)0, false, peerIdentitiesToNames);
+	    this(asId, pdp, pdpHandlesRevocations, db, time, privateKey, defaultClaims, false, (short)0, false, peerIdentitiesToNames);
 	}
 	
 	/**   
@@ -269,6 +277,7 @@ public class Token implements Endpoint, AutoCloseable {
      *  
      * @param asId  the identifier of this AS
      * @param pdp   the PDP for deciding access
+	 * @param pdpHandlesRevocations true if the provided PDP supports revocation, false otherwise
      * @param db  the database connector
      * @param time  the time provider
      * @param privateKey  the private key of the AS or null if there isn't any
@@ -282,11 +291,11 @@ public class Token implements Endpoint, AutoCloseable {
      * 
      * @throws AceException  if fetching the cti from the database fails
      */
-    public Token(String asId, PDP pdp, DBConnector db, 
+    public Token(String asId, PDP pdp, boolean pdpHandlesRevocations, DBConnector db,
             TimeProvider time, OneKey privateKey,
             Set<Short> claims, boolean setAudInCwtHeader,
             Map<String, String> peerIdentitiesToNames) throws AceException {
-        this(asId, pdp, db, time, privateKey, claims, setAudInCwtHeader, (short)0, false, peerIdentitiesToNames);
+        this(asId, pdp, pdpHandlesRevocations, db, time, privateKey, claims, setAudInCwtHeader, (short)0, false, peerIdentitiesToNames);
     }
 	
 	
@@ -295,6 +304,7 @@ public class Token implements Endpoint, AutoCloseable {
 	 * 
      * @param asId  the identifier of this AS
      * @param pdp   the PDP for deciding access
+	 * @param pdpHandlesRevocations true if the provided PDP supports revocation, false otherwise
      * @param db  the database connector
      * @param time  the time provider
      * @param privateKey  the private key of the AS or null if there isn't any
@@ -310,7 +320,7 @@ public class Token implements Endpoint, AutoCloseable {
      * 
      * @throws AceException  if fetching the cti from the database fails
 	 */
-	public Token(String asId, PDP pdp, DBConnector db, 
+	public Token(String asId, PDP pdp, boolean pdpHandlesRevocations, DBConnector db,
             TimeProvider time, OneKey privateKey, Set<Short> claims, 
             boolean setAudInCwtHeader, short masterSaltSize, boolean provideIdContext,
             Map<String, String> peerIdentitiesToNames) throws AceException {
@@ -345,6 +355,7 @@ public class Token implements Endpoint, AutoCloseable {
         //All checks passed
         this.asId = asId;
         this.pdp = pdp;
+		this.pdpHandlesRevocations = pdpHandlesRevocations;
         this.db = db;
         this.time = time;
         this.privateKey = privateKey;
@@ -422,8 +433,6 @@ public class Token implements Endpoint, AutoCloseable {
 	 * Process a Client Credentials grant.
 	 * 
 	 * @param msg  the message
-	 * @param id  the identifier of the requester
-	 * 
 	 * @return  the reply
 	 */
 	private Message processCC(Message msg) {
@@ -523,19 +532,23 @@ public class Token implements Endpoint, AutoCloseable {
 
 		//5. Check if the scope is allowed
 		Object allowedScopes = null;
-        try {
-            allowedScopes = this.pdp.canAccess(id, aud, scope);
-        } catch (AceException e) {
-            LOGGER.severe("Message processing aborted (checking permissions): "
-                    + e.getMessage());
-            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-        }
-		if (allowedScopes == null) {	
-		    CBORObject map = CBORObject.NewMap();
-		    map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
-		    LOGGER.log(Level.INFO, "Message processing aborted: "
-		            + "invalid_scope");
-		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		int evalId = -1;
+		try {
+			if (pdpHandlesRevocations)
+				evalId = getEvalCounter();
+			allowedScopes = this.pdp.canAccess(id, aud, scope, evalId);
+
+		} catch (AceException e) {
+			LOGGER.severe("Message processing aborted (checking permissions): "
+					+ e.getMessage());
+			return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		}
+		if (allowedScopes == null) {
+			CBORObject map = CBORObject.NewMap();
+			map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+			LOGGER.log(Level.INFO, "Message processing aborted: "
+					+ "invalid_scope");
+			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
 		//6. Create token
@@ -546,6 +559,8 @@ public class Token implements Endpoint, AutoCloseable {
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted (creating token): "
                     + e.getMessage());
+			// roll-back: remove pdp pending sessions
+			rollbackPendingSessions(evalId);
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 		if (tokenType == null) {
@@ -553,7 +568,9 @@ public class Token implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR, "Audience incompatible on token type");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Audience incompatible on token type");
-		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+			// roll-back: remove pdp pending sessions
+			rollbackPendingSessions(evalId);
+		    return msg.failReply(Message.FAIL_BAD_REQUEST,
 		           map);
 		}
 		
@@ -594,6 +611,8 @@ public class Token implements Endpoint, AutoCloseable {
 			} catch (AceException e) {
                 LOGGER.severe("Message processing aborted: Error when retrieving the name"
                 		+ " of the Resource Server with Audience " + audStr + " from the database.\n" + e.getMessage());
+				// roll-back: remove pdp pending sessions
+				rollbackPendingSessions(evalId);
 			    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 			}
 			// Check the the specified Audience is associated to exactly one Resource Server
@@ -604,7 +623,9 @@ public class Token implements Endpoint, AutoCloseable {
 	            		+ " exactly one Resource Server");
 	            LOGGER.log(Level.INFO, "Message processing aborted: The 'exi' claim has to be included,"
 	            		+ "thus Audience must contain exactly one Resource Server");
-			    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+				// roll-back: remove pdp pending sessions
+				rollbackPendingSessions(evalId);
+			    return msg.failReply(Message.FAIL_BAD_REQUEST,
 			           map);
 			}
 			for (String rs : rsSet)
@@ -623,6 +644,8 @@ public class Token implements Endpoint, AutoCloseable {
 				} catch (AceException e) {
 	                LOGGER.severe("Message processing aborted: Error when retrieving the Exi Sequence Number"
 	                		+ " for the Resource Server with Audience " + audStr + " from the database.\n" + e.getMessage());
+					// roll-back: remove pdp pending sessions
+					rollbackPendingSessions(evalId);
 				    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 				}
 			}
@@ -653,6 +676,8 @@ public class Token implements Endpoint, AutoCloseable {
         	}
             LOGGER.severe("Message processing aborted (finding profile): "
                     + e.getMessage());
+			// roll-back: remove pdp pending sessions
+			rollbackPendingSessions(evalId);
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
         if (profileStr == null) {
@@ -667,6 +692,8 @@ public class Token implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR, Constants.INCOMPATIBLE_PROFILES);
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "No compatible profile found");
+			// roll-back: remove pdp pending sessions
+			rollbackPendingSessions(evalId);
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         short profile = Constants.getProfileAbbrev(profileStr);
@@ -683,6 +710,8 @@ public class Token implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR, "Unsupported token type");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Unsupported token type");
+			// roll-back: remove pdp pending sessions
+			rollbackPendingSessions(evalId);
             return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
         }
        
@@ -718,6 +747,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        } catch (AceException e) {
 		            LOGGER.severe("Message processing aborted (setting exp): "
 		                    + e.getMessage());
+					// roll-back: remove pdp pending sessions
+					rollbackPendingSessions(evalId);
 		            return msg.failReply(
 		                    Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		        }
@@ -736,6 +767,8 @@ public class Token implements Endpoint, AutoCloseable {
                 } catch (AceException e) {
                     LOGGER.severe("Message processing aborted (setting exp): "
                             + e.getMessage());
+					// roll-back: remove pdp pending sessions
+					rollbackPendingSessions(evalId);
                     return msg.failReply(
                             Message.FAIL_INTERNAL_SERVER_ERROR, null);
                 }
@@ -782,6 +815,8 @@ public class Token implements Endpoint, AutoCloseable {
 	                        LOGGER.log(Level.INFO, 
 	                                "Message processing aborted: "
 	                                + "Unsupported pop key type PSK");
+							// roll-back: remove pdp pending sessions
+							rollbackPendingSessions(evalId);
 	                        return msg.failReply(
 	                                Message.FAIL_BAD_REQUEST, map);
 		                }
@@ -796,6 +831,8 @@ public class Token implements Endpoint, AutoCloseable {
                         LOGGER.severe("Message processing aborted "
                                 + "(finding key type): "
                                 + e.getMessage());
+						// roll-back: remove pdp pending sessions
+						rollbackPendingSessions(evalId);
                         return msg.failReply(
                                 Message.FAIL_INTERNAL_SERVER_ERROR, null);
                     }   
@@ -820,6 +857,8 @@ public class Token implements Endpoint, AutoCloseable {
 	                        LOGGER.severe("Message processing aborted "
 	                                + "(finding cti of issues tokens): "
 	                                + e.getMessage());
+							// roll-back: remove pdp pending sessions
+							rollbackPendingSessions(evalId);
 	                        return msg.failReply(
 	                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
 						}
@@ -856,6 +895,8 @@ public class Token implements Endpoint, AutoCloseable {
 			                        LOGGER.severe("Message processing aborted "
 			                                + "(finding previously released token): "
 			                                + e.getMessage());
+									// roll-back: remove pdp pending sessions
+									rollbackPendingSessions(evalId);
 			                        return msg.failReply(
 			                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
 								}
@@ -898,6 +939,8 @@ public class Token implements Endpoint, AutoCloseable {
                                 	}
         	                        LOGGER.severe("Message processing aborted "
         	                                + "(finding OSCORE ID when updating access rights)");
+									// roll-back: remove pdp pending sessions
+									rollbackPendingSessions(evalId);
         	                        return msg.failReply(
         	                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
                         		}
@@ -949,6 +992,8 @@ public class Token implements Endpoint, AutoCloseable {
                     	}
                         LOGGER.severe("Message processing aborted "
                                 + "(making PSK): " + e.getMessage());
+						// roll-back: remove pdp pending sessions
+						rollbackPendingSessions(evalId);
                         return msg.failReply(
                                 Message.FAIL_INTERNAL_SERVER_ERROR, null);
                     }
@@ -974,6 +1019,8 @@ public class Token implements Endpoint, AutoCloseable {
 		                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 		                map.Add(Constants.ERROR_DESCRIPTION, 
 		                        "Malformed kid in 'cnf' parameter");
+						// roll-back: remove pdp pending sessions
+						rollbackPendingSessions(evalId);
 		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		            }
 		            keyType = "KID";
@@ -998,8 +1045,12 @@ public class Token implements Endpoint, AutoCloseable {
 		                    map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 		                    map.Add(Constants.ERROR_DESCRIPTION, 
 		                            "Malformed 'cnf' parameter in request");
+							// roll-back: remove pdp pending sessions
+							rollbackPendingSessions(evalId);
 		                    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-		                } 
+		                }
+						// roll-back: remove pdp pending sessions
+						rollbackPendingSessions(evalId);
 		                return msg.failReply(
 		                        Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		            }
@@ -1017,6 +1068,8 @@ public class Token implements Endpoint, AutoCloseable {
 		                        "Couldn't retrieve RPK");
 		                LOGGER.log(Level.INFO, "Message processing aborted: "
 		                        + "Couldn't retrieve RPK");
+						// roll-back: remove pdp pending sessions
+						rollbackPendingSessions(evalId);
 		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		            }
 		            
@@ -1035,6 +1088,8 @@ public class Token implements Endpoint, AutoCloseable {
 		                        "Client tried to provide cnf PSK");
 		                LOGGER.log(Level.INFO, "Message processing aborted: "
 		                        + "Client tried to provide cnf PSK");
+						// roll-back: remove pdp pending sessions
+						rollbackPendingSessions(evalId);
 		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		            }
                     
@@ -1059,6 +1114,8 @@ public class Token implements Endpoint, AutoCloseable {
                             LOGGER.log(Level.INFO, 
                                     "Message processing aborted: "
                                        + "Client used unauthenticated RPK");
+							// roll-back: remove pdp pending sessions
+							rollbackPendingSessions(evalId);
                             return msg.failReply(
                                     Message.FAIL_BAD_REQUEST, map);
                         }
@@ -1078,6 +1135,8 @@ public class Token implements Endpoint, AutoCloseable {
                                 "Message processing aborted: "
                                         + "Unsupported pop key type RPK");
                         LOGGER.log(Level.FINEST, e.getMessage());
+						// roll-back: remove pdp pending sessions
+						rollbackPendingSessions(evalId);
                         return msg.failReply(
                                 Message.FAIL_BAD_REQUEST, map);
                     }
@@ -1098,6 +1157,8 @@ public class Token implements Endpoint, AutoCloseable {
 		                    LOGGER.log(Level.INFO, 
 		                            "Message processing aborted: "
 		                                    + "Unsupported pop key type RPK");
+							// roll-back: remove pdp pending sessions
+							rollbackPendingSessions(evalId);
 		                    return msg.failReply(
 		                            Message.FAIL_BAD_REQUEST, map);
 		                }
@@ -1111,6 +1172,8 @@ public class Token implements Endpoint, AutoCloseable {
 		            	}
 		                LOGGER.severe("Message processing aborted: "
 		                        + e.getMessage());
+						// roll-back: remove pdp pending sessions
+						rollbackPendingSessions(evalId);
 		                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		            }   
                     
@@ -1149,16 +1212,22 @@ public class Token implements Endpoint, AutoCloseable {
 		            		   this.idContextInfoMap.get(audStr).rollback();
 		            	   }
 		               }
-		               
-                       LOGGER.severe("Message processing aborted: " + e.getMessage());
+
+                       LOGGER.severe("Message processing aborted: "
+                               + e.getMessage());
+					   // roll-back: remove pdp pending sessions
+					   rollbackPendingSessions(evalId);
                        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		           }
 		        }
 		        break;
 		    default :
-		       LOGGER.severe("Unknown claim type in /token endpoint configuration: " + c);
-		       return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);   
-		    }
+				LOGGER.severe("Unknown claim type in /token "
+						+ "endpoint configuration: " + c);
+				// roll-back: remove pdp pending sessions
+				rollbackPendingSessions(evalId);
+				return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+			}
 		}
 
 		AccessToken token = null;
@@ -1186,6 +1255,8 @@ public class Token implements Endpoint, AutoCloseable {
 		    
 		    LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
+			// roll-back: remove pdp pending sessions
+			rollbackPendingSessions(evalId);
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
 		
@@ -1233,6 +1304,8 @@ public class Token implements Endpoint, AutoCloseable {
 		    
 		    LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
+			// roll-back: remove pdp pending sessions
+			rollbackPendingSessions(evalId);
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
 
@@ -1275,6 +1348,8 @@ public class Token implements Endpoint, AutoCloseable {
                 
                 LOGGER.severe("Message processing aborted: "
                         + e.getMessage());
+				// roll-back: remove pdp pending sessions
+				rollbackPendingSessions(evalId);
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
 		    for (CBORObject rscnf : rscnfs) {
@@ -1318,6 +1393,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        
 		        LOGGER.severe("Message processing aborted: "
 		                + e.getMessage());
+				// roll-back: remove pdp pending sessions
+				rollbackPendingSessions(evalId);
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		    }
 		    if (ctx == null) {
@@ -1341,8 +1418,12 @@ public class Token implements Endpoint, AutoCloseable {
 	            }
 		        
 		        CBORObject map = CBORObject.NewMap();
-		        map.Add(Constants.ERROR, "No common security context found for audience");
-		        LOGGER.log(Level.INFO, "Message processing aborted: No common security context found for audience");
+		        map.Add(Constants.ERROR,
+		                "No common security context found for audience");
+		        LOGGER.log(Level.INFO, "Message processing aborted: "
+		                + "No common security context found for audience");
+				// roll-back: remove pdp pending sessions
+				rollbackPendingSessions(evalId);
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
 		    }
 		    CWT cwt = (CWT)token;
@@ -1380,6 +1461,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        
 		        LOGGER.severe("Message processing aborted: "
 		                + e.getMessage());
+				// roll-back: remove pdp pending sessions
+				rollbackPendingSessions(evalId);
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		    }		    
 		} else {
@@ -1408,7 +1491,16 @@ public class Token implements Endpoint, AutoCloseable {
 			}
 			
 		    this.db.addToken(ctiStr, claims);
-		    this.db.addCti2Client(ctiStr, id);
+
+//			Set<String> rss = new HashSet<>();
+//			for (String audE : aud) {
+//				rss.addAll(this.db.getRSS(audE));
+//			}
+//			if (rss.size() != 1) {
+//				LOGGER.severe("Audience multi server not supported.");
+//			}
+
+		    this.db.addCti2Peers(ctiStr, id, aud);
 		    if (!includeExi) {
 		    	this.db.saveCtiCounter(this.cti);
 		    }
@@ -1454,11 +1546,20 @@ public class Token implements Endpoint, AutoCloseable {
 			    // The just issued Token is updating access rights, hence delete the superseded Token
 			    if (updateAccessRights == true) {
 			    	removeToken(oldCti);
+					if (pdpHandlesRevocations) {
+						this.pdp.removeSessions4Cti(oldCti);
+					}
 			    }
 		    
 			}
-		    
-		    
+
+			if (pdpHandlesRevocations) {
+				this.pdp.updateSessionsWithCti(ctiStr, evalId);
+			}
+			//if (trl != null)
+			String tokenHashStr = computeTokenHash(rsInfo.get(Constants.ACCESS_TOKEN));
+			this.db.addCti2TokenHash(ctiStr, tokenHashStr);
+
 		} catch (AceException e) {
 			if (!includeExi) {
 				this.cti--; //roll-back
@@ -1489,8 +1590,11 @@ public class Token implements Endpoint, AutoCloseable {
             	}
             	
             }
-            
-		    LOGGER.severe("Message processing aborted: " + e.getMessage());
+
+		    LOGGER.severe("Message processing aborted: "
+		            + e.getMessage());
+			// roll-back: remove pdp pending sessions
+			rollbackPendingSessions(evalId);
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
 		LOGGER.log(Level.INFO, "Returning token: " + ctiStr);
@@ -1743,8 +1847,49 @@ public class Token implements Endpoint, AutoCloseable {
         
         this.db.close();
     }
-    
-	 /**
+
+
+	/**
+	 *
+	 * @return the number of times the canAccess method has been invoked so far
+	 */
+	synchronized private int getEvalCounter() {
+		int counter = this.evalCounter;
+		this.evalCounter++;
+		return counter;
+	}
+
+	private void rollbackPendingSessions(int evaluationId) {
+		if (pdpHandlesRevocations) {
+			try{
+				this.pdp.terminatePendingSessions(evaluationId);
+			} catch (AceException ex){
+				LOGGER.severe(ex.getMessage());
+			}
+		}
+	}
+
+	String computeTokenHash(CBORObject accessToken) {
+		//if (rsInfo.get(Constants.ACCESS_TOKEN) instanceof CBORObject) ...
+//				CBORObject encodedToken = (rsInfo.get(Constants.ACCESS_TOKEN));
+//				CBORObject hashInput = encodedToken;
+		CBORObject hashInput = accessToken;
+		byte[] hashInputB = hashInput.EncodeToBytes();
+
+		// Generation of the hash value as per Section 6 of RFC6920.
+		// Fixed Suite ID to 1 (Section 9.4 of RFC6920).
+		// The resulting tokenHashB is | 0x01 | hashInputB |
+		// size: 33 bytes = (8 + 256) bit
+		SHA256Digest digest = new SHA256Digest();
+		digest.update(hashInputB, 0, hashInputB.length);
+		byte[] tokenHashB = new byte[1 + digest.getDigestSize()];
+		digest.doFinal(tokenHashB, 1);
+		tokenHashB[0] = (byte) 0x01;
+
+		return Base64.getEncoder().encodeToString(tokenHashB);
+	}
+
+	/**
 	  * Relevant only when the OSCORE profile is used
 	  * 
 	  * An instance of this class tracks the status of 
