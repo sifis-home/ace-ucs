@@ -63,7 +63,7 @@ import se.sics.ace.AceException;
 /**
  * Test the database connection classes.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Rasori
  *
  */
 public class TestDB {
@@ -589,16 +589,16 @@ public class TestDB {
     
     
     /**
-     * Tests for the addCti2Client(), getClient4Cti() and getCtis4Client()
+     * Tests for the addCti2Peers(), getClient4Cti() and getCtis4Client()
      * methods.
      * 
      * @throws AceException
      */
     @Test (expected=AceException.class)
     public void testGetClient4Cti() throws AceException {
-        db.addCti2Client("cti1", "client1");
-        db.addCti2Client("cti2", "client1");
-        db.addCti2Client("cti3", "client2");
+        db.addCti2Peers("cti1", "client1", new HashSet<String>(){{add("aud1");}});
+        db.addCti2Peers("cti2", "client1", new HashSet<String>(){{add("aud1");}});
+        db.addCti2Peers("cti3", "client2", new HashSet<String>(){{add("aud1");}});
         String client = db.getClient4Cti("cti1");
         assert(client.equals("client1"));
         client = db.getClient4Cti("cti2");
@@ -612,8 +612,218 @@ public class TestDB {
         assert(client == null);
         ctis = db.getCtis4Client("a girl is no one");
         assert(ctis.isEmpty());
-        db.addCti2Client("cti1", "client2");
+        db.addCti2Peers("cti1", "client2", new HashSet<String>(){{add("aud1");}});
         Assert.fail("Duplicate Cti was added to DB");   
+    }
+
+
+    /**
+     * Tests for the addCtis2Peers() and getCtis4Rs() methods
+     * that use the TokenLog table.
+     *
+     * @throws AceException
+     */
+    @Test (expected=AceException.class)
+    public void testTokenLog() throws AceException {
+        db.addCti2Peers("cti1", "client1", new HashSet<String>(){{add("XXXrs1,rs2,rs3,rs4");}});
+        db.addCti2Peers("cti2", "client1", new HashSet<String>(){{add("rs2,rs3XXX");}});
+        db.addCti2Peers("cti3", "client2", new HashSet<String>(){{add("rs4,rs1");}});
+        db.addCti2Peers("cti4", "client2", new HashSet<String>(){{add("rs1,rs2XXX,rs4");}});
+        db.addCti2Peers("cti5", "client2", new HashSet<String>(){{add("rs1");}});
+
+        Set<String> ctisOfRs1 = db.getCtis4Rs("rs1");
+        Set<String> ctisOfRs2 = db.getCtis4Rs("rs2");
+        Set<String> ctisOfRs3 = db.getCtis4Rs("rs3");
+        Set<String> ctisOfRs4 = db.getCtis4Rs("rs4");
+        Set<String> ctisOfRs5 = db.getCtis4Rs("rs5");
+
+        assert(!ctisOfRs1.contains("cti1"));
+        assert(!ctisOfRs1.contains("cti2"));
+        assert(ctisOfRs1.contains("cti3"));
+        assert(ctisOfRs1.contains("cti4"));
+        assert(ctisOfRs1.contains("cti5"));
+
+        assert(ctisOfRs2.contains("cti1"));
+        assert(ctisOfRs2.contains("cti2"));
+        assert(!ctisOfRs2.contains("cti3"));
+        assert(!ctisOfRs2.contains("cti4"));
+        assert(!ctisOfRs2.contains("cti5"));
+
+        assert(ctisOfRs3.contains("cti1"));
+        assert(!ctisOfRs3.contains("cti2"));
+        assert(!ctisOfRs3.contains("cti3"));
+        assert(!ctisOfRs3.contains("cti4"));
+        assert(!ctisOfRs3.contains("cti5"));
+
+        assert(ctisOfRs4.contains("cti1"));
+        assert(!ctisOfRs4.contains("cti2"));
+        assert(ctisOfRs4.contains("cti3"));
+        assert(ctisOfRs4.contains("cti4"));
+        assert(!ctisOfRs4.contains("cti5"));
+
+        assert(ctisOfRs5.isEmpty());
+
+        Set<String> ctisOfClient1 = db.getCtis4Client("client1");
+        Set<String> ctisOfClient2 = db.getCtis4Client("client2");
+
+        assert(ctisOfClient1.contains("cti1"));
+        assert(ctisOfClient1.contains("cti2"));
+        assert(!ctisOfClient1.contains("cti3"));
+        assert(!ctisOfClient1.contains("cti4"));
+        assert(!ctisOfClient1.contains("cti5"));
+
+        assert(!ctisOfClient2.contains("cti1"));
+        assert(!ctisOfClient2.contains("cti2"));
+        assert(ctisOfClient2.contains("cti3"));
+        assert(ctisOfClient2.contains("cti4"));
+        assert(ctisOfClient2.contains("cti5"));
+
+        Set<String> peersOfCti9 = db.getPeers4Cti("cti9");
+        assert(peersOfCti9.isEmpty());
+
+        db.addCti2Peers("cti5", "client2", new HashSet<String>(){{add("rs1");}});
+        Assert.fail("Duplicate Cti was added to DB");
+    }
+
+    /**
+     * Tests for revocation methods
+     *
+     * @throws AceException
+     */
+    @Test (expected=AceException.class)
+    public void testRevocation() throws AceException {
+        db.addRevokedToken("cti1", "client1", new HashSet<String>(){{add("XXXrs1,rs2,rs3,rs4");}});
+        db.addRevokedToken("cti2", "client1", new HashSet<String>(){{add("rs2,rs3XXX");}});
+        db.addRevokedToken("cti3", "client2", new HashSet<String>(){{add("rs4,rs1");}});
+        db.addRevokedToken("cti4", "client2", new HashSet<String>(){{add("rs1,rs2XXX,rs4");}});
+        db.addRevokedToken("cti5", "client2", new HashSet<String>(){{add("rs1");}});
+
+        Set<String> ctisOfRs1 = db.getPertainingTokens("rs1");
+        Set<String> ctisOfRs2 = db.getPertainingTokens("rs2");
+        Set<String> ctisOfRs3 = db.getPertainingTokens("rs3");
+        Set<String> ctisOfRs4 = db.getPertainingTokens("rs4");
+        Set<String> ctisOfRs5 = db.getPertainingTokens("rs5");
+        Set<String> ctisOfclient1 = db.getPertainingTokens("client1");
+        Set<String> ctisOfclient2 = db.getPertainingTokens("client2");
+
+        assert(!ctisOfRs1.contains("cti1"));
+        assert(!ctisOfRs1.contains("cti2"));
+        assert(ctisOfRs1.contains("cti3"));
+        assert(ctisOfRs1.contains("cti4"));
+        assert(ctisOfRs1.contains("cti5"));
+
+        assert(ctisOfRs2.contains("cti1"));
+        assert(ctisOfRs2.contains("cti2"));
+        assert(!ctisOfRs2.contains("cti3"));
+        assert(!ctisOfRs2.contains("cti4"));
+        assert(!ctisOfRs2.contains("cti5"));
+
+        assert(ctisOfRs3.contains("cti1"));
+        assert(!ctisOfRs3.contains("cti2"));
+        assert(!ctisOfRs3.contains("cti3"));
+        assert(!ctisOfRs3.contains("cti4"));
+        assert(!ctisOfRs3.contains("cti5"));
+
+        assert(ctisOfRs4.contains("cti1"));
+        assert(!ctisOfRs4.contains("cti2"));
+        assert(ctisOfRs4.contains("cti3"));
+        assert(ctisOfRs4.contains("cti4"));
+        assert(!ctisOfRs4.contains("cti5"));
+
+        assert(!ctisOfRs5.contains("cti1"));
+        assert(!ctisOfRs5.contains("cti2"));
+        assert(!ctisOfRs5.contains("cti3"));
+        assert(!ctisOfRs5.contains("cti4"));
+        assert(!ctisOfRs5.contains("cti5"));
+
+        assert(ctisOfclient1.contains("cti1"));
+        assert(ctisOfclient1.contains("cti2"));
+        assert(!ctisOfclient1.contains("cti3"));
+        assert(!ctisOfclient1.contains("cti4"));
+        assert(!ctisOfclient1.contains("cti5"));
+
+        assert(!ctisOfclient2.contains("cti1"));
+        assert(!ctisOfclient2.contains("cti2"));
+        assert(ctisOfclient2.contains("cti3"));
+        assert(ctisOfclient2.contains("cti4"));
+        assert(ctisOfclient2.contains("cti5"));
+
+        Set<String> peersOfCti1 = db.getPertainingPeers("cti1");
+        Set<String> peersOfCti2 = db.getPertainingPeers("cti2");
+        Set<String> peersOfCti3 = db.getPertainingPeers("cti3");
+        Set<String> peersOfCti4 = db.getPertainingPeers("cti4");
+        Set<String> peersOfCti5 = db.getPertainingPeers("cti5");
+
+        assert(!peersOfCti1.contains("rs1"));
+        assert(peersOfCti1.contains("rs2"));
+        assert(peersOfCti1.contains("rs3"));
+        assert(peersOfCti1.contains("rs4"));
+        assert(peersOfCti1.contains("client1"));
+        assert(!peersOfCti1.contains("client2"));
+
+        assert(!peersOfCti2.contains("rs1"));
+        assert(peersOfCti2.contains("rs2"));
+        assert(!peersOfCti2.contains("rs3"));
+        assert(!peersOfCti2.contains("rs4"));
+        assert(peersOfCti2.contains("client1"));
+        assert(!peersOfCti2.contains("client2"));
+
+        assert(peersOfCti3.contains("rs1"));
+        assert(!peersOfCti3.contains("rs2"));
+        assert(!peersOfCti3.contains("rs3"));
+        assert(peersOfCti3.contains("rs4"));
+        assert(!peersOfCti3.contains("client1"));
+        assert(peersOfCti3.contains("client2"));
+
+        assert(peersOfCti4.contains("rs1"));
+        assert(!peersOfCti4.contains("rs2"));
+        assert(!peersOfCti4.contains("rs3"));
+        assert(peersOfCti4.contains("rs4"));
+        assert(!peersOfCti4.contains("client1"));
+        assert(peersOfCti4.contains("client2"));
+
+        assert(peersOfCti5.contains("rs1"));
+        assert(!peersOfCti5.contains("rs2"));
+        assert(!peersOfCti5.contains("rs3"));
+        assert(!peersOfCti5.contains("rs4"));
+        assert(!peersOfCti5.contains("client1"));
+        assert(peersOfCti5.contains("client2"));
+
+
+        db.deleteExpiredToken("cti1");
+        db.deleteExpiredToken("cti2");
+        db.deleteExpiredToken("cti3");
+        db.deleteExpiredToken("cti4");
+        //db.deleteExpiredToken("cti5");
+
+        peersOfCti1 = db.getPertainingPeers("cti1");
+        assert(peersOfCti1.isEmpty());
+
+        //test primary key
+        db.addRevokedToken("cti5", "client2", new HashSet<String>(){{add("rs1");}});
+        Assert.fail("Duplicate Cti was added to DB");
+    }
+
+    /**
+     * Test token hash table methods
+     *
+     * @throws AceException
+     */
+    @Test (expected=AceException.class)
+    public void testTokenHash() throws Exception {
+
+        db.addCti2TokenHash("cti1", "tokenHash1");
+        db.addCti2TokenHash("cti2", "tokenHash2");
+        db.addCti2TokenHash("cti3", "tokenHash3");
+
+        Map<String, String> ctiToTokenHash = db.getTokenHashMap();;
+
+        assert(ctiToTokenHash.containsKey("cti1"));
+        assert(ctiToTokenHash.containsKey("cti2"));
+        assert(ctiToTokenHash.containsKey("cti3"));
+
+        db.addCti2TokenHash("cti1", "tokenHash4");
+        Assert.fail("Duplicate Cti was added to DB");
     }
 
     /**
