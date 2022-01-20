@@ -104,6 +104,12 @@ public class OscoreAceEndpoint extends OSCoreResource implements AutoCloseable {
      */
     @Override
     public void handlePOST(CoapExchange exchange) {
+
+        //check whether the request is CON
+        //if so, send an empty ACK and then continue with processing
+        if (exchange.advanced().getRequest().isConfirmable())
+            exchange.accept();
+
         CoapReq req = null;
         try {
             req = CoapReq.getInstance(exchange.advanced().getRequest());
