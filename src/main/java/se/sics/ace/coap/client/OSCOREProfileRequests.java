@@ -36,10 +36,12 @@ import java.net.InetSocketAddress;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -48,6 +50,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
@@ -60,6 +63,7 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Util;
+import se.sics.ace.coap.as.myCoapHandler;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 
 
@@ -73,7 +77,7 @@ import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
  * Clients are expected to create an instance of this class when the want to
  * perform token requests from a specific AS.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
  *
  */
 public class OSCOREProfileRequests {
@@ -122,7 +126,45 @@ public class OSCOREProfileRequests {
             throw new AceException(e.getMessage());
         }
     }
-    
+
+    /**
+     * Sends a GET request to the /trl endpoint of the AS to observe.
+     *
+     * @param asAddr  the full address of the /trl endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param ctx  the OSCORE context shared with the AS
+     * @param db the database of the OSCORE contexts
+     *
+     * @return  the relation
+     *
+     * @throws OSException
+     */
+    public static CoapObserveRelation makeObserveRequest(String asAddr,
+                                                         OSCoreCtx ctx, OSCoreCtxDB db)
+                                                            throws OSException {
+
+        byte[] token = Bytes.createBytes(new Random(), 8);
+        db.addContext(asAddr, ctx);
+        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+        builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+        builder.setCustomCoapStackArgument(db);
+        Endpoint clientEndpoint = builder.build();
+        CoapClient client = new CoapClient(asAddr);
+        client.setEndpoint(clientEndpoint);
+
+        // set request
+        Request r = new Request(CoAP.Code.GET);
+        r.setConfirmable(true);
+        r.setURI(asAddr);
+        r.getOptions().setOscore(new byte[0]);
+        r.setToken(token);
+        r.setObserve();
+
+        myCoapHandler handler = new myCoapHandler();
+        return client.observe(r, handler);
+
+    }
+
     /**
      * Sends a POST request to the /authz-info endpoint of the RS to submit an
      * access token.
@@ -430,8 +472,7 @@ public class OSCOREProfileRequests {
      * @return  a CoAP client configured to pass the access token through the
      *  psk-identity in the handshake 
      * @throws AceException 
-     * @throws OSException 
-     * @throws URISyntaxException 
+     * @throws OSException
      */
     public static CoapClient getClient(InetSocketAddress serverAddress, OSCoreCtxDB db) 
             throws AceException, OSException {

@@ -37,13 +37,18 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Random;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
@@ -66,6 +71,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Util;
+import se.sics.ace.coap.as.myCoapHandler;
 
 /**
  * Implements getting a token from the /token endpoint for a client 
@@ -77,7 +83,7 @@ import se.sics.ace.Util;
  * Clients are expected to create an instance of this class when the want to
  * perform token requests from a specific AS.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
  *
  */
 public class DTLSProfileRequests {
@@ -137,7 +143,7 @@ public class DTLSProfileRequests {
                 throw new AceException(e.getMessage());
             }
         } else {
-            LOGGER.severe("Unknwon key type used for getting a token");
+            LOGGER.severe("Unknown key type used for getting a token");
             throw new AceException("Unknown key type");
         }
 
@@ -163,7 +169,86 @@ public class DTLSProfileRequests {
             throw new AceException(e.getMessage());
         }
     }
-    
+
+    /**
+     * Sends a GET request to the /trl endpoint of the AS to observe.
+     * If the DTLS connection uses pre-shared symmetric keys
+     * we will use the key identifier (COSE kid) as psk_identity.
+     *
+     * @param asAddr  the full address of the /trl endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param key  the key to be used to secure the connection to the AS.
+     *  This MUST have a kid.
+     *
+     * @return  the relation
+     *
+     * @throws AceException
+     */
+    public static CoapObserveRelation makeObserveRequest(String asAddr,
+                                        OneKey key) throws AceException {
+    Configuration dtlsConfig = Configuration.getStandard();
+    	dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
+    	dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+
+    CBORObject type = key.get(KeyKeys.KeyType);
+    	if (type.equals(KeyKeys.KeyType_Octet)) {
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+    } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)) {
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+    }
+
+    DtlsConnectorConfig.Builder builder
+            = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
+            new InetSocketAddress(0));
+
+        if (type.equals(KeyKeys.KeyType_Octet)) {
+        String keyId = new String(
+                key.get(KeyKeys.KeyId).GetByteString(),
+                Constants.charset);
+        AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+        pskStore.setKey(keyId, key.get(KeyKeys.Octet_K).GetByteString());
+        builder.setAdvancedPskStore(pskStore);
+    } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
+        try {
+            builder.setCertificateIdentityProvider(
+                    new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
+        } catch (CoseException e) {
+            LOGGER.severe("Failed to transform key: " + e.getMessage());
+            throw new AceException(e.getMessage());
+        }
+    } else {
+        LOGGER.severe("Unknown key type used for getting a token");
+        throw new AceException("Unknown key type");
+    }
+
+    DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
+    CoapEndpoint ep = new CoapEndpoint.Builder()
+            .setConnector(dtlsConnector)
+            .setConfiguration(Configuration.getStandard())
+            .build();
+    CoapClient client = new CoapClient(asAddr);
+        client.setEndpoint(ep);
+        try {
+        dtlsConnector.start();
+    } catch (IOException e) {
+        LOGGER.severe("Failed to start DTLSConnector: " + e.getMessage());
+        throw new AceException(e.getMessage());
+    }
+
+        // set request
+        byte[] token = Bytes.createBytes(new Random(), 8);
+        Request r = new Request(CoAP.Code.GET);
+        r.setConfirmable(true);
+        r.setURI(asAddr);
+        //r.getOptions().setOscore(new byte[0]);
+        r.setToken(token);
+        r.setObserve();
+
+        myCoapHandler handler = new myCoapHandler();
+        return client.observe(r, handler);
+    }
+
+
     /**
      * Sends a POST request to the /authz-info endpoint of the RS to submit an
      * access token.
@@ -243,8 +328,6 @@ public class DTLSProfileRequests {
      * @param rsAddr  the full address of the /authz-info endpoint
      *  (including scheme and hostname, and port if not default)
      * @param payload  the token received from the getToken() method
-     * @param key  an asymmetric key-pair to use with DTLS in a raw-public 
-     *  key handshake
      * 
      * @return  the response 
      *
