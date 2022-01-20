@@ -31,15 +31,18 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.util.List;
 import java.util.Set;
 
+import org.eclipse.californium.core.CoapResource;
 import se.sics.ace.AceException;
+import se.sics.ace.coap.as.CoapDtlsEndpoint;
 
 /**
  * An interface for the Policy Decision Point that this AS uses to make 
  * authorization decisions.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Rasori
  *
  */
 public interface PDP {
@@ -92,6 +95,23 @@ public interface PDP {
 	 * 
 	 *  @throws AceException  
 	 */
-	public abstract Object canAccess(String clientId, Set<String> aud, 
-				Object scopes) throws AceException;
+	public abstract Object canAccess(String clientId, Set<String> aud,
+										Object scopes, int evaluationId) throws AceException;
+
+	public void updateSessionsWithCti(String cti, int evaluationId) throws AceException;
+
+	public void terminatePendingSessions(int evaluationId) throws AceException;
+
+	void setRevocationHandler(RevocationHandler rh);
+
+	void revokeToken(String cti) throws AceException;
+
+	/**
+	 * Removes the sessions associated with the provided token identifier
+	 *
+	 * @param cti
+	 */
+	void removeSessions4Cti(String cti) throws AceException;
+
+	void setTokenEndpoint(Token t);
 }
