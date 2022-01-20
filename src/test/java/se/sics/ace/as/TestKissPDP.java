@@ -63,7 +63,7 @@ import se.sics.ace.examples.SQLConnector;
 /**
  * Test the KissPDP class.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Rasori
  *
  */
 public class TestKissPDP {
@@ -283,10 +283,10 @@ public class TestKissPDP {
     	assert(pdp.canAccessToken("clientA"));
     	Set<String> rs1 = Collections.singleton("rs1");
     	Set<String> rs2 = Collections.singleton("rs2");
-    	assert(pdp.canAccess("clientA", rs2, "r_light").equals("r_light"));
-    	assert(pdp.canAccess("clientC", rs1, "r_temp")==null);
-    	assert(pdp.canAccess("clientA", rs1, "r_temp").equals("r_temp"));
-    	assert(pdp.canAccess("clientB", rs1, "r_config")==null);
+    	assert(pdp.canAccess("clientA", rs2, "r_light", -1).equals("r_light"));
+    	assert(pdp.canAccess("clientC", rs1, "r_temp", -1)==null);
+    	assert(pdp.canAccess("clientA", rs1, "r_temp", -1).equals("r_temp"));
+    	assert(pdp.canAccess("clientB", rs1, "r_config", -1)==null);
     	assert(pdp.getIntrospectAccessLevel("rs1").equals(PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS));
         assert(pdp.getIntrospectAccessLevel("rs8").equals(PDP.IntrospectAccessLevel.ACTIVE_ONLY));
     	assert(!pdp.canAccessToken("clientF"));
@@ -313,20 +313,20 @@ public class TestKissPDP {
         pdp.addAccess("testC", "testRS1", "testScope2");
         pdp.addAccess("testC", "testRS2", "testScope3");
         pdp.addAccess("testC", "testRS3", "testScope4");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1")
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1", -1)
         		  .equals("testScope1"));
-        assert(pdp.canAccess("testC",  Collections.singleton("testRS1"), "testScope1 testScope2 testScope3")
+        assert(pdp.canAccess("testC",  Collections.singleton("testRS1"), "testScope1 testScope2 testScope3", -1)
         		  .equals("testScope1 testScope2"));
-        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3")
+        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3", -1)
         		  .equals("testScope3"));
-        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4")
+        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4", -1)
         		  .equals("testScope4"));
         
         pdp.revokeAccess("testC", "testRS3", "testScope4");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4", -1) == null);
         pdp.revokeAllRsAccess("testC", "testRS1");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1", -1) == null);
         pdp.revokeAllAccess("testC");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3", -1) == null);
     }
 }
