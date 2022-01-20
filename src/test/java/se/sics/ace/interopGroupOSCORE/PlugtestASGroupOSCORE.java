@@ -62,7 +62,7 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
  * The Junit tests are in TestCoAPClient, 
  * which will automatically start this server.
  * 
- * @author Marco Tiloca
+ * @author Marco Tiloca and Marco Rasori
  *
  */
 public class PlugtestASGroupOSCORE
@@ -382,10 +382,11 @@ public class PlugtestASGroupOSCORE
         claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
-        db.addCti2Client(cti, "clientA");
-        
+        db.addCti2Peers(cti, "clientA", new HashSet<String>(){{add("aud5");}});
+
         pdp = new GroupOSCOREJoinPDP(db);
-        
+        boolean pdpHandlesRevocations = false;
+
         //Initialize data in PDP
         
         // For the public key build from 'publicKey_gm' in base64
@@ -430,7 +431,7 @@ public class PlugtestASGroupOSCORE
         Set<String> aud3 = Collections.singleton("aud3");
         pdp.addOSCOREGroupManagers("rs3", aud3);
         
-        as = new DtlsAS("AS", db, pdp, time, asRPK, portNumber);
+        as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asRPK, portNumber);
         as.start();
         System.out.println("Server starting");
     }

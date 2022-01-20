@@ -60,7 +60,7 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
  * The Junit tests are in TestCoAPClient, 
  * which will automatically start this server.
  * 
- * @author Marco Tiloca
+ * @author Marco Tiloca and Marco Rasori
  *
  */
 public class CoapASTestServerGroupOSCORE
@@ -232,11 +232,12 @@ public class CoapASTestServerGroupOSCORE
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
-        db.addCti2Client(cti, "clientA");
-        
+        db.addCti2Peers(cti, "clientA", new HashSet<String>(){{add("actuators");}});
+
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new GroupOSCOREJoinPDP(db);
-        
+        boolean pdpHandlesRevocations = false;
+
         //Initialize data in PDP
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addTokenAccess("clientA");
@@ -299,7 +300,7 @@ public class CoapASTestServerGroupOSCORE
         Set<String> aud3 = Collections.singleton("aud3");
         pdp.addOSCOREGroupManagers("rs3", aud3);
         
-        as = new DtlsAS("AS", db, pdp, time, asymmKey);
+        as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asymmKey);
         as.start();
         System.out.println("Server starting");
     }
