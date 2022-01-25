@@ -10,6 +10,11 @@
   	<name>RISE Research Institutes of Sweden AB</name>
   </organization>
   <repositories>
+    <repository>
+      <id>central maven repo</id>
+      <name>central maven repo https</name>
+      <url>https://repo.maven.apache.org/maven2/</url>
+    </repository>
   	<repository>
 	  <id>wso2-nexus</id>
 	<url>https://maven.wso2.org/nexus/content/repositories/releases</url>
