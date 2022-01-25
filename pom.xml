@@ -15,9 +15,13 @@
       <name>central maven repo https</name>
       <url>https://repo.maven.apache.org/maven2/</url>
     </repository>
+    <repository>
+	  <id>dist.wso2.org</id>
+	  <url>https://dist.wso2.org/maven2</url>
+	</repository>
   	<repository>
 	  <id>wso2-nexus</id>
-	<url>https://maven.wso2.org/nexus/content/repositories/releases</url>
+	  <url>https://maven.wso2.org/nexus/content/repositories/releases</url>
 	</repository>
 	 <repository>
       <id>repo.eclipse.org</id>
