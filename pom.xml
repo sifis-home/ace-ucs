@@ -12,7 +12,7 @@
   <repositories>
   	<repository>
 	  <id>wso2-nexus</id>
-	<url>http://maven.wso2.org/nexus/content/repositories/releases</url>
+	<url>https://maven.wso2.org/nexus/content/repositories/releases</url>
 	</repository>
 	 <repository>
       <id>repo.eclipse.org</id>
