@@ -88,6 +88,61 @@ public class OSCOREProfileRequests {
     private static final Logger LOGGER 
         = Logger.getLogger(OSCOREProfileRequests.class.getName());
 
+
+    public static CoapClient buildClient(String asAddr, OSCoreCtx ctx, OSCoreCtxDB db)
+            throws OSException {
+
+        db.addContext(asAddr, ctx);
+
+        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+        builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+        builder.setCustomCoapStackArgument(db);
+        Endpoint clientEndpoint = builder.build();
+        CoapClient client = new CoapClient(asAddr);
+        client.setEndpoint(clientEndpoint);
+        return client;
+    }
+
+    public static Response getToken(CoapClient client, String asAddr, CBORObject payload) throws AceException, OSException {
+
+        Request r = new Request(Code.POST);
+        r.getOptions().setOscore(new byte[0]);
+        r.setPayload(payload.EncodeToBytes());
+
+        client.setURI(asAddr);
+        try {
+            return client.advanced(r).advanced();
+        } catch (ConnectorException | IOException e) {
+            LOGGER.severe("Connector error: " + e.getMessage());
+            throw new AceException(e.getMessage());
+        }
+    }
+
+    public static CoapObserveRelation makeObserveRequest(CoapClient client, String asAddr) {
+
+        // set request
+        byte[] token = Bytes.createBytes(new Random(), 8);
+        Request req = new Request(CoAP.Code.GET);
+        req.setConfirmable(true);
+        req.setURI(asAddr);
+        req.getOptions().setOscore(new byte[0]);
+        req.setToken(token);
+        req.setObserve();
+
+        client.setURI(asAddr);
+
+        myCoapHandler handler = new myCoapHandler();
+        return client.observe(req, handler);
+
+    }
+
+
+
+
+
+
+
+
     /**
      * Sends a POST request to the /token endpoint of the AS to request an
      * access token.
@@ -110,15 +165,15 @@ public class OSCOREProfileRequests {
         Request r = new Request(Code.POST);
         r.getOptions().setOscore(new byte[0]);
         r.setPayload(payload.EncodeToBytes());
-        
+
         db.addContext(asAddr, ctx);
-        
+
         CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
         builder.setCoapStackFactory(new OSCoreCoapStackFactory());
         builder.setCustomCoapStackArgument(db);
         Endpoint clientEndpoint = builder.build();
         CoapClient client = new CoapClient(asAddr);
-        client.setEndpoint(clientEndpoint);  
+        client.setEndpoint(clientEndpoint);
         try {        	
             return client.advanced(r).advanced();
         } catch (ConnectorException | IOException e) {
@@ -153,15 +208,15 @@ public class OSCOREProfileRequests {
         client.setEndpoint(clientEndpoint);
 
         // set request
-        Request r = new Request(CoAP.Code.GET);
-        r.setConfirmable(true);
-        r.setURI(asAddr);
-        r.getOptions().setOscore(new byte[0]);
-        r.setToken(token);
-        r.setObserve();
+        Request req = new Request(CoAP.Code.GET);
+        req.setConfirmable(true);
+        req.setURI(asAddr);
+        req.getOptions().setOscore(new byte[0]);
+        req.setToken(token);
+        req.setObserve();
 
         myCoapHandler handler = new myCoapHandler();
-        return client.observe(r, handler);
+        return client.observe(req, handler);
 
     }
 
@@ -204,9 +259,6 @@ public class OSCOREProfileRequests {
         CBORObject token = asPayload.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
             throw new AceException("AS response did not contain a token");
-        }
-        if (token.getType() != CBORType.ByteString) {
-            throw new AceException("The token must be a CBOR byte string");
         }
         
         CBORObject cnf = asPayload.get(
@@ -429,16 +481,13 @@ public class OSCOREProfileRequests {
         if (token == null) {
             throw new AceException("AS response did not contain a token");
         }
-        if (token.getType() != CBORType.ByteString) {
-            throw new AceException("The token must be a CBOR byte string");
-        }
         
         if (asPayload.ContainsKey(Constants.CNF)) {
             throw new AceException("AS response must not contain a cnf");
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token);
+        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
         
     	CoapResponse resp = null;
 
