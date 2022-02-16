@@ -205,7 +205,7 @@ public class TestOscorepClient2RS {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
         payload.Add(Constants.CNF, cnf);
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
@@ -299,7 +299,7 @@ public class TestOscorepClient2RS {
         params.put(Constants.CNF, cbor);
         CWT token = new CWT(params);
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
         payload.Add(Constants.CNF, cbor);
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
@@ -356,7 +356,7 @@ public class TestOscorepClient2RS {
        // Include only the Token now. If Id1 and Nonce1 were
        // included here too, the RS would silently ignore them
        payload = CBORObject.NewMap();
-       payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+       payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
        
        asRes = new Response(CoAP.ResponseCode.CREATED);
        asRes.setPayload(payload.EncodeToBytes());

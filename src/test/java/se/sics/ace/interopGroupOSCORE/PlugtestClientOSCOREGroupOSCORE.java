@@ -415,7 +415,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx1));
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx1).EncodeToBytes());
         payload.Add(Constants.CNF, cnf);
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
@@ -1149,7 +1149,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx1));
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx1).EncodeToBytes());
         payload.Add(Constants.CNF, cnf);
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());

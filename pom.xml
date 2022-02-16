@@ -23,8 +23,17 @@
             </snapshots>
         </repository>
         <repository>
+            <id>central maven repo</id>
+            <name>central maven repo https</name>
+            <url>https://repo.maven.apache.org/maven2/</url>
+        </repository>
+        <repository>
+            <id>dist.wso2.org</id>
+            <url>https://dist.wso2.org/maven2</url>
+        </repository>
+        <repository>
             <id>wso2-nexus</id>
-            <url>http://maven.wso2.org/nexus/content/repositories/releases</url>
+            <url>https://maven.wso2.org/nexus/content/repositories/releases</url>
         </repository>
         <repository>
             <id>repo.eclipse.org</id>
@@ -74,21 +83,23 @@
             <artifactId>postgresql</artifactId>
             <version>9.3-1104-jdbc4</version>
         </dependency>
-        <dependency>
-            <groupId>org.eclipse.californium</groupId>
-            <artifactId>californium-core</artifactId>
-            <version>3.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.californium</groupId>
-            <artifactId>scandium</artifactId>
-            <version>3.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.californium</groupId>
-            <artifactId>cf-oscore</artifactId>
-            <version>3.0.0</version>
-        </dependency>
+        <!--
+                <dependency>
+                    <groupId>org.eclipse.californium</groupId>
+                    <artifactId>californium-core</artifactId>
+                    <version>3.0.0</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.eclipse.californium</groupId>
+                    <artifactId>scandium</artifactId>
+                    <version>3.0.0</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.eclipse.californium</groupId>
+                    <artifactId>cf-oscore</artifactId>
+                    <version>3.0.0</version>
+                </dependency>
+        -->
         <dependency>
             <groupId>com.augustcellars.cose</groupId>
             <artifactId>cose-java</artifactId>

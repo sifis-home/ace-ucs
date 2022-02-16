@@ -205,6 +205,9 @@ public class OSCOREProfileRequests {
         if (token == null) {
             throw new AceException("AS response did not contain a token");
         }
+        if (token.getType() != CBORType.ByteString) {
+            throw new AceException("The token must be a CBOR byte string");
+        }
         
         CBORObject cnf = asPayload.get(
                 CBORObject.FromObject(Constants.CNF));
@@ -217,7 +220,7 @@ public class OSCOREProfileRequests {
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
+        payload.Add(Constants.ACCESS_TOKEN, token);
         
         byte[] n1 = new byte[8];
         new SecureRandom().nextBytes(n1);
@@ -426,13 +429,16 @@ public class OSCOREProfileRequests {
         if (token == null) {
             throw new AceException("AS response did not contain a token");
         }
+        if (token.getType() != CBORType.ByteString) {
+            throw new AceException("The token must be a CBOR byte string");
+        }
         
         if (asPayload.ContainsKey(Constants.CNF)) {
             throw new AceException("AS response must not contain a cnf");
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
+        payload.Add(Constants.ACCESS_TOKEN, token);
         
     	CoapResponse resp = null;
 

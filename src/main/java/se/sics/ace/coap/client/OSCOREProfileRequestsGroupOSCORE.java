@@ -163,6 +163,9 @@ public class OSCOREProfileRequestsGroupOSCORE {
         if (token == null) {
             throw new AceException("AS response did not contain a token");
         }
+        if (token.getType() != CBORType.ByteString) {
+            throw new AceException("The token must be a CBOR byte string");
+        }
         
         CBORObject cnf = asPayload.get(
                 CBORObject.FromObject(Constants.CNF));
@@ -175,7 +178,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
+        payload.Add(Constants.ACCESS_TOKEN, token);
         
         if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
@@ -412,13 +415,16 @@ public class OSCOREProfileRequestsGroupOSCORE {
         if (token == null) {
             throw new AceException("AS response did not contain a token");
         }
+        if (token.getType() != CBORType.ByteString) {
+            throw new AceException("The token must be a CBOR byte string");
+        }
         
         if (asPayload.ContainsKey(Constants.CNF)) {
             throw new AceException("AS response must not contain a cnf");
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
+        payload.Add(Constants.ACCESS_TOKEN, token);
         
         if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
