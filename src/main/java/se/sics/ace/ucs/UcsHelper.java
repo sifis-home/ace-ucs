@@ -992,7 +992,7 @@ public class UcsHelper implements PDP, AutoCloseable {
 
 		// delete all files in the policy folder
 		for(File file: Objects.requireNonNull(new File(ucs.getPapPath()).listFiles()))
-			if (!file.isDirectory())
+			if (!file.isDirectory() && file.getName().endsWith(".xml"))
 				deletePolicyFile(file.getName());
 	}
 
