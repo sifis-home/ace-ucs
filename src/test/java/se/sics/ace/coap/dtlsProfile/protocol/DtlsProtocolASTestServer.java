@@ -49,9 +49,8 @@ import se.sics.ace.ucs.UcsHelper;
 import java.util.*;
 
 /**
- * The server to run to test the interaction with the client in the protocol test.
+ * Authorization Server to test with DtlsProtocolCTestClient
  *
- * 
  * @author Marco Rasori
  *
  */

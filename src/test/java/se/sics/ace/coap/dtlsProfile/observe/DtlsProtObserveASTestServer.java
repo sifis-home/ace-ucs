@@ -52,9 +52,8 @@ import se.sics.ace.ucs.UcsHelper;
 import java.util.*;
 
 /**
- * The server to run to test the interaction with the client in the protocol test.
+ * Authorization Server to test with DtlsProtObserveCTestClient
  *
- * 
  * @author Marco Rasori
  *
  */
@@ -268,10 +267,12 @@ public class DtlsProtObserveASTestServer
         db.addRevokedToken("qwertyuiop", "clientA", new HashSet<String>(){{add("rs1");}});
         db.addRevokedToken("asdfghjkl", "clientB", new HashSet<String>(){{add("rs1");}});
         db.addRevokedToken("zxcvbnm", "clientA", new HashSet<String>(){{add("rs2");}});
+        db.addRevokedToken("mnbvcxz", "ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", new HashSet<String>(){{add("rs1");}});
 
         db.addCti2TokenHash("qwertyuiop", "tokenHash_qwertyuiop");
         db.addCti2TokenHash("asdfghjkl", "tokenHash_asdfghjkl");
         db.addCti2TokenHash("zxcvbnm", "tokenHash_zxcvbnm");
+        db.addCti2TokenHash("mnbvcxz", "tokenHash_mnbvcxz");
 
         
         as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asymmKey,

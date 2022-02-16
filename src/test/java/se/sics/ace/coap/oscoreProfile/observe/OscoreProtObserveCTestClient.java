@@ -66,14 +66,14 @@ import static org.junit.Assert.assertTrue;
  */
 
 /**
- * This test verifies that a token with multiple scopes can be used to retrieve different protected resources
+ * This test verifies that a token can be used to retrieve different protected resources
  * Also, it tests the interaction between the client and both the servers.
- * * Finally, it tests the notification mechanism through a request to the trl endpoint.
- *  * The client sends an Observe request, and the AS replies with the list of revoked
- *  * tokens for this client.
- *  * Each time a token pertaining to this client is inserted or removed from the trl (token
- *  * revocation list), the AS sends to the client the list of tokens in the trl that pertain
- *  * to this client.
+ * Finally, it tests the notification mechanism through a request to the trl endpoint.
+ * The client sends an Observe request, and the AS replies with the list of revoked
+ * tokens for this client.
+ * Each time a token pertaining to this client is inserted or removed from the trl (token
+ * revocation list), the AS sends to the client the list of tokens in the trl that pertain
+ * to this client.
  *
  * Procedure:
  * 1) Run the OscoreProtObserveASTestServer.java
@@ -81,12 +81,13 @@ import static org.junit.Assert.assertTrue;
  * 3) Run the OscoreProtObserveCTestServer.java
  *
  *  Test explained:
- *  clientA makes a token request to AS. It asks for the scopes "r_temp w_temp r_helloWorld foobar" at the RS "rs1".
- *  AS generates a token for the allowed scopes, i.e., r_temp, w_temp and r_helloWorld, and sends it to the client
- *  together with other claims.
- *  Before proceeding with the protocol by making a request to the rs, the client make a request
- *  to the AS to observe the trl.
- *  The client posts the token, a nounce N1, and its own OSCORE recipient Id ID1 to authz-info endpoint.
+ *  First, the Client "clientA" makes a request to the AS to observe the trl.
+ *  Then, clientA makes a token request to AS. It asks for the scope "r_temp w_temp r_helloWorld foobar" (that
+ *  identifies the resources "r_temp", "w_temp", "r_helloWorld",and "foobar") at the RS "rs1".
+ *  AS generates a token for the allowed resources, i.e., "r_temp", "w_temp", and "r_helloWorld", and sends the scope
+ *  "r_temp w_temp r_helloWorld" to the client together with other claims.
+ *
+ *  The client posts the token, a nounce N1, and its own OSCORE recipient Id ID1 to the authz-info endpoint at the RS.
  *  The RS replies with a nounce N2 and the OSCORE sender Id ID2 (from client point of view, ID2 is the sender ID).
  *  The client sets the URI specifying the resource (e.g., "coap://localhost:" + RS_COAP_SECURE_PORT + "/temp")
  *  and makes the request.
@@ -126,6 +127,8 @@ public class OscoreProtObserveCTestClient {
 
     private static List<Set<Integer>> usedRecipientIds = new ArrayList<>();
 
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
+
     public OscoreProtObserveCTestClient(String id, byte[] key128, Integer port){
 
         OscoreProtObserveCTestClient.clientId = id;
@@ -139,11 +142,13 @@ public class OscoreProtObserveCTestClient {
 
     public static void main(String[] args) throws Exception {
 
+        byte[] senderId = new byte[]{0x22};     // client identity
+        byte[] recipientId = new byte[]{0x33};  // AS identity
+        byte[] contextId = new byte[] {0x44};   // C-AS context ID (hardcoded)
         // initialize OSCORE context
         ctx = new OSCoreCtx(key128, true, null,
-                new byte[]{0x22}, // client identity
-                new byte[]{0x33}, // AS identity
-                null, null, null, new byte[] {0x44});
+                senderId, recipientId,null, null,
+                null, contextId, MAX_UNFRAGMENTED_SIZE);
 
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
 
@@ -153,15 +158,31 @@ public class OscoreProtObserveCTestClient {
             usedRecipientIds.add(new HashSet<>());
         }
 
-        // Client-to-AS request and response
+//        System.out.println("\n--------STARTING COMMUNICATION WITH AS--------\n");
+//
+//        CoapClient client = OSCOREProfileRequests.buildClient("coap://localhost", ctx, ctxDB);
+//        CoapObserveRelation relation =
+//                OSCOREProfileRequests.makeObserveRequest(client, "coap://localhost/trl");
+//
+//        sleep(5000);
+//        CBORObject params = GetToken.getClientCredentialsRequest(
+//                CBORObject.FromObject("rs1"),
+//                CBORObject.FromObject("r_temp w_temp r_helloWorld foobar"), null);
+//
+//        Response response = OSCOREProfileRequests.getToken(client,
+//                "coap://localhost/token", params);
 
-        System.out.println("\n--------STARTING COMMUNICATION WITH AS--------\n");
+        // 1. Make Observe request to the /trl endpoint
+        CoapObserveRelation relation = OSCOREProfileRequests.makeObserveRequest(
+                "coap://localhost/trl", ctx, ctxDB);
 
+        sleep(2000);
+
+        // 2. Make Access Token request to the /token endpoint
         // fill params
         CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs1"),
                 CBORObject.FromObject("r_temp w_temp r_helloWorld foobar"), null);
-        //CBORObject.FromObject("r_temp foobar"), null);
 
         Response response = OSCOREProfileRequests.getToken(
                 "coap://localhost/token", params, ctx, ctxDB);
@@ -173,25 +194,13 @@ public class OscoreProtObserveCTestClient {
         System.out.println(map);
         assert (map.containsKey(Constants.ACCESS_TOKEN));
         assert (!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert (map.containsKey(Constants.CNF));
         assert (map.containsKey(Constants.SCOPE));
         assert (map.get(Constants.SCOPE).AsString().equals("r_temp w_temp r_helloWorld"));
-
-        // wait a moment before making the observe request
-        sleep(1000);
-
-        CoapObserveRelation relation = OSCOREProfileRequests.makeObserveRequest(
-                "coap://localhost/trl", ctx, ctxDB);
-        //       relation.reregister();
-//        while(true) {
-//            sleep(1000);
-//            System.out.print(".");
-//        }
-//    }
 
 
         System.out.println("\n------STARTING COMMUNICATION WITH RS (1)----\n");
 
+        // 3. Post the Access Token to the /authz-info endpoint at the RS
         Response rsRes = OSCOREProfileRequests.postToken(
                 "coap://localhost:" + RS_COAP_PORT + "/authz-info", response, ctxDB, usedRecipientIds);
 
@@ -203,26 +212,35 @@ public class OscoreProtObserveCTestClient {
 //        doGetRequest("temp");
 //        doPostRequest("temp", "22.0 C");
 
+        // 4. Make GET and POST requests to access the resources
+        String rsHostname = "coap://localhost:" + RS_COAP_PORT;
+        CoapClient client = OSCOREProfileRequests.getClient(
+                new InetSocketAddress(rsHostname, RS_COAP_PORT), ctxDB);
+
+        client.setURI(rsHostname + "/temp");
+
         int count = 0;
         int randomTemp;
         CoapResponse res;
         while(true) {
             if (count%4 != 0) {
-                res = doGetRequest("temp");
+                //res = doGetRequest("temp");
+                res = doGetRequest(client);
             }
             else {
                 randomTemp = (int)(Math.random()*100);
-                res = doPostRequest("temp", randomTemp + ".0 C");
+                //res = doPostRequest("temp", randomTemp + ".0 C");
+                res = doPostRequest(client, randomTemp + ".0 C");
             }
 
             // print response code and the message from the RS
             System.out.println("\nResponse Code:       " + res.getCode() + " - " + res.advanced().getCode().name());
-            System.out.println(  "Response Message  :  " + res.getResponseText() + "\n");
+            System.out.println(  "Response Message:    " + res.getResponseText() + "\n");
 
-            if (!CoAP.ResponseCode.isSuccess(res.advanced().getCode())){
-                System.out.println("Received an error code. Terminating.");
-                break;
-            }
+//            if (!CoAP.ResponseCode.isSuccess(res.advanced().getCode())){
+//                System.out.println("Received an error code. Terminating.");
+//                break;
+//            }
             count++;
             sleep(3000);
         }
@@ -254,5 +272,22 @@ public class OscoreProtObserveCTestClient {
        return c.advanced(req);
    }
 
+    public static CoapResponse doGetRequest(CoapClient client) throws Exception {
+
+        Request req = new Request(CoAP.Code.GET);
+        req.getOptions().setOscore(new byte[0]);
+        return client.advanced(req);
+    }
+
+
+    public static CoapResponse doPostRequest(CoapClient client, String payload) throws Exception{
+
+        Request req = new Request(CoAP.Code.POST);
+        req.getOptions().setOscore(new byte[0]);
+        req.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
+        CBORObject payloadCbor  = CBORObject.FromObject(payload);
+        req.setPayload(payloadCbor.EncodeToBytes());
+        return client.advanced(req);
+    }
 }
 

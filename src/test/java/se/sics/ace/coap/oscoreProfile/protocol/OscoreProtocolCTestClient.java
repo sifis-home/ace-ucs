@@ -52,7 +52,7 @@ import static java.lang.Thread.sleep;
  */
 
 /**
- * This test verifies that a token with multiple scopes can be used to retrieve different protected resources
+ * This test verifies that a token can be used to retrieve different protected resources
  * Also, it tests the interaction between the client and both the servers.
  *
  * Procedure:
@@ -61,10 +61,12 @@ import static java.lang.Thread.sleep;
  * 3) Run the OscoreProtocolCTestServer.java
  *
  *  Test explained:
- *  clientA makes a token request to AS. It asks for the scopes "r_temp w_temp r_helloWorld foobar" at the RS "rs1".
- *  AS generates a token for the allowed scopes, i.e., r_temp, w_temp and r_helloWorld, and sends it to the client
- *  together with other claims.
- *  The client posts the token, a nounce N1, and its own OSCORE recipient Id ID1 to authz-info endpoint.
+ *  The Client "clientA" makes a token request to AS. It asks for the scope "r_temp w_temp r_helloWorld foobar" (that
+ *  identifies the resources "r_temp", "w_temp", "r_helloWorld",and "foobar") at the RS "rs1".
+ *  AS generates a token for the allowed resources, i.e., "r_temp", "w_temp", and "r_helloWorld", and sends the scope
+ *  "r_temp w_temp r_helloWorld" to the client together with other claims.
+ *
+ *  The client posts the token, a nounce N1, and its own OSCORE recipient Id ID1 to the authz-info endpoint at the RS.
  *  The RS replies with a nounce N2 and the OSCORE sender Id ID2 (from client point of view, ID2 is the sender ID).
  *  The client sets the URI specifying the resource (e.g., "coap://localhost:" + RS_COAP_SECURE_PORT + "/temp")
  *  and makes the request.
@@ -104,6 +106,8 @@ public class OscoreProtocolCTestClient {
 
     private static List<Set<Integer>> usedRecipientIds = new ArrayList<>();
 
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
+
     public OscoreProtocolCTestClient(String id, byte[] key128, Integer port){
 
         OscoreProtocolCTestClient.clientId = id;
@@ -121,7 +125,7 @@ public class OscoreProtocolCTestClient {
         ctx = new OSCoreCtx(key128, true, null,
                 new byte[] {0x22}, // client identity
                 new byte[] {0x33}, // AS identity
-                null, null, null, null);
+                null, null, null, null, MAX_UNFRAGMENTED_SIZE);
 
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
 
@@ -131,10 +135,9 @@ public class OscoreProtocolCTestClient {
             usedRecipientIds.add(new HashSet<>());
         }
 
-        // Client-to-AS request and response
-
         System.out.println("\n--------STARTING COMMUNICATION WITH AS--------\n");
 
+        // 1. Make Access Token request to the /token endpoint
         // fill params
         CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs1"),
@@ -157,6 +160,7 @@ public class OscoreProtocolCTestClient {
 
         System.out.println("\n------STARTING COMMUNICATION WITH RS (1)----\n");
 
+        // 2. Post the Access Token to the /authz-info endpoint at the RS
         Response rsRes = OSCOREProfileRequests.postToken(
                 "coap://localhost:" + RS_COAP_PORT + "/authz-info", response, ctxDB, usedRecipientIds);
 
@@ -168,6 +172,7 @@ public class OscoreProtocolCTestClient {
 //        doGetRequest("temp");
 //        doPostRequest("temp", "22.0 C");
 
+        // 3. Make GET and POST requests to access the resources
         int count = 0;
         int randomTemp;
         CoapResponse res;
@@ -183,10 +188,10 @@ public class OscoreProtocolCTestClient {
             System.out.println("\nResponse Code:       " + res.getCode() + " - " + res.advanced().getCode().name());
             System.out.println(  "Response Message  :  " + res.getResponseText() + "\n");
 
-            if (!CoAP.ResponseCode.isSuccess(res.advanced().getCode())){
-                System.out.println("Received an error code. Terminating.");
-                return;
-            }
+//            if (!CoAP.ResponseCode.isSuccess(res.advanced().getCode())){
+//                System.out.println("Received an error code. Terminating.");
+//                return;
+//            }
             count++;
             sleep(3000);
         }

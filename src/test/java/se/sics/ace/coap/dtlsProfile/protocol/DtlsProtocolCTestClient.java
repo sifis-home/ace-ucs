@@ -44,7 +44,7 @@ import static java.lang.Thread.sleep;
  */
 
 /**
- * This test verifies that a token with multiple scopes can be used to retrieve different protected resources
+ * This test verifies that a token can be used to retrieve different protected resources
  * Also, it tests the interaction between the client and both the servers.
  * The mode (PSK or RPK) can be specified as input of the Main method:
  * -psku:   (psk unprotected). In C2RS communication, post the token to authz-info and then request
@@ -57,13 +57,16 @@ import static java.lang.Thread.sleep;
  * 3) Run the DtlsProtocolCTestServer.java
  *
  *  Test explained:
- *  clientA makes a token request to AS. It asks for the scopes "r_temp r_helloWorld foobar" at the RS "rs1".
- *  AS generates a token for the allowed scopes, i.e., r_temp and r_helloWorld, and sends it to the client
- *  together with other claims.
+ *  The Client "clientA" makes a token request to AS. It asks for the scope "r_temp w_temp r_helloWorld foobar" (that
+ *  identifies the resources "r_temp", "w_temp", "r_helloWorld",and "foobar") at the RS "rs1".
+ *  AS generates a token for the allowed resources, i.e., "r_temp", "w_temp", and "r_helloWorld", and sends the scope
+ *  "r_temp w_temp r_helloWorld" to the client together with other claims.
+ *
  *  In PSK unprotected mode, the client posts the access token on an unprotected channel. Then, it uses the key
- *  identifier (COSE kid) as psk-identity in the DTLS handshake.
- *  In PSK mode, the client uses the access token as psk-identity in the DTLS handshake.
- *  In RPK mode, the client extracts the RS public key from the RS_CNF claim and uses it in the DTLS handshake.
+ *  identifier (COSE kid) as psk-identity in the DTLS handshake with the RS.
+ *  In PSK mode, the client uses the access token as psk-identity in the DTLS handshake with the RS.
+ *  In RPK mode, the client extracts the RS public key from the RS_CNF claim and uses it in the DTLS handshake with
+ *  the RS.
  *  The client sets the URI specifying the resource (e.g., "coap://localhost:" + RS_COAP_SECURE_PORT + "/temp")
  *  and makes the request.
  *  The request might be either a GET, to obtain the reading of a protected resource, or a POST, to modify the value of
@@ -90,7 +93,7 @@ public class DtlsProtocolCTestClient {
     static byte[] key128 = {'C', '-', 'A', 'S', ' ', 'P', 'S', 'K', 9, 10, 11, 12, 13, 14, 15, 16};
 
     /**
-     * Client asymmetric key
+     * Client asymmetric key, used in RPK mode
      */
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
 
@@ -141,29 +144,34 @@ public class DtlsProtocolCTestClient {
             }
         }
 
+        OneKey psk = null;
+        if (pskProfile) {
+            psk = initPsk();
+        }
+
         System.out.println("\n--------STARTING COMMUNICATION WITH AS--------\n");
 
+        // 1. Make Access Token request to the /token endpoint
         // fill params
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp w_temp r_helloWorld foobar"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
 
-        OneKey psk = null;
-
+        InetSocketAddress asAddress
+                = new InetSocketAddress("localhost", CoAP.DEFAULT_COAP_SECURE_PORT);
         CoapResponse responseAs;
         if (pskProfile) {
-            psk = initPsk();
-            responseAs = DTLSProfileRequests.getToken("coaps://localhost/token",
+            responseAs = DTLSProfileRequests.getToken(asAddress, "token",
                     Constants.getCBOR(params), psk);
         }
         else {
             OneKey clientPublicKey = clientAsymKey.PublicKey();
-            CBORObject cnf = CBORObject.NewMap();
-            cnf.Add(Constants.COSE_KEY_CBOR, clientPublicKey.AsCBOR());
-            params.put(Constants.CNF, cnf);
+            CBORObject reqCnf = CBORObject.NewMap();
+            reqCnf.Add(Constants.COSE_KEY_CBOR, clientPublicKey.AsCBOR());
+            params.put(Constants.REQ_CNF, reqCnf);
 
-            responseAs = DTLSProfileRequests.getToken("coaps://localhost/token",
+            responseAs = DTLSProfileRequests.getToken(asAddress, "token",
                     Constants.getCBOR(params), clientAsymKey);
         }
 
@@ -171,7 +179,6 @@ public class DtlsProtocolCTestClient {
 
         CBORObject resAs = CBORObject.DecodeFromBytes(responseAs.getPayload());
         Map<Short, CBORObject> mapAs = Constants.getParams(resAs);
-
 
         // print response code and the retrieved claims
         System.out.println("Response Code:   " + responseAs.getCode() + " - " + responseAs.advanced().getCode().name());
@@ -184,8 +191,8 @@ public class DtlsProtocolCTestClient {
 
         System.out.println("\n------STARTING COMMUNICATION WITH RS (1)----\n");
 
+        // 2. Post the Access Token to the /authz-info endpoint at the RS
         CoapClient c2rs;
-
         if (pskProfile) {
             // use the COSE key contained in the CNF claim to build the PoP key to use with the RS
             CBORObject coseKey = mapAs.get(Constants.CNF).get(Constants.COSE_KEY);
@@ -223,6 +230,7 @@ public class DtlsProtocolCTestClient {
             Assert.assertNotNull(cbor);
 
             // get RS public key from RS_CNF claim
+            // FIXME: MAPAS DOES NOT CONTAIN RS_CNF
             CBORObject coseKey = mapAs.get(Constants.RS_CNF).get(Constants.COSE_KEY);
             OneKey rsAsymKey = new OneKey(coseKey);
 
@@ -235,6 +243,7 @@ public class DtlsProtocolCTestClient {
 //        doPostRequest(c2rs, "temp", "22.0 C");
 //        doGetRequest(c2rs, "helloWorld");
 
+        // 3. Make GET and POST requests to access the resources
         int count = 0;
         int randomTemp;
         CoapResponse res;
@@ -250,10 +259,10 @@ public class DtlsProtocolCTestClient {
             System.out.println("\nResponse Code:       " + res.getCode() + " - " + res.advanced().getCode().name());
             System.out.println(  "Response Message  :  " + res.getResponseText() + "\n");
 
-            if (!CoAP.ResponseCode.isSuccess(res.advanced().getCode())){
-                System.out.println("Received an error code. Terminating.");
-                return;
-            }
+//            if (!CoAP.ResponseCode.isSuccess(res.advanced().getCode())){
+//                System.out.println("Received an error code. Terminating.");
+//                return;
+//            }
             count++;
             sleep(3000);
         }

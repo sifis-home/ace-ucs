@@ -2,31 +2,31 @@
  * Copyright (c) 2019, RISE AB
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
  * are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice, 
+ * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright notice, 
- *    this list of conditions and the following disclaimer in the documentation 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  *
  * 3. Neither the name of the copyright holder nor the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
- * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile.observe;
@@ -41,12 +41,18 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -67,14 +73,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.security.cert.X509Certificate;
 import java.util.*;
 
 /**
- * Server for testing the DTLSProfileDeliverer class. 
- * 
- * The Junit tests are in TestDtlspClient, 
- * which will automatically start this server.
- * 
+ * Resource Server to test with DtlsProtObserveCTestClient
+ *
  * @author Marco Rasori
  *
  */
@@ -85,27 +89,27 @@ public class DtlsProtObserveRSTestServer {
      * Definition of the Hello-World Resource
      */
     public static class HelloWorldResource extends CoapResource {
-        
+
         /**
          * Constructor
          */
         public HelloWorldResource() {
-            
+
             // set resource identifier
             super("helloWorld");
-            
+
             // set display name
             getAttributes().setTitle("Hello-World Resource");
         }
 
         @Override
         public void handleGET(CoapExchange exchange) {
-            
+
             // respond to the request
             exchange.respond("Hello World!");
         }
     }
-    
+
     /**
      * Definition of the Temp Resource
      */
@@ -116,17 +120,17 @@ public class DtlsProtObserveRSTestServer {
          * Constructor
          */
         public TempResource() {
-            
+
             // set resource identifier
             super("temp");
-            
+
             // set display name
             getAttributes().setTitle("Temp Resource");
         }
 
         @Override
         public void handleGET(CoapExchange exchange) {
-            
+
             // respond to the request
             exchange.respond(tempStr);
         }
@@ -144,11 +148,11 @@ public class DtlsProtObserveRSTestServer {
         }
 
     }
-    
+
     private static AuthzInfo ai = null;
-    
+
     private static CoapServer rs = null;
-    
+
     private static CoapDeliverer dpd = null;
 
     /*
@@ -162,10 +166,10 @@ public class DtlsProtObserveRSTestServer {
      * RS Asymmetric key (ECDSA_256)
      */
     private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
-    
+
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
-     *  
+     *
      * @param args
      * @throws Exception
      */
@@ -178,7 +182,7 @@ public class DtlsProtObserveRSTestServer {
         myResource.put("helloWorld", actions);
         Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
         myScopes.put("r_helloWorld", myResource);
-        
+
         Set<Short> actions2 = new HashSet<>();
         actions2.add(Constants.GET);
         Map<String, Set<Short>> myResource2 = new HashMap<>();
@@ -190,25 +194,21 @@ public class DtlsProtObserveRSTestServer {
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put("temp", actions3);
         myScopes.put("w_temp", myResource3);
-        
+
         String rsId = "rs1";
-        
+
         KissValidator valid = new KissValidator(Collections.singleton("rs1"), myScopes);
-
-
-        //Symmetric key for the pre-shared authentication key shared with an RS
-        byte[] key128Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'A', 'u', 't', 'h', 'K', 14, 15, 16};
 
         //Symmetric key shared with the AS. The AS can protect the tokens with this key.
         byte[] key256Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'K', 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
 
         byte[] keyDerivationKey = {'f', 'f', 'f', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        
+
         int derivedKeySize = 16;
 
         // RS asymmetric key (used in RPK mode)
         OneKey asymmetric = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpk)));
-        
+
         // Set up COSE parameters using the psk (key256) shared with the AS.
         // In PSK mode, this secret information will be used to decrypt the token
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
@@ -225,11 +225,11 @@ public class DtlsProtObserveRSTestServer {
       ai = new AuthzInfo(Collections.singletonList("AS"),
                 new KissTime(), null, rsId, valid, ctx, keyDerivationKey, derivedKeySize,
                 tokenFile, valid, false);
-      
+
       // process an in-house-built token
       addTestToken(ctx);
 
-      AsRequestCreationHints archm 
+      AsRequestCreationHints archm
           = new AsRequestCreationHints(
                   "coaps://blah/authz-info/", null, false, false);
       Resource hello = new HelloWorldResource();
@@ -241,22 +241,30 @@ public class DtlsProtObserveRSTestServer {
       rs.add(temp);
       rs.add(authzInfo);
 
-      dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
+      dpd = new CoapDeliverer(rs.getRoot(), null, archm);
 
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
 
-      DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
-              .setAddress(
-                      new InetSocketAddress(RS_COAP_SECURE_PORT));
-        config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
+        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
+                .setAddress(
+                        new InetSocketAddress(RS_COAP_SECURE_PORT));
+
         DtlspPskStore psk = new DtlspPskStore(ai);
-        config.setPskStore(psk);
-        config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-        config.setClientAuthenticationRequired(true);
-        config.setRpkTrustAll();
+        config.setAdvancedPskStore(psk);
+        config.setCertificateIdentityProvider(
+                new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+                new RawPublicKeyIdentity[0], certTypes);
+        config.setAdvancedCertificateVerifier(verifier);
+
         DTLSConnector connector = new DTLSConnector(config.build());
         CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
-                .setNetworkConfig(NetworkConfig.getStandard()).build();
+                .setConfiguration(Configuration.getStandard()).build();
         rs.addEndpoint(cep);
         //Add a CoAP (no 's') endpoint for authz-info
         CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(
@@ -288,9 +296,9 @@ public class DtlsProtObserveRSTestServer {
 
     /**
      * Stops the server
-     * 
-     * @throws IOException 
-     * @throws AceException 
+     *
+     * @throws IOException
+     * @throws AceException
      */
     public static void stop() throws IOException, AceException {
         rs.stop();

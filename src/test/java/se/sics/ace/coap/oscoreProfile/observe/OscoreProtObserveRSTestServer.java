@@ -60,8 +60,9 @@ import java.security.SecureRandom;
 import java.util.*;
 
 /**
- * A RS for testing the OSCORE profile of ACE (https://datatracker.ietf.org/doc/draft-ietf-ace-oscore-profile)
- * @author Ludwig Seitz
+ * Resource Server to test with OscoreProtObserveCTestClient
+ *
+ * @author Marco Rasori
  *
  */
 public class OscoreProtObserveRSTestServer {

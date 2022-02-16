@@ -50,12 +50,9 @@ import se.sics.ace.ucs.UcsHelper;
 import java.util.*;
 
 /**
- * The server to run the client tests against.
- * 
- * The Junit tests are in TestCoAPClient, 
- * which will automatically start this server.
- * 
- * @author Ludwig Seitz and Marco Tiloca
+ * Authorization Server to test with OscoreProtocolCTestClient
+ *
+ * @author Marco Rasori
  *
  */
 public class OscoreProtocolASTestServer

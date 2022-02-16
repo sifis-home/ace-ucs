@@ -34,23 +34,26 @@ package se.sics.ace.coap.dtlsProfile.protocol;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.security.cert.X509Certificate;
+import java.util.*;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+
+import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -64,7 +67,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
-import se.sics.ace.coap.rs.dtlsProfile.DtlspIntrospection;
+//import se.sics.ace.coap.rs.dtlsProfile.DtlspIntrospection;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -75,10 +78,7 @@ import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.AuthzInfo;
 
 /**
- * Server for testing the DTLSProfileDeliverer class. 
- * 
- * The Junit tests are in TestDtlspClient, 
- * which will automatically start this server.
+ * Resource Server to test with DtlsProtocolCTestClient
  * 
  * @author Marco Rasori
  *
@@ -242,22 +242,30 @@ public class DtlsProtocolRSTestServer {
       rs.add(temp);
       rs.add(authzInfo);
 
-      dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
+      dpd = new CoapDeliverer(rs.getRoot(), null, archm);
 
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
 
-      DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
-              .setAddress(
-                      new InetSocketAddress(RS_COAP_SECURE_PORT));
-        config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
+        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
+                .setAddress(
+                        new InetSocketAddress(RS_COAP_SECURE_PORT));
+
         DtlspPskStore psk = new DtlspPskStore(ai);
-        config.setPskStore(psk);
-        config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-        config.setClientAuthenticationRequired(true);
-        config.setRpkTrustAll();
+        config.setAdvancedPskStore(psk);
+        config.setCertificateIdentityProvider(
+                new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+                new RawPublicKeyIdentity[0], certTypes);
+        config.setAdvancedCertificateVerifier(verifier);
+
         DTLSConnector connector = new DTLSConnector(config.build());
         CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
-                .setNetworkConfig(NetworkConfig.getStandard()).build();
+                .setConfiguration(Configuration.getStandard()).build();
         rs.addEndpoint(cep);
         //Add a CoAP (no 's') endpoint for authz-info
         CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(
