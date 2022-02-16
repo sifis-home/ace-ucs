@@ -795,6 +795,9 @@ public class TestTokenUCS {
         Long ctiCtrEnd = db.getCtiCounter();
         //assert(ctiCtrEnd == ctiCtrStart+10);
 //        assert(ctiCtrEnd == ctiCtrStart);
+        // if EXI is used, ctiCtrEnd == ctiCtrStart
+        // if EXP is used, ctiCtrEnd == ctiCtrStart+10
+        // This test cannot check whether EXI or EXP is used.
         assert(ctiCtrEnd.equals(ctiCtrStart));
     }
 
