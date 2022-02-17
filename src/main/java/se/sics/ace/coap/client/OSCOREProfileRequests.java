@@ -63,7 +63,7 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Util;
-import se.sics.ace.coap.as.myCoapHandler;
+import se.sics.ace.coap.CoapNotificationHandler;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 
 
@@ -131,7 +131,7 @@ public class OSCOREProfileRequests {
 
         client.setURI(asAddr);
 
-        myCoapHandler handler = new myCoapHandler();
+        CoapNotificationHandler handler = new CoapNotificationHandler();
         return client.observe(req, handler);
 
     }
@@ -215,7 +215,7 @@ public class OSCOREProfileRequests {
         req.setToken(token);
         req.setObserve();
 
-        myCoapHandler handler = new myCoapHandler();
+        CoapNotificationHandler handler = new CoapNotificationHandler();
         return client.observe(req, handler);
 
     }

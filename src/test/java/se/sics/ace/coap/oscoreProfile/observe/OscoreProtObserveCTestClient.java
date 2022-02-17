@@ -2,27 +2,17 @@ package se.sics.ace.coap.oscoreProfile.observe;
 
 import com.upokecenter.cbor.CBORObject;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
-import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.client.GetToken;
-import se.sics.ace.coap.as.myCoapHandler;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.*;
 

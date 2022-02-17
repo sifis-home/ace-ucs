@@ -71,7 +71,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Util;
-import se.sics.ace.coap.as.myCoapHandler;
+import se.sics.ace.coap.CoapNotificationHandler;
 
 /**
  * Implements getting a token from the /token endpoint for a client 
@@ -328,7 +328,7 @@ public class DTLSProfileRequests {
         req.setToken(token);
         req.setObserve();
 
-        myCoapHandler handler = new myCoapHandler();
+        CoapNotificationHandler handler = new CoapNotificationHandler();
         return client.observe(req, handler);
     }
 

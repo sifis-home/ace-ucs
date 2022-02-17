@@ -1,4 +1,4 @@
-package se.sics.ace.coap.as;
+package se.sics.ace.coap;
 
 /*******************************************************************************
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
@@ -24,8 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.upokecenter.cbor.CBORObject;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.ace.Constants;
@@ -36,9 +34,9 @@ import se.sics.ace.Constants;
  * Counts callbacks, records responses, and forwards failures to main testing
  * thread on all "wait???" methods.
  */
-public class myCoapHandler implements CoapHandler {
+public class CoapNotificationHandler implements CoapHandler {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(myCoapHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CoapNotificationHandler.class);
 
     /**
      * Current read index for {@link #waitOnLoad(long)}
@@ -108,19 +106,7 @@ public class myCoapHandler implements CoapHandler {
             String content = response.getResponseText();
             System.out.println("NOTIFICATION: " + content);
         }
-
-
-//        // Check the incoming responses
-//        assertEquals(CoAP.ResponseCode.CONTENT, response.getCode());
-//        assertEquals(MediaTypeRegistry.TEXT_PLAIN, response.getOptions().getContentFormat());
-//
-//        if (loadCalls.get() == 1) {
-//            assertTrue(response.getOptions().hasObserve());
-//            assertEquals("one", response.getResponseText());
-//        } else if (loadCalls.get() == 2) {
-//            assertTrue(response.getOptions().hasObserve());
-//            assertEquals("two", response.getResponseText());
-        }
+    }
 
     @Override
     public final void onError() {
