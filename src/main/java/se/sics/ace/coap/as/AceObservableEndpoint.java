@@ -74,7 +74,7 @@ public class AceObservableEndpoint extends CoapResource implements AutoCloseable
         super(name, true);
         this.e = e;
         this.setObservable(true);
-        this.setObserveType(CoAP.Type.NON);
+        this.setObserveType(CoAP.Type.CON);
         this.getAttributes().setObservable();
     }
 
