@@ -7,6 +7,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -16,6 +17,7 @@ import COSE.AlgorithmID;
 import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
+import org.bouncycastle.crypto.digests.SHA256Digest;
 
 public class Util {
 
@@ -406,5 +408,30 @@ public class Util {
         return pubKey;
 		
 	}
+
+    /**
+     * Generate a hash value as per Section 6 of RFC6920.
+     * The Suite ID is fixed to 1 (Section 9.4 of RFC6920).
+     * The resulting tokenHashB is | 0x01 | hashInputB |
+     * size: 33 bytes = (8 + 256) bit
+     *
+     * @param accessToken the Access Token encoded in bytes. It is exactly the same
+     *                    as the one placed in the CBOR map created by the AS
+     *                    in response to an Access Token request
+     * @return the string representation (encoded in Base64) of the hash
+     */
+    public static String computeTokenHash(CBORObject accessToken) {
+
+        CBORObject hashInput = accessToken;
+        byte[] hashInputB = hashInput.EncodeToBytes();
+
+        SHA256Digest digest = new SHA256Digest();
+        digest.update(hashInputB, 0, hashInputB.length);
+        byte[] tokenHashB = new byte[1 + digest.getDigestSize()];
+        digest.doFinal(tokenHashB, 1);
+        tokenHashB[0] = (byte) 0x01;
+
+        return Base64.getEncoder().encodeToString(tokenHashB);
+    }
     
 }

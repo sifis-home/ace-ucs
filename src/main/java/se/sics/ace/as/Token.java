@@ -1557,7 +1557,8 @@ public class Token implements Endpoint, AutoCloseable {
 				this.pdp.updateSessionsWithCti(ctiStr, evalId);
 			}
 			//if (trl != null)
-			String tokenHashStr = computeTokenHash(rsInfo.get(Constants.ACCESS_TOKEN));
+			String tokenHashStr = Util.computeTokenHash(rsInfo.get(Constants.ACCESS_TOKEN));
+
 			this.db.addCti2TokenHash(ctiStr, tokenHashStr);
 
 		} catch (AceException e) {
@@ -1869,25 +1870,25 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 	}
 
-	String computeTokenHash(CBORObject accessToken) {
-		//if (rsInfo.get(Constants.ACCESS_TOKEN) instanceof CBORObject) ...
-//				CBORObject encodedToken = (rsInfo.get(Constants.ACCESS_TOKEN));
-//				CBORObject hashInput = encodedToken;
-		CBORObject hashInput = accessToken;
-		byte[] hashInputB = hashInput.EncodeToBytes();
-
-		// Generation of the hash value as per Section 6 of RFC6920.
-		// Fixed Suite ID to 1 (Section 9.4 of RFC6920).
-		// The resulting tokenHashB is | 0x01 | hashInputB |
-		// size: 33 bytes = (8 + 256) bit
-		SHA256Digest digest = new SHA256Digest();
-		digest.update(hashInputB, 0, hashInputB.length);
-		byte[] tokenHashB = new byte[1 + digest.getDigestSize()];
-		digest.doFinal(tokenHashB, 1);
-		tokenHashB[0] = (byte) 0x01;
-
-		return Base64.getEncoder().encodeToString(tokenHashB);
-	}
+//	String computeTokenHash(CBORObject accessToken) {
+//		//if (rsInfo.get(Constants.ACCESS_TOKEN) instanceof CBORObject) ...
+////				CBORObject encodedToken = (rsInfo.get(Constants.ACCESS_TOKEN));
+////				CBORObject hashInput = encodedToken;
+//		CBORObject hashInput = accessToken;
+//		byte[] hashInputB = hashInput.EncodeToBytes();
+//
+//		// Generation of the hash value as per Section 6 of RFC6920.
+//		// Fixed Suite ID to 1 (Section 9.4 of RFC6920).
+//		// The resulting tokenHashB is | 0x01 | hashInputB |
+//		// size: 33 bytes = (8 + 256) bit
+//		SHA256Digest digest = new SHA256Digest();
+//		digest.update(hashInputB, 0, hashInputB.length);
+//		byte[] tokenHashB = new byte[1 + digest.getDigestSize()];
+//		digest.doFinal(tokenHashB, 1);
+//		tokenHashB[0] = (byte) 0x01;
+//
+//		return Base64.getEncoder().encodeToString(tokenHashB);
+//	}
 
 	/**
 	  * Relevant only when the OSCORE profile is used
