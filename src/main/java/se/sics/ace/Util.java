@@ -383,8 +383,8 @@ public class Util {
     /**
      * Extract a public key from a CWT Claims Set (CCS) and return it as a OneKey object
      *  
-     * @param identityKey   The public key as a OneKey object
-     * @param subjectName   The subject name associated to this key, it can be an empty string
+//     * @param identityKey   The public key as a OneKey object
+//     * @param subjectName   The subject name associated to this key, it can be an empty string
      * @return  The CCS as a CBOR map, or null in case of errors
      */
 	public static OneKey ccsToOneKey(CBORObject ccs) {
@@ -420,18 +420,20 @@ public class Util {
      *                    in response to an Access Token request
      * @return the string representation (encoded in Base64) of the hash
      */
-    public static String computeTokenHash(CBORObject accessToken) {
+    public static String computeTokenHash(CBORObject accessToken) throws AceException {
 
-        CBORObject hashInput = accessToken;
-        byte[] hashInputB = hashInput.EncodeToBytes();
+        if (accessToken != null) {
+            byte[] hashInputB = accessToken.EncodeToBytes();
 
-        SHA256Digest digest = new SHA256Digest();
-        digest.update(hashInputB, 0, hashInputB.length);
-        byte[] tokenHashB = new byte[1 + digest.getDigestSize()];
-        digest.doFinal(tokenHashB, 1);
-        tokenHashB[0] = (byte) 0x01;
+            SHA256Digest digest = new SHA256Digest();
+            digest.update(hashInputB, 0, hashInputB.length);
+            byte[] tokenHashB = new byte[1 + digest.getDigestSize()];
+            digest.doFinal(tokenHashB, 1);
+            tokenHashB[0] = (byte) 0x01;
 
-        return Base64.getEncoder().encodeToString(tokenHashB);
+            return Base64.getEncoder().encodeToString(tokenHashB);
+        } else {
+            throw new AceException("Access token cannot be null");
+        }
     }
-    
 }
