@@ -46,10 +46,7 @@ import org.eclipse.californium.oscore.OSException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import se.sics.ace.AceException;
-import se.sics.ace.Constants;
-import se.sics.ace.Message;
-import se.sics.ace.TimeProvider;
+import se.sics.ace.*;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.rs.AudienceValidator;
@@ -85,7 +82,6 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	/**
 	 * Constructor.
 	 * 
-	 * @param tr  a token repository
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
@@ -93,18 +89,19 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
 	 * @param tokenFile  the file where to save tokens when persisting
+	 * @param tokenHashesFile  the file where to save token hashes for the trl
      * @param scopeValidator  the application specific scope validator 
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
 	 * @throws IOException 
 	 * @throws AceException 
 	 */
-	public OscoreAuthzInfo(List<String> issuers, 
-			TimeProvider time, IntrospectionHandler intro, String rsId, 
-			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
-			ScopeValidator scopeValidator, boolean checkCnonce) 
+	public OscoreAuthzInfo(List<String> issuers,
+						   TimeProvider time, IntrospectionHandler intro, String rsId,
+						   AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
+						   String tokenHashesFile, ScopeValidator scopeValidator, boolean checkCnonce)
 			        throws AceException, IOException {
 		
-		super(issuers, time, intro, rsId, audience, ctx, null, 0, tokenFile, 
+		super(issuers, time, intro, rsId, audience, ctx, null, 0, tokenFile, tokenHashesFile,
 		        scopeValidator, checkCnonce);
 	}
 

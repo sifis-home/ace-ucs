@@ -60,11 +60,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -304,12 +300,14 @@ public class TestDtlspPskStoreGroupOSCORE {
         String rsId = "rs1";
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        //Delete lingering old token files
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        //Delete lingering old files
         new File(tokenFile).delete();
+        new File(tokenHashesFile).delete();
         
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, null, 0,
-                tokenFile, valid, false);
+                tokenFile, tokenHashesFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -326,6 +324,7 @@ public class TestDtlspPskStoreGroupOSCORE {
     public static void tearDown() throws AceException  {
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }  
     
     

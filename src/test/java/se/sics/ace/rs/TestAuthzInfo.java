@@ -55,13 +55,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.DBHelper;
-import se.sics.ace.Message;
-import se.sics.ace.ReferenceToken;
-import se.sics.ace.TestConfig;
+import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.cwt.CWT;
@@ -99,9 +93,10 @@ public class TestAuthzInfo {
      */
     @BeforeClass
     public static void setUp() throws SQLException, AceException, IOException, CoseException {
-        //Delete lingering old token file
+        //Delete lingering old files
         new File(TestConfig.testFilePath + "tokens.json").delete();
-        
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
+
         DBHelper.setUpDB();
         db = DBHelper.getSQLConnector();
 
@@ -156,7 +151,11 @@ public class TestAuthzInfo {
         
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
 
-        String tokenFile = TestConfig.testFilePath + "tokens.json";      
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        new File(tokenFile).delete();
+        new File(tokenHashesFile).delete();
+
         coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
@@ -168,7 +167,8 @@ public class TestAuthzInfo {
         
         ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
 		                   new IntrospectionHandler4Tests(i, rsId, "TestAS"), rsId,
-		                   valid, ctx, null, 0, tokenFile, valid, false);
+		                   valid, ctx, null, 0, tokenFile, tokenHashesFile, valid,
+                           false);
         
         
         // A separate authz-info endpoint is required for each Resource Server, here "rs2",
@@ -181,7 +181,8 @@ public class TestAuthzInfo {
         // expects Access Tokens stored at the AS and possible to introspect to specify an audience.
         // This enables some of the tests below to focus on error conditions and achieve the expected outcomes.
         ai2 = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
-        					null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
+        					null, rsId, valid, ctx, null, 0, tokenFile, tokenHashesFile,
+                            valid,false);
         
     }
 
@@ -197,6 +198,7 @@ public class TestAuthzInfo {
         ai.close();
         i.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
     
     /**

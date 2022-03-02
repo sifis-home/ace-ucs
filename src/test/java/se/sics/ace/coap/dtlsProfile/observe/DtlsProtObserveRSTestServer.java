@@ -53,10 +53,7 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
+import se.sics.ace.*;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
@@ -215,16 +212,21 @@ public class DtlsProtObserveRSTestServer {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key256Rs, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        //Delete lingering old token files
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        //Delete lingering old files
         File tFile = new File(tokenFile);
         if (!tFile.delete() && tFile.exists()) {
             throw new IOException("Failed to delete " + tFile);
+        }
+        File thFile = new File(tokenHashesFile);
+        if (!thFile.delete() && thFile.exists()) {
+            throw new IOException("Failed to delete " + thFile);
         }
 
       //Set up the inner Authz-Info library
       ai = new AuthzInfo(Collections.singletonList("AS"),
                 new KissTime(), null, rsId, valid, ctx, keyDerivationKey, derivedKeySize,
-                tokenFile, valid, false);
+                tokenFile, tokenHashesFile, valid, false);
 
       // process an in-house-built token
       addTestToken(ctx);
@@ -306,6 +308,10 @@ public class DtlsProtObserveRSTestServer {
         File tFile = new File(TestConfig.testFilePath + "tokens.json");
         if (!tFile.delete() && tFile.exists()) {
             throw new IOException("Failed to delete " + tFile);
+        }
+        File thFile = new File(TestConfig.testFilePath + "tokenhashes.json");
+        if (!thFile.delete() && thFile.exists()) {
+            throw new IOException("Failed to delete " + thFile);
         }
         System.out.println("Server stopped");
     }

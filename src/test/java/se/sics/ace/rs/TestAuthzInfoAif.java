@@ -54,12 +54,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.DBHelper;
-import se.sics.ace.Message;
-import se.sics.ace.TestConfig;
+import se.sics.ace.*;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.Aif;
@@ -82,7 +77,7 @@ public class TestAuthzInfoAif {
 
     private static AuthzInfo ai = null; 
     private static KissPDP pdp = null;
-    
+
     /**
      * Set up tests.
      * @throws SQLException 
@@ -92,8 +87,9 @@ public class TestAuthzInfoAif {
      */
     @BeforeClass
     public static void setUp() throws SQLException, AceException, IOException, CoseException {
-        //Delete lingering old token file
+        //Delete lingering old files
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
         DBHelper.setUpDB();
         db = DBHelper.getSQLConnector();
 
@@ -129,9 +125,13 @@ public class TestAuthzInfoAif {
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), null);
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        new File(tokenFile).delete();
+        new File(tokenHashesFile).delete();
+
         ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
-        				   null, rsId, valid, ctx, null, 0, tokenFile, aif, false);
+        				   null, rsId, valid, ctx, null, 0, tokenFile, tokenHashesFile,
+                           aif, false);
     }
     
     /**
@@ -144,6 +144,7 @@ public class TestAuthzInfoAif {
         pdp.close();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
      
     /**

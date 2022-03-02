@@ -72,12 +72,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.Message;
-import se.sics.ace.TestConfig;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -328,12 +323,15 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         String rsId = "rs1";
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        //Delete lingering token files
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        //Delete lingering files
         new File(tokenFile).delete();
+        new File(tokenHashesFile).delete();
         
         //Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
+                new KissTime(), null, rsId, valid, ctx, null, 0,
+                tokenFile, tokenHashesFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -344,7 +342,8 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // Tests on the audience "aud1" are just the same as in TestAuthzInfo,
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "aud2".
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
+                new KissTime(), null, rsId, valid, ctx, null, 0,
+                tokenFile, tokenHashesFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai2.setActiveGroups(activeGroups);
@@ -684,6 +683,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         ai.close();
         ai2.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
     
     /**

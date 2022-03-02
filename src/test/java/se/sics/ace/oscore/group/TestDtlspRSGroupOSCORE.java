@@ -84,11 +84,7 @@ import org.eclipse.californium.elements.config.Configuration;
 
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.cwt.CWT;
@@ -3093,8 +3089,10 @@ public class TestDtlspRSGroupOSCORE {
         String rsId = "rs1";
     	
     	String tokenFile = TestConfig.testFilePath + "tokens.json";
-    	//Delete lingering old token files
+		String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+    	//Delete lingering old files
     	new File(tokenFile).delete();
+		new File(tokenHashesFile).delete();
               
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -3110,7 +3108,8 @@ public class TestDtlspRSGroupOSCORE {
 
         // Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-        	 new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
+        	 new KissTime(), null, rsId, valid, ctx, null, 0,
+				tokenFile, tokenHashesFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -3621,7 +3620,8 @@ public class TestDtlspRSGroupOSCORE {
         rs.stop();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
-    }
+		new File(TestConfig.testFilePath + "tokenhashes.json").delete();
+	}
 
     /**
      * Return the role sets allowed to a subject in a group, based on all the Access Tokens for that subject

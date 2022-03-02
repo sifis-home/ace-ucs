@@ -54,11 +54,7 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -81,7 +77,7 @@ public class TestDtlspPskStore {
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
     private static AuthzInfo ai;
-    
+
     /**
      * Set up tests.
      *
@@ -111,10 +107,13 @@ public class TestDtlspPskStore {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        new File(tokenFile).delete(); 
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        new File(tokenFile).delete();
+        new File(tokenHashesFile).delete();
         
         ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
-                null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
+                null, rsId, valid, ctx, null, 0, tokenFile, tokenHashesFile, valid,
+                false);
         store = new DtlspPskStore(ai);
     }
     
@@ -127,6 +126,7 @@ public class TestDtlspPskStore {
     public static void tearDown() throws AceException  {
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }  
     
     

@@ -59,13 +59,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.DBHelper;
-import se.sics.ace.Message;
-import se.sics.ace.TestConfig;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.coap.CoapReq;
@@ -99,7 +93,7 @@ public class TestOscoreAuthzInfo {
     private static KissPDP pdp = null;
     
     private final static int MAX_UNFRAGMENTED_SIZE = 4096;
-    
+
     /**
      * Set up tests.
      * @throws SQLException 
@@ -172,8 +166,10 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        //Delete lingering token file from old test runs
-        new File(TestConfig.testFilePath + "tokens.json").delete();
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        //Delete lingering file from old test runs
+        new File(tokenFile).delete();
+        new File(tokenHashesFile).delete();
         
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
@@ -182,8 +178,8 @@ public class TestOscoreAuthzInfo {
         i = new Introspect(pdp, db, new KissTime(), key, null);
         
         ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(),  new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                rsId, valid, ctx, tokenFile, valid, false);
+                new KissTime(), new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
+                rsId, valid, ctx, tokenFile, tokenHashesFile, valid, false);
     }
     
     /**
@@ -197,6 +193,7 @@ public class TestOscoreAuthzInfo {
         i.close();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
     
     /**

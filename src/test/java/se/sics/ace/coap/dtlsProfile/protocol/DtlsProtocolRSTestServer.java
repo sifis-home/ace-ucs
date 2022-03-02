@@ -61,10 +61,7 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
+import se.sics.ace.*;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
 //import se.sics.ace.coap.rs.dtlsProfile.DtlspIntrospection;
@@ -167,7 +164,7 @@ public class DtlsProtocolRSTestServer {
      * RS Asymmetric key (ECDSA_256)
      */
     private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
-    
+
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
      *  
@@ -216,16 +213,21 @@ public class DtlsProtocolRSTestServer {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key256Rs, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        //Delete lingering old token files
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        //Delete lingering old files
         File tFile = new File(tokenFile);
         if (!tFile.delete() && tFile.exists()) {
             throw new IOException("Failed to delete " + tFile);
+        }
+        File thFile = new File(tokenHashesFile);
+        if (!thFile.delete() && thFile.exists()) {
+            throw new IOException("Failed to delete " + thFile);
         }
 
       //Set up the inner Authz-Info library
       ai = new AuthzInfo(Collections.singletonList("AS"),
                 new KissTime(), null, rsId, valid, ctx, keyDerivationKey, derivedKeySize,
-                tokenFile, valid, false);
+                tokenFile, tokenHashesFile, valid, false);
       
       // process an in-house-built token
       addTestToken(ctx);
@@ -289,6 +291,10 @@ public class DtlsProtocolRSTestServer {
         File tFile = new File(TestConfig.testFilePath + "tokens.json");
         if (!tFile.delete() && tFile.exists()) {
             throw new IOException("Failed to delete " + tFile);
+        }
+        File thFile = new File(TestConfig.testFilePath + "tokenhashes.json");
+        if (!thFile.delete() && thFile.exists()) {
+            throw new IOException("Failed to delete " + thFile);
         }
         System.out.println("Server stopped");
     }

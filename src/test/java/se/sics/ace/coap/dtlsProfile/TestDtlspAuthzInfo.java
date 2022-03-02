@@ -67,11 +67,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.Message;
-import se.sics.ace.TestConfig;
+import se.sics.ace.*;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -97,7 +93,7 @@ public class TestDtlspAuthzInfo {
     private static CoapAuthzInfo dai;
     private static CBORObject payload;
     private static CBORObject payload2;
-    
+
     /**
      * Set up the necessary objects.
      * 
@@ -132,7 +128,9 @@ public class TestDtlspAuthzInfo {
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);  
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        new File(tokenFile).delete(); 
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        new File(tokenFile).delete();
+        new File(tokenHashesFile).delete();
         
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -140,8 +138,8 @@ public class TestDtlspAuthzInfo {
         
         //Set up the inner Authz-Info library
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid,
-                false);
+                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile,
+                tokenHashesFile, valid, false);
         
         //Set up the DTLS authz-info resource
         dai = new CoapAuthzInfo(ai);
@@ -329,6 +327,7 @@ public class TestDtlspAuthzInfo {
     public static void tearDown() throws AceException {
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
     
     /**

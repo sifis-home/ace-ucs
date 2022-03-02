@@ -53,12 +53,7 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-import se.sics.ace.AccessToken;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
@@ -133,7 +128,7 @@ public class OscoreRSTestServer {
     private static CoapServer rs = null;
     
     private static CoapDeliverer dpd = null;  
-    
+
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
      *  
@@ -170,13 +165,15 @@ public class OscoreRSTestServer {
             = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        //Delete lingering old token files
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        //Delete lingering old files
         new File(tokenFile).delete();
-      
+        new File(tokenHashesFile).delete();
+
         //Set up the inner Authz-Info library
     	ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
                   new KissTime(), null, rsId, valid, ctx,
-                  tokenFile, valid, false);
+                  tokenFile, tokenHashesFile, valid, false);
       
         // Add a test token to authz-info
     	
@@ -238,13 +235,13 @@ public class OscoreRSTestServer {
     /**
      * Stops the server
      * 
-     * @throws IOException 
-     * @throws AceException 
+     * @throws AceException
      */
     public static void stop() throws AceException {
         rs.stop();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
 
 

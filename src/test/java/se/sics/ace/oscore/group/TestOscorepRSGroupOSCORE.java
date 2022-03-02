@@ -44,12 +44,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
-import se.sics.ace.AccessToken;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
@@ -291,11 +286,13 @@ public class TestOscorepRSGroupOSCORE {
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/policies"));
         
         String rsId = "rs1";
-        
+
         String tokenFile = TestConfig.testFilePath + "tokens.json";
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
         // Delete lingering old token files
         new File(tokenFile).delete();
-        
+        new File(tokenHashesFile).delete();
+
         byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
                    
         //Set up COSE parameters (enable for encrypting Tokens)
@@ -305,7 +302,8 @@ public class TestOscorepRSGroupOSCORE {
         //Set up the inner Authz-Info library
         //Changed this OscoreAuthzInfo->OscoreAuthzInfoGroupOSCORE
         ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                  new KissTime(), null, rsId, valid, ctx, tokenFile, valid, false);
+                  new KissTime(), null, rsId, valid, ctx,
+                  tokenFile, tokenHashesFile, valid, false);
       
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -410,13 +408,13 @@ public class TestOscorepRSGroupOSCORE {
     /**
      * Stops the server
      * 
-     * @throws IOException 
-     * @throws AceException 
+     * @throws AceException
      */
     public static void stop() throws AceException {
         rs.stop();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
 
     /**

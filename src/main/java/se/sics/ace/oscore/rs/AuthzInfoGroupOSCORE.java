@@ -44,10 +44,7 @@ import java.util.logging.Logger;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import se.sics.ace.AceException;
-import se.sics.ace.Constants;
-import se.sics.ace.Message;
-import se.sics.ace.TimeProvider;
+import se.sics.ace.*;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
@@ -105,19 +102,20 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @param keyDerivationKey  the key derivation key to use with the As, it can be null
 	 * @param derivedKeySize  the size in bytes of symmetric keys derived with the key derivation key
 	 * @param tokenFile  the file where to save tokens when persisting
+	 * @param tokenHashesFile  the file where to save token hashes for the trl
 	 * @param scopeValidator  the application specific scope validator 
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
-	 * @param activeGroups   OSCORE groups active under the Group Manager
+	 *
 	 * @throws AceException  if the token repository is not initialized
 	 * @throws IOException 
 	 */
-	public AuthzInfoGroupOSCORE(List<String> issuers, 
-			TimeProvider time, IntrospectionHandler intro, String rsId,
-			AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize,
-			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
+	public AuthzInfoGroupOSCORE(List<String> issuers,
+								TimeProvider time, IntrospectionHandler intro, String rsId,
+								AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize,
+								String tokenFile, String tokenHashesFile, ScopeValidator scopeValidator, boolean checkCnonce)
 			        throws AceException, IOException {
 		
-		super(issuers, time, intro, rsId, audience, ctx, keyDerivationKey, derivedKeySize, tokenFile, 
+		super(issuers, time, intro, rsId, audience, ctx, keyDerivationKey, derivedKeySize, tokenFile, tokenHashesFile,
 		        scopeValidator, checkCnonce);
 		
 		this.audience = (GroupOSCOREJoinValidator) audience;

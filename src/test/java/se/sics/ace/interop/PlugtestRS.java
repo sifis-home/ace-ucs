@@ -71,10 +71,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
+import se.sics.ace.*;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
@@ -209,7 +206,9 @@ public class PlugtestRS {
         
         //Try to delete the previous tokens config
         new File("tokens.json").delete();
-        
+        new File("tokenhashes.json").delete();
+
+
         if (args.length != 1) { 
             System.out.println("Need 1 argument: 1 for RS1 and 2 for RS2");
             return;
@@ -288,12 +287,15 @@ public class PlugtestRS {
         String rsId = "RS2";
         
         String tokenFile = "tokens.json";
-        //Delete lingering old token file
+        String tokenHashesFile = "tokenhashes.json";
+        //Delete lingering old files
         new File(tokenFile).delete();
+        new File(tokenHashesFile).delete();
       
         //Set up the inner Authz-Info library
         ai = new AuthzInfo( Collections.singletonList("AS"), 
-                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
+                new KissTime(), null, rsId, valid, ctx, null, 0,
+                tokenFile, tokenHashesFile, valid, false);
         Resource authzInfo = new CoapAuthzInfo(ai);
         rs = new CoapServer();
         Resource ace = new CoapResource("ace");
@@ -369,12 +371,15 @@ public class PlugtestRS {
      String rsId = "RS1";
      
      String tokenFile = "tokens.json";
-     //Delete lingering old token file
+     String tokenHashesFile = "tokenhashes.json";
+     //Delete lingering old files
      new File(tokenFile).delete();
-   
+     new File(tokenHashesFile).delete();
+
      //Set up the inner Authz-Info library
      ai = new AuthzInfo(Collections.singletonList("AS"), 
-             new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
+             new KissTime(), null, rsId, valid, ctx, null, 0,
+             tokenFile, tokenHashesFile, valid, false);
      Resource authzInfo = new CoapAuthzInfo(ai);
      rs = new CoapServer();
      Resource ace = new CoapResource("ace");
@@ -418,5 +423,6 @@ public class PlugtestRS {
         ai.close();
         tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
 }

@@ -76,11 +76,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
@@ -3019,8 +3015,9 @@ public class PlugtestRSOSCOREGroupOSCORE {
         }
     	
     	new File(TestConfig.testFilePath + "tokens.json").delete();
-    	
-    	final Provider PROVIDER = new BouncyCastleProvider();
+		new File(TestConfig.testFilePath + "tokenhashes.json").delete();
+
+		final Provider PROVIDER = new BouncyCastleProvider();
     	final Provider EdDSA = new EdDSASecurityProvider();
     	Security.insertProviderAt(PROVIDER, 1);
     	Security.insertProviderAt(EdDSA, 0);
@@ -3095,8 +3092,10 @@ public class PlugtestRSOSCOREGroupOSCORE {
         
         
     	String tokenFile = TestConfig.testFilePath + "tokens.json";
-    	//Delete lingering old token files
+		String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+		//Delete lingering old files
     	new File(tokenFile).delete();
+		new File(tokenHashesFile).delete();
         
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
@@ -3104,7 +3103,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
 
         // Set up the inner Authz-Info library
         ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-        	 new KissTime(), null, rsId, valid, ctx, tokenFile, valid, false);
+        	 new KissTime(), null, rsId, valid, ctx, tokenFile, tokenHashesFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -3587,7 +3586,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         rs.stop();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
-    }
+		new File(TestConfig.testFilePath + "tokenhashes.json").delete();
+	}
 
     /**
      * Return the role sets allowed to a subject in a group, based on all the Access Tokens for that subject

@@ -68,10 +68,7 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
+import se.sics.ace.*;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
@@ -153,7 +150,7 @@ public class DtlspRSTestServer {
     
     // ECDSA_256 asymmetric key
     private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
-    
+
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
      *  
@@ -192,13 +189,15 @@ public class DtlspRSTestServer {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        //Delete lingering old token files
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        //Delete lingering old files
         new File(tokenFile).delete();
-        
+        new File(tokenHashesFile).delete();
+
       //Set up the inner Authz-Info library
       ai = new AuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, keyDerivationKey, derivedKeySize,
-                tokenFile, valid, false);
+                tokenFile, tokenHashesFile, valid, false);
       
       //Add a test token to authz-info
       byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -278,6 +277,7 @@ public class DtlspRSTestServer {
         rs.stop();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
 
 

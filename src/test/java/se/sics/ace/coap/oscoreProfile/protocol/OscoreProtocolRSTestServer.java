@@ -186,16 +186,21 @@ public class OscoreProtocolRSTestServer {
             = CwtCryptoCtx.encrypt0(key256Rs, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        //Delete lingering old token files
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        //Delete lingering old files
         File tFile = new File(tokenFile);
         if (!tFile.delete() && tFile.exists()) {
             throw new IOException("Failed to delete " + tFile);
         }
-      
+        File thFile = new File(tokenHashesFile);
+        if (!thFile.delete() && thFile.exists()) {
+            throw new IOException("Failed to delete " + thFile);
+        }
+
         //Set up the inner Authz-Info library
     	ai = new OscoreAuthzInfo(Collections.singletonList("AS"),
                   new KissTime(), null, rsId, valid, ctx,
-                  tokenFile, valid, false);
+                  tokenFile, tokenHashesFile, valid, false);
 
         // process an in-house-built token
         // addTestToken(ctx);
@@ -239,6 +244,10 @@ public class OscoreProtocolRSTestServer {
         File tFile = new File(TestConfig.testFilePath + "tokens.json");
         if (!tFile.delete() && tFile.exists()) {
             throw new IOException("Failed to delete " + tFile);
+        }
+        File thFile = new File(TestConfig.testFilePath + "tokenhashes.json");
+        if (!thFile.delete() && thFile.exists()) {
+            throw new IOException("Failed to delete " + thFile);
         }
         System.out.println("Server stopped");
     }
