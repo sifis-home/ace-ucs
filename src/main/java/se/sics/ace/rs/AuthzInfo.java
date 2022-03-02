@@ -51,12 +51,7 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.CoseException;
-import se.sics.ace.AceException;
-import se.sics.ace.Constants;
-import se.sics.ace.Endpoint;
-import se.sics.ace.Message;
-import se.sics.ace.TimeProvider;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -127,18 +122,20 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @param keyDerivationKey  the key derivation key to use with the As, it can be null
 	 * @param derivedKeySize  the size in bytes of symmetric keys derived with the key derivation key
 	 * @param tokenFile  the file where to save tokens when persisting
+	 * @param tokenHashesFile  the file where to save token hashes for the trl
 	 * @param scopeValidator  the application specific scope validator 
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
 	 * @throws AceException  if the token repository is not initialized
 	 * @throws IOException 
 	 */
-	public AuthzInfo(List<String> issuers, 
-			TimeProvider time, IntrospectionHandler intro, String rsId, 
-			AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize,
-			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
+	public AuthzInfo(List<String> issuers,
+					 TimeProvider time, IntrospectionHandler intro, String rsId,
+					 AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize,
+					 String tokenFile, String tokenHashesFile, ScopeValidator scopeValidator, boolean checkCnonce)
 			        throws AceException, IOException {
         if (TokenRepository.getInstance()==null) {     
-            TokenRepository.create(scopeValidator, tokenFile, ctx, keyDerivationKey, derivedKeySize, time, rsId);
+            TokenRepository.create(scopeValidator, tokenFile, tokenHashesFile, ctx, keyDerivationKey,
+					derivedKeySize, time, rsId);
         }
 		this.issuers = new ArrayList<>();
 		this.issuers.addAll(issuers);
@@ -147,7 +144,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		this.audience = audience;
 		this.ctx = ctx;
 		this.checkCnonce = checkCnonce;
-		
+
     	for (int i = 0; i < 4; i++) {
         	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
         	// The set with index 0 refers to Sender IDs with size 1 byte
@@ -176,6 +173,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    
         byte[] recipientId = null;
         boolean recipientIdFound = false;
+
+		TokenRepository.TrlManager trl = TokenRepository.getInstance().getTrlManager();
 
 		//1. Check whether it is a CWT or REF type
 	    if (token.getType().equals(CBORType.ByteString)) {
@@ -248,9 +247,51 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Token is expired");
 	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
-	    }   
+	    }
+
+		//4. Check that the token is not revoked (not present in the local trl)
+		String tokenHash;
+		byte [] tokenB = token.EncodeToBytes();
+		try {
+			tokenHash = Util.computeTokenHash(
+					CBORObject.FromObject(tokenB));
+		} catch(AceException e) {
+			// FIXME: this exception is caught if token is null.
+			//  is it correct to return this? Or internal_server_error?
+			LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
+			CBORObject map = CBORObject.NewMap();
+			map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		}
+		if (trl.isRevoked(tokenHash)) {
+			try {
+				long expTime = trl.getExpiration(tokenHash);
+				if (expTime == trl.UNKNOWN_EXPIRATION) { // the token is revoked and is the first time
+					// that the client posts this token
+					if (claims.containsKey(Constants.EXI)) {
+						expTime = claims.get(Constants.EXI).AsInt64() + this.time.getCurrentTime();
+					} else if (claims.containsKey(Constants.EXP)) {
+						expTime = claims.get(Constants.EXP).AsInt64();
+					}
+//				I noticed that if neither EXP nor EXI is present, the token is accepted
+//				else {
+//					expTime = Long.MAX_VALUE;
+//				}
+					trl.replaceRevokedToken(tokenHash, expTime);
+				}
+						}
+			catch (AceException e) {
+				LOGGER.severe(e.getMessage());
+			}
+			CBORObject map = CBORObject.NewMap();
+			map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+			map.Add(Constants.ERROR_DESCRIPTION, "Token is revoked");
+			LOGGER.log(Level.INFO, "Message processing aborted: "
+					+ "Token is revoked");
+			return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+		}
       
-	    //4. Check if we accept the issuer (iss)
+	    //5. Check if we accept the issuer (iss)
 	    CBORObject iss = claims.get(Constants.ISS);
 	    if (iss != null) {
 	        if (!this.issuers.contains(iss.AsString())) {
@@ -263,7 +304,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        }
 	    }
 	    
-	    //5. Check if we are the audience (aud)
+	    //6. Check if we are the audience (aud)
 	    CBORObject audCbor = claims.get(Constants.AUD);
 	    if (audCbor == null) {
 	        CBORObject map = CBORObject.NewMap();
@@ -299,7 +340,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        return msg.failReply(Message.FAIL_FORBIDDEN, map);
 	    }
 
-	    //6. Check if the token has a scope
+	    //7. Check if the token has a scope
 	    CBORObject scope = claims.get(Constants.SCOPE);
 	    if (scope == null) {
 	        CBORObject map = CBORObject.NewMap();
@@ -310,7 +351,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
-	    //7. Check if any part of the scope is meaningful to us
+	    //8. Check if any part of the scope is meaningful to us
 	    boolean meaningful = false;
 	    try {
 	    	if(scope.getType().equals(CBORType.TextString)) {
@@ -338,7 +379,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
-	    //8. Handle EXI if present
+	    //9. Handle EXI if present
 	    int exiSeqNum = handleExi(claims);
 	    if (exiSeqNum < -1) {
 	    	// The 'exi' claim is present, but an error occurs during its processing
@@ -360,7 +401,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
-	    //9. Handle cnonce if required
+	    //10. Handle cnonce if required
 	    try {
 	        handleCnonce(claims);
 	    } catch (AceException e) {
@@ -515,10 +556,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    	
 	    }
 	    
-	    //9. Extension point for handling other special claims in the future
+	    //11. Extension point for handling other special claims in the future
 	    processOther(claims);
 	    
-	    //10. Store the claims of this token
+	    //12. Store the claims of this token
 	    CBORObject cti = null;
 	    
 	    //Check if we have a sid
@@ -533,7 +574,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
 	    
-	    //11. Create success message
+	    //13. Create success message
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
@@ -591,7 +632,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    	rep.Add(Constants.CLIENT_ID, recipientIdString);
 	    	
     	}
-    	
+
 	    LOGGER.info("Successfully processed token");
         return msg.successReply(Message.CREATED, rep);
 	}
