@@ -62,11 +62,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
@@ -197,16 +193,22 @@ public class TestTokenRepositoryGroupOSCORE {
     	String rsId = "rs1";
     	
         try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, null, 0, new KissTime(), rsId);
+            String tokenFile = TestConfig.testFilePath + "tokens.json";
+            String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+            new File(tokenFile).delete();
+            new File(tokenHashesFile).delete();
+            TokenRepository.create(valid, tokenFile, tokenHashesFile, null, null,
+                    0, new KissTime(), rsId);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
                 TokenRepository tr = TokenRepository.getInstance();
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
+                new File(TestConfig.testFilePath + "tokenhashes.json").delete();
                 TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, null, 0, new KissTime(), rsId);
+                        + "tokens.json", TestConfig.testFilePath
+                        + "tokenhashes.json", null, null, 0, new KissTime(), rsId);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             } 
@@ -214,13 +216,14 @@ public class TestTokenRepositoryGroupOSCORE {
     }
     
     /**
-     * Deletes the test file after the tests
+     * Deletes the test files after the tests
      * @throws AceException 
      */
     @AfterClass
     public static void tearDown() throws AceException {
         tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
     
     /**
