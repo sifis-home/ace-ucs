@@ -38,9 +38,7 @@ import COSE.OneKey;
 import com.upokecenter.cbor.CBORObject;
 import org.eclipse.californium.core.coap.CoAP;
 import org.junit.Assert;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.DBHelper;
+import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.RevocationHandler;
 import se.sics.ace.coap.as.CoapDBConnector;
@@ -49,7 +47,10 @@ import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.ucs.UcsHelper;
 
+import java.io.*;
 import java.util.*;
+
+import static java.lang.Thread.sleep;
 
 /**
  * Authorization Server to test with OscoreProtObserveCTestClient
@@ -102,6 +103,8 @@ public class OscoreProtObserveASTestServer
   
     // OSCORE Context ID used to communicate with Clients and Resource Server (it can be null)
     private static byte[] idContext = new byte[] {0x44};
+
+    private static Timer timer;
     
     /**
      * The OSCORE AS for testing, autostarted by tests needing this.
@@ -289,7 +292,12 @@ public class OscoreProtObserveASTestServer
         as = new OscoreAS(myName, db, pdp, phpHandlesRevocations, time, asymmKey,"token", "introspect", "trl", true,
                           CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true,
                           peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
-        
+
+        // uncomment to revoke the tokens by changing the environment attribute value.
+        // This code revert the file content after 10 seconds.
+//        timer = new Timer();
+//        timer.schedule(new RevokeTokens(), 1000);
+
         as.start();
         System.out.println("Server starting");
         //as.stop();
@@ -304,7 +312,6 @@ public class OscoreProtObserveASTestServer
         pdp.close();
         DBHelper.tearDownDB();
         System.out.println("Server stopped");
-      
     }
     
     private static String buildOscoreIdentity(byte[] senderId, byte[] contextId) {
@@ -322,7 +329,34 @@ public class OscoreProtObserveASTestServer
     	identity += Base64.getEncoder().encodeToString(senderId);
     	
     	return identity;
-    	
     }
-    
+
+
+    /**
+     * Change the dummy_env_attribute value. This triggers the revocation of tokens
+     * for the policies that include this attribute.
+     * It waits 10 seconds, and then it restores the value "a" in the text file.
+     */
+    public static class RevokeTokens extends TimerTask {
+
+        public void run() {
+            File file = new File(TestConfig.testFilePath + "dummy_env_attribute.txt");
+            FileWriter fw = null;
+            try {
+                fw = new FileWriter(file);
+                fw.write("b"); // write something different from "a" to revoke
+                fw.close();
+                sleep(10000);
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+            try {
+                fw = new FileWriter(file);
+                fw.write("a");
+                fw.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 }
