@@ -64,10 +64,7 @@ import COSE.Encrypt0Message;
 import COSE.KeyKeys;
 import COSE.OneKey;
 
-import se.sics.ace.AceException;
-import se.sics.ace.Constants;
-import se.sics.ace.Hkdf;
-import se.sics.ace.TimeProvider;
+import se.sics.ace.*;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -214,7 +211,12 @@ public class TokenRepository implements AutoCloseable {
 	 * Related to Access Tokens including the 'exi' claim, this has as value the highest
 	 * Sequence Number received in any of such Tokens, as encoded in the 'cti' claim 
 	 */
-	private int topExiSequenceNumber;	
+	private int topExiSequenceNumber;
+
+	/**
+	 * The TRL manager which contains the structures and logic to manage token hashes
+	*/
+	private TrlManager trlManager;
 	
 	/**
 	 * The singleton getter.
@@ -237,6 +239,7 @@ public class TokenRepository implements AutoCloseable {
      * 
 	 * @param scopeValidator  the validator for scopes
 	 * @param tokenFile  the file where to save tokens
+	 * @param tokenHashesFile  the file where to save token hashes for the trl
 	 * @param ctx  the crypto context
 	 * @param keyDerivationKey  the key derivation key, it can be null
 	 * @param derivedKeySize  the size in bytes of symmetric keys derived with the key derivation key
@@ -245,13 +248,14 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws AceException
 	 * @throws IOException
 	 */
-	public static void create(ScopeValidator scopeValidator, 
-            String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize, TimeProvider time, String rsId)
+	public static void create(ScopeValidator scopeValidator, String tokenFile, String tokenHashesFile, CwtCryptoCtx ctx,
+							  byte[] keyDerivationKey, int derivedKeySize, TimeProvider time, String rsId)
                     throws AceException, IOException {
 	    if (singleton != null) {
 	        throw new AceException("Token repository already exists");
 	    }
-	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx, keyDerivationKey, derivedKeySize, time, rsId);
+	    singleton = new TokenRepository(scopeValidator, tokenFile, tokenHashesFile,
+										ctx, keyDerivationKey, derivedKeySize, time, rsId);
 	}
 	
 	/**
@@ -272,8 +276,8 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws IOException 
 	 * @throws AceException 
 	 */
-	protected TokenRepository(ScopeValidator scopeValidator, 
-	        String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize, TimeProvider time, String rsId) 
+	protected TokenRepository(ScopeValidator scopeValidator,String tokenFile, String tokenHashesFile, CwtCryptoCtx ctx,
+							  byte[] keyDerivationKey, int derivedKeySize, TimeProvider time, String rsId)
 			        throws IOException, AceException {
 	    this.closed = false;
 	    this.cti2claims = new HashMap<>();
@@ -291,49 +295,72 @@ public class TokenRepository implements AutoCloseable {
 		this.topExiSequenceNumber = -1;
 		this.rsId = rsId;
 
+		trlManager = new TrlManager();
+
 	    if (tokenFile == null) {
 	        throw new IllegalArgumentException("Must provide a token file path");
 	    }
 	    this.tokenFile = tokenFile;
-	    File f = new File(this.tokenFile);
-	    if (!f.exists()) {
-	        return; //File will be created if tokens are added
-	    }
-	    FileInputStream fis = new FileInputStream(f);
-        Scanner scanner = new Scanner(fis, "UTF-8");
-        Scanner s = scanner.useDelimiter("\\A");
-        String configStr = s.hasNext() ? s.next() : "";
-        s.close();
-        scanner.close();
-        fis.close();
-        JSONArray config = null;
-        if (!configStr.isEmpty()) {
-            config = new JSONArray(configStr);
-            Iterator<Object> iter = config.iterator();
-            while (iter.hasNext()) {
-                Object foo = iter.next();
-                if (!(foo instanceof JSONObject)) {
-                    throw new AceException("Token file is malformed");
-                }
-                JSONObject token =  (JSONObject)foo;
-                Iterator<String> iterToken = token.keys();
-                Map<Short, CBORObject> params = new HashMap<>();
-                while (iterToken.hasNext()) {
-                    String key = iterToken.next();  
-                    params.put(Short.parseShort(key), 
-                            CBORObject.DecodeFromBytes(
-                                    Base64.getDecoder().decode(
-                                            token.getString((key)))));
-                }
-                this.addToken(null, params, ctx, null, -1);
-            }
-        }
+	    this.loadTokenFile(ctx);
+
+		trlManager.tokenHashesFile = tokenHashesFile;
+		trlManager.loadTokenHashesFile();
+
+		if (!validTokensConsistencyCheck()) {
+			throw new AceException("Token file and token hashes file are not consistent");
+		}
+	}
+
+	private boolean validTokensConsistencyCheck() {
+		Set<String> trCtis = cti2claims.keySet();
+		Set<String> trlCtis = new HashSet<>(trlManager.th2cti.values());
+		return trCtis.equals(trlCtis);
+	}
+
+	private void loadTokenFile(CwtCryptoCtx ctx) throws IOException, AceException {
+		File f = new File(this.tokenFile);
+		if (!f.exists()) {
+			return; //File will be created if tokens are added
+		}
+		FileInputStream fis = new FileInputStream(f);
+		Scanner scanner = new Scanner(fis, "UTF-8");
+		Scanner s = scanner.useDelimiter("\\A");
+		String configStr = s.hasNext() ? s.next() : "";
+		s.close();
+		scanner.close();
+		fis.close();
+		JSONArray config = null;
+		if (!configStr.isEmpty()) {
+			config = new JSONArray(configStr);
+			Iterator<Object> iter = config.iterator();
+			while (iter.hasNext()) {
+				Object foo = iter.next();
+				if (!(foo instanceof JSONObject)) {
+					throw new AceException("Token file is malformed");
+				}
+				JSONObject token =  (JSONObject)foo;
+				Iterator<String> iterToken = token.keys();
+				Map<Short, CBORObject> params = new HashMap<>();
+				while (iterToken.hasNext()) {
+					String key = iterToken.next();
+					params.put(Short.parseShort(key),
+							CBORObject.DecodeFromBytes(
+									Base64.getDecoder().decode(
+											token.getString((key)))));
+				}
+				this.addToken(null, params, ctx, null, -1);
+			}
+		}
 	}
 
 	/**
 	 * Add a new Access Token to the repo.  Note that this method DOES NOT 
 	 * check the validity of the token.
-	 * 
+	 *
+	 * @param token the access token to be hashed for the trl. It can be null
+	 *              if the token is loaded from the token file.
+	 *              In such a case, the token hash will not be added to the trl
+	 *              structures.
 	 * @param claims  the claims of the token
 	 * @param ctx  the crypto context of this RS  
 	 * @param sid  the subject identity of the user of this token, or null if not needed
@@ -353,7 +380,7 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	public synchronized CBORObject addToken(CBORObject token, Map<Short, CBORObject> claims, 
 	        CwtCryptoCtx ctx, String sid, int exiSeqNum) throws AceException {
-	    
+
 		CBORObject so = claims.get(Constants.SCOPE);
 		if (so == null) {
 			throw new AceException("Token has no scope");
@@ -816,6 +843,19 @@ public class TokenRepository implements AutoCloseable {
         Map<Short, CBORObject> foo = new HashMap<>();
         foo.putAll(claims);
         this.cti2claims.put(cti, foo);
+
+		if (token != null) { // We are accepting a new token at the /authz-info endpoint
+			// Add the token hash to the map of valid tokens
+			String tokenHash = Util.computeTokenHash(
+					CBORObject.FromObject(token.EncodeToBytes()));
+			try {
+				trlManager.addValidTokenHash(tokenHash, cti);
+			} catch (AceException e) {
+				LOGGER.info("Unable to add the token hash to the map " +
+						"of valid tokens: " + e.getMessage());
+			}
+			trlManager.persist();
+		}
 	    
         persist();
         
@@ -894,7 +934,7 @@ public class TokenRepository implements AutoCloseable {
     }
 
     /**
-	 * Remove an existing token from the repository.
+	 * Remove an existing token from the repository and from the valid tokens within the trlManager.
 	 * 
 	 * @param cti  the cti of the token to be removed Base64 encoded.
 	 * @throws AceException 
@@ -973,8 +1013,15 @@ public class TokenRepository implements AutoCloseable {
 	    	}
 	    	
 		}
-		
+
+		// Remove the mapping from the token hash to the token identifier
+		String th = trlManager.getThByCti(cti);
+		if (th != null) {
+			trlManager.removeValidTokenHash(th);
+		}
+
 		persist();
+		trlManager.persist();
 	}
 	
 	/**
@@ -1092,7 +1139,9 @@ public class TokenRepository implements AutoCloseable {
 			}
 			
 		}
-				
+
+		// delete expired tokens from the local trl
+		trlManager.removeExpiredTokens();
 	}
 	
 	/**
@@ -1305,7 +1354,7 @@ public class TokenRepository implements AutoCloseable {
 	/**
 	 * Get the kid by the CTI.
 	 * 
-	 * @param sid  the CTI
+	 * @param cti  the CTI
 	 * 
 	 * @return  the kid associated to this CTI
 	 */
@@ -1396,6 +1445,7 @@ public class TokenRepository implements AutoCloseable {
         if (!this.closed) {
             this.closed = true;   
             persist();
+			trlManager.persist();
             singleton = null;
         }
     }
@@ -1478,7 +1528,7 @@ public class TokenRepository implements AutoCloseable {
      * Retrieve the Exi Sequence Number value, encoded in the 'cti'
      * claim of an Access Token that includes the 'exi' claim
      * 
-     * @param  the 'cti' claim included in the Access Token
+     * @param  cti the 'cti' claim included in the Access Token
      * @return  It returns a positive integer if the Sequence Number is successfully extracted from the 'cti' claim
      *          It returns -1 in case of error while parsing the 'cti' claim
      * 
@@ -1541,6 +1591,412 @@ public class TokenRepository implements AutoCloseable {
     		this.topExiSequenceNumber = seqNum;
     	}
     }
-    
+
+
+	public TrlManager getTrlManager() {
+		return this.trlManager;
+	}
+
+
+	public class TrlManager {
+
+		/**
+		 * Map between a token hash (th) and a token identifier (cti).
+		 * An entry is added to this map when a new token is accepted by the RS,
+		 * while entries are removed in a lazy fashion, when the RS invokes the purgeTokens() method.
+		 * We refer to this map also as "the map of valid tokens".
+		 */
+		private Map<String, String> th2cti;
+
+		/**
+		 * The local token revocation list modeled as a Map.
+		 * It contains token revoked, but not yet expired.
+		 * The value of the map is the expiration time of the token,
+		 * and is set to UNKNOWN_EXPIRATION if the expiration time is unknown
+		 */
+		private Map<String, Long> localTrl;
+
+		/**
+		 * The cursor used in the third mode
+		 */
+		private int cursor;
+
+		protected final Long UNKNOWN_EXPIRATION = 0L;
+
+		/**
+		 * The filename + path for the JSON file in which the token hashes are stored
+		 */
+		private String tokenHashesFile;
+
+		/**
+		 * Default Constructor
+		 *
+		 * @throws AceException if parameters are null
+		 */
+		public TrlManager() throws AceException {
+			this(new HashMap<>(), new HashMap<>(), 0);
+		}
+
+		/**
+		 * Constructor that allows configuration of the structures
+		 *
+		 * @param th2cti   Map between a token hash and a token identifier
+		 * @param localTrl Map containing the token revoked, but not expired yet, and their expiration time
+		 * @param cursor   the cursor value used in the third mode
+		 * @throws AceException if parameters are null
+		 */
+		public TrlManager(Map<String, String> th2cti, Map<String, Long> localTrl, int cursor)
+				throws AceException {
+			if (th2cti == null || localTrl == null) {
+				LOGGER.severe("TrlManager constructor requires non-null parameters. " +
+						"To initialize it with default values, invoke TrlManager() with no parameters");
+				throw new AceException(
+						"TrlManager constructor requires non-null parameters");
+			}
+			this.th2cti = new HashMap<>(th2cti);
+			this.localTrl = new HashMap<>(localTrl);
+			this.cursor = cursor;
+		}
+
+		/**
+		 * Get a set containing token hashes of valid tokens
+		 */
+		public Set<String> getValidTokensSet() {
+			return new HashSet<>(this.th2cti.keySet());
+		}
+
+		/**
+		 * Get the map containing token hashes of valid tokens
+		 */
+		public Map<String, String> getValidTokensMap() {
+			return new HashMap<>(this.th2cti);
+		}
+
+		/**
+		 * Get the token hash corresponding to the provided token identifier.
+		 * Only one token hash should match.
+		 *
+		 * @param cti the token identifier
+		 * @return the token hash corresponding to the token identifier
+		 */
+		public String getThByCti(String cti) {
+			String th = null;
+			int matchingTh = 0;
+			for (Map.Entry<String, String> entry : this.th2cti.entrySet()) {
+				if (entry.getValue().equals(cti)) {
+					matchingTh++;
+					th = entry.getKey();
+				}
+			}
+			if (matchingTh > 1) {
+				LOGGER.severe("More than one token hash found matching the given cti.");
+			} else if (matchingTh == 0) {
+				LOGGER.info("No token hash found for the given token identifier.");
+			}
+			return th;
+		}
+
+
+		/**
+		 * Add a token hash and its identifier to the map of valid tokens
+		 *
+		 * @param th  the token hash
+		 * @param cti the token identifier
+		 */
+		public synchronized void addValidTokenHash(String th, String cti) throws AceException {
+			if (th2cti.containsKey(th)) {
+				LOGGER.info("Unable to add entry.");
+				throw new AceException("Token hash already present.");
+			} else {
+				th2cti.put(th, cti);
+			}
+		}
+
+		/**
+		 * Delete an entry from the map between token hash and token identifier
+		 *
+		 * @param th the token hash
+		 */
+		public synchronized void removeValidTokenHash(String th) throws AceException {
+			try {
+				if (th2cti.remove(th) == null) {
+					LOGGER.info("Unable to remove entry.");
+					throw new AceException("Token hash not present.");
+				}
+			} catch (NullPointerException | ClassCastException | UnsupportedOperationException e) {
+				LOGGER.severe(e.getMessage());
+			}
+		}
+
+		/**
+		 * Get a Set containing the token hashes in the local trl
+		 *
+		 * @return the set of token hashes
+		 */
+		public Set<String> getLocalTrlSet() {
+			return new HashSet<>(this.localTrl.keySet());
+		}
+
+		/**
+		 * Get a Set containing the token hashes in the local trl
+		 *
+		 * @return the set of token hashes
+		 */
+		public Map<String, Long> getLocalTrl() {
+			return new HashMap<>(this.localTrl);
+		}
+
+		/**
+		 * Obtain the expiration time of a token in the local trl
+		 *
+		 * @param th the token hash
+		 * @return the expiration time
+		 * @throws AceException if an entry with the specified key is not present
+		 */
+		public long getExpiration(String th) throws AceException {
+			if (!localTrl.containsKey(th)) {
+				LOGGER.info("Cannot find expiration time: Token hash not present in the local trl");
+				throw new AceException("Token hash not present");
+			}
+			return localTrl.get(th);
+		}
+
+		/**
+		 * Replaces the expiration value of an entry in the local trl
+		 *
+		 * @param th the token hash
+		 * @param exp the new expiration value
+		 * @throws AceException if an entry with the specified key is not present
+		 */
+		public synchronized void replaceRevokedToken(String th, long exp) throws AceException {
+			if (!localTrl.containsKey(th)) {
+				LOGGER.info("Cannot replace entry: Token hash not present in the local trl");
+				throw new AceException("Token hash not present");
+			}
+			localTrl.replace(th, exp);
+		}
+
+		/**
+	     * Check if a token is revoked by searching its token hash
+	     * in the localTrl
+	     *
+	     * @param th the token hash
+	     * @return true if the token hash is present in the localTrl, false otherwise
+	     */
+		public boolean isRevoked(String th) {
+	        return localTrl.containsKey(th);
+		}
+
+		/**
+		 * Delete the entry with the specified token hash from the localTrl
+		 *
+		 * @param th the token hash
+		 * @throws AceException
+		 */
+		public synchronized void removeTokenFromTrl(String th) throws AceException {
+	        try {
+	            if (!localTrl.containsKey(th)) {
+	                LOGGER.info("Unable to remove entry.");
+	                throw new AceException("Token hash not present.");
+	            }
+				localTrl.remove(th);
+			} catch (NullPointerException | ClassCastException | UnsupportedOperationException e) {
+	            LOGGER.severe("Error while removing token hash from trl" + e.getMessage());
+	        }
+		}
+
+		/**
+		 * Remove from the local trl all the expired tokens and update tokenhashes file accordingly.
+		 * Note: this method does not remove tokens with unknown expiration.
+		 */
+		public synchronized void removeExpiredTokens() throws AceException {
+			localTrl.values().removeIf(
+					exp -> (exp < time.getCurrentTime() && !exp.equals(UNKNOWN_EXPIRATION)));
+			this.persist();
+		}
+
+		/**
+		 *  Update the local trl to match the token hashes contained
+		 *  in the CBOR array passed as input.
+		 *  For new token hashes added to the local trl, the expiration time
+		 *  is set to UNKNOWN_EXPIRATION if the token hash has never been posted,
+		 *  and therefore the RS is not able to retrieve it.
+		 *
+		 * @param payload a CBOR array containing the portion of the TRL pertaining
+		 *                to the RS.
+		 *                It should be the payload of a response to a full query
+		 *                notification
+		 */
+		public synchronized void updateLocalTrl(CBORObject payload) throws AceException {
+			if (!payload.getType().equals(CBORType.Array)) {
+				LOGGER.severe("Failed updating the local trl. " +
+						"CBOR type was not Array");
+				throw new AceException("Failed updating the local trl. " +
+						"CBOR type was not Array");
+			}
+			Set<String> payloadHashes = new HashSet<>();
+
+			for (int i = 0; i < payload.size(); i++) {
+				byte[] tokenHashB = payload.get(i).GetByteString();
+				String tokenHashS = new String(tokenHashB, Constants.charset);
+				payloadHashes.add(tokenHashS);
+			}
+			// now we have payloadHashes containing the token hashes that were in the payload
+
+			// remove from localTrl the token hashes that are not present in payloadHashes
+			Set<String> localTrlMinusPayloadHashes = new HashSet<>(localTrl.keySet());
+			localTrlMinusPayloadHashes.removeAll(payloadHashes);
+			for (String th : localTrlMinusPayloadHashes) {
+				localTrl.remove(th);
+				//this.persist();
+			}
+
+			// add to localTrl the token hashes present in hashes (but not in localTrl)
+			for (String th : payloadHashes) {
+				if (!localTrl.containsKey(th)) {
+
+					// find expiration time
+					Long exp = findExpiration(th);
+
+					if (!exp.equals(UNKNOWN_EXPIRATION)) {
+						try {
+							removeToken(th2cti.get(th));
+						} catch (AceException e) {
+							LOGGER.severe("Failed removing revoked token: " + e.getMessage());
+						}
+					}
+					localTrl.put(th, exp);
+					//this.persist();
+				}
+			}
+			this.persist(); // FIXME: better to do it after each change of the structures?
+		}
+
+		/**
+		 * Find expiration time of a token.
+		 * If expiration time cannot be found, UNKNOWN_EXPIRATION is returned.
+		 * If EXP claim is present, its value is returned.
+		 * If EXI claim is present, expiration time is computed as the current
+		 * time plus the EXI value.
+		 * If neither EXP nor EXI is present, the token has no expiration,
+		 * and Long.MAX_VALUE is returned.
+		 *
+		 * @param th the token hash
+		 * @return the expiration time
+		 */
+		private Long findExpiration(String th) {
+
+			if (!th2cti.containsKey(th)) {
+				// token is not in use (it was never posted at the authzInfo)
+				return UNKNOWN_EXPIRATION;
+			}
+			else {
+				// token is in use. Need to retrieve its expiration time.
+				String cti = th2cti.get(th);
+
+				// check exp or exi
+				if (cti2claims.get(cti).containsKey(Constants.EXP)) {
+					CBORObject exp = cti2claims.get(cti).get(Constants.EXP);
+					return exp.AsInt64();
+				}
+				else if (cti2claims.get(cti).containsKey(Constants.EXI)) {
+					CBORObject exi = cti2claims.get(cti).get(Constants.EXI);
+					return time.getCurrentTime() + exi.AsInt64();
+				}
+			}
+			// Token is not associated with an expiration
+			return Long.MAX_VALUE;
+		}
+
+		/**
+		 * Load the file containing the token hashes and fill the TrlManager structures
+		 *
+		 * @throws IOException
+		 * @throws AceException
+		 */
+		public synchronized void loadTokenHashesFile() throws IOException, AceException {
+
+			if (this.tokenHashesFile == null) {
+				throw new IllegalArgumentException("Must provide a token hashes file path");
+			}
+			File f = new File(this.tokenHashesFile);
+			if (!f.exists()) {
+				return; //File will be created if token hashes are added
+			}
+			FileInputStream fis = new FileInputStream(f);
+			Scanner scanner = new Scanner(fis, "UTF-8");
+			Scanner s = scanner.useDelimiter("\\A");
+			String configStr = s.hasNext() ? s.next() : "";
+			s.close();
+			scanner.close();
+			fis.close();
+			JSONArray config = null;
+			if (!configStr.isEmpty()) {
+				config = new JSONArray(configStr);
+				Iterator<Object> iter = config.iterator();
+				while (iter.hasNext()) {
+					Object foo = iter.next();
+					if (!(foo instanceof JSONObject)) {
+						throw new AceException("TokenHash file is malformed");
+					}
+					JSONObject tokenHash = (JSONObject) foo;
+					Iterator<String> iterTokenHash = tokenHash.keys();
+
+					while (iterTokenHash.hasNext()) {
+						String th = iterTokenHash.next();
+						JSONObject claims = ((JSONObject) foo).getJSONObject(th);
+						Iterator<String> innerIter = claims.keys();
+						while (innerIter.hasNext()) {
+							String nextKey = innerIter.next();
+							short claimID = Short.parseShort(nextKey);
+							if (claimID == Constants.CTI) {
+								String cti = claims.getString(nextKey);
+//								System.out.println("th: " + th + "\ncti: " + cti);
+								trlManager.th2cti.put(th, cti);
+							} else if (claimID == Constants.EXP) {
+								Long exp = claims.getLong(nextKey);
+//								System.out.println("th: " + th + "\nexp: " + exp);
+								trlManager.localTrl.put(th, exp);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		/**
+		 * Save the current token hashes TrlManager structures in a JSON file
+		 *
+		 * @throws AceException
+		 */
+		private synchronized void persist() throws AceException {
+			JSONArray config = new JSONArray();
+			for (String th : this.th2cti.keySet()) {
+				JSONObject ctiMap = new JSONObject();
+				ctiMap.put(Short.toString(Constants.CTI), th2cti.get(th));
+
+				JSONObject tokenHash = new JSONObject();
+				tokenHash.put(th, ctiMap);
+				config.put(tokenHash);
+			}
+			for (String th : this.localTrl.keySet()) {
+				JSONObject expMap = new JSONObject();
+				expMap.put(Short.toString(Constants.EXP), localTrl.get(th));
+
+				JSONObject tokenHash = new JSONObject();
+				tokenHash.put(th, expMap);
+				config.put(tokenHash);
+			}
+
+			try (FileOutputStream fos
+						 = new FileOutputStream(this.tokenHashesFile, false)) {
+				fos.write(config.toString(4).getBytes(Constants.charset));
+				fos.close();
+			} catch (JSONException | IOException e) {
+				throw new AceException(e.getMessage());
+			}
+
+		}
+	}
 }
 
