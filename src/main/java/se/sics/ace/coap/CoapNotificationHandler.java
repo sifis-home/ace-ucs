@@ -22,11 +22,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
+
+import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.rs.TokenRepository;
 
 /**
  * Counting coap handler for unit tests.
@@ -36,7 +39,8 @@ import se.sics.ace.Constants;
  */
 public class CoapNotificationHandler implements CoapHandler {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(CoapNotificationHandler.class);
+    private static final Logger LOGGER =
+    Logger.getLogger(CoapNotificationHandler.class.getName());
 
     /**
      * Current read index for {@link #waitOnLoad(long)}
@@ -68,16 +72,16 @@ public class CoapNotificationHandler implements CoapHandler {
             responses.add(response);
             try {
                 assertLoad(response);
-            } catch (AssertionError error) {
-                LOGGER.error("Assert:", error);
+            } catch (AssertionError | AceException error) {
+                LOGGER.severe("Assert:" + error);
                 this.exception = error;
             } catch (RuntimeException exception) {
-                LOGGER.error("Unexpected error:", exception);
+                LOGGER.severe("Unexpected error:"+ exception);
                 this.exception = exception;
             }
             notifyAll();
         }
-        LOGGER.info("Received {}. Notification: {}", counter, response.advanced());
+        LOGGER.info("Received " + counter + ". Notification: " + response.advanced());
     }
 
     /**
@@ -88,18 +92,21 @@ public class CoapNotificationHandler implements CoapHandler {
      *
      * @param response received response
      */
-    protected void assertLoad(CoapResponse response) {
+    protected void assertLoad(CoapResponse response) throws AceException {
 
         if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {
 
             CBORObject payload = CBORObject.DecodeFromBytes(response.getPayload());
+            if (payload.getType() != CBORType.Array) {
+                throw new AceException("Wrong payload type. Expected a CBOR Array");
+            }
             ArrayList<String> hashes = new ArrayList<>();
             for (int i = 0; i < payload.size(); i++) {
                 byte[] tokenHashB = payload.get(i).GetByteString();
                 String tokenHashS = new String(tokenHashB, Constants.charset);
                 hashes.add(tokenHashS);
             }
-            LOGGER.info("List of received token hashes: {}\n\t", hashes);
+            LOGGER.info("List of received token hashes: " + hashes);
         }
 
         else { //assume text/plain
@@ -115,7 +122,7 @@ public class CoapNotificationHandler implements CoapHandler {
             counter = errorCalls.incrementAndGet();
             notifyAll();
         }
-        LOGGER.info("{} Errors!", counter);
+        LOGGER.info(counter + " Errors!");
     }
 
     public int getOnLoadCalls() {
