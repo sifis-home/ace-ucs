@@ -1851,12 +1851,20 @@ public class TokenRepository implements AutoCloseable {
 				//this.persist();
 			}
 
-			// add to localTrl the token hashes present in hashes (but not in localTrl)
+			// add to localTrl the token hashes present in payloadHashes (but not in localTrl)
 			for (String th : payloadHashes) {
 				if (!localTrl.containsKey(th)) {
 
 					// find expiration time
-					Long exp = findExpiration(th);
+					Long exp = null;
+					try {
+						exp = findExpiration(th);
+					} catch(AceException e) {
+						LOGGER.severe(e.getMessage());
+						// This should never happen since a stored access token
+						// should be include either EXP or EXI claim.
+						throw new AceException(e.getMessage());
+					}
 
 					if (!exp.equals(UNKNOWN_EXPIRATION)) {
 						try {
@@ -1879,12 +1887,12 @@ public class TokenRepository implements AutoCloseable {
 		 * If EXI claim is present, expiration time is computed as the current
 		 * time plus the EXI value.
 		 * If neither EXP nor EXI is present, the token has no expiration,
-		 * and Long.MAX_VALUE is returned.
+		 * and an exception is returned.
 		 *
 		 * @param th the token hash
 		 * @return the expiration time
 		 */
-		private Long findExpiration(String th) {
+		private Long findExpiration(String th) throws AceException {
 
 			if (!th2cti.containsKey(th)) {
 				// token is not in use (it was never posted at the authzInfo)
@@ -1903,9 +1911,12 @@ public class TokenRepository implements AutoCloseable {
 					CBORObject exi = cti2claims.get(cti).get(Constants.EXI);
 					return time.getCurrentTime() + exi.AsInt64();
 				}
+				// Token is not associated with an expiration
+				throw new AceException("Error finding token expiration: " +
+						"its claims do not include neither EXP nor EXI.\n" +
+						"If the token did not include one of these claims originally, " +
+						"EXP should have been included by authz-info during processing.");
 			}
-			// Token is not associated with an expiration
-			return Long.MAX_VALUE;
 		}
 
 		/**
@@ -1950,12 +1961,18 @@ public class TokenRepository implements AutoCloseable {
 							String nextKey = innerIter.next();
 							short claimID = Short.parseShort(nextKey);
 							if (claimID == Constants.CTI) {
-								String cti = claims.getString(nextKey);
-//								System.out.println("th: " + th + "\ncti: " + cti);
+//								String cti = claims.getString(nextKey);
+								CBORObject cticb = CBORObject.DecodeFromBytes(
+										Base64.getDecoder().decode(
+												claims.getString(nextKey)));
+								String cti = Base64.getEncoder().
+										encodeToString(cticb.GetByteString());
 								trlManager.th2cti.put(th, cti);
 							} else if (claimID == Constants.EXP) {
-								Long exp = claims.getLong(nextKey);
-//								System.out.println("th: " + th + "\nexp: " + exp);
+//								Long exp = claims.getLong(nextKey);
+								Long exp = CBORObject.DecodeFromBytes(
+										Base64.getDecoder().decode(
+												claims.getString(nextKey))).AsInt64();
 								trlManager.localTrl.put(th, exp);
 							}
 						}
@@ -1973,7 +1990,11 @@ public class TokenRepository implements AutoCloseable {
 			JSONArray config = new JSONArray();
 			for (String th : this.th2cti.keySet()) {
 				JSONObject ctiMap = new JSONObject();
-				ctiMap.put(Short.toString(Constants.CTI), th2cti.get(th));
+//				ctiMap.put(Short.toString(Constants.CTI), th2cti.get(th));
+				CBORObject cticb = CBORObject.FromObject(Base64.getDecoder().decode(th2cti.get(th)));
+				ctiMap.put(Short.toString(Constants.CTI),
+						Base64.getEncoder().encodeToString(cticb.EncodeToBytes()));
+
 
 				JSONObject tokenHash = new JSONObject();
 				tokenHash.put(th, ctiMap);
@@ -1981,7 +2002,10 @@ public class TokenRepository implements AutoCloseable {
 			}
 			for (String th : this.localTrl.keySet()) {
 				JSONObject expMap = new JSONObject();
-				expMap.put(Short.toString(Constants.EXP), localTrl.get(th));
+//				expMap.put(Short.toString(Constants.EXP), localTrl.get(th));
+				CBORObject exp = CBORObject.FromObject(localTrl.get(th));
+				expMap.put(Short.toString(Constants.EXP),
+						Base64.getEncoder().encodeToString(exp.EncodeToBytes()));
 
 				JSONObject tokenHash = new JSONObject();
 				tokenHash.put(th, expMap);
