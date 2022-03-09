@@ -131,7 +131,7 @@ public class TestAuthzInfoAif {
 
         ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
         				   null, rsId, valid, ctx, null, 0, tokenFile, tokenHashesFile,
-                           aif, false);
+                           aif, false, 86400000L);
     }
     
     /**

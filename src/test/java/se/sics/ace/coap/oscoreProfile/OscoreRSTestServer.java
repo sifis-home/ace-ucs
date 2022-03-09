@@ -173,7 +173,7 @@ public class OscoreRSTestServer {
         //Set up the inner Authz-Info library
     	ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
                   new KissTime(), null, rsId, valid, ctx,
-                  tokenFile, tokenHashesFile, valid, false);
+                  tokenFile, tokenHashesFile, valid, false, 86400000L);
       
         // Add a test token to authz-info
     	

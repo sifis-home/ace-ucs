@@ -113,7 +113,7 @@ public class TestDtlspPskStore {
         
         ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
                 null, rsId, valid, ctx, null, 0, tokenFile, tokenHashesFile, valid,
-                false);
+                false, 86400000L);
         store = new DtlspPskStore(ai);
     }
     

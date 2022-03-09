@@ -112,11 +112,12 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	public OscoreAuthzInfoGroupOSCORE(List<String> issuers,
 									  TimeProvider time, IntrospectionHandler intro, String rsId,
 									  AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
-									  String tokenHashesFile, ScopeValidator scopeValidator, boolean checkCnonce)
+									  String tokenHashesFile, ScopeValidator scopeValidator,
+									  boolean checkCnonce, long defaultExi)
 			        throws AceException, IOException {
 
 		super(issuers, time, intro, rsId, audience, ctx, null, 0, tokenFile, tokenHashesFile,
-		        scopeValidator, checkCnonce);
+		        scopeValidator, checkCnonce, defaultExi);
 		
 		this.audience = (GroupOSCOREJoinValidator) audience;
 		

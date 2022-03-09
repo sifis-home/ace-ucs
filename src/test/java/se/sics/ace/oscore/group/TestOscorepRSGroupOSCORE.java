@@ -301,9 +301,8 @@ public class TestOscorepRSGroupOSCORE {
         
         //Set up the inner Authz-Info library
         //Changed this OscoreAuthzInfo->OscoreAuthzInfoGroupOSCORE
-        ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                  new KissTime(), null, rsId, valid, ctx,
-                  tokenFile, tokenHashesFile, valid, false);
+        ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), new KissTime(),
+                null, rsId, valid, ctx, tokenFile, tokenHashesFile, valid, false, 86400000L);
       
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);

@@ -139,7 +139,7 @@ public class TestDtlspAuthzInfo {
         //Set up the inner Authz-Info library
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile,
-                tokenHashesFile, valid, false);
+                tokenHashesFile, valid, false, 86400000L);
         
         //Set up the DTLS authz-info resource
         dai = new CoapAuthzInfo(ai);

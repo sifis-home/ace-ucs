@@ -197,7 +197,7 @@ public class DtlspRSTestServer {
       //Set up the inner Authz-Info library
       ai = new AuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, keyDerivationKey, derivedKeySize,
-                tokenFile, tokenHashesFile, valid, false);
+                tokenFile, tokenHashesFile, valid, false, 86400000L);
       
       //Add a test token to authz-info
       byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};

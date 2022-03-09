@@ -331,7 +331,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         //Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, null, 0,
-                tokenFile, tokenHashesFile, valid, false);
+                tokenFile, tokenHashesFile, valid, false, 86400000L);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -343,7 +343,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "aud2".
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, null, 0,
-                tokenFile, tokenHashesFile, valid, false);
+                tokenFile, tokenHashesFile, valid, false, 86400000L);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai2.setActiveGroups(activeGroups);

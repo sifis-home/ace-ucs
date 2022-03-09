@@ -376,7 +376,7 @@ public class TestAuthzInfoGroupOSCORE {
     	// tests below to focus on error conditions and achieve the expected outcomes.
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), new KissTime(),
         							  null, rsId, valid, ctx, null, 0, tokenFile,
-                                      tokenHashesFile, valid, false);
+                                      tokenHashesFile, valid, false, 86400000L);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -388,7 +388,7 @@ public class TestAuthzInfoGroupOSCORE {
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
 						               new KissTime(), new IntrospectionHandler4Tests(i, "rs2", "TestAS"),
 						               rsId, valid, ctx, null, 0, tokenFile,
-                                       tokenHashesFile, valid, false);
+                                       tokenHashesFile, valid, false, 86400000L);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai2.setActiveGroups(activeGroups);

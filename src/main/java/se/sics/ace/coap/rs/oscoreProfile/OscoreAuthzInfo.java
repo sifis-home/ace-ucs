@@ -98,11 +98,12 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	public OscoreAuthzInfo(List<String> issuers,
 						   TimeProvider time, IntrospectionHandler intro, String rsId,
 						   AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
-						   String tokenHashesFile, ScopeValidator scopeValidator, boolean checkCnonce)
+						   String tokenHashesFile, ScopeValidator scopeValidator,
+						   boolean checkCnonce, long defaultExi)
 			        throws AceException, IOException {
 		
 		super(issuers, time, intro, rsId, audience, ctx, null, 0, tokenFile, tokenHashesFile,
-		        scopeValidator, checkCnonce);
+		        scopeValidator, checkCnonce, defaultExi);
 	}
 
 	@Override

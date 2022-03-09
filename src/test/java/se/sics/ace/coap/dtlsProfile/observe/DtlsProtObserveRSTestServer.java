@@ -226,7 +226,7 @@ public class DtlsProtObserveRSTestServer {
       //Set up the inner Authz-Info library
       ai = new AuthzInfo(Collections.singletonList("AS"),
                 new KissTime(), null, rsId, valid, ctx, keyDerivationKey, derivedKeySize,
-                tokenFile, tokenHashesFile, valid, false);
+                tokenFile, tokenHashesFile, valid, false, 86400000L);
 
       // process an in-house-built token
       addTestToken(ctx);

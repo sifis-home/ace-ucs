@@ -124,7 +124,7 @@ public class TestCnonce {
        
         ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
         				   null, rsId, valid, ctx, null, 0, tokenFile, tokenHashesFile,
-                           valid, true);
+                           valid, true, 86400000L);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);

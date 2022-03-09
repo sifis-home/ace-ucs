@@ -168,7 +168,7 @@ public class TestAuthzInfo {
         ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
 		                   new IntrospectionHandler4Tests(i, rsId, "TestAS"), rsId,
 		                   valid, ctx, null, 0, tokenFile, tokenHashesFile, valid,
-                           false);
+                           false, 86400000L);
         
         
         // A separate authz-info endpoint is required for each Resource Server, here "rs2",
@@ -182,7 +182,7 @@ public class TestAuthzInfo {
         // This enables some of the tests below to focus on error conditions and achieve the expected outcomes.
         ai2 = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
         					null, rsId, valid, ctx, null, 0, tokenFile, tokenHashesFile,
-                            valid,false);
+                            valid,false, 86400000L);
         
     }
 

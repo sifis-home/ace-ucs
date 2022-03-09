@@ -179,7 +179,7 @@ public class TestOscoreAuthzInfo {
         
         ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                rsId, valid, ctx, tokenFile, tokenHashesFile, valid, false);
+                rsId, valid, ctx, tokenFile, tokenHashesFile, valid, false, 86400000L);
     }
     
     /**
