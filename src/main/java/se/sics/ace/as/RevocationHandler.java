@@ -60,6 +60,10 @@ public class RevocationHandler {
         // get token expiration time (exp)
         long delay = getTimeToExpire(cti);
 
+        // the token to be revoked was already expired
+        if (delay < 0)
+            return;
+
         // put the token in the trlTable
         db.addRevokedToken(cti);
 
@@ -114,7 +118,6 @@ public class RevocationHandler {
             // Trying to revoke an already expired token
             // This might happen since /token and /introspect
             // purge expired tokens in a lazy fashion.
-            // Don't know whether I should send a notification anyway
             LOGGER.log(Level.INFO, "The token to be revoked is already expired");
 
             // However, since at least one expired token exists,
