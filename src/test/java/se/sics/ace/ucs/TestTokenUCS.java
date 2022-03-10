@@ -34,7 +34,6 @@ package se.sics.ace.ucs;
 import COSE.*;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
-import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -67,15 +66,13 @@ public class TestTokenUCS {
 
     private static OneKey publicKey;
     private static OneKey privateKey;
-    private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    private static final byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static SQLConnector db = null;
     private static Token t = null;
     private static String ctiStr1;
     private static String ctiStr2;
     private static UcsHelper pdp = null;
     private static Boolean pdpHandlesRevocations;
-    private static RevocationHandler rh = null;
-    private static KissTime time = null;
 
     /**
      * Set up tests.
@@ -273,6 +270,14 @@ public class TestTokenUCS {
         db.addClient("clientE", profiles, null, null,
                 keyTypes, skey, publicKey);
 
+        profiles.clear();
+        profiles.add("coap_dtls");
+        keyTypes.clear();
+        keyTypes.add("RPK");
+        keyTypes.add("PSK");
+        db.addClient("clientF", profiles, null, null,
+                keyTypes, skey, null);
+
         RawPublicKeyIdentity rpkid
                 = new RawPublicKeyIdentity(publicKey.AsPublicKey());
         profiles.clear();
@@ -313,6 +318,7 @@ public class TestTokenUCS {
         pdp.addTokenAccess("clientC");
         pdp.addTokenAccess("clientD");
         pdp.addTokenAccess("clientE");
+        pdp.addTokenAccess("clientF");
 
         pdp.addAccess(rpkid.getName(), "rs3", "rw_valve");
         pdp.addAccess("clientA", "rs1", "r_temp");
@@ -349,10 +355,13 @@ public class TestTokenUCS {
         pdp.addAccess("clientE", "rs3", "failTokenType");
         //pdp.addAccess("clientE", "rs3", "failProfile");
 
+        pdp.addAccess("clientF", "rs1", "r_temp");
+        pdp.addAccess("clientF", "rs1", "rw_config");
+
         t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
 
         KissTime time = new KissTime();
-        rh = new RevocationHandler(db, time, null, null);
+        RevocationHandler rh = new RevocationHandler(db, time, null, null);
         pdp.setRevocationHandler(rh);
         pdp.setTokenEndpoint(t);
     }
@@ -373,10 +382,9 @@ public class TestTokenUCS {
     /**
      * Test the token endpoint. Request should fail since it is unauthorized.
      *
-     * @throws Exception  throws exception
      */
     @Test
-    public void testFailUnauthorized() throws Exception {
+    public void testFailUnauthorized() {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         LocalMessage msg = new LocalMessage(-1, "client_1", "TestAS", params);
@@ -391,11 +399,9 @@ public class TestTokenUCS {
     /**
      * Test the token endpoint. Request should fail since the scope is missing.
      *
-     *
-     * @throws Exception throws exception
      */
     @Test
-    public void testFailMissingScope() throws Exception {
+    public void testFailMissingScope() {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         LocalMessage msg = new LocalMessage(-1, "clientA", "TestAS", params);
@@ -412,11 +418,9 @@ public class TestTokenUCS {
      * Test the token endpoint.
      * Request should fail since the audience is missing.
      *
-     *
-     * @throws Exception throws exception
      */
     @Test
-    public void testFailMissingAudience() throws Exception {
+    public void testFailMissingAudience() {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("blah"));
@@ -434,11 +438,9 @@ public class TestTokenUCS {
      * Test the token endpoint.
      * Request should fail since the scope is not allowed.
      *
-     *
-     * @throws Exception throws exception
      */
     @Test
-    public void testFailForbidden() throws Exception {
+    public void testFailForbidden() {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("blah"));
@@ -457,11 +459,9 @@ public class TestTokenUCS {
      * Request should fail since the audience does not support
      * a common token type.
      *
-     *
-     * @throws Exception throws exception
      */
     @Test
-    public void testFailIncompatibleTokenType() throws Exception {
+    public void testFailIncompatibleTokenType() {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUDIENCE, CBORObject.FromObject("failTokenType"));
@@ -481,11 +481,9 @@ public class TestTokenUCS {
      * Request should fail since the audience does not support
      * a common profile.
      *
-     *
-     * @throws Exception throws exception
      */
     @Test
-    public void testFailIncompatibleProfile() throws Exception {
+    public void testFailIncompatibleProfile() {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUDIENCE, CBORObject.FromObject("failProfile"));
@@ -504,10 +502,9 @@ public class TestTokenUCS {
      * Request should fail since the audience supports
      * an unknown token type.
      *
-     * @throws Exception throws exception
      */
     @Test
-    public void testFailUnsupportedTokenType() throws Exception {
+    public void testFailUnsupportedTokenType() {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs5"));
@@ -526,10 +523,9 @@ public class TestTokenUCS {
      * Test the token endpoint.
      * Request should fail since the audience does not support PSK
      *
-     * @throws Exception throws exception
      */
     @Test
-    public void testFailPskNotSupported() throws Exception {
+    public void testFailPskNotSupported() {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
@@ -548,10 +544,9 @@ public class TestTokenUCS {
      * Request should fail since the client provided an
      * unknown key type.
      *
-     * @throws Exception throws exception
      */
     @Test
-    public void testFailUnknownKeyType() throws Exception {
+    public void testFailUnknownKeyType() {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs6"));
@@ -570,10 +565,9 @@ public class TestTokenUCS {
      * Request should fail since the audience does not
      * have a common CwtCryptoCtx
      *
-     * @throws Exception throws exception
      */
     @Test
-    public void testFailIncompatibleCwt() throws Exception {
+    public void testFailIncompatibleCwt() {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUDIENCE, CBORObject.FromObject("failCWTpar"));
@@ -678,12 +672,11 @@ public class TestTokenUCS {
      *
      * @throws AceException throws ace exception
      * @throws CoseException throws cose exception
-     * @throws InvalidCipherTextException throws invalid ciphertext exception
      * @throws IllegalStateException throws illegal state exception
      */
     @Test
     public void testSucceedCE() throws AceException, CoseException,
-            IllegalStateException, InvalidCipherTextException {
+            IllegalStateException {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE,
@@ -948,14 +941,14 @@ public class TestTokenUCS {
         assert(cwt.getClaim(Constants.SCOPE).AsString().equals("r_temp rw_config") ||
                 cwt.getClaim(Constants.SCOPE).AsString().equals("rw_config r_temp"));
 
-        pdp.revokeAccess("clientD", "rs1", "r_temp");
+        pdp.revokeAccess("clientF", "rs1", "r_temp");
 
         params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE,
                 CBORObject.FromObject("r_temp rw_config foobar"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
-        msg = new LocalMessage(-1, "clientD", "TestAS", params);
+        msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
