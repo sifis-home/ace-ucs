@@ -153,7 +153,7 @@ public class CoapDeliverer implements MessageDeliverer {
 				subject = CoapReq.getInstance(req).getSenderId();
 				if (subject == null) {
 				    LOGGER.warning("Unauthenticated client tried to get access");
-				    failUnauthz(null, ex);
+				    failUnauthz(ex);
 				    return;
 				}
 			} catch (AceException e) {
@@ -182,22 +182,22 @@ public class CoapDeliverer implements MessageDeliverer {
                       kid = new String(ckid.GetByteString(), 
                               Constants.charset);
                    } else { //No kid in that CBOR map or it isn't a bstr
-                       failUnauthz(kid, ex);
+                       failUnauthz(ex);
                        return;
                    }
                 } else {//Some weird CBOR that is not a map here
-                   failUnauthz(kid, ex);
+                   failUnauthz(ex);
                    return;
                 }                
             } catch (CBORException e) {//Really no kid found for that subject
                 LOGGER.finest("Error while trying to parse some "
                         + "subject identity to CBOR: " + e.getMessage());
-               failUnauthz(kid, ex);
+               failUnauthz(ex);
                return;
             } catch (IllegalArgumentException e) {//Text was not Base64 encoded
                 LOGGER.finest("Error: " + e.getMessage() 
                 + " while trying to Base64 decode this: " + subject);
-                failUnauthz(kid, ex);
+                failUnauthz(ex);
                 return;
             }
            
@@ -233,13 +233,14 @@ public class CoapDeliverer implements MessageDeliverer {
                 this.d.deliverRequest(ex);
                 return;
             case TokenRepository.UNAUTHZ :
-               failUnauthz(kid,ex);
+               failUnauthz(ex);
                return;
             case TokenRepository.FORBID :
                 r = new Response(ResponseCode.FORBIDDEN);
                 try {
                     r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(), 
                             kid).EncodeToBytes());
+                    r.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
                 } catch (InvalidKeyException | NoSuchAlgorithmException e) {
                     LOGGER.severe("cnonce creation failed: " + e.getMessage());
                     ex.sendResponse(r); //Send response without payload
@@ -251,6 +252,7 @@ public class CoapDeliverer implements MessageDeliverer {
                 try {
                     r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
                             kid).EncodeToBytes());
+                    r.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
                 } catch (InvalidKeyException | NoSuchAlgorithmException e) {
                     LOGGER.severe("cnonce creation failed: " + e.getMessage());
                     ex.sendResponse(r);
@@ -286,14 +288,13 @@ public class CoapDeliverer implements MessageDeliverer {
     /**
      * Fail a request with 4.01 Unauthorized.
      * 
-     * @param kid  the kid of the key for the security association 
-     *              or null if it was not established
      */
-    private void failUnauthz(String kid, Exchange ex) {
+    private void failUnauthz(Exchange ex) {
         Response r = new Response(ResponseCode.UNAUTHORIZED);
         try {
             r.setPayload(this.asRCH.getHints(
-                    ex.getCurrentRequest(), kid).EncodeToBytes());
+                    ex.getCurrentRequest(), null).EncodeToBytes());
+            r.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
             ex.sendResponse(r);
         } catch (InvalidKeyException | NoSuchAlgorithmException 
                 | AceException e) {
