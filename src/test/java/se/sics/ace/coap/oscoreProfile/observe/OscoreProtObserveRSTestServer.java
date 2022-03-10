@@ -34,15 +34,18 @@ package se.sics.ace.coap.oscoreProfile.observe;
 import COSE.AlgorithmID;
 import COSE.MessageTag;
 import com.upokecenter.cbor.CBORObject;
-import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.*;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
+import se.sics.ace.coap.TrlCoapHandler;
+import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreAuthzInfo;
@@ -53,11 +56,14 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AsRequestCreationHints;
+import se.sics.ace.rs.TokenRepository;
 
 import java.io.File;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.*;
+
+import static java.lang.Thread.sleep;
 
 /**
  * Resource Server to test with OscoreProtObserveCTestClient
@@ -149,6 +155,22 @@ public class OscoreProtObserveRSTestServer {
     static byte[] key256Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'K', 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
 
     /**
+     * Symmetric key shared between AS and RS. Used for the OSCORE security context.
+     */
+    static byte[] key128rs = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
+
+    private static OSCoreCtxDB ctxDB;
+
+    /**
+     * The AS-RS context
+     */
+    private static OSCoreCtx oscoreCtx;
+
+    private static Timer timer;
+
+    /**
      * The CoAPs server for testing, run this before running the Junit tests.
      *  
      * @param args
@@ -186,27 +208,33 @@ public class OscoreProtObserveRSTestServer {
             = CwtCryptoCtx.encrypt0(key256Rs, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
-        //Delete lingering old token files
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        //Delete lingering old files
         File tFile = new File(tokenFile);
         if (!tFile.delete() && tFile.exists()) {
             throw new IOException("Failed to delete " + tFile);
         }
-      
+        File thFile = new File(tokenHashesFile);
+        if (!thFile.delete() && thFile.exists()) {
+            throw new IOException("Failed to delete " + thFile);
+        }
+
         //Set up the inner Authz-Info library
     	ai = new OscoreAuthzInfo(Collections.singletonList("AS"),
                   new KissTime(), null, rsId, valid, ctx,
-                  tokenFile, valid, false);
+                  tokenFile, tokenHashesFile, valid, false, 86400000L);
 
         // process an in-house-built token
         // addTestToken(ctx);
 
         AsRequestCreationHints archm 
             = new AsRequestCreationHints(
-                    "coaps://blah/authz-info/", null, false, false);
+                    "coap://localhost/token", null, false, false);
         Resource hello = new HelloWorldResource();
         Resource temp = new TempResource();
         Resource authzInfo = new CoapAuthzInfo(ai);
-      
+
+        ctxDB = OscoreCtxDbSingleton.getInstance();
       
         rs = new CoapServer();
         rs.add(hello);
@@ -215,16 +243,33 @@ public class OscoreProtObserveRSTestServer {
         rs.addEndpoint(new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(RS_COAP_PORT)
-                .setCustomCoapStackArgument(
-                        OscoreCtxDbSingleton.getInstance())
+                .setCustomCoapStackArgument(ctxDB)
                 .build());
+
+        byte[] senderId = new byte[]{0x11};     // RS identity
+        byte[] recipientId = new byte[]{0x33};  // AS identity
+        byte[] contextId = new byte[] {0x44};   // RS-AS context ID (hardcoded)
+        oscoreCtx = new OSCoreCtx(key128rs, true, null, senderId,
+                recipientId, null, null, null, contextId, MAX_UNFRAGMENTED_SIZE);
+
+        CoapClient client4AS = OSCOREProfileRequests.buildClient(
+                "coap://localhost/trl", oscoreCtx, ctxDB);
+
+        // uncomment for observe
+//        TrlCoapHandler handler = new TrlCoapHandler();
+//        CoapObserveRelation relation = OSCOREProfileRequests.makeObserveRequest(
+//                client4AS, "coap://localhost/trl", handler);
+
+        // uncomment for polling
+        timer = new Timer();
+        timer.schedule(new PollTrl(client4AS), 5000, 5000);
+
 
         dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
 
         rs.setMessageDeliverer(dpd);
         rs.start();
         System.out.println("Server starting");
-      
     }
 
     /**
@@ -239,6 +284,10 @@ public class OscoreProtObserveRSTestServer {
         File tFile = new File(TestConfig.testFilePath + "tokens.json");
         if (!tFile.delete() && tFile.exists()) {
             throw new IOException("Failed to delete " + tFile);
+        }
+        File thFile = new File(TestConfig.testFilePath + "tokenhashes.json");
+        if (!thFile.delete() && thFile.exists()) {
+            throw new IOException("Failed to delete " + thFile);
         }
         System.out.println("Server stopped");
     }
@@ -282,5 +331,43 @@ public class OscoreProtObserveRSTestServer {
         CBORObject message = CBORObject.FromObject(payload);
 
         ai.processMessage(new LocalMessage(0, null, null, message));
+    }
+
+    public static class PollTrl extends TimerTask {
+
+        CoapClient client = null;
+
+        public PollTrl(CoapClient client) {
+            this.client = client;
+        }
+
+        public void run() {
+
+            CoapResponse response = null;
+            try{
+                response= OSCOREProfileRequests.makePollRequest(
+                        client, "coap://localhost/trl");
+            } catch(AceException e) {
+                System.out.println("Exception caught: " + e.getMessage());
+            }
+
+            TokenRepository.TrlManager trl = TokenRepository.getInstance().getTrlManager();
+            try {
+                trl.updateLocalTrl(CBORObject.DecodeFromBytes(response.getPayload()));
+            } catch (AceException e) {
+                e.printStackTrace();
+            }
+            prettyPrintReceivedTokenHashes(CBORObject.DecodeFromBytes(response.getPayload()));
+        }
+
+        private void prettyPrintReceivedTokenHashes(CBORObject payload) {
+            List<String> hashes = new ArrayList<>();
+            for (int i = 0; i < payload.size(); i++) {
+                byte[] tokenHashB = payload.get(i).GetByteString();
+                String tokenHashS = new String(tokenHashB, Constants.charset);
+                hashes.add(tokenHashS);
+            }
+            System.out.println("List of received token hashes: " + hashes);
+        }
     }
 }
