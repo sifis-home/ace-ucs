@@ -1059,7 +1059,7 @@ public class TokenRepository implements AutoCloseable {
 		        if (exp == null) {
 		            continue; //This token never expires
 		        }
-		        if (!exp.isIntegral()) {
+		        if (!(exp.isNumber() && exp.AsNumber().IsInteger())) {
 		            throw new AceException("Expiration time is in wrong format");
 		        }
 		        
@@ -1202,7 +1202,7 @@ public class TokenRepository implements AutoCloseable {
             
             //Check if the token is expired
             CBORObject exp = claims.get(Constants.EXP); 
-             if (exp != null && !exp.isIntegral()) {
+             if (exp != null && !(exp.isNumber() && exp.AsNumber().IsInteger())) {
                     throw new AceException(
                             "Expiration time is in wrong format");
              }
@@ -1213,7 +1213,7 @@ public class TokenRepository implements AutoCloseable {
             
              //Check nbf
              CBORObject nbf = claims.get(Constants.NBF);
-             if (nbf != null &&  !nbf.isIntegral()) {
+             if (nbf != null &&  !(nbf.isNumber() && nbf.AsNumber().IsInteger())) {
                  throw new AceException("NotBefore time is in wrong format");
              }
              if (nbf != null && nbf.AsNumber().ToInt64Checked() > this.time.getCurrentTime()) {

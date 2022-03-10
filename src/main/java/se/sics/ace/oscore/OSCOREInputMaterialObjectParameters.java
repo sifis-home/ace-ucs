@@ -107,7 +107,7 @@ import se.sics.ace.AceException;
 	                throw new AceException("CBOR key was not a Short: "
 	                        + key.toString());
 	            }
-	            ret.put(key.AsInt16(), cbor.get(key));
+	            ret.put(key.AsNumber().ToInt16Checked(), cbor.get(key));
 	        }
 	        return ret;
 	    }
