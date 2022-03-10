@@ -31,14 +31,9 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile.observe;
 
-import COSE.AlgorithmID;
-import COSE.KeyKeys;
-import COSE.MessageTag;
-import COSE.OneKey;
+import COSE.*;
 import com.upokecenter.cbor.CBORObject;
-import org.eclipse.californium.core.CoapObserveRelation;
-import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.*;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -54,6 +49,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import se.sics.ace.*;
+import se.sics.ace.coap.TrlCoapHandler;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
@@ -65,6 +61,7 @@ import se.sics.ace.examples.KissValidator;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.AuthzInfo;
+import se.sics.ace.rs.TokenRepository;
 
 import java.io.File;
 import java.io.IOException;
@@ -164,6 +161,15 @@ public class DtlsProtObserveRSTestServer {
      */
     private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
 
+    public static String rsId = "rs1";
+
+    /**
+     * Symmetric key for the pre-shared authentication key shared with the AS
+     */
+    static byte[] key128Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'A', 'u', 't', 'h', 'K', 14, 15, 16};
+
+    private static Timer timer;
+
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
      *
@@ -192,9 +198,8 @@ public class DtlsProtObserveRSTestServer {
         myResource3.put("temp", actions3);
         myScopes.put("w_temp", myResource3);
 
-        String rsId = "rs1";
 
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"), myScopes);
+        KissValidator valid = new KissValidator(Collections.singleton(rsId), myScopes);
 
         //Symmetric key shared with the AS. The AS can protect the tokens with this key.
         byte[] key256Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'K', 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
@@ -247,7 +252,9 @@ public class DtlsProtObserveRSTestServer {
 
         Configuration dtlsConfig = Configuration.getStandard();
         dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
-        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(
+                                                        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+                                                        CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
 
         DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
                 .setAddress(
@@ -272,6 +279,21 @@ public class DtlsProtObserveRSTestServer {
         CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(
                 new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
         rs.addEndpoint(aiep);
+
+        InetSocketAddress asAddress =
+                new InetSocketAddress("localhost", CoAP.DEFAULT_COAP_SECURE_PORT);
+        OneKey pskKey = initPsk();
+        CoapClient client4AS = DTLSProfileRequests.buildClient(asAddress, "trl", pskKey);
+
+        // uncomment for observe
+//        TrlCoapHandler handler = new TrlCoapHandler();
+//        CoapObserveRelation relation =
+//                DTLSProfileRequests.makeObserveRequest(client4AS, handler);
+
+        // uncomment for polling
+        timer = new Timer();
+        timer.schedule(new PollTrl(client4AS), 5000, 5000);
+
         rs.setMessageDeliverer(dpd);
         rs.start();
         System.out.println("Server starting");
@@ -326,7 +348,7 @@ public class DtlsProtObserveRSTestServer {
         byte[] key128 = {'k', 'e', 'y', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject(rsId));
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("AS"));
 
@@ -345,4 +367,50 @@ public class DtlsProtObserveRSTestServer {
         ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
     }
 
+    public static OneKey initPsk() throws CoseException {
+
+        CBORObject keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        byte[] kid = rsId.getBytes(StandardCharsets.UTF_8);
+        keyData.Add(KeyKeys.KeyId.AsCBOR(), kid);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128Rs));
+        return new OneKey(keyData);
+    }
+
+    public static class PollTrl extends TimerTask {
+
+        CoapClient client = null;
+
+        public PollTrl(CoapClient client) {
+            this.client = client;
+        }
+
+        public void run() {
+
+            CoapResponse response = null;
+            try{
+                response= DTLSProfileRequests.makePollRequest(client);
+            } catch(AceException e) {
+                System.out.println("Exception caught: " + e.getMessage());
+            }
+
+            TokenRepository.TrlManager trl = TokenRepository.getInstance().getTrlManager();
+            try {
+                trl.updateLocalTrl(CBORObject.DecodeFromBytes(response.getPayload()));
+            } catch (AceException e) {
+                e.printStackTrace();
+            }
+            prettyPrintReceivedTokenHashes(CBORObject.DecodeFromBytes(response.getPayload()));
+        }
+
+        private void prettyPrintReceivedTokenHashes(CBORObject payload) {
+            List<String> hashes = new ArrayList<>();
+            for (int i = 0; i < payload.size(); i++) {
+                byte[] tokenHashB = payload.get(i).GetByteString();
+                String tokenHashS = new String(tokenHashB, Constants.charset);
+                hashes.add(tokenHashS);
+            }
+            System.out.println("List of received token hashes: " + hashes);
+        }
+    }
 }
