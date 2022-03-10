@@ -1,7 +1,9 @@
 package se.sics.ace.coap.oscoreProfile.observe;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -9,17 +11,21 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
+import org.eclipse.californium.oscore.OSException;
+import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
+import se.sics.ace.rs.AsRequestCreationHints;
 
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.logging.Logger;
 
 
 import static java.lang.Thread.sleep;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+
 /*
         C                            RS                  AS
         |                            |                    |
@@ -95,6 +101,12 @@ import static org.junit.Assert.assertTrue;
 public class OscoreProtObserveCTestClient {
 
     /**
+     * The logger
+     */
+    private static final Logger LOGGER
+        = Logger.getLogger(OscoreProtObserveCTestClient.class.getName());
+
+    /**
      * Client name
      */
     public static String clientId = "clientA";
@@ -118,6 +130,13 @@ public class OscoreProtObserveCTestClient {
     private static List<Set<Integer>> usedRecipientIds = new ArrayList<>();
 
     private final static int MAX_UNFRAGMENTED_SIZE = 4096;
+
+    private static Set<String> localTrl = new HashSet<>();
+
+    private static Map<String,String> validTokens = new HashMap<>();
+
+
+
 
     public OscoreProtObserveCTestClient(String id, byte[] key128, Integer port){
 
@@ -148,38 +167,35 @@ public class OscoreProtObserveCTestClient {
             usedRecipientIds.add(new HashSet<>());
         }
 
-//        System.out.println("\n--------STARTING COMMUNICATION WITH AS--------\n");
-//
-//        CoapClient client = OSCOREProfileRequests.buildClient("coap://localhost", ctx, ctxDB);
-//        CoapObserveRelation relation =
-//                OSCOREProfileRequests.makeObserveRequest(client, "coap://localhost/trl");
-//
-//        sleep(5000);
-//        CBORObject params = GetToken.getClientCredentialsRequest(
-//                CBORObject.FromObject("rs1"),
-//                CBORObject.FromObject("r_temp w_temp r_helloWorld foobar"), null);
-//
-//        Response response = OSCOREProfileRequests.getToken(client,
-//                "coap://localhost/token", params);
+        System.out.println("\n--------STARTING COMMUNICATION WITH AS--------\n");
 
+        String asAddr = "coap://localhost";
+        CoapClient client4AS = OSCOREProfileRequests.buildClient(asAddr, ctx, ctxDB);
+
+        // uncomment for observe
         // 1. Make Observe request to the /trl endpoint
-        CoapObserveRelation relation = OSCOREProfileRequests.makeObserveRequest(
-                "coap://localhost/trl", ctx, ctxDB);
+        CoapObserveRelation relation =
+                OSCOREProfileRequests.makeObserveRequest(
+                        client4AS, asAddr + "/trl", new ClientCoapHandler());
 
-        sleep(2000);
+        // uncomment for polling
+//        // 1. Make poll request to the /trl endpoint
+//        CoapResponse responseTrl =
+//                OSCOREProfileRequests.makePollRequest(
+//                        client4AS, asAddr + "/trl");
 
         // 2. Make Access Token request to the /token endpoint
-        // fill params
         CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs1"),
                 CBORObject.FromObject("r_temp w_temp r_helloWorld foobar"), null);
 
-        Response response = OSCOREProfileRequests.getToken(
-                "coap://localhost/token", params, ctx, ctxDB);
+        Response asRes = OSCOREProfileRequests.getToken(
+                client4AS, asAddr + "/token", params);
+
 
         System.out.println("\n---------COMMUNICATION WITH AS ENDED----------\n");
 
-        CBORObject resAs = CBORObject.DecodeFromBytes(response.getPayload());
+        CBORObject resAs = CBORObject.DecodeFromBytes(asRes.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(resAs);
         System.out.println(map);
         assert (map.containsKey(Constants.ACCESS_TOKEN));
@@ -191,76 +207,67 @@ public class OscoreProtObserveCTestClient {
         System.out.println("\n------STARTING COMMUNICATION WITH RS (1)----\n");
 
         // 3. Post the Access Token to the /authz-info endpoint at the RS
-        Response rsRes = OSCOREProfileRequests.postToken(
-                "coap://localhost:" + RS_COAP_PORT + "/authz-info", response, ctxDB, usedRecipientIds);
+        Response rsRes = null;
+        String rsAddr = "coap://localhost:" + RS_COAP_PORT;
+        try{
+            rsRes = OSCOREProfileRequests.postToken(
+                    rsAddr + "/authz-info", asRes, ctxDB, usedRecipientIds);
+        } catch (AceException e) {
+            LOGGER.severe("Failed posting token to RS: " + e.getMessage());
+            System.exit(1);
+        }
+
+        if (rsRes.getCode().equals(CoAP.ResponseCode.CREATED)) {
+            validTokens.put(Util.computeTokenHash(map.get(Constants.ACCESS_TOKEN)), rsAddr);
+        }
 
         System.out.println("\n--------COMMUNICATION WITH RS ENDED (1)------\n");
 
-        assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
 
 //        doGetRequest("helloWorld");
 //        doGetRequest("temp");
 //        doPostRequest("temp", "22.0 C");
 
         // 4. Make GET and POST requests to access the resources
-        String rsHostname = "coap://localhost:" + RS_COAP_PORT;
-        CoapClient client = OSCOREProfileRequests.getClient(
-                new InetSocketAddress(rsHostname, RS_COAP_PORT), ctxDB);
+        CoapClient client4RS = OSCOREProfileRequests.getClient(
+                new InetSocketAddress(rsAddr, RS_COAP_PORT), ctxDB);
 
-        client.setURI(rsHostname + "/temp");
+        client4RS.setURI(rsAddr + "/temp");
 
         int count = 0;
         int randomTemp;
         CoapResponse res;
-        while(true) {
+        while(ctxDB.getContext(rsAddr) != null) {
             if (count%4 != 0) {
                 //res = doGetRequest("temp");
-                res = doGetRequest(client);
+                res = doGetRequest(client4RS);
             }
             else {
                 randomTemp = (int)(Math.random()*100);
                 //res = doPostRequest("temp", randomTemp + ".0 C");
-                res = doPostRequest(client, randomTemp + ".0 C");
+                res = doPostRequest(client4RS, randomTemp + ".0 C");
             }
 
-            // print response code and the message from the RS
-            System.out.println("\nResponse Code:       " + res.getCode() + " - " + res.advanced().getCode().name());
-            System.out.println(  "Response Message:    " + res.getResponseText() + "\n");
+            if (res.getCode().isSuccess()) {
+                // print response code and the message from the RS
+                System.out.println("\nResponse Code:       " + res.getCode() + " - " + res.advanced().getCode().name());
+                System.out.println("Response Message:    " + res.getResponseText() + "\n");
+            }
+            else if (res.getCode().isServerError() || res.getCode().isClientError()) {
+                CBORObject payload = CBORObject.DecodeFromBytes(res.getPayload());
+                Map<Short, CBORObject> hintsMap = AsRequestCreationHints.parseHints(payload);
+                System.out.println("AS Request Creation Hints: " + hintsMap);
+                System.exit(1);
+            }
 
-//            if (!CoAP.ResponseCode.isSuccess(res.advanced().getCode())){
-//                System.out.println("Received an error code. Terminating.");
-//                break;
-//            }
             count++;
-            sleep(3000);
+            sleep(1000);
         }
+        System.out.println("Client terminated");
 
     }
 
 
-    public static CoapResponse doGetRequest(String resource) throws Exception {
-
-        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-                "coap://localhost:" + RS_COAP_PORT + "/" + resource, RS_COAP_PORT), ctxDB);
-
-        Request req = new Request(CoAP.Code.GET);
-        req.getOptions().setOscore(new byte[0]);
-        return c.advanced(req);
-    }
-
-
-   public static CoapResponse doPostRequest(String resource, String payload) throws Exception {
-
-       CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-               "coap://localhost:" + RS_COAP_PORT + "/" + resource, RS_COAP_PORT), ctxDB);
-
-       Request req = new Request(CoAP.Code.POST);
-       req.getOptions().setOscore(new byte[0]);
-       req.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
-       CBORObject payloadCbor  = CBORObject.FromObject(payload);
-       req.setPayload(payloadCbor.EncodeToBytes());
-       return c.advanced(req);
-   }
 
     public static CoapResponse doGetRequest(CoapClient client) throws Exception {
 
@@ -279,5 +286,60 @@ public class OscoreProtObserveCTestClient {
         req.setPayload(payloadCbor.EncodeToBytes());
         return client.advanced(req);
     }
-}
 
+
+    public static class ClientCoapHandler implements CoapHandler {
+
+        @Override public void onLoad(CoapResponse response) {
+            try {
+                assertLoad(response);
+            } catch (AssertionError | AceException error) {
+                LOGGER.severe("Assert:" + error);
+            }
+            System.out.println("NOTIFICATION: " + response.advanced());
+        }
+
+        private void assertLoad(CoapResponse response) throws AceException {
+
+            if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {
+
+                CBORObject payload = CBORObject.DecodeFromBytes(response.getPayload());
+                if (payload.getType() != CBORType.Array) {
+                    throw new AceException("Wrong payload type. Expected a CBOR Array");
+                }
+                Set<String> hashes = new HashSet<>();
+                for (int i = 0; i < payload.size(); i++) {
+                    byte[] tokenHashB = payload.get(i).GetByteString();
+                    String tokenHashS = new String(tokenHashB, Constants.charset);
+                    hashes.add(tokenHashS);
+                }
+                LOGGER.info("Set of received token hashes: " + hashes);
+                localTrl = new HashSet<>(hashes);
+
+                Set<String> intersection = new HashSet<>(validTokens.keySet());
+                intersection.retainAll(localTrl);
+                for(String th : intersection) {
+                    try {
+                        // remove ctx associated with the server address
+                        String srvAddr = validTokens.get(th);
+                        OSCoreCtx ctxToRemove = ctxDB.getContext(srvAddr);
+                        ctxDB.removeContext(ctxToRemove);
+                        //ctxDB.getContext(srvAddr);
+                    } catch (OSException e) {
+                        e.printStackTrace();
+                    }
+                    validTokens.remove(th);
+                }
+            }
+
+            else { //assume text/plain
+                String content = response.getResponseText();
+                System.out.println("NOTIFICATION: " + content);
+            }
+        }
+
+        @Override public void onError() {
+            System.err.println("OBSERVE FAILED");
+        }
+    }
+}
