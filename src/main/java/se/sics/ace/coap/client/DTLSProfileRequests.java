@@ -41,6 +41,7 @@ import java.util.Random;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -110,71 +111,26 @@ public class DTLSProfileRequests {
      *
      * @throws AceException 
      */
-    public static CoapResponse getToken(InetSocketAddress serverAddress, String tokenPath,
-                                        CBORObject payload, OneKey key) throws AceException {
+    public static CoapResponse getToken(
+            InetSocketAddress serverAddress, String tokenPath, CBORObject payload, OneKey key)
+            throws AceException {
+
         if (tokenPath == null) {
             tokenPath = "token";
         }
-//    	Configuration dtlsConfig = Configuration.getStandard();
-//    	dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
-//    	dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
-//
-//        CBORObject type = key.get(KeyKeys.KeyType);
-//    	if (type.equals(KeyKeys.KeyType_Octet)) {
-//        	dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
-//    	} else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)) {
-//    		dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
-//    	}
-//
-//        DtlsConnectorConfig.Builder builder
-//            = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
-//                    new InetSocketAddress(0));
-//
-//        if (type.equals(KeyKeys.KeyType_Octet)) {
-//            AdvancedMultiPskStore store = new AdvancedMultiPskStore();
-//            byte[] identityBytes = key.get(KeyKeys.KeyId).GetByteString();
-//            String identityStr = Base64.getEncoder().encodeToString(identityBytes);
-//            PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
-//            store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
-//            builder.setAdvancedPskStore(store);
-//        } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
-//            try {
-//                builder.setCertificateIdentityProvider(
-//                        new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
-//            } catch (CoseException e) {
-//                LOGGER.severe("Failed to transform key: " + e.getMessage());
-//                throw new AceException(e.getMessage());
-//            }
-//        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
-//        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
-//        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
-//                new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
-//        builder.setAdvancedCertificateVerifier(verifier);
-//        } else {
-//            LOGGER.severe("Unknown key type used for getting a token");
-//            throw new AceException("Unknown key type");
-//        }
-//
-//        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-//        CoapEndpoint ep = new CoapEndpoint.Builder()
-//                .setConnector(dtlsConnector)
-//                .setConfiguration(Configuration.getStandard())
-//                .build();
-//
-//        CoapClient client = new CoapClient(
-//                "coaps", serverAddress.getHostString(),
-//                serverAddress.getPort(), tokenPath);
-//        client.setEndpoint(ep);
-//        try {
-//            dtlsConnector.start();
-//        } catch (IOException e) {
-//            LOGGER.severe("Failed to start DTLSConnector: " + e.getMessage());
-//            throw new AceException(e.getMessage());
-//        }
-        CoapClient client = createClient(serverAddress, tokenPath, key);
+
+        CoapClient client = buildClient(serverAddress, tokenPath, key);
+
+        return getToken(client, payload);
+    }
+
+
+    public static CoapResponse getToken(CoapClient client, CBORObject payload)
+            throws AceException {
+
         try {
             return client.post(
-                    payload.EncodeToBytes(), 
+                    payload.EncodeToBytes(),
                     Constants.APPLICATION_ACE_CBOR);
         } catch (ConnectorException | IOException e) {
             LOGGER.severe("DTLSConnector error: " + e.getMessage());
@@ -182,49 +138,100 @@ public class DTLSProfileRequests {
         }
     }
 
-    public static CoapClient createClient(InetSocketAddress serverAddress,
-                                          String path, OneKey key) throws AceException{
-        Configuration dtlsConfig = Configuration.getStandard();
-        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
-        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+
+    public static CoapClient buildClient(
+            InetSocketAddress serverAddress, String path, OneKey key)
+            throws AceException {
 
         CBORObject type = key.get(KeyKeys.KeyType);
         if (type.equals(KeyKeys.KeyType_Octet)) {
-            dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
-        } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)) {
-            dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+            return buildPskClient(serverAddress, path, key);
         }
+        else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)) {
+            return buildRpkClient(serverAddress, path, key);
+        }
+        else {
+            LOGGER.severe("Unknown key type used for getting a token");
+            throw new AceException("Unknown key type");
+        }
+    }
+
+
+    public static CoapClient buildPskClient(
+            InetSocketAddress serverAddress, String path, OneKey key)
+            throws AceException {
+
+        CBORObject type = key.get(KeyKeys.KeyType);
+        if (!type.equals(KeyKeys.KeyType_Octet)) {
+            LOGGER.severe("Unknown key type used for getting a token");
+            throw new AceException("Unknown key type");
+        }
+
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
+        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES,
+                Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+
+        DtlsConnectorConfig.Builder builder =
+                new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
+                    new InetSocketAddress(0));
+
+        AdvancedMultiPskStore store = new AdvancedMultiPskStore();
+        byte[] identityBytes = key.get(KeyKeys.KeyId).GetByteString();
+        String identityStr = Base64.getEncoder().encodeToString(identityBytes);
+        PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
+        store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
+        builder.setAdvancedPskStore(store);
+
+        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
+
+        return configureClient(dtlsConnector, serverAddress, path);
+    }
+
+
+    public static CoapClient buildRpkClient(
+            InetSocketAddress serverAddress, String path, OneKey key)
+            throws AceException {
+
+        CBORObject type = key.get(KeyKeys.KeyType);
+        if (!type.equals(KeyKeys.KeyType_EC2) && !type.equals(KeyKeys.KeyType_OKP)) {
+            LOGGER.severe("Unknown key type used for getting a token");
+            throw new AceException("Unknown key type");
+        }
+
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
+        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES,
+                Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 
         DtlsConnectorConfig.Builder builder
                 = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                 new InetSocketAddress(0));
 
-        if (type.equals(KeyKeys.KeyType_Octet)) {
-            AdvancedMultiPskStore store = new AdvancedMultiPskStore();
-            byte[] identityBytes = key.get(KeyKeys.KeyId).GetByteString();
-            String identityStr = Base64.getEncoder().encodeToString(identityBytes);
-            PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
-            store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
-            builder.setAdvancedPskStore(store);
-        } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
-            try {
-                builder.setCertificateIdentityProvider(
-                        new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
-            } catch (CoseException e) {
-                LOGGER.severe("Failed to transform key: " + e.getMessage());
-                throw new AceException(e.getMessage());
-            }
-            ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
-            certTypes.add(CertificateType.RAW_PUBLIC_KEY);
-            AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
-                    new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
-            builder.setAdvancedCertificateVerifier(verifier);
-        } else {
-            LOGGER.severe("Unknown key type used for getting a token");
-            throw new AceException("Unknown key type");
+        try {
+            builder.setCertificateIdentityProvider(
+                    new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
+        } catch (CoseException e) {
+            LOGGER.severe("Failed to transform key: " + e.getMessage());
+            throw new AceException(e.getMessage());
         }
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+                new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
+        builder.setAdvancedCertificateVerifier(verifier);
 
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
+
+        return configureClient(dtlsConnector, serverAddress, path);
+    }
+
+
+    private static CoapClient configureClient(
+            DTLSConnector dtlsConnector, InetSocketAddress serverAddress, String path)
+        throws AceException {
         CoapEndpoint ep = new CoapEndpoint.Builder()
                 .setConnector(dtlsConnector)
                 .setConfiguration(Configuration.getStandard())
@@ -243,13 +250,12 @@ public class DTLSProfileRequests {
         return client;
     }
 
+
     /**
      * Sends a GET request to the /trl endpoint of the AS to observe.
      * If the DTLS connection uses pre-shared symmetric keys
      * we will use the key identifier (COSE kid) as psk_identity.
      *
-     * @param asAddr  the full address of the /trl endpoint
-     *  (including scheme and hostname, and port if not default)
      * @param key  the key to be used to secure the connection to the AS.
      *  This MUST have a kid.
      *
@@ -257,79 +263,62 @@ public class DTLSProfileRequests {
      *
      * @throws AceException
      */
-    public static CoapObserveRelation makeObserveRequest(InetSocketAddress serverAddress,
-                                                         String trlPath, OneKey key) throws AceException {
+    public static CoapObserveRelation makeObserveRequest(
+            InetSocketAddress serverAddress, String trlPath, OneKey key, CoapHandler handler)
+            throws AceException {
+
         if (trlPath == null) {
             trlPath = "trl";
         }
-//        Configuration dtlsConfig = Configuration.getStandard();
-//            dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
-//            dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
-//
-//        CBORObject type = key.get(KeyKeys.KeyType);
-//            if (type.equals(KeyKeys.KeyType_Octet)) {
-//            dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
-//        } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)) {
-//            dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
-//        }
-//
-//        DtlsConnectorConfig.Builder builder
-//                = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
-//                new InetSocketAddress(0));
-//
-//            if (type.equals(KeyKeys.KeyType_Octet)) {
-//            String keyId = new String(
-//                    key.get(KeyKeys.KeyId).GetByteString(),
-//                    Constants.charset);
-//            AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
-//            pskStore.setKey(keyId, key.get(KeyKeys.Octet_K).GetByteString());
-//            builder.setAdvancedPskStore(pskStore);
-//        } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
-//            try {
-//                builder.setCertificateIdentityProvider(
-//                        new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
-//            } catch (CoseException e) {
-//                LOGGER.severe("Failed to transform key: " + e.getMessage());
-//                throw new AceException(e.getMessage());
-//            }
-//        } else {
-//            LOGGER.severe("Unknown key type used for getting a token");
-//            throw new AceException("Unknown key type");
-//        }
-//
-//        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
-//        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
-//        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
-//                new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
-//        builder.setAdvancedCertificateVerifier(verifier);
-//
-//        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-//        CoapEndpoint ep = new CoapEndpoint.Builder()
-//                .setConnector(dtlsConnector)
-//                .setConfiguration(Configuration.getStandard())
-//                .build();
-//        CoapClient client = new CoapClient(asAddr);
-//            client.setEndpoint(ep);
-//            try {
-//            dtlsConnector.start();
-//        } catch (IOException e) {
-//            LOGGER.severe("Failed to start DTLSConnector: " + e.getMessage());
-//            throw new AceException(e.getMessage());
-//        }
+        CoapClient client = buildClient(serverAddress, trlPath, key);
 
-        CoapClient client = createClient(serverAddress, trlPath, key);
+        return makeObserveRequest(client, handler);
+    }
 
-        // set request
+
+    public static CoapObserveRelation makeObserveRequest(CoapClient client, CoapHandler handler) {
+
+        Request request = buildTrlGetRequest(true);
+        return client.observe(request, handler);
+    }
+
+
+    public static CoapResponse makePollRequest(
+            InetSocketAddress serverAddress, String trlPath, OneKey key)
+            throws AceException {
+
+        if (trlPath == null) {
+            trlPath = "trl";
+        }
+        CoapClient client = buildClient(serverAddress, trlPath, key);
+
+        return makePollRequest(client);
+    }
+
+
+    public static CoapResponse makePollRequest(CoapClient client)
+            throws AceException {
+
+        Request request = buildTrlGetRequest(false);
+        try {
+            return client.advanced(request);
+        } catch (ConnectorException | IOException e) {
+            LOGGER.severe("Connector error: " + e.getMessage());
+            throw new AceException(e.getMessage());
+        }
+    }
+
+
+    public static Request buildTrlGetRequest(boolean observe) {
+
         byte[] token = Bytes.createBytes(new Random(), 8);
-        Request req = new Request(CoAP.Code.GET);
-        req.setConfirmable(true);
-//        req.setURI(asAddr);
-        //r.getOptions().setOscore(new byte[0]);
-        req.setToken(token);
-        req.setObserve();
-
-        CoapNotificationHandler handler = new CoapNotificationHandler();
-        return client.observe(req, handler);
+        Request request = new Request(CoAP.Code.GET);
+        request.setConfirmable(true);
+        request.setToken(token);
+        if (observe) {
+            request.setObserve();
+        }
+        return request;
     }
 
 
