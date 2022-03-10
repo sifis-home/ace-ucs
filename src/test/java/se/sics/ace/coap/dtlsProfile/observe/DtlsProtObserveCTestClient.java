@@ -4,20 +4,24 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.junit.Assert;
+import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.as.Token;
 import se.sics.ace.coap.client.DTLSProfileRequests;
+import se.sics.ace.rs.AsRequestCreationHints;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.logging.Logger;
 
 import static java.lang.Thread.sleep;
 /*
@@ -95,6 +99,11 @@ import static java.lang.Thread.sleep;
 public class DtlsProtObserveCTestClient {
 
     /**
+     * The logger
+     */
+    private static final Logger LOGGER
+            = Logger.getLogger(DtlsProtObserveCTestClient.class.getName());
+    /**
      * Client identifier, used with the authorization server during a token request in PSK mode
      */
     public static String clientId = "clientA";
@@ -116,6 +125,17 @@ public class DtlsProtObserveCTestClient {
      */
     public static int RS_COAP_SECURE_PORT = 5686;
 
+    /**
+     * Set of token hashes of revoked tokens
+     */
+    private static Set<String> localTrl = new HashSet<>();
+
+    /**
+     * Map containing the tokenhashes of valid tokens
+     */
+    private static Map<String,String> validTokens = new HashMap<>();
+
+
 
     public DtlsProtObserveCTestClient(String id, byte[] key128, Integer port){
 
@@ -131,8 +151,7 @@ public class DtlsProtObserveCTestClient {
         // default configuration if no args are passed: PSK with unprotected request at authz-info endpoint
         boolean unprotectedRequest = true;
         boolean pskProfile = true;
-
-        OneKey clientAsymKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
+        OneKey clientKey = initPsk();
 
         // parse input
         if (args.length > 0) {
@@ -142,38 +161,36 @@ public class DtlsProtObserveCTestClient {
                 if ("-psk".equals(arg)) {
                     pskProfile = true;
                     unprotectedRequest = false;
+                    clientKey = initPsk();
                     index++;
                 } else if ("-psku".equals(arg)) {
                     pskProfile = true;
                     unprotectedRequest = true;
+                    clientKey = initPsk();
                     index++;
                 } else if ("-rpk".equals(arg)) {
                     pskProfile = false;
+                    clientKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
                     index++;
                 }
             }
         }
 
-        OneKey psk = null;
-        if (pskProfile) {
-            psk = initPsk();
-        }
 
         System.out.println("\n--------STARTING COMMUNICATION WITH AS--------\n");
 
         InetSocketAddress asAddress =
                 new InetSocketAddress("localhost", CoAP.DEFAULT_COAP_SECURE_PORT);
 
+        CoapClient client4AS = DTLSProfileRequests.buildClient(asAddress, "trl", clientKey);
+
+        // uncomment for observe
         // 1. Make Observe request to the /trl endpoint
-        CoapObserveRelation relation;
-        if (pskProfile) {
-            relation = DTLSProfileRequests.makeObserveRequest(
-                    asAddress, "trl", psk);
-        }
-        else {
-            relation = DTLSProfileRequests.makeObserveRequest(
-                    asAddress, "trl", clientAsymKey);
-        }
+        CoapObserveRelation relation = DTLSProfileRequests.makeObserveRequest(client4AS, new ClientCoapHandler());
+
+        // uncomment for polling
+//        // 1. Make poll request to the /trl endpoint
+//        CoapResponse responseTrl = DTLSProfileRequests.makePollRequest(client4AS);
 
         // 2. Make Access Token request to the /token endpoint
         // fill params
@@ -182,39 +199,39 @@ public class DtlsProtObserveCTestClient {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp w_temp r_helloWorld foobar"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
 
-        CoapResponse responseAs;
-        if (pskProfile) {
-            responseAs = DTLSProfileRequests.getToken(asAddress, "token",
-                    Constants.getCBOR(params), psk);
-        }
-        else {
-            OneKey clientPublicKey = clientAsymKey.PublicKey();
+        // if rpk is used, the request must contain the REQ_CNF claim
+        if (!pskProfile) {
+            OneKey clientPublicKey = clientKey.PublicKey();
             CBORObject reqCnf = CBORObject.NewMap();
             reqCnf.Add(Constants.COSE_KEY_CBOR, clientPublicKey.AsCBOR());
             params.put(Constants.REQ_CNF, reqCnf);
-
-            responseAs = DTLSProfileRequests.getToken(asAddress, "token",
-                    Constants.getCBOR(params), clientAsymKey);
         }
+
+        client4AS = DTLSProfileRequests.buildClient(asAddress, "token", clientKey);
+        CoapResponse responseToken = DTLSProfileRequests.getToken(client4AS, Constants.getCBOR(params));
 
         System.out.println("\n---------COMMUNICATION WITH AS ENDED----------\n");
 
-        CBORObject resAs = CBORObject.DecodeFromBytes(responseAs.getPayload());
+        printAsResponse(responseToken);
+
+        CBORObject resAs = CBORObject.DecodeFromBytes(responseToken.getPayload());
         Map<Short, CBORObject> mapAs = Constants.getParams(resAs);
 
-        // print response code and the retrieved claims
-        System.out.println("Response Code:   " + responseAs.getCode() + " - " + responseAs.advanced().getCode().name());
-        System.out.println("Payload content: " + mapAs);
-
         // extract the access token to be sent to the RS
+        assert (mapAs.containsKey(Constants.ACCESS_TOKEN));
         CBORObject token = mapAs.get(Constants.ACCESS_TOKEN);
         CBORObject tokenAsCbor = CBORObject.DecodeFromBytes(token.GetByteString());
 
+        validTokens.put(Util.computeTokenHash(mapAs.get(Constants.ACCESS_TOKEN)), "rs1");
+                // TODO: find another value for the map, or consider using a Set.
+                //  Nonetheless, the Client should be able to understand which
+                //  communication with the RS must be closed when it finds a
+                //  tokenhash that is both in the localTrl and in the validTokens map
 
         System.out.println("\n------STARTING COMMUNICATION WITH RS (1)----\n");
 
         // 3. Post the Access Token to the /authz-info endpoint at the RS
-        CoapClient c2rs;
+        CoapClient client4RS;
         if (pskProfile) {
             // use the COSE key contained in the CNF claim to build the PoP key to use with the RS
             CBORObject coseKey = mapAs.get(Constants.CNF).get(Constants.COSE_KEY);
@@ -235,13 +252,13 @@ public class DtlsProtObserveCTestClient {
                 // prepare the CoAP client to establish a DTLS channel.
                 // extracting KID, used to build the psk-identity for the DTLS handshake
                 byte[] kidB = coseKey.get(Constants.KID).GetByteString();
-                c2rs = DTLSProfileRequests.getPskClient(
+                client4RS = DTLSProfileRequests.getPskClient(
                         new InetSocketAddress("localhost", RS_COAP_SECURE_PORT),
                         kidB, popKey);
             } else { // PSK (use the access token as psk-identity)
                 // prepare the CoAP client to establish a DTLS channel.
                 // the access token is used as psk-identity in the DTLS handshake
-                c2rs = DTLSProfileRequests.getPskClient(
+                client4RS = DTLSProfileRequests.getPskClient(
                         new InetSocketAddress("localhost", RS_COAP_SECURE_PORT),
                         tokenAsCbor, popKey);
             }
@@ -255,7 +272,7 @@ public class DtlsProtObserveCTestClient {
             CBORObject coseKey = mapAs.get(Constants.RS_CNF).get(Constants.COSE_KEY);
             OneKey rsAsymKey = new OneKey(coseKey);
 
-            c2rs = DTLSProfileRequests.getRpkClient(clientAsymKey, rsAsymKey);
+            client4RS = DTLSProfileRequests.getRpkClient(clientKey, rsAsymKey);
         }
 
         System.out.println("\n--------COMMUNICATION WITH RS ENDED (1)------\n");
@@ -270,20 +287,24 @@ public class DtlsProtObserveCTestClient {
         CoapResponse res;
         while(true) {
             if (count%4 != 0) {
-                res = doGetRequest(c2rs, "temp");
+                res = doGetRequest(client4RS, "temp");
             }
             else {
                 randomTemp = (int)(Math.random()*100);
-                res = doPostRequest(c2rs, "temp", randomTemp + ".0 C");
+                res = doPostRequest(client4RS, "temp", randomTemp + ".0 C");
             }
-            // print response code and the message from the RS
-            System.out.println("\nResponse Code:       " + res.getCode() + " - " + res.advanced().getCode().name());
-            System.out.println(  "Response Message  :  " + res.getResponseText() + "\n");
 
-//            if (!CoAP.ResponseCode.isSuccess(res.advanced().getCode())){
-//                System.out.println("Received an error code. Terminating.");
-//                return;
-//            }
+            if (res.getCode().isSuccess()) {
+                // print response code and the message from the RS
+                System.out.println("\nResponse Code:       " + res.getCode() + " - " + res.advanced().getCode().name());
+                System.out.println("Response Message:    " + res.getResponseText() + "\n");
+            }
+            else if (res.getCode().isServerError() || res.getCode().isClientError()) {
+                CBORObject payload = CBORObject.DecodeFromBytes(res.getPayload());
+                Map<Short, CBORObject> hintsMap = AsRequestCreationHints.parseHints(payload);
+                System.out.println("AS Request Creation Hints: " + hintsMap);
+                System.exit(1);
+            }
             count++;
             sleep(3000);
         }
@@ -305,6 +326,7 @@ public class DtlsProtObserveCTestClient {
         return client.post(payloadCbor.EncodeToBytes(), Constants.APPLICATION_ACE_CBOR);
     }
 
+
     public static OneKey initPsk() throws CoseException {
 
         CBORObject keyData = CBORObject.NewMap();
@@ -314,5 +336,63 @@ public class DtlsProtObserveCTestClient {
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
         return new OneKey(keyData);
     }
-}
 
+
+    public static void printAsResponse(CoapResponse response)
+            throws AceException {
+
+        Map<Short, CBORObject> mapAs = Constants.getParams(
+                CBORObject.DecodeFromBytes(response.getPayload()));
+
+        // print response code and the retrieved claims
+        System.out.println("Response Code:   " + response.getCode() + " - " + response.advanced().getCode().name());
+        System.out.println("Payload content: " + mapAs);
+    }
+
+
+    public static class ClientCoapHandler implements CoapHandler {
+
+        @Override public void onLoad(CoapResponse response) {
+            try {
+                assertLoad(response);
+            } catch (AssertionError | AceException error) {
+                LOGGER.severe("Assert:" + error);
+            }
+            System.out.println("NOTIFICATION: " + response.advanced());
+        }
+
+        private void assertLoad(CoapResponse response) throws AceException {
+
+            if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {
+
+                CBORObject payload = CBORObject.DecodeFromBytes(response.getPayload());
+                if (payload.getType() != CBORType.Array) {
+                    throw new AceException("Wrong payload type. Expected a CBOR Array");
+                }
+                Set<String> hashes = new HashSet<>();
+                for (int i = 0; i < payload.size(); i++) {
+                    byte[] tokenHashB = payload.get(i).GetByteString();
+                    String tokenHashS = new String(tokenHashB, Constants.charset);
+                    hashes.add(tokenHashS);
+                }
+                LOGGER.info("Set of received token hashes: " + hashes);
+                localTrl = new HashSet<>(hashes);
+
+                Set<String> intersection = new HashSet<>(validTokens.keySet());
+                intersection.retainAll(localTrl);
+                for(String th : intersection) {
+                    validTokens.remove(th);
+                }
+            }
+
+            else { //assume text/plain
+                String content = response.getResponseText();
+                System.out.println("NOTIFICATION: " + content);
+            }
+        }
+
+        @Override public void onError() {
+            System.err.println("OBSERVE FAILED");
+        }
+    }
+}
