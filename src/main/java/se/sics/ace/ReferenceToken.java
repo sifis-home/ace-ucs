@@ -122,7 +122,7 @@ public class ReferenceToken implements AccessToken {
 		    throw new AceException("Token reference not found: " + this.refS);
 		}
 		CBORObject expO = params.get(Constants.EXP);
-		if (expO != null && expO.AsInt64() < now) {
+		if (expO != null && expO.AsNumber().ToInt64Checked() < now) {
 			//Token has expired
 			return true;
 		}
@@ -146,11 +146,11 @@ public class ReferenceToken implements AccessToken {
 		}
 		//Check nbf and exp for the found match
 		CBORObject nbfO = params.get(Constants.NBF);
-		if (nbfO != null &&  nbfO.AsInt64()	> now) {
+		if (nbfO != null &&  nbfO.AsNumber().ToInt64Checked()	> now) {
 		    return false;
 		}	
 		CBORObject expO = params.get(Constants.EXP);
-		if (expO != null && expO.AsInt64() < now) {
+		if (expO != null && expO.AsNumber().ToInt64Checked() < now) {
 		    //Token has expired
 		    return false;
 		}

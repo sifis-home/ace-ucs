@@ -254,7 +254,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 
 		//4. Check that the token is not expired (exp)
 	    CBORObject exp = claims.get(Constants.EXP);
-	    if (exp != null && exp.AsInt64() < this.time.getCurrentTime()) { 
+	    if (exp != null && exp.AsNumber().ToInt64Checked() < this.time.getCurrentTime()) {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
             map.Add(Constants.ERROR_DESCRIPTION, "Token is expired");
@@ -283,9 +283,9 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 				if (expTime == trl.UNKNOWN_EXPIRATION) { // the token is revoked and is the first time
 														 // that the client posts this token
 					if (claims.containsKey(Constants.EXI)) {
-						expTime = claims.get(Constants.EXI).AsInt64() + this.time.getCurrentTime();
+						expTime = claims.get(Constants.EXI).AsNumber().ToInt64Checked() + this.time.getCurrentTime();
 					} else if (claims.containsKey(Constants.EXP)) {
-						expTime = claims.get(Constants.EXP).AsInt64();
+						expTime = claims.get(Constants.EXP).AsNumber().ToInt64Checked();
 					} else {
 						// This should never happen since if neither EXP nor EXI was present,
 						// EXP should have been added to the claims in a previous step
@@ -755,7 +755,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
         
         // Determine the expiration time and add it to the Access Token as value of an 'exp' claim
         Long now = this.time.getCurrentTime();
-        Long exp = now + exi.AsInt64();
+        Long exp = now + exi.AsNumber().ToInt64Checked();
         claims.put(Constants.EXP, CBORObject.FromObject(exp));
         
         // Check that the 'cti' claim is also present

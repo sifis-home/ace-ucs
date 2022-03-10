@@ -1063,7 +1063,7 @@ public class TokenRepository implements AutoCloseable {
 		            throw new AceException("Expiration time is in wrong format");
 		        }
 		        
-		        if (this.time.getCurrentTime() > exp.AsInt64()) {
+		        if (this.time.getCurrentTime() > exp.AsNumber().ToInt64Checked()) {
 		        	// This Access Token is expired and has to be removed
 		            tokenToRemove.add(foo.getKey());
 		            
@@ -1206,7 +1206,7 @@ public class TokenRepository implements AutoCloseable {
                     throw new AceException(
                             "Expiration time is in wrong format");
              }
-             if (exp != null && exp.AsInt64() < this.time.getCurrentTime()) {
+             if (exp != null && exp.AsNumber().ToInt64Checked() < this.time.getCurrentTime()) {
                  //Token is expired
                  continue;
              }
@@ -1216,7 +1216,7 @@ public class TokenRepository implements AutoCloseable {
              if (nbf != null &&  !nbf.isIntegral()) {
                  throw new AceException("NotBefore time is in wrong format");
              }
-             if (nbf != null && nbf.AsInt64() > this.time.getCurrentTime()) {
+             if (nbf != null && nbf.AsNumber().ToInt64Checked() > this.time.getCurrentTime()) {
                  //Token not valid yet
                  continue;
              }
@@ -1905,11 +1905,11 @@ public class TokenRepository implements AutoCloseable {
 				// check exp or exi
 				if (cti2claims.get(cti).containsKey(Constants.EXP)) {
 					CBORObject exp = cti2claims.get(cti).get(Constants.EXP);
-					return exp.AsInt64();
+					return exp.AsNumber().ToInt64Checked();
 				}
 				else if (cti2claims.get(cti).containsKey(Constants.EXI)) {
 					CBORObject exi = cti2claims.get(cti).get(Constants.EXI);
-					return time.getCurrentTime() + exi.AsInt64();
+					return time.getCurrentTime() + exi.AsNumber().ToInt64Checked();
 				}
 				// Token is not associated with an expiration
 				throw new AceException("Error finding token expiration: " +
@@ -1972,7 +1972,7 @@ public class TokenRepository implements AutoCloseable {
 //								Long exp = claims.getLong(nextKey);
 								Long exp = CBORObject.DecodeFromBytes(
 										Base64.getDecoder().decode(
-												claims.getString(nextKey))).AsInt64();
+												claims.getString(nextKey))).AsNumber().ToInt64Checked();
 								trlManager.localTrl.put(th, exp);
 							}
 						}

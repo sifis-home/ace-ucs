@@ -815,7 +815,7 @@ public class TestTokenRepository {
         // ...and that its expiration time was set correctly
         // since the token was previously posted
         long expiration = revokedTokens.get(th);
-        Assert.assertEquals(exp.AsInt64(), expiration);
+        Assert.assertEquals(exp.AsNumber().ToInt64Checked(), expiration);
 
         // check that the token has been removed from the valid tokens
         Set<String> validTokenSet = tr.getTrlManager().getValidTokensSet();

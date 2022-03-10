@@ -2003,7 +2003,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             while (result.next()) {
                 byte[] rawTime = result.getBytes(DBConnector.claimValueColumn);
                 CBORObject cborTime = CBORObject.DecodeFromBytes(rawTime);
-                long time = cborTime.AsInt64();
+                long time = cborTime.AsNumber().ToInt64Checked();
                 if (now > time) {
                     deleteToken(result.getString(DBConnector.ctiColumn));
                 }
@@ -2627,7 +2627,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 				byte[] rawTime = result.getBytes(DBConnector.claimValueColumn);
 				CBORObject cborTime = CBORObject.DecodeFromBytes(rawTime);
 				result.close();
-				return cborTime.AsInt64();
+				return cborTime.AsNumber().ToInt64Checked();
 			}
 			result.close();
 		} catch (SQLException e) {
