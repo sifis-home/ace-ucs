@@ -34,13 +34,11 @@ package se.sics.ace.coap.client;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.SecureRandom;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -63,7 +61,7 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Util;
-import se.sics.ace.coap.CoapNotificationHandler;
+
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 
 
@@ -89,22 +87,38 @@ public class OSCOREProfileRequests {
         = Logger.getLogger(OSCOREProfileRequests.class.getName());
 
 
-    public static CoapClient buildClient(String asAddr, OSCoreCtx ctx, OSCoreCtxDB db)
+    public static CoapClient buildClient(String srvAddr, OSCoreCtx ctx, OSCoreCtxDB db)
             throws OSException {
 
-        db.addContext(asAddr, ctx);
+        db.addContext(srvAddr, ctx);
 
         CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
         builder.setCoapStackFactory(new OSCoreCoapStackFactory());
         builder.setCustomCoapStackArgument(db);
         Endpoint clientEndpoint = builder.build();
-        CoapClient client = new CoapClient(asAddr);
+        CoapClient client = new CoapClient(srvAddr);
         client.setEndpoint(clientEndpoint);
         return client;
     }
 
-    public static Response getToken(CoapClient client, String asAddr, CBORObject payload) throws AceException, OSException {
 
+    /**
+     * Sends a POST request to the /token endpoint of the AS to request an
+     * access token.
+     *
+     * @param client the CoapClient
+     * @param asAddr  the full address of the /token endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param payload  the payload of the request.  Use the GetToken
+     *  class to construct this payload
+     *
+     * @return  the response
+     *
+     * @throws AceException
+     * @throws OSException
+     */
+    public static Response getToken(CoapClient client, String asAddr, CBORObject payload)
+            throws AceException, OSException {
         Request r = new Request(Code.POST);
         r.getOptions().setOscore(new byte[0]);
         r.setPayload(payload.EncodeToBytes());
@@ -118,64 +132,88 @@ public class OSCOREProfileRequests {
         }
     }
 
-    public static CoapObserveRelation makeObserveRequest(CoapClient client, String asAddr) {
+    /**
+     * Sends a POST request to the /token endpoint of the AS to request an
+     * access token.
+     *
+     * @param asAddr  the full address of the /token endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param payload  the payload of the request.  Use the GetToken
+     *  class to construct this payload
+     * @param ctx  the OSCORE context shared with the AS
+     * @param db the database of the OSCORE contexts
+     *
+     * @return  the response
+     *
+     * @throws AceException
+     * @throws OSException
+     */
+    public static Response getToken(String asAddr, CBORObject payload,
+                                    OSCoreCtx ctx, OSCoreCtxDB db) throws AceException, OSException {
+        CoapClient client = buildClient(asAddr, ctx, db);
+        return getToken(client, asAddr, payload);
+    }
 
-        // set request
+
+    /**
+     * Build a GET request for the /trl endpoint at the AS.
+     *
+     * @param asAddr  the full address of the /trl endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param observe observe option is set if true, not set if false
+     *
+     * @return  the request
+     */
+    private static Request buildTrlGetRequest(String asAddr, boolean observe) {
         byte[] token = Bytes.createBytes(new Random(), 8);
         Request req = new Request(CoAP.Code.GET);
         req.setConfirmable(true);
         req.setURI(asAddr);
         req.getOptions().setOscore(new byte[0]);
         req.setToken(token);
-        req.setObserve();
-
-        client.setURI(asAddr);
-
-        CoapNotificationHandler handler = new CoapNotificationHandler();
-        return client.observe(req, handler);
-
+        if (observe) {
+            req.setObserve();
+        }
+        return req;
     }
 
 
+     /**
+     * Sends a GET request to the /trl endpoint of the AS
+     * with the Observe option set.
+     *
+     * @param client the CoapClient
+     * @param asAddr  the full address of the /trl endpoint
+     *  (including scheme and hostname, and port if not default)
+      * @param handler the handler that handles the incoming responses from
+      *                the /trl endpoint
+     *
+     * @return  the relation
+     */
+    public static CoapObserveRelation makeObserveRequest(
+            CoapClient client, String asAddr, CoapHandler handler) {
 
-
-
-
+        Request request = buildTrlGetRequest(asAddr, true);
+        return client.observe(request, handler);
+    }
 
 
     /**
-     * Sends a POST request to the /token endpoint of the AS to request an
-     * access token.
-     * 
-     * @param asAddr  the full address of the /token endpoint
-     *  (including scheme and hostname, and port if not default)
-     * @param payload  the payload of the request.  Use the GetToken 
-     *  class to construct this payload
-     * @param ctx  the OSCORE context shared with the AS
-     * @param db the database of the OSCORE contexts
-     * 
-     * @return  the response 
+     * Sends a GET request to the /trl endpoint of the AS.
      *
-     * @throws AceException 
-     * @throws OSException 
+     * @param client the CoapClient
+     * @param asAddr  the full address of the /trl endpoint
+     *  (including scheme and hostname, and port if not default)
+     *
+     * @return  the coap response
+     *
+     * @throws AceException
      */
-    public static Response getToken(String asAddr, CBORObject payload, 
-            OSCoreCtx ctx, OSCoreCtxDB db) throws AceException, OSException {
-
-        Request r = new Request(Code.POST);
-        r.getOptions().setOscore(new byte[0]);
-        r.setPayload(payload.EncodeToBytes());
-
-        db.addContext(asAddr, ctx);
-
-        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-        builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-        builder.setCustomCoapStackArgument(db);
-        Endpoint clientEndpoint = builder.build();
-        CoapClient client = new CoapClient(asAddr);
-        client.setEndpoint(clientEndpoint);
-        try {        	
-            return client.advanced(r).advanced();
+    public static CoapResponse makePollRequest(CoapClient client, String asAddr)
+            throws AceException {
+        Request request = buildTrlGetRequest(asAddr, false);
+        try {
+            return client.advanced(request);
         } catch (ConnectorException | IOException e) {
             LOGGER.severe("Connector error: " + e.getMessage());
             throw new AceException(e.getMessage());
@@ -183,42 +221,46 @@ public class OSCOREProfileRequests {
     }
 
     /**
-     * Sends a GET request to the /trl endpoint of the AS to observe.
+     * Build a client and send a GET request to the /trl endpoint of the AS
+     * with the Observe option set.
      *
      * @param asAddr  the full address of the /trl endpoint
      *  (including scheme and hostname, and port if not default)
-     * @param ctx  the OSCORE context shared with the AS
-     * @param db the database of the OSCORE contexts
+     * @param ctx the OSCORE security context to add to the database
+     * @param db the database of OSCORE security contexts
+     * @param handler the handler that handles the incoming responses from
+     *                the /trl endpoint
      *
      * @return  the relation
-     *
-     * @throws OSException
      */
-    public static CoapObserveRelation makeObserveRequest(String asAddr,
-                                                         OSCoreCtx ctx, OSCoreCtxDB db)
-                                                            throws OSException {
+    public static CoapObserveRelation makeObserveRequest(
+            String asAddr, OSCoreCtx ctx, OSCoreCtxDB db, CoapHandler handler)
+            throws OSException {
 
-        byte[] token = Bytes.createBytes(new Random(), 8);
-        db.addContext(asAddr, ctx);
-        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-        builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-        builder.setCustomCoapStackArgument(db);
-        Endpoint clientEndpoint = builder.build();
-        CoapClient client = new CoapClient(asAddr);
-        client.setEndpoint(clientEndpoint);
-
-        // set request
-        Request req = new Request(CoAP.Code.GET);
-        req.setConfirmable(true);
-        req.setURI(asAddr);
-        req.getOptions().setOscore(new byte[0]);
-        req.setToken(token);
-        req.setObserve();
-
-        CoapNotificationHandler handler = new CoapNotificationHandler();
-        return client.observe(req, handler);
-
+        CoapClient client = buildClient(asAddr, ctx, db);
+        return makeObserveRequest(client, asAddr, handler);
     }
+
+
+    /**
+     * Build a client and send a GET request to the /trl endpoint of the AS.
+     *
+     * @param asAddr  the full address of the /trl endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param ctx the OSCORE security context to add to the database
+     * @param db the database of OSCORE security contexts
+     *
+     * @return  the response
+     */
+    public static CoapResponse makePollRequest(String asAddr, OSCoreCtx ctx, OSCoreCtxDB db)
+            throws AceException, OSException {
+
+        CoapClient client = buildClient(asAddr, ctx, db);
+        return makePollRequest(client, asAddr);
+    }
+
+
+
 
     /**
      * Sends a POST request to the /authz-info endpoint of the RS to submit an
@@ -529,7 +571,7 @@ public class OSCOREProfileRequests {
      * @throws AceException 
      * @throws OSException
      */
-    public static CoapClient getClient(InetSocketAddress serverAddress, OSCoreCtxDB db) 
+    public static CoapClient getClient(InetSocketAddress serverAddress, OSCoreCtxDB db)
             throws AceException, OSException {
         if (serverAddress == null || serverAddress.getHostString() == null) {
             throw new IllegalArgumentException(
