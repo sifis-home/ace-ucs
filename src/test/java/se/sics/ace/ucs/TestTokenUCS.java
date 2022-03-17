@@ -361,7 +361,7 @@ public class TestTokenUCS {
         t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
 
         KissTime time = new KissTime();
-        RevocationHandler rh = new RevocationHandler(db, time, null, null);
+        RevocationHandler rh = new RevocationHandler(db, time, null, null, null);
         pdp.setRevocationHandler(rh);
         pdp.setTokenEndpoint(t);
     }
