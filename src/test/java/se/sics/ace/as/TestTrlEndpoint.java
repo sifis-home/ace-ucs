@@ -64,7 +64,7 @@ public class TestTrlEndpoint {
         db.addRevokedToken("cti2");
         db.addCti2TokenHash("cti2", "tokenHash2");
 
-        r = new Trl(db, peerIdentitiesToNames);
+        r = new Trl(db, peerIdentitiesToNames, 10);
     }
 
     /**
