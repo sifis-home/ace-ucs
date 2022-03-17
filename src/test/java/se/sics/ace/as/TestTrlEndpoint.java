@@ -111,7 +111,7 @@ public class TestTrlEndpoint {
         Message msg = new LocalMessage(-1, "Id4", null, (CBORObject) null);
         Message response = r.processMessage(msg);
 
-        assert (response.getMessageCode() == Message.CREATED);
+        assert (response.getMessageCode() == Message.CONTENT);
 
         CBORObject hashes = CBORObject.NewArray();
 
@@ -130,7 +130,7 @@ public class TestTrlEndpoint {
         Message msg = new LocalMessage(-1, "Id2", null, (CBORObject) null);
         Message response = r.processMessage(msg);
 
-        assert (response.getMessageCode() == Message.CREATED);
+        assert (response.getMessageCode() == Message.CONTENT);
 
         CBORObject hashes = CBORObject.NewArray();
         String tokenHash = "tokenHash1";

@@ -40,7 +40,7 @@ public class Trl implements Endpoint, AutoCloseable {
     /**
      * The query parameters of the current request
      */
-    private Map<String,Integer> queryParameters;
+    private Map<String,Integer> queryParameters = new HashMap<>();
 
     /**
      * true if the current request has the observe option set
@@ -90,9 +90,11 @@ public class Trl implements Endpoint, AutoCloseable {
         this.nMax = nMax;
 
         // Initialize a DiffSet structure for each known peer, i.e., for each registered device.
-        Set<String> knownIds;
-        knownIds = db.getRSS();
-        knownIds.addAll(db.getClients());
+        Set<String> knownRss = db.getRSS();
+        if (knownRss == null)  knownRss = new HashSet<>();
+        Set<String> knownIds = db.getClients();
+        if (knownIds == null)  knownIds = new HashSet<>();
+        knownIds.addAll(knownRss);
 
         this.DiffSetsMap = new HashMap<>();
         for (String id : knownIds) {
