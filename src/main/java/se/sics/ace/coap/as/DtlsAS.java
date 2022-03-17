@@ -211,24 +211,23 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
         }
 
         if (trlName != null) {
-            if (!useRevocationHandler)
-                LOGGER.warning("Starting Trl without RevocationHandler");
-                        // The endpoint will be observable,
-                        // but notifications will never be sent to peers
-                        // since no revocations will occur
-            this.r = new Trl(db, null);  // double check
+            this.r = new Trl(db, null, 10);  // double check
             this.trl = new AceObservableEndpoint(trlName, this.r);
             add(this.trl);
-        }
-
-        if (useRevocationHandler) {
-            this.rh = new RevocationHandler(db, time, null, trl);
-            pdp.setRevocationHandler(this.rh);
+            if (useRevocationHandler) {
+                this.rh = new RevocationHandler(db, time, null, this.r.getDiffSetsMap(), trl);
+                pdp.setRevocationHandler(this.rh);
 //            // to remove, it triggers a revocation. Only for test purposes
 //            // while implementing the revoke method on the pdp
 //            timer = new Timer();
 //            timer.schedule(new DtlsAS.UpdateTask(rh), 15000);
+            }
+            else LOGGER.warning("Starting Trl without RevocationHandler");
+            // The endpoint will be observable,
+            // but notifications will never be sent to peers
+            // since no revocations will occur
         }
+
         pdp.setTokenEndpoint(t);
 
         Configuration dtlsConfig = Configuration.getStandard();

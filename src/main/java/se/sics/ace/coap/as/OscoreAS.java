@@ -117,12 +117,12 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @throws OSException 
      * 
      */
-    public OscoreAS(String asId, CoapDBConnector db, 
+    public OscoreAS(String asId, CoapDBConnector db,
             PDP pdp, boolean pdpHandlesRevocations, TimeProvider time,
             OneKey asymmetricKey, int port,
             Map<String, String> peerNamesToIdentities,
             Map<String, String> peerIdentitiesToNames,
-            Map<String, String> myIdentities) 
+            Map<String, String> myIdentities)
                     throws AceException, OSException {
         this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey, "token", "introspect",
                 "trl", false, port, null, false, (short)0, false, peerNamesToIdentities,
@@ -220,24 +220,24 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
         }
 
         if (trlName != null) {
-            if (!useRevocationHandler)
-                LOGGER.warning("Starting Trl without RevocationHandler");
-                        // The endpoint will be observable,
-                        // but notifications will never be sent to peers
-                        // since no revocations will occur
-            this.r = new Trl(db, peerIdentitiesToNames);
+            this.r = new Trl(db, peerIdentitiesToNames, 10);
             this.trl = new AceObservableEndpoint(trlName, this.r);
             add(this.trl);
-        }
-
-        if (useRevocationHandler) {
-            this.rh = new RevocationHandler(db, time, peerIdentitiesToNames, trl);
-            pdp.setRevocationHandler(this.rh);
+            if (useRevocationHandler) {
+                this.rh = new RevocationHandler(db, time, peerIdentitiesToNames, this.r.getDiffSetsMap(), trl);
+                pdp.setRevocationHandler(this.rh);
 //            // to remove, it triggers a revocation. Only for test purposes
 //            // while implementing the revoke method on the pdp
 //            timer = new Timer();
 //            timer.schedule(new UpdateTask(rh), 10000);
+            }
+            else LOGGER.warning("Starting Trl without RevocationHandler");
+            // The endpoint will be observable,
+            // but notifications will never be sent to peers
+            // since no revocations will occur
         }
+
+
         pdp.setTokenEndpoint(t);
 
         this.addEndpoint(new CoapEndpoint.Builder()
