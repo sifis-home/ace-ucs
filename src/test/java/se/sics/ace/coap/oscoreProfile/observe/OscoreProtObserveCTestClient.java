@@ -1,10 +1,8 @@
 package se.sics.ace.coap.oscoreProfile.observe;
 
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
-import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
@@ -17,6 +15,9 @@ import se.sics.ace.Constants;
 import se.sics.ace.Util;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
+import se.sics.ace.coap.client.TrlResponses;
+import se.sics.ace.coap.client.BasicTrlStore;
+import se.sics.ace.coap.client.TrlStore;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 import java.net.InetSocketAddress;
@@ -131,8 +132,6 @@ public class OscoreProtObserveCTestClient {
 
     private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
-    private static Set<String> localTrl = new HashSet<>();
-
     private static Map<String,String> validTokens = new HashMap<>();
 
 
@@ -171,18 +170,29 @@ public class OscoreProtObserveCTestClient {
 
         String asAddr = "coap://localhost";
         CoapClient client4AS = OSCOREProfileRequests.buildClient(asAddr, ctx, ctxDB);
+        TrlStore trlStore = new BasicTrlStore();
+
+        // warning: be sure that the mode and the trl address are consistent, e.g.,
+        //          mode:FULL_QUERY, trlAddr:/trl
+        //          mode:DIFF_QUERY, trlAddr:/trl?pmax=10&foo=bar&diff=3
+        TrlResponses.Mode mode = TrlResponses.Mode.FULL_QUERY;
+        String trlAddr = "/trl";
 
         // uncomment for observe
         // 1. Make Observe request to the /trl endpoint
-        CoapObserveRelation relation =
-                OSCOREProfileRequests.makeObserveRequest(
-                        client4AS, asAddr + "/trl", new ClientCoapHandler());
+//        ClientCoapHandler handler = new ClientCoapHandler(mode, trlStore);
+//        CoapObserveRelation relation =
+//                OSCOREProfileRequests.makeObserveRequest(
+//                        client4AS, asAddr + trlAddr, handler);
 
         // uncomment for polling
-//        // 1. Make poll request to the /trl endpoint
-//        CoapResponse responseTrl =
-//                OSCOREProfileRequests.makePollRequest(
-//                        client4AS, asAddr + "/trl");
+        // 1. Make poll request to the /trl endpoint
+        CoapResponse responseTrl =
+                OSCOREProfileRequests.makePollRequest(
+                        client4AS, asAddr + trlAddr);
+
+        TrlResponses.processResponse(responseTrl, trlStore, mode);
+        terminateActiveButRevokedSessions(trlStore);
 
         // 2. Make Access Token request to the /token endpoint
         CBORObject params = GetToken.getClientCredentialsRequest(
@@ -223,7 +233,6 @@ public class OscoreProtObserveCTestClient {
 
         System.out.println("\n--------COMMUNICATION WITH RS ENDED (1)------\n");
 
-
 //        doGetRequest("helloWorld");
 //        doGetRequest("temp");
 //        doPostRequest("temp", "22.0 C");
@@ -237,7 +246,15 @@ public class OscoreProtObserveCTestClient {
         int count = 0;
         int randomTemp;
         CoapResponse res;
-        while(ctxDB.getContext(rsAddr) != null) {
+        while(validTokens.containsValue(rsAddr)) { // FIXME: this check should be done against the presence of
+                                                   //        context in the OscoreCtxDB. However, when I remove
+                                                   //        the ctx through ctxDB.removeContext(ctx), the context
+                                                   //        remains in the uriMap of the database. Therefore,
+                                                   //        if I check ctxDB.getContext(rsAddr) != null, the context
+                                                   //        is still there, and the while loop cannot terminate.
+                                                   //        I would call the getContext(recipientID), but I cannot
+                                                   //        since the recipientID is assigned within the postToken
+                                                   //        method.
             if (count%4 != 0) {
                 //res = doGetRequest("temp");
                 res = doGetRequest(client4RS);
@@ -287,55 +304,48 @@ public class OscoreProtObserveCTestClient {
         return client.advanced(req);
     }
 
+    public static void terminateActiveButRevokedSessions(TrlStore trlStore) {
+
+        Set<String> trl = trlStore.getLocalTrl();
+        Set<String> intersection = new HashSet<>(validTokens.keySet());
+        intersection.retainAll(trl);
+
+        for (String th : intersection) {
+            try {
+                // remove ctx associated with the server address
+                String srvAddr = validTokens.get(th);
+                OSCoreCtx ctxToRemove = ctxDB.getContext(srvAddr);
+                ctxDB.removeContext(ctxToRemove);
+                // FIXME: this is not working as the removeContext()
+                //        does not remove the context from the database entirely.
+                //        Waiting for a fix within Californium...
+            } catch (OSException e) {
+                e.printStackTrace();
+            }
+            validTokens.remove(th);
+        }
+    }
 
     public static class ClientCoapHandler implements CoapHandler {
 
+
+        private final TrlResponses.Mode mode;
+        private final TrlStore trlStore;
+
+        public ClientCoapHandler(TrlResponses.Mode mode, TrlStore trlStore) {
+            this.mode = mode;
+            this.trlStore = trlStore;
+        }
+
         @Override public void onLoad(CoapResponse response) {
             try {
-                assertLoad(response);
+                TrlResponses.processResponse(response, trlStore, mode);//, ctxDB);
+                terminateActiveButRevokedSessions(trlStore);
+
             } catch (AssertionError | AceException error) {
                 LOGGER.severe("Assert:" + error);
             }
             System.out.println("NOTIFICATION: " + response.advanced());
-        }
-
-        private void assertLoad(CoapResponse response) throws AceException {
-
-            if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {
-
-                CBORObject payload = CBORObject.DecodeFromBytes(response.getPayload());
-                if (payload.getType() != CBORType.Array) {
-                    throw new AceException("Wrong payload type. Expected a CBOR Array");
-                }
-                Set<String> hashes = new HashSet<>();
-                for (int i = 0; i < payload.size(); i++) {
-                    byte[] tokenHashB = payload.get(i).GetByteString();
-                    String tokenHashS = new String(tokenHashB, Constants.charset);
-                    hashes.add(tokenHashS);
-                }
-                LOGGER.info("Set of received token hashes: " + hashes);
-                localTrl = new HashSet<>(hashes);
-
-                Set<String> intersection = new HashSet<>(validTokens.keySet());
-                intersection.retainAll(localTrl);
-                for(String th : intersection) {
-                    try {
-                        // remove ctx associated with the server address
-                        String srvAddr = validTokens.get(th);
-                        OSCoreCtx ctxToRemove = ctxDB.getContext(srvAddr);
-                        ctxDB.removeContext(ctxToRemove);
-                        //ctxDB.getContext(srvAddr);
-                    } catch (OSException e) {
-                        e.printStackTrace();
-                    }
-                    validTokens.remove(th);
-                }
-            }
-
-            else { //assume text/plain
-                String content = response.getResponseText();
-                System.out.println("NOTIFICATION: " + content);
-            }
         }
 
         @Override public void onError() {
