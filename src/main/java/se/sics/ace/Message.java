@@ -39,12 +39,12 @@ import org.eclipse.californium.core.coap.CoAP;
 import com.upokecenter.cbor.CBORObject;
 
 /**
- * A protocol message for either /token, /introspect or /authz-info.
+ * A protocol message for either /token, /introspect, /authz-info, or /trl.
  * This abstract class is meant to be protocol independent, classes that implement
  * concrete instances could e.g. represent a CoAP message. 
  * Messages are expected to have a Map of parameters (which may be empty).
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Rasori
  *
  */
 public interface Message {
@@ -53,6 +53,12 @@ public interface Message {
      * Request has been fulfilled, resulting in the creation of a new resource.
      */
     public static int CREATED = CoAP.ResponseCode.CREATED.value;
+
+	/**
+	 * Request has been fulfilled, resulting in a resource transferred in the
+	 * payload of the response
+	 */
+	public static int CONTENT = CoAP.ResponseCode.CONTENT.value;
     
 	/**
 	 * Generic failure reasons code (following REST/HTTP/COAP).
