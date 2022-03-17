@@ -878,8 +878,58 @@ public class Constants {
      * Content-Format ace-groupcomm+cbor
      */
     public static final int APPLICATION_ACE_GROUPCOMM_CBOR = 65001;
-    
-    
+
+    /**
+     * Content-Format ace-trl+cbor (2022-15-03, this is a placeholder, the value has TBD)
+     */
+    public static final int APPLICATION_ACE_TRL_CBOR = 65002;
+
+
+    /**
+     * ACE-TRL+CBOR abbreviations (2022-15-03, these are placeholders, values have TBD)
+     */
+    public static final short FULL_SET = 1;
+
+    public static final short CURSOR = 2;
+
+    public static final short DIFF_SET = 3;
+
+    public static final short MORE = 4;
+
+    public static final short TRL_ERROR = 5;
+
+    public static final short TRL_ERROR_DESCRIPTION = 6;
+
+    /**
+     * Array of the human-readable names for the TRL
+     */
+    public static String[] ABBREV_TRL = new String[7];
+    static {
+        ABBREV_TRL[1] = "full-set";
+        ABBREV_TRL[2] = "cursor";
+        ABBREV_TRL[3] = "diff-set";
+        ABBREV_TRL[4] = "more";
+        ABBREV_TRL[5] = "error";
+        ABBREV_TRL[6] = "error_description";
+    }
+
+
+    /**
+     * ACE-TRL+CBOR errors =================================
+     */
+    public static final short INVALID_PARAMETER_VALUE = 0;
+
+    public static final short INVALID_SET_OF_PARAMETERS = 1;
+
+    public static final short OUT_OF_BOUND_CURSOR_VALUE = 2;
+
+    public static final String INVALID_PARAMETER_VALUE_DESCRIPTION = "Invalid parameter value";
+
+    public static final String INVALID_SET_OF_PARAMETERS_DESCRIPTION = "Invalid set of parameters";
+
+    public static final String OUT_OF_BOUND_CURSOR_VALUE_DESCRIPTION = "Out of bound cursor value";
+
+
     /**
 	 * Group OSCORE abbreviations =================================
 	 */
