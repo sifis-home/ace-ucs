@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.coap.as;
 
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -62,7 +64,8 @@ public class AceObservableEndpoint extends CoapResource implements AutoCloseable
     /**
      * The trl library
      */
-    private Endpoint e;
+//    private Endpoint e;       <== changed to Trl since we need to call the setQueryParameters method
+    private Trl e;
 
     /**
      * Constructor.
@@ -70,7 +73,7 @@ public class AceObservableEndpoint extends CoapResource implements AutoCloseable
      * @param name  the resource name (should be  "trl")
      * @param e  the endpoint library instance
      */
-    public AceObservableEndpoint(String name, Endpoint e) {
+    public AceObservableEndpoint(String name, Trl e) {
         super(name, true);
         this.e = e;
         this.setObservable(true);
@@ -103,18 +106,28 @@ public class AceObservableEndpoint extends CoapResource implements AutoCloseable
             exchange.respond(ResponseCode.BAD_REQUEST);
         }
         LOGGER.log(Level.FINEST, "Received request: "
-                + ((req==null)?"null" : req.toString()));
+                + ((req == null) ? "null" : req.toString()));
+
+        //Map<String, Integer> queryParams = parseQueryParameters(exchange);
+        this.e.setQueryParameters(parseQueryParameters(exchange));
+        this.e.setHasObserve(req.getOptions().hasObserve());
 
         Message m = this.e.processMessage(req);
         if (m instanceof CoapRes) {
             CoapRes res = (CoapRes)m;
             LOGGER.log(Level.FINEST, "Produced response: " + res);
             //XXX: Should the profile set the content format here?
-            // TODO: According to ace-revoked-token-notification,
-            //  Code should be 2.05 CONTENT (Message does not implement it)
-            //exchange.respond(res.getCode(), res.getRawPayload(),
-            exchange.respond(ResponseCode.CONTENT, res.getRawPayload(),
-                    Constants.APPLICATION_ACE_CBOR);
+
+            // if payload is a CBOR map, content type is ace-trl+cbor
+            // if payload is a CBOR array, content type is ace-cbor
+            // otherwise, we do not set the content type.
+            // Is there a better way?
+            if (CBORObject.DecodeFromBytes(res.getRawPayload()).getType() == CBORType.Map)
+                exchange.respond(res.getCode(), res.getRawPayload(), Constants.APPLICATION_ACE_TRL_CBOR);
+            else if (CBORObject.DecodeFromBytes(res.getRawPayload()).getType() == CBORType.Array)
+                exchange.respond(res.getCode(), res.getRawPayload(), Constants.APPLICATION_ACE_CBOR);
+            else
+                exchange.respond(res.getCode(), res.getRawPayload());
             return;
         }
         if (m == null) {//Wasn't a CoAP message
@@ -124,6 +137,35 @@ public class AceObservableEndpoint extends CoapResource implements AutoCloseable
                 + " library produced wrong response type");
         exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
 
+    }
+
+    /**
+     * Extract the query parameters from the exchange and create a map
+     *
+     * @param exchange the exchange containing the query parameters
+     *
+     * @return the map containing the query parameter names and values
+     */
+    Map<String, Integer> parseQueryParameters (CoapExchange exchange) {
+
+        Map<String, Integer> queryParameters = new HashMap<>();
+
+        String nStr = exchange.getQueryParameter("diff");
+        if (nStr != null) {
+            queryParameters.put("diff", Integer.parseInt(nStr));
+        }
+
+        String pmaxStr = exchange.getQueryParameter("pmax");
+        if (pmaxStr != null) {
+            queryParameters.put("pmax", Integer.parseInt(pmaxStr));
+        }
+
+        String cursorStr = exchange.getQueryParameter("cursor");
+        if (cursorStr != null) {
+            queryParameters.put("cursor", Integer.parseInt(cursorStr));
+        }
+
+        return queryParameters;
     }
 
     @Override
