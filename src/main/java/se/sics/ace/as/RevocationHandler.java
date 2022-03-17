@@ -1,7 +1,9 @@
 package se.sics.ace.as;
 
+import com.upokecenter.cbor.CBORObject;
 import org.eclipse.californium.core.observe.ObserveRelationFilter;
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.coap.as.AceObservableEndpoint;
 
@@ -33,9 +35,12 @@ public class RevocationHandler {
 
     private Map<String, String> peerIdentitiesToNames = null;
 
+    private Map<String, DiffSet> DiffSetsMap;
+
     public RevocationHandler(DBConnector db,
                              TimeProvider time,
                              Map<String, String> peerIdentitiesToNames,
+                             Map<String, DiffSet> DiffSetsMap,
                              AceObservableEndpoint trl)
                                 throws AceException {
         if (db == null) {
@@ -52,30 +57,34 @@ public class RevocationHandler {
         this.db = db;
         this.time = time;
         this.peerIdentitiesToNames = peerIdentitiesToNames;
+        this.DiffSetsMap = DiffSetsMap;
         this.trl = trl;
     }
 
     public void revoke(String cti) throws AceException {
 
-        // get token expiration time (exp)
+        // Get token expiration time (exp)
         long delay = getTimeToExpire(cti);
 
-        // the token to be revoked was already expired
+        // The token to be revoked was already expired
         if (delay < 0)
             return;
 
-        // put the token in the trlTable
+        // Put the token in the trlTable
         db.addRevokedToken(cti);
 
-        // schedule a task to run at time exp-now, that:
+        // Put the token hash in each DiffSet of the pertaining peers
+        Set<String> peerIds = db.getPertainingPeers(cti);
+        addRevokedTokenHashToDiffSets(cti, peerIds);
+
+        // Schedule a task to run at time exp-now, that:
         //   - if /trl is present, calls the changed(filter) to notify peers
         //   - removes the token from trlTable
         Timer timer = new Timer();
         timer.schedule(new ExpirationTask(cti), delay);
 
-        // if /trl is present, calls the changed(filter) to notify peers
+        // Notify observing pertaining peers
         if (trl != null) {
-            Set<String> peerIds = db.getPertainingPeers(cti);
             ObserveRelationFilter filter = new PertainingPeersFilter(peerIds, peerIdentitiesToNames);
             trl.changed(filter);
         }
@@ -95,6 +104,24 @@ public class RevocationHandler {
         // the RevocationHandler.
         // +-------------------------------------------------+
 
+    }
+
+    private void addRevokedTokenHashToDiffSets(String cti, Set<String> peerIds) throws AceException {
+        String tokenHash = db.getTokenHashMap().get(cti);
+
+        CBORObject added = CBORObject.NewArray();
+        Set<byte[]> ad = new HashSet<>();
+        added.Add(CBORObject.FromObject(tokenHash.getBytes(Constants.charset)));
+
+
+        for (String id : peerIds) {
+            try {
+                DiffSetsMap.get(id).pushDiffEntry(CBORObject.NewArray(), added);
+            } catch (AceException e) {
+                LOGGER.severe("Error adding a diff entry " +
+                        "to the DiffSet object: " + e.getMessage());
+            }
+        }
     }
 
 
@@ -142,27 +169,57 @@ public class RevocationHandler {
             this.cti = cti;
         }
 
+        /**
+         * Trigger when a revoked token expires.
+         * It performs the following operations:
+         * - Get the pertaining peers
+         * - Update pertaining peers' DiffSets structures
+         * - Remove the expired token from trlTable and from tokenHashTable
+         * - Notify observing pertaining peers
+         */
         @Override
         public void run() {
-
-            // expire actions:
-            // - if /trl is present, get the pertaining peers
-            // - remove token from trlTable and from tokenHashTable
-            // - if /trl is present, notify pertaining peers
 
             LOGGER.info("Revoked token expired. " +
                     "Trying to remove it from the trl and notify the peers (if enabled)..." );
 
+            //1. Get the pertaining peers
             Set<String> peerIds = new HashSet<>();
-            if (trl != null) {
+
+            try {
+                peerIds = db.getPertainingPeers(cti);
+            } catch (AceException e) {
+                LOGGER.severe("Error getting peers identities: "
+                        + e.getMessage());
+            }
+
+
+            //2. Update pertaining peers' DiffSets structures
+            String tokenHash = null;
+            try {
+                tokenHash = db.getTokenHashMap().get(cti);
+            } catch (AceException e) {
+                LOGGER.severe("Error getting token hash: "
+                        + e.getMessage());
+            }
+            if (tokenHash == null) {
+                LOGGER.severe("Error deleting token: Token hash not found.");
+                return;
+            }
+            CBORObject removed = CBORObject.NewArray();
+            removed.Add(CBORObject.FromObject(tokenHash.getBytes(Constants.charset)));
+
+            for (String id : peerIds) {
                 try {
-                    peerIds = db.getPertainingPeers(cti);
+                    DiffSetsMap.get(id).pushDiffEntry(removed, CBORObject.NewArray());
                 } catch (AceException e) {
-                    LOGGER.severe("Error getting peers identities: "
-                            + e.getMessage());
+                    LOGGER.severe("Error adding a diff entry " +
+                            "to the DiffSet object: " + e.getMessage());
                 }
             }
 
+
+            //3. Remove the expired token from trlTable and from tokenHashTable
             try {
                 db.deleteExpiredToken(cti);
                 db.deleteTokenHash(cti);
@@ -172,6 +229,8 @@ public class RevocationHandler {
                 return;
             }
 
+
+            //4. Notify observing pertaining peers
             if (trl != null) {
                 PertainingPeersFilter filter = new PertainingPeersFilter(peerIds, peerIdentitiesToNames);
                 trl.changed(filter); // notify observers
