@@ -5,6 +5,7 @@ import com.upokecenter.cbor.CBORType;
 import org.eclipse.californium.core.CoapResponse;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.TrlStore;
 
 import java.util.Map;
 import java.util.logging.Logger;
@@ -26,10 +27,9 @@ public class TrlResponses {
      *
      * @param response the response obtained from the trl endpoint
      * @param trlStore the TrlStore object that uses the response payload to update the local trl structures
-     * @param mode the mode to use for processing the response
      * @throws AceException if the response cannot be processed at the TrlStore
      */
-    public static void processResponse(CoapResponse response, TrlStore trlStore, Mode mode)
+    public static void processResponse(CoapResponse response, TrlStore trlStore)
         throws AceException {
 
         CBORObject payload;
@@ -39,14 +39,7 @@ public class TrlResponses {
             throw new AceException(e.getMessage());
         }
 
-        switch(mode) {
-            case FULL_QUERY:
-                trlStore.processFullQuery(payload);
-                break;
-            case DIFF_QUERY:
-                trlStore.processDiffQuery(payload);
-                break;
-        }
+        trlStore.updateLocalTrl(payload);
     }
 
 

@@ -3,6 +3,7 @@ package se.sics.ace.coap.oscoreProfile.observe;
 import com.upokecenter.cbor.CBORObject;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
+import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
@@ -17,7 +18,7 @@ import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.TrlResponses;
 import se.sics.ace.coap.client.BasicTrlStore;
-import se.sics.ace.coap.client.TrlStore;
+import se.sics.ace.TrlStore;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 import java.net.InetSocketAddress;
@@ -172,27 +173,25 @@ public class OscoreProtObserveCTestClient {
         CoapClient client4AS = OSCOREProfileRequests.buildClient(asAddr, ctx, ctxDB);
         TrlStore trlStore = new BasicTrlStore();
 
-        // warning: be sure that the mode and the trl address are consistent, e.g.,
-        //          mode:FULL_QUERY, trlAddr:/trl
-        //          mode:DIFF_QUERY, trlAddr:/trl?pmax=10&foo=bar&diff=3
-        TrlResponses.Mode mode = TrlResponses.Mode.FULL_QUERY;
+
+        // FULL_QUERY: trlAddr=/trl
+        // DIFF_QUERY: trlAddr=/trl?pmax=10&foo=bar&diff=3
         String trlAddr = "/trl";
 
         // uncomment for observe
         // 1. Make Observe request to the /trl endpoint
-//        ClientCoapHandler handler = new ClientCoapHandler(mode, trlStore);
-//        CoapObserveRelation relation =
-//                OSCOREProfileRequests.makeObserveRequest(
-//                        client4AS, asAddr + trlAddr, handler);
+        ClientCoapHandler handler = new ClientCoapHandler(trlStore);
+        CoapObserveRelation relation =
+                OSCOREProfileRequests.makeObserveRequest(
+                        client4AS, asAddr + trlAddr, handler);
 
         // uncomment for polling
         // 1. Make poll request to the /trl endpoint
-        CoapResponse responseTrl =
-                OSCOREProfileRequests.makePollRequest(
-                        client4AS, asAddr + trlAddr);
-
-        TrlResponses.processResponse(responseTrl, trlStore, mode);
-        terminateActiveButRevokedSessions(trlStore);
+//        CoapResponse responseTrl =
+//                OSCOREProfileRequests.makePollRequest(
+//                        client4AS, asAddr + trlAddr);
+//        TrlResponses.processResponse(responseTrl, trlStore); //, mode);
+//        terminateActiveButRevokedSessions(trlStore);
 
         // 2. Make Access Token request to the /token endpoint
         CBORObject params = GetToken.getClientCredentialsRequest(
@@ -278,7 +277,7 @@ public class OscoreProtObserveCTestClient {
             }
 
             count++;
-            sleep(1000);
+            sleep(5000);
         }
         System.out.println("Client terminated");
 
@@ -328,18 +327,16 @@ public class OscoreProtObserveCTestClient {
 
     public static class ClientCoapHandler implements CoapHandler {
 
-
-        private final TrlResponses.Mode mode;
         private final TrlStore trlStore;
 
-        public ClientCoapHandler(TrlResponses.Mode mode, TrlStore trlStore) {
-            this.mode = mode;
+        public ClientCoapHandler(TrlStore trlStore) {
+
             this.trlStore = trlStore;
         }
 
         @Override public void onLoad(CoapResponse response) {
             try {
-                TrlResponses.processResponse(response, trlStore, mode);//, ctxDB);
+                TrlResponses.processResponse(response, trlStore);
                 terminateActiveButRevokedSessions(trlStore);
 
             } catch (AssertionError | AceException error) {
