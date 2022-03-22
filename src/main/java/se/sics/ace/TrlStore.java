@@ -1,4 +1,4 @@
-package se.sics.ace.coap.client;
+package se.sics.ace;
 
 import com.upokecenter.cbor.CBORObject;
 import se.sics.ace.AceException;
@@ -20,6 +20,9 @@ import java.util.Set;
  * @author Marco Rasori
  */
 public interface TrlStore {
+
+
+    void updateLocalTrl(CBORObject payload) throws AceException;
 
     /**
      * Process the payload of a response from the trl endpoint following a full-query request
