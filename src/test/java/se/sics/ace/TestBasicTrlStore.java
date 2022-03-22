@@ -6,7 +6,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import se.sics.ace.as.DiffSet;
 import se.sics.ace.coap.client.BasicTrlStore;
-import se.sics.ace.coap.client.TrlStore;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -62,7 +61,9 @@ public class TestBasicTrlStore {
         TrlStore trlStore = new BasicTrlStore();
 
         CBORObject diffSetArray = diffSetObj.getLatestDiffEntries(3);
-        trlStore.processDiffQuery(diffSetArray);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.DIFF_SET, diffSetArray);
+        trlStore.processDiffQuery(map);
 
         Set<String> localTrl = trlStore.getLocalTrl();
 
@@ -76,10 +77,14 @@ public class TestBasicTrlStore {
     public void testFullQueryAndThenDiffQuery() throws AceException {
 
         TrlStore trlStore = new BasicTrlStore();
-        trlStore.processFullQuery(fullSetArray);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.FULL_SET, fullSetArray);
+        trlStore.processFullQuery(map);
 
         CBORObject diffSetArray = diffSetObj.getLatestDiffEntries(3);
-        trlStore.processDiffQuery(diffSetArray);
+        map = CBORObject.NewMap();
+        map.Add(Constants.DIFF_SET, diffSetArray);
+        trlStore.processDiffQuery(map);
 
         Set<String> localTrl = trlStore.getLocalTrl();
 

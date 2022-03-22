@@ -63,6 +63,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 
 import se.sics.ace.*;
+import se.sics.ace.as.DiffSet;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -768,7 +769,7 @@ public class TestTokenRepository {
         // knows nothing about
         tr.getTrlManager().updateLocalTrl(hashes);
 
-        Map<String, Long> revokedTokens = tr.getTrlManager().getLocalTrl();
+        Map<String, Long> revokedTokens = tr.getTrlManager().getLocalTrlMap();
         Assert.assertTrue(revokedTokens.containsKey(th));
 
         // check that the expiration is set to UNKNOWN_EXPIRATION since
@@ -809,7 +810,7 @@ public class TestTokenRepository {
         tr.getTrlManager().updateLocalTrl(hashes);
 
         // check that the localTrl contains the token hash...
-        Map<String, Long> revokedTokens = tr.getTrlManager().getLocalTrl();
+        Map<String, Long> revokedTokens = tr.getTrlManager().getLocalTrlMap();
         Assert.assertTrue(revokedTokens.containsKey(th));
 
         // ...and that its expiration time was set correctly
@@ -829,11 +830,10 @@ public class TestTokenRepository {
 
         // check that the token has been removed from the localTrl
         // because it has expired
-        revokedTokens = tr.getTrlManager().getLocalTrl();
+        revokedTokens = tr.getTrlManager().getLocalTrlMap();
         Assert.assertFalse(revokedTokens.containsKey(th));
 
     }
-
 
     /**
      * Remove lingering token entries
