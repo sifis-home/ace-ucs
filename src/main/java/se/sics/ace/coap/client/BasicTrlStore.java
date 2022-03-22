@@ -4,6 +4,7 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.TrlStore;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -40,6 +41,40 @@ public class BasicTrlStore implements TrlStore {
     public int cursor;
     public boolean more;
 
+    @Override
+    public void updateLocalTrl(CBORObject payload) throws AceException {
+        if (payload.getType() == CBORType.Map) {
+            Map<Short, CBORObject> map = Constants.getParams(payload);
+            if (map.containsKey(Constants.FULL_SET)) {
+                processFullQuery(payload);
+            }
+            else if (map.containsKey(Constants.DIFF_SET)) {
+                processDiffQuery(payload);
+            }
+            else {
+                throw new AceException("Error processing trl response. " +
+                        "No CBOR array FULL_SET or DIFF_SET found.");
+            }
+        }
+        else if (payload.getType() == CBORType.Array) {
+            if (payload.size() == 0) {
+                // empty CBOR array, no more processing needed.
+                return;
+            }
+            else if (payload.get(0).getType() == CBORType.ByteString) {
+                processFullSetArray(payload);
+            }
+            else if (payload.get(0).getType() == CBORType.Array) {
+                processDiffSetArray(payload);
+            }
+            else {
+                throw new AceException("Error processing trl response. " +
+                        "The CBOR array contains invalid data.");
+            }
+        }
+    }
+
+
     /**
      * Process the payload of a full query response.
      * If the payload is a CBOR map, first update the cursor value and then process
@@ -50,17 +85,17 @@ public class BasicTrlStore implements TrlStore {
     @Override
     public void processFullQuery(CBORObject payload)
             throws AceException {
-        if (payload.getType() == CBORType.Array) {
-            processFullSetArray(payload);
+
+        if (payload.getType() != CBORType.Map) {
+            throw new AceException("Error processing full query response. " +
+                    "Expected type is CBOR map.");
         }
-        else if (payload.getType() == CBORType.Map) {
-            Map<Short, CBORObject> map = Constants.getParams(payload);
-            if (map.containsKey(Constants.CURSOR)) {
-                cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
-            }
-            if (map.containsKey(Constants.FULL_SET)) {
-                processFullSetArray(map.get(Constants.FULL_SET));
-            }
+        Map<Short, CBORObject> map = Constants.getParams(payload);
+        if (map.containsKey(Constants.CURSOR)) {
+            cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+        }
+        if (map.containsKey(Constants.FULL_SET)) {
+            processFullSetArray(map.get(Constants.FULL_SET));
         }
     }
 
@@ -70,7 +105,13 @@ public class BasicTrlStore implements TrlStore {
      *
      * @param fullSet the CBOR array containing the token hashes encoded as byte strings
      */
-    private void processFullSetArray(CBORObject fullSet) {
+    private void processFullSetArray(CBORObject fullSet) throws AceException {
+
+        if (fullSet.getType() != CBORType.Array) {
+            throw new AceException("Error processing full query response. " +
+                    "Expected type is CBOR array.");
+        }
+
         Set<String> hashes = new HashSet<>();
         for (int i = 0; i < fullSet.size(); i++) {
             byte[] tokenHashB = fullSet.get(i).GetByteString();
@@ -92,21 +133,21 @@ public class BasicTrlStore implements TrlStore {
     @Override
     public void processDiffQuery(CBORObject payload)
             throws AceException {
-        if (payload.getType() == CBORType.Array) {
-            processDiffSetArray(payload);
+
+        if (payload.getType() != CBORType.Map) {
+            throw new AceException("Error processing diff query response. " +
+                    "Expected type is CBOR map.");
         }
-        else if (payload.getType() == CBORType.Map) {
-            Map<Short, CBORObject> map = Constants.getParams(payload);
-            if (map.containsKey(Constants.CURSOR)) {
-                // TODO: check if cursor is "null"? That's a possible value
-                cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
-            }
-            if (map.containsKey(Constants.MORE)) {
-                more = map.get(Constants.MORE).AsBoolean();
-            }
-            if (map.containsKey(Constants.DIFF_SET)) {
-                processDiffSetArray(map.get(Constants.DIFF_SET));
-            }
+        Map<Short, CBORObject> map = Constants.getParams(payload);
+        if (map.containsKey(Constants.CURSOR)) {
+            // TODO: check if cursor is "null"? That's a possible value
+            cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+        }
+        if (map.containsKey(Constants.MORE)) {
+            more = map.get(Constants.MORE).AsBoolean();
+        }
+        if (map.containsKey(Constants.DIFF_SET)) {
+            processDiffSetArray(map.get(Constants.DIFF_SET));
         }
     }
 
@@ -120,7 +161,12 @@ public class BasicTrlStore implements TrlStore {
      *                the 'added' token hashes. A trl-patch is an array of byte strings, each of which
      *                is the representation of a token hash.
      */
-    private void processDiffSetArray(CBORObject diffSet) {
+    private void processDiffSetArray(CBORObject diffSet) throws AceException {
+
+        if (diffSet.getType() != CBORType.Array) {
+            throw new AceException("Error processing full query response. " +
+                    "Expected type is CBOR array.");
+        }
 
         Set<String> removedTokenHashes = new HashSet<>();
         Set<String> addedTokenHashes = new HashSet<>();
@@ -132,7 +178,7 @@ public class BasicTrlStore implements TrlStore {
         localTrl.addAll(addedTokenHashes);
         localTrl.removeAll(removedTokenHashes);
 
-        LOGGER.info("Set of token hashes added to the trl   : " + addedTokenHashes + "\n" +
+        LOGGER.info("Set of token hashes added to the trl: " + addedTokenHashes + "\n" +
                     "Set of token hashes removed from the trl: " + removedTokenHashes);
     }
 
