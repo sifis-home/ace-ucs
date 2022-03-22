@@ -34,6 +34,7 @@ package se.sics.ace.coap.oscoreProfile.observe;
 import COSE.AlgorithmID;
 import COSE.MessageTag;
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 import org.eclipse.californium.core.*;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -46,6 +47,7 @@ import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.TrlCoapHandler;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
+import se.sics.ace.coap.client.TrlResponses;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreAuthzInfo;
@@ -252,17 +254,17 @@ public class OscoreProtObserveRSTestServer {
         oscoreCtx = new OSCoreCtx(key128rs, true, null, senderId,
                 recipientId, null, null, null, contextId, MAX_UNFRAGMENTED_SIZE);
 
-        CoapClient client4AS = OSCOREProfileRequests.buildClient(
-                "coap://localhost/trl", oscoreCtx, ctxDB);
+        String trlAddr = "coap://localhost/trl";
+        CoapClient client4AS = OSCOREProfileRequests.buildClient(trlAddr, oscoreCtx, ctxDB);
 
         // uncomment for observe
-//        TrlCoapHandler handler = new TrlCoapHandler();
-//        CoapObserveRelation relation = OSCOREProfileRequests.makeObserveRequest(
-//                client4AS, "coap://localhost/trl", handler);
+        TrlCoapHandler handler = new TrlCoapHandler(TokenRepository.getInstance().getTrlManager());
+        CoapObserveRelation relation = OSCOREProfileRequests.
+                                          makeObserveRequest(client4AS, trlAddr, handler);
 
         // uncomment for polling
-        timer = new Timer();
-        timer.schedule(new PollTrl(client4AS), 5000, 5000);
+//        timer = new Timer();
+//        timer.schedule(new PollTrl(client4AS, trlAddr), 5000, 5000);
 
 
         dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
@@ -336,19 +338,33 @@ public class OscoreProtObserveRSTestServer {
     public static class PollTrl extends TimerTask {
 
         CoapClient client = null;
+        String srvAddr;
 
-        public PollTrl(CoapClient client) {
+        public PollTrl(CoapClient client, String srvAddr) {
             this.client = client;
+            this.srvAddr = srvAddr;
         }
 
         public void run() {
 
             CoapResponse response = null;
             try{
-                response= OSCOREProfileRequests.makePollRequest(
-                        client, "coap://localhost/trl");
+                response= OSCOREProfileRequests.makePollRequest(client, srvAddr);
             } catch(AceException e) {
                 System.out.println("Exception caught: " + e.getMessage());
+                return;
+            }
+
+            CBORObject payload;
+            try {
+                payload = TrlResponses.checkAndGetPayload(response);
+                if (payload.getType() == CBORType.Map &&
+                    Constants.getParams(payload).containsKey(Constants.TRL_ERROR)) {
+                    System.out.println("Trl response contains an error");
+                    return;
+                }
+            } catch (AceException e) {
+                e.printStackTrace();
             }
 
             TokenRepository.TrlManager trl = TokenRepository.getInstance().getTrlManager();
@@ -357,17 +373,6 @@ public class OscoreProtObserveRSTestServer {
             } catch (AceException e) {
                 e.printStackTrace();
             }
-            prettyPrintReceivedTokenHashes(CBORObject.DecodeFromBytes(response.getPayload()));
-        }
-
-        private void prettyPrintReceivedTokenHashes(CBORObject payload) {
-            List<String> hashes = new ArrayList<>();
-            for (int i = 0; i < payload.size(); i++) {
-                byte[] tokenHashB = payload.get(i).GetByteString();
-                String tokenHashS = new String(tokenHashB, Constants.charset);
-                hashes.add(tokenHashS);
-            }
-            System.out.println("List of received token hashes: " + hashes);
         }
     }
 }
