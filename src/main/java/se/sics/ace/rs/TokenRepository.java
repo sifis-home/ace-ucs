@@ -65,6 +65,7 @@ import COSE.KeyKeys;
 import COSE.OneKey;
 
 import se.sics.ace.*;
+import se.sics.ace.TrlStore;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -1598,7 +1599,15 @@ public class TokenRepository implements AutoCloseable {
 	}
 
 
-	public class TrlManager {
+
+
+
+
+
+
+
+
+	public class TrlManager implements TrlStore {
 
 		/**
 		 * Map between a token hash (th) and a token identifier (cti).
@@ -1620,6 +1629,11 @@ public class TokenRepository implements AutoCloseable {
 		 * The cursor used in the third mode
 		 */
 		private int cursor;
+
+		/**
+		 * the 'more' field used in the third mode
+		 */
+		private boolean more;
 
 		protected final Long UNKNOWN_EXPIRATION = 0L;
 
@@ -1733,16 +1747,16 @@ public class TokenRepository implements AutoCloseable {
 		 *
 		 * @return the set of token hashes
 		 */
-		public Set<String> getLocalTrlSet() {
+		public Set<String> getLocalTrl() {
 			return new HashSet<>(this.localTrl.keySet());
 		}
 
 		/**
-		 * Get a Set containing the token hashes in the local trl
+		 * Get the map containing the token hashes in the local trl
 		 *
-		 * @return the set of token hashes
+		 * @return the map between token hashes and expiration time
 		 */
-		public Map<String, Long> getLocalTrl() {
+		public Map<String, Long> getLocalTrlMap() {
 			return new HashMap<>(this.localTrl);
 		}
 
@@ -1795,10 +1809,10 @@ public class TokenRepository implements AutoCloseable {
 		 */
 		public synchronized void removeTokenFromTrl(String th) throws AceException {
 	        try {
-	            if (!localTrl.containsKey(th)) {
-	                LOGGER.info("Unable to remove entry.");
-	                throw new AceException("Token hash not present.");
-	            }
+//	            if (!localTrl.containsKey(th)) {
+//	                LOGGER.info("Unable to remove entry.");
+//	                throw new AceException("Token hash not present.");
+//	            }
 				localTrl.remove(th);
 			} catch (NullPointerException | ClassCastException | UnsupportedOperationException e) {
 	            LOGGER.severe("Error while removing token hash from trl" + e.getMessage());
@@ -1818,51 +1832,183 @@ public class TokenRepository implements AutoCloseable {
 		/**
 		 *  Update the local trl to match the token hashes contained
 		 *  in the CBOR array passed as input.
-		 *  For new token hashes added to the local trl, the expiration time
-		 *  is set to UNKNOWN_EXPIRATION if the token hash has never been posted,
-		 *  and therefore the RS is not able to retrieve it.
 		 *
 		 * @param payload a CBOR array containing the portion of the TRL pertaining
 		 *                to the RS.
 		 *                It should be the payload of a response to a full query
 		 *                notification
 		 */
+		@Override
 		public synchronized void updateLocalTrl(CBORObject payload) throws AceException {
-			if (!payload.getType().equals(CBORType.Array)) {
-				LOGGER.severe("Failed updating the local trl. " +
-						"CBOR type was not Array");
-				throw new AceException("Failed updating the local trl. " +
-						"CBOR type was not Array");
-			}
-			Set<String> payloadHashes = new HashSet<>();
 
-			for (int i = 0; i < payload.size(); i++) {
-				byte[] tokenHashB = payload.get(i).GetByteString();
+			purgeTokens();
+
+			if (payload.getType() == CBORType.Map) {
+				Map<Short, CBORObject> map = Constants.getParams(payload);
+				if (map.containsKey(Constants.FULL_SET)) {
+					processFullQuery(payload);
+				}
+				else if (map.containsKey(Constants.DIFF_SET)) {
+					processDiffQuery(payload);
+				}
+				else {
+					throw new AceException("Error processing trl response. " +
+							"No CBOR array FULL_SET or DIFF_SET found.");
+				}
+			}
+			else if (payload.getType() == CBORType.Array) {
+				if (payload.size() == 0) {
+					// empty CBOR array, no more processing needed.
+					return;
+				}
+				else if (payload.get(0).getType() == CBORType.ByteString) {
+					processFullSetArray(payload);
+				}
+				else if (payload.get(0).getType() == CBORType.Array) {
+					processDiffSetArray(payload);
+				}
+				else {
+					throw new AceException("Error processing trl response. " +
+							"The CBOR array contains invalid data.");
+				}
+			}
+		}
+
+		@Override
+		public void processFullQuery(CBORObject payload) throws AceException {
+			if (payload.getType() != CBORType.Map) {
+				throw new AceException("Error processing full query response. " +
+						"Expected type is CBOR map.");
+			}
+			Map<Short, CBORObject> map = Constants.getParams(payload);
+			if (map.containsKey(Constants.CURSOR)) {
+				cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+			}
+			if (map.containsKey(Constants.FULL_SET)) {
+				processFullSetArray(map.get(Constants.FULL_SET));
+			}
+		}
+
+		private void processFullSetArray(CBORObject fullSet) throws AceException {
+
+			if (fullSet.getType() != CBORType.Array) {
+				throw new AceException("Error processing full query response. " +
+						"Expected type is CBOR array.");
+			}
+
+			Set<String> fullSetHashes = new HashSet<>();
+
+			for (int i = 0; i < fullSet.size(); i++) {
+				byte[] tokenHashB = fullSet.get(i).GetByteString();
 				String tokenHashS = new String(tokenHashB, Constants.charset);
-				payloadHashes.add(tokenHashS);
+				fullSetHashes.add(tokenHashS);
 			}
-			// now we have payloadHashes containing the token hashes that were in the payload
+			// now we have fullSetHashes containing the token hashes that were in the payload
 
-			// remove from localTrl the token hashes that are not present in payloadHashes
-			Set<String> localTrlMinusPayloadHashes = new HashSet<>(localTrl.keySet());
-			localTrlMinusPayloadHashes.removeAll(payloadHashes);
-			for (String th : localTrlMinusPayloadHashes) {
-				localTrl.remove(th);
-				//this.persist();
+			// remove from localTrl the token hashes that are not present in fullSetHashes
+			Set<String> localTrlMinusFullSetHashes = new HashSet<>(localTrl.keySet());
+			localTrlMinusFullSetHashes.removeAll(fullSetHashes);
+//			for (String th : localTrlMinusFullSetHashes) {
+//				localTrl.remove(th);
+//				//this.persist();
+//			}
+			localTrl.keySet().removeAll(localTrlMinusFullSetHashes);
+
+			// add to localTrl the token hashes present in fullSetHashes (but not in localTrl)
+			addToLocalTrl(fullSetHashes);
+			this.persist();
+
+			// print
+			Set<String> hashes = new HashSet<>();
+			for (int i = 0; i < fullSet.size(); i++) {
+				byte[] tokenHashB = fullSet.get(i).GetByteString();
+				String tokenHashS = new String(tokenHashB, Constants.charset);
+				hashes.add(tokenHashS);
+			}
+			LOGGER.info("Set of received token hashes: " + hashes);
+		}
+
+
+		@Override
+		public void processDiffQuery(CBORObject payload)
+				throws AceException {
+
+			if (payload.getType() != CBORType.Map) {
+				throw new AceException("Error processing diff query response. " +
+						"Expected type is CBOR map.");
+			}
+			Map<Short, CBORObject> map = Constants.getParams(payload);
+			if (map.containsKey(Constants.CURSOR)) {
+				// TODO: check if cursor is "null"? That's a possible value
+				cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+			}
+			if (map.containsKey(Constants.MORE)) {
+				more = map.get(Constants.MORE).AsBoolean();
+			}
+			if (map.containsKey(Constants.DIFF_SET)) {
+				processDiffSetArray(map.get(Constants.DIFF_SET));
+			}
+		}
+
+		private void processDiffSetArray(CBORObject diffSet) throws AceException {
+
+			if (diffSet.getType() != CBORType.Array) {
+				throw new AceException("Error processing full query response. " +
+						"Expected type is CBOR array.");
 			}
 
-			// add to localTrl the token hashes present in payloadHashes (but not in localTrl)
-			for (String th : payloadHashes) {
+			Set<String> removedTokenHashes = new HashSet<>();
+			Set<String> addedTokenHashes = new HashSet<>();
+			for (int index = 0; index < diffSet.size(); index++) {
+				parseTrlPatch(diffSet.get(index).get(0), removedTokenHashes);
+				parseTrlPatch(diffSet.get(index).get(1), addedTokenHashes);
+			}
+
+			// print
+			LOGGER.info("Set of token hashes added to the trl: " + addedTokenHashes + "\n" +
+					"Set of token hashes removed from the trl: " + removedTokenHashes);
+
+			// compute netAdded as added minus removed
+			// these are the token hashes to add to the localTrl.
+			// Note that some of them might already be in the localTrl.
+			addedTokenHashes.removeAll(removedTokenHashes);
+
+			// remove from the localTrl the token hashes in removed.
+			// Note that some of them might not be present in the localTrl.
+			localTrl.keySet().removeIf(key -> removedTokenHashes.contains(key));
+			//localTrl.keySet().removeIf(removedTokenHashes::contains);
+//			for (String th : removedTokenHashes) {
+//				removeTokenFromTrl(th);
+//			}
+
+			// add to the localTrl the token hashes in netAdded.
+			// Note that some of the token hashes in netAdded might already
+			// be present in the localTrl.
+			addToLocalTrl(addedTokenHashes);
+
+			this.persist();
+		}
+
+
+		/**
+		 *  Add a set of token hashes to the local trl map.
+		 *  The expiration time is set to UNKNOWN_EXPIRATION if the token hash
+		 *  has never been posted, and therefore the RS is not able to retrieve it.
+		 * @param tokenHashes
+		 * @throws AceException
+		 */
+		private void addToLocalTrl(Set<String> tokenHashes) throws AceException {
+			for (String th : tokenHashes) {
 				if (!localTrl.containsKey(th)) {
 
 					// find expiration time
 					Long exp = null;
 					try {
 						exp = findExpiration(th);
-					} catch(AceException e) {
+					} catch (AceException e) {
 						LOGGER.severe(e.getMessage());
 						// This should never happen since a stored access token
-						// should be include either EXP or EXI claim.
+						// should include either EXP or EXI claim.
 						throw new AceException(e.getMessage());
 					}
 
@@ -1877,8 +2023,22 @@ public class TokenRepository implements AutoCloseable {
 					//this.persist();
 				}
 			}
-			this.persist(); // FIXME: better to do it after each change of the structures?
 		}
+
+		/**
+		 * Extract token hashes as String from a CBOR array of byte strings, i.e., the trl-patch
+		 *
+		 * @param trlPatch the CBOR array containing byte strings
+		 * @param tokenHashes the set of token hashes extracted from the trl-patch
+		 */
+		private void parseTrlPatch(CBORObject trlPatch, Set<String> tokenHashes) {
+			for (int i = 0; i < trlPatch.size(); i++) {
+				byte[] tokenHashB = trlPatch.get(i).GetByteString();
+				String tokenHashS = new String(tokenHashB, Constants.charset);
+				tokenHashes.add(tokenHashS);
+			}
+		}
+
 
 		/**
 		 * Find expiration time of a token.
@@ -1917,6 +2077,10 @@ public class TokenRepository implements AutoCloseable {
 						"If the token did not include one of these claims originally, " +
 						"EXP should have been included by authz-info during processing.");
 			}
+		}
+
+		public int getCursorValue() {
+			return cursor;
 		}
 
 		/**
