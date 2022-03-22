@@ -131,6 +131,11 @@ public class Trl implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, errorMap);
         }
 
+        if (queryParameters.containsKey("pmax")) {
+            // set the time between this and the next response
+            // FIXME: cannot find "pmax" or "maximum period" in Californium code
+        }
+
         if (queryParameters.containsKey("diff")) {
             // Process a diff-query request
             return processDiffQuery(msg, id);
@@ -154,18 +159,34 @@ public class Trl implements Endpoint, AutoCloseable {
                 //min(size,num);
 
         //2. Create the CBOR array containing the diff-entries
-        CBORObject payload;
+        CBORObject diffSet;
         try {
-            payload = DiffSetsMap.get(id).getLatestDiffEntries(u);
+            diffSet = DiffSetsMap.get(id).getLatestDiffEntries(u);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted (getting latest diff entries): "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 
-        LOGGER.log(Level.FINEST, "Returning diff-set CBOR array");
-        return msg.successReply(Message.CONTENT, payload);
+        //3. Create the map containing the diff set, cursor value, and more value
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.DIFF_SET, diffSet);
+
+        int cursor = DiffSetsMap.get(id).getMaxIndex();
+        if (cursor == 0) {
+            map.Add(Constants.CURSOR, CBORObject.Null);
+        }
+        else {
+            map.Add(Constants.CURSOR, cursor);
+        }
+
+        // placeholder. To edit when the logic for the third mode will be implemented
+        map.Add(Constants.MORE, CBORObject.False);
+
+        LOGGER.log(Level.FINEST, "Returning diff set CBOR array");
+        return msg.successReply(Message.CONTENT, map);
     }
+
 
     private Message processFullQuery(Message msg, String id) {
 
@@ -189,19 +210,32 @@ public class Trl implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 
-        //3. Create the CBOR array containing the token hashes
-        CBORObject hashes = CBORObject.NewArray();
+        //3. Create the CBOR array containing the token hashes as Byte Strings
+        CBORObject fullSet = CBORObject.NewArray();
         Set<String> tokenHashes = new HashSet<>();
 
         for (String tokenCti : pertainingTokens) {
             String tokenHash = ctiToTokenHash.get(tokenCti);
             if (tokenHash != null) {
-                hashes.Add(CBORObject.FromObject(tokenHash.getBytes(Constants.charset)));
+                fullSet.Add(CBORObject.FromObject(tokenHash.getBytes(Constants.charset)));
                 tokenHashes.add(tokenHash);
             }
         }
-        LOGGER.log(Level.FINEST, "Returning hashes: " + tokenHashes);
-        return msg.successReply(Message.CONTENT, hashes);
+
+        //3. Create the map containing the full set and cursor value
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.FULL_SET, fullSet);
+
+        int cursor = DiffSetsMap.get(id).getMaxIndex();
+        if (cursor == 0) {
+            map.Add(Constants.CURSOR, CBORObject.Null);
+        }
+        else {
+            map.Add(Constants.CURSOR, cursor);
+        }
+
+        LOGGER.log(Level.FINEST, "Returning full set: " + tokenHashes);
+        return msg.successReply(Message.CONTENT, map);
     }
 
 
@@ -258,8 +292,10 @@ public class Trl implements Endpoint, AutoCloseable {
             return errorInvalidParameterValue();
         }
 
+        // return null if all the checks passed
         return null;
     }
+
 
     /**
      * Build a CBOR map containing the error 'invalid parametr value' to return as response
@@ -277,6 +313,7 @@ public class Trl implements Endpoint, AutoCloseable {
         return map;
     }
 
+
     /**
      * Build a CBOR map containing the error 'invalid set of parameters' to return as response
      *
@@ -293,6 +330,7 @@ public class Trl implements Endpoint, AutoCloseable {
         return map;
     }
 
+
     /**
      * Build a CBOR map containing the error 'unauthorized client' to return as response
      *
@@ -306,6 +344,7 @@ public class Trl implements Endpoint, AutoCloseable {
         return map;
     }
 
+
     /**
      *
      * @return a reference to the DiffSetMap to be used by the RevocationHandler
@@ -314,9 +353,11 @@ public class Trl implements Endpoint, AutoCloseable {
         return this.DiffSetsMap;
     }
 
+
     public void addPeerToDiffSetsMap(String id) {
         this.DiffSetsMap.put(id, new DiffSet(this.nMax));
     }
+
 
     @Override
     public void close() throws AceException {

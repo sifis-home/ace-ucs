@@ -116,18 +116,12 @@ public class AceObservableEndpoint extends CoapResource implements AutoCloseable
         if (m instanceof CoapRes) {
             CoapRes res = (CoapRes)m;
             LOGGER.log(Level.FINEST, "Produced response: " + res);
-            //XXX: Should the profile set the content format here?
 
-            // if payload is a CBOR map, content type is ace-trl+cbor
-            // if payload is a CBOR array, content type is ace-cbor
-            // otherwise, we do not set the content type.
-            // Is there a better way?
-            if (CBORObject.DecodeFromBytes(res.getRawPayload()).getType() == CBORType.Map)
-                exchange.respond(res.getCode(), res.getRawPayload(), Constants.APPLICATION_ACE_TRL_CBOR);
-            else if (CBORObject.DecodeFromBytes(res.getRawPayload()).getType() == CBORType.Array)
-                exchange.respond(res.getCode(), res.getRawPayload(), Constants.APPLICATION_ACE_CBOR);
-            else
-                exchange.respond(res.getCode(), res.getRawPayload());
+            // FIXME: Are we supposed to use ACE_TRL_CBOR even if we return
+            //        an INTERNAL_SERVER_ERROR?
+            //        Currently, the draft does not implement this error.
+            exchange.respond(ResponseCode.CONTENT, res.getRawPayload(),
+                    Constants.APPLICATION_ACE_TRL_CBOR);
             return;
         }
         if (m == null) {//Wasn't a CoAP message

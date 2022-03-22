@@ -18,11 +18,6 @@ public class TrlResponses {
             = Logger.getLogger(TrlResponses.class.getName());
 
     /**
-     * Different options for handling the response at the TrlStore
-     */
-    public enum Mode {FULL_QUERY, DIFF_QUERY};
-
-    /**
      * Check the response payload and process the response at the specified TrlStore.
      *
      * @param response the response obtained from the trl endpoint
@@ -60,14 +55,7 @@ public class TrlResponses {
             throw new AceException("Processing response aborted: null payload");
         }
         CBORObject payload;
-        if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {
-            // response should contain a CBOR array
-            payload = CBORObject.DecodeFromBytes(rawPayload);
-            if (payload.getType() != CBORType.Array) {
-                throw new AceException("Wrong payload type. Expected a CBOR Array");
-            }
-        }
-        else if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_TRL_CBOR) {
+        if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_TRL_CBOR) {
             // response should contain a CBOR map
             payload = CBORObject.DecodeFromBytes(rawPayload);
             if (payload.getType() != CBORType.Map) {
@@ -84,9 +72,16 @@ public class TrlResponses {
                             "response contains an error");
             }
         }
+//        else if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {
+//            // response should contain a CBOR array
+//            payload = CBORObject.DecodeFromBytes(rawPayload);
+//            if (payload.getType() != CBORType.Array) {
+//                throw new AceException("Wrong payload type. Expected a CBOR Array");
+//            }
+//        }
         else {
-            LOGGER.severe("Received response with unknown content-type");
-            throw new AceException("Processing response aborted: unknown content-type");
+            LOGGER.severe("Received response with unexpected content-type");
+            throw new AceException("Processing response aborted: unexpected content-type");
         }
         return payload;
     }

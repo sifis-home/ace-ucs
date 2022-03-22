@@ -43,34 +43,20 @@ public class BasicTrlStore implements TrlStore {
 
     @Override
     public void updateLocalTrl(CBORObject payload) throws AceException {
-        if (payload.getType() == CBORType.Map) {
-            Map<Short, CBORObject> map = Constants.getParams(payload);
-            if (map.containsKey(Constants.FULL_SET)) {
-                processFullQuery(payload);
-            }
-            else if (map.containsKey(Constants.DIFF_SET)) {
-                processDiffQuery(payload);
-            }
-            else {
-                throw new AceException("Error processing trl response. " +
-                        "No CBOR array FULL_SET or DIFF_SET found.");
-            }
+        if (payload.getType() != CBORType.Map) {
+            throw new AceException("Error processing trl response. " +
+                    "Expected type is CBOR map.");
         }
-        else if (payload.getType() == CBORType.Array) {
-            if (payload.size() == 0) {
-                // empty CBOR array, no more processing needed.
-                return;
-            }
-            else if (payload.get(0).getType() == CBORType.ByteString) {
-                processFullSetArray(payload);
-            }
-            else if (payload.get(0).getType() == CBORType.Array) {
-                processDiffSetArray(payload);
-            }
-            else {
-                throw new AceException("Error processing trl response. " +
-                        "The CBOR array contains invalid data.");
-            }
+        Map<Short, CBORObject> map = Constants.getParams(payload);
+        if (map.containsKey(Constants.FULL_SET)) {
+            processFullQuery(payload);
+        }
+        else if (map.containsKey(Constants.DIFF_SET)) {
+            processDiffQuery(payload);
+        }
+        else {
+            throw new AceException("Error processing trl response. " +
+                    "No CBOR array FULL_SET or DIFF_SET found within the CBOR map.");
         }
     }
 
@@ -90,13 +76,23 @@ public class BasicTrlStore implements TrlStore {
             throw new AceException("Error processing full query response. " +
                     "Expected type is CBOR map.");
         }
+
         Map<Short, CBORObject> map = Constants.getParams(payload);
+        if (!map.containsKey(Constants.FULL_SET)) {
+            throw new AceException("Error processing full query response. " +
+                    "No CBOR array FULL_SET found within the CBOR map.");
+        }
+
         if (map.containsKey(Constants.CURSOR)) {
-            cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+            if (map.get(Constants.CURSOR).equals(CBORObject.Null)) {
+                cursor = 0;
+            }
+            else {
+                cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+            }
         }
-        if (map.containsKey(Constants.FULL_SET)) {
-            processFullSetArray(map.get(Constants.FULL_SET));
-        }
+
+        processFullSetArray(map.get(Constants.FULL_SET));
     }
 
     /**
@@ -110,6 +106,11 @@ public class BasicTrlStore implements TrlStore {
         if (fullSet.getType() != CBORType.Array) {
             throw new AceException("Error processing full query response. " +
                     "Expected type is CBOR array.");
+        }
+
+        if (fullSet.size() != 0 && fullSet.get(0).getType() != CBORType.ByteString) {
+            throw new AceException("Error processing full query response. " +
+                    "CBOR array does not contain Byte Strings.");
         }
 
         Set<String> hashes = new HashSet<>();
@@ -138,17 +139,27 @@ public class BasicTrlStore implements TrlStore {
             throw new AceException("Error processing diff query response. " +
                     "Expected type is CBOR map.");
         }
+
         Map<Short, CBORObject> map = Constants.getParams(payload);
-        if (map.containsKey(Constants.CURSOR)) {
-            // TODO: check if cursor is "null"? That's a possible value
-            cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+        if (!map.containsKey(Constants.DIFF_SET)) {
+            throw new AceException("Error processing diff query response. " +
+                    "No CBOR array DIFF_SET found within the CBOR map.");
         }
+
+        if (map.containsKey(Constants.CURSOR)) {
+            if (map.get(Constants.CURSOR).equals(CBORObject.Null)) {
+                cursor = 0;
+            }
+            else {
+                cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+            }
+        }
+
         if (map.containsKey(Constants.MORE)) {
             more = map.get(Constants.MORE).AsBoolean();
         }
-        if (map.containsKey(Constants.DIFF_SET)) {
-            processDiffSetArray(map.get(Constants.DIFF_SET));
-        }
+
+        processDiffSetArray(map.get(Constants.DIFF_SET));
     }
 
     /**
@@ -166,6 +177,11 @@ public class BasicTrlStore implements TrlStore {
         if (diffSet.getType() != CBORType.Array) {
             throw new AceException("Error processing full query response. " +
                     "Expected type is CBOR array.");
+        }
+
+        if (diffSet.size() != 0 && diffSet.get(0).getType() != CBORType.Array) {
+            throw new AceException("Error processing diff query response. " +
+                    "CBOR array does not contain a CBOR Array.");
         }
 
         Set<String> removedTokenHashes = new HashSet<>();

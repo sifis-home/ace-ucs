@@ -93,4 +93,8 @@ public class DiffSet {
     public int getSize() {
         return diffSet.size();
     }
+
+    public int getMaxIndex() {
+        return maxIndex;
+    }
 }

@@ -1843,57 +1843,71 @@ public class TokenRepository implements AutoCloseable {
 
 			purgeTokens();
 
-			if (payload.getType() == CBORType.Map) {
-				Map<Short, CBORObject> map = Constants.getParams(payload);
-				if (map.containsKey(Constants.FULL_SET)) {
-					processFullQuery(payload);
-				}
-				else if (map.containsKey(Constants.DIFF_SET)) {
-					processDiffQuery(payload);
-				}
-				else {
-					throw new AceException("Error processing trl response. " +
-							"No CBOR array FULL_SET or DIFF_SET found.");
-				}
+			if (payload.getType() != CBORType.Map) {
+				throw new AceException("Error processing trl response. " +
+						"Expected type is CBOR map.");
 			}
-			else if (payload.getType() == CBORType.Array) {
-				if (payload.size() == 0) {
-					// empty CBOR array, no more processing needed.
-					return;
-				}
-				else if (payload.get(0).getType() == CBORType.ByteString) {
-					processFullSetArray(payload);
-				}
-				else if (payload.get(0).getType() == CBORType.Array) {
-					processDiffSetArray(payload);
-				}
-				else {
-					throw new AceException("Error processing trl response. " +
-							"The CBOR array contains invalid data.");
-				}
+			Map<Short, CBORObject> map = Constants.getParams(payload);
+			if (map.containsKey(Constants.FULL_SET)) {
+				processFullQuery(payload);
+			}
+			else if (map.containsKey(Constants.DIFF_SET)) {
+				processDiffQuery(payload);
+			}
+			else {
+				throw new AceException("Error processing trl response. " +
+						"No CBOR array FULL_SET or DIFF_SET found within the CBOOR map.");
 			}
 		}
 
+
 		@Override
-		public void processFullQuery(CBORObject payload) throws AceException {
+		public void processFullQuery(CBORObject payload)
+				throws AceException {
+
 			if (payload.getType() != CBORType.Map) {
 				throw new AceException("Error processing full query response. " +
 						"Expected type is CBOR map.");
 			}
+
 			Map<Short, CBORObject> map = Constants.getParams(payload);
+			if (!map.containsKey(Constants.FULL_SET)) {
+				throw new AceException("Error processing full query response. " +
+						"No CBOR array FULL_SET found within the CBOR map.");
+			}
+
 			if (map.containsKey(Constants.CURSOR)) {
-				cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+				if (map.get(Constants.CURSOR).equals(CBORObject.Null)) {
+					cursor = 0;
+				}
+				else {
+					cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+				}
 			}
-			if (map.containsKey(Constants.FULL_SET)) {
-				processFullSetArray(map.get(Constants.FULL_SET));
-			}
+//
+//			if (map.containsKey(Constants.CURSOR)) {
+//				try {
+//					cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+//				} catch (IllegalStateException e) {
+//					CBORObject cursorCbor = map.get(Constants.CURSOR);
+//					if (cursorCbor.equals(CBORObject.Null))
+//						cursor = 0;
+//				}
+//			}
+			processFullSetArray(map.get(Constants.FULL_SET));
 		}
+
 
 		private void processFullSetArray(CBORObject fullSet) throws AceException {
 
 			if (fullSet.getType() != CBORType.Array) {
 				throw new AceException("Error processing full query response. " +
 						"Expected type is CBOR array.");
+			}
+
+			if (fullSet.size() != 0 && fullSet.get(0).getType() != CBORType.ByteString) {
+				throw new AceException("Error processing full query response. " +
+						"CBOR array does not contain Byte Strings.");
 			}
 
 			Set<String> fullSetHashes = new HashSet<>();
@@ -1937,24 +1951,40 @@ public class TokenRepository implements AutoCloseable {
 				throw new AceException("Error processing diff query response. " +
 						"Expected type is CBOR map.");
 			}
+
 			Map<Short, CBORObject> map = Constants.getParams(payload);
-			if (map.containsKey(Constants.CURSOR)) {
-				// TODO: check if cursor is "null"? That's a possible value
-				cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+			if (!map.containsKey(Constants.DIFF_SET)) {
+				throw new AceException("Error processing diff query response. " +
+						"No CBOR array DIFF_SET found within the CBOR map.");
 			}
+
+			if (map.containsKey(Constants.CURSOR)) {
+				if (map.get(Constants.CURSOR).equals(CBORObject.Null)) {
+					cursor = 0;
+				}
+				else {
+					cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();
+				}
+			}
+
 			if (map.containsKey(Constants.MORE)) {
 				more = map.get(Constants.MORE).AsBoolean();
 			}
-			if (map.containsKey(Constants.DIFF_SET)) {
-				processDiffSetArray(map.get(Constants.DIFF_SET));
-			}
+
+			processDiffSetArray(map.get(Constants.DIFF_SET));
 		}
+
 
 		private void processDiffSetArray(CBORObject diffSet) throws AceException {
 
 			if (diffSet.getType() != CBORType.Array) {
 				throw new AceException("Error processing full query response. " +
 						"Expected type is CBOR array.");
+			}
+
+			if (diffSet.size() != 0 && diffSet.get(0).getType() != CBORType.Array) {
+				throw new AceException("Error processing diff query response. " +
+						"CBOR array does not contain a CBOR Array.");
 			}
 
 			Set<String> removedTokenHashes = new HashSet<>();
@@ -1968,7 +1998,7 @@ public class TokenRepository implements AutoCloseable {
 			LOGGER.info("Set of token hashes added to the trl: " + addedTokenHashes + "\n" +
 					"Set of token hashes removed from the trl: " + removedTokenHashes);
 
-			// compute netAdded as added minus removed
+			// compute 'net added' as added minus removed
 			// these are the token hashes to add to the localTrl.
 			// Note that some of them might already be in the localTrl.
 			addedTokenHashes.removeAll(removedTokenHashes);
@@ -1981,9 +2011,9 @@ public class TokenRepository implements AutoCloseable {
 //				removeTokenFromTrl(th);
 //			}
 
-			// add to the localTrl the token hashes in netAdded.
-			// Note that some of the token hashes in netAdded might already
-			// be present in the localTrl.
+			// add to the localTrl the token hashes in the 'net added' set.
+			// Note that some of these token hashes might already be present
+			// in the localTrl.
 			addToLocalTrl(addedTokenHashes);
 
 			this.persist();
@@ -1994,36 +2024,42 @@ public class TokenRepository implements AutoCloseable {
 		 *  Add a set of token hashes to the local trl map.
 		 *  The expiration time is set to UNKNOWN_EXPIRATION if the token hash
 		 *  has never been posted, and therefore the RS is not able to retrieve it.
-		 * @param tokenHashes
-		 * @throws AceException
+		 *  Consistently, if the token is in use, purge it.
+		 *
+		 * @param tokenHashes the set of token hash to add to the local trl
+		 * @throws AceException if the token is in use and its expiration time cannot
+		 * 						be found
 		 */
-		private void addToLocalTrl(Set<String> tokenHashes) throws AceException {
+		private void addToLocalTrl(Set<String> tokenHashes)
+				throws AceException {
+
 			for (String th : tokenHashes) {
-				if (!localTrl.containsKey(th)) {
-
-					// find expiration time
-					Long exp = null;
-					try {
-						exp = findExpiration(th);
-					} catch (AceException e) {
-						LOGGER.severe(e.getMessage());
-						// This should never happen since a stored access token
-						// should include either EXP or EXI claim.
-						throw new AceException(e.getMessage());
-					}
-
-					if (!exp.equals(UNKNOWN_EXPIRATION)) {
-						try {
-							removeToken(th2cti.get(th));
-						} catch (AceException e) {
-							LOGGER.severe("Failed removing revoked token: " + e.getMessage());
-						}
-					}
-					localTrl.put(th, exp);
-					//this.persist();
+				if (localTrl.containsKey(th)) {
+					continue;
 				}
+
+				// find expiration time
+				Long exp = null;
+				try {
+					exp = findExpiration(th);
+				} catch (AceException e) {
+					LOGGER.severe(e.getMessage());
+					// This should never happen since a stored access token
+					// should include either EXP or EXI claim.
+					throw new AceException(e.getMessage());
+				}
+
+				if (!exp.equals(UNKNOWN_EXPIRATION)) {
+					try {
+						removeToken(th2cti.get(th));
+					} catch (AceException e) {
+						LOGGER.severe("Failed removing revoked token: " + e.getMessage());
+					}
+				}
+				localTrl.put(th, exp);
 			}
 		}
+
 
 		/**
 		 * Extract token hashes as String from a CBOR array of byte strings, i.e., the trl-patch
