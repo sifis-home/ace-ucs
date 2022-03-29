@@ -5,9 +5,7 @@ import com.upokecenter.cbor.CBORObject;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import se.sics.ace.*;
 import se.sics.ace.as.DiffSet;
 import se.sics.ace.cwt.CWT;
@@ -38,11 +36,7 @@ public class TestTrlManager {
      */
     private static ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
 
-    /**
-     * Expected exception
-     */
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
+
     @BeforeClass
     public static void setUp() throws AceException, CoseException, IOException {
         asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -83,7 +77,8 @@ public class TestTrlManager {
         pskCnf.Add(Constants.COSE_KEY_CBOR, symmetricKey.AsCBOR());
 
         rpkCnf = CBORObject.NewMap();
-        rpkCnf.Add(Constants.COSE_KEY_CBOR, asymmetricKey.PublicKey().AsCBOR());     }
+        rpkCnf.Add(Constants.COSE_KEY_CBOR, asymmetricKey.PublicKey().AsCBOR());
+    }
 
 
     /**
@@ -173,8 +168,11 @@ public class TestTrlManager {
         CBORObject payload = CBORObject.NewArray();
         payload.Add(CBORObject.FromObject(th3.getBytes(Constants.charset)));
 
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.FULL_SET, payload);
+
         TokenRepository.TrlManager trlMan = TokenRepository.getInstance().getTrlManager();
-        trlMan.updateLocalTrl(payload);
+        trlMan.updateLocalTrl(map);
 
         assert(trlMan.getLocalTrl().size() == 1 || trlMan.getLocalTrl().contains(th3));
 
@@ -213,7 +211,10 @@ public class TestTrlManager {
 
         payload = Diff.getLatestDiffEntries(3);
 
-        trlMan.updateLocalTrl(payload);
+        map = CBORObject.NewMap();
+        map.Add(Constants.DIFF_SET, payload);
+
+        trlMan.updateLocalTrl(map);
 
         assert(trlMan.getLocalTrl().size() == 1 && trlMan.getLocalTrl().contains(th3));
         assert(trlMan.getValidTokensSet().size() == 3 && !trlMan.getValidTokensSet().contains(th3));
@@ -221,7 +222,8 @@ public class TestTrlManager {
         assert(trlMan.getValidTokensSet().contains(th2));
         assert(trlMan.getValidTokensSet().contains(th4));
 
-        // TODO: when the RS receives the diff query response, it could check
+        // TODO: (possible optimization)
+        //       when the RS receives the diff query response, it could check
         //       whether among the removed tokens there is some token that is
         //       present in its set of valid tokens.
         //       If so, it should remove that token from the valid ones.

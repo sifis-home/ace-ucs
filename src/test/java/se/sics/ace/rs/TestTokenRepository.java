@@ -765,9 +765,12 @@ public class TestTokenRepository {
         CBORObject hashes = CBORObject.NewArray();
         hashes.Add(CBORObject.FromObject(th.getBytes(Constants.charset)));
 
-        // provide a CBORArray containing a token hash of a token that the RS
-        // knows nothing about
-        tr.getTrlManager().updateLocalTrl(hashes);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.FULL_SET, hashes);
+
+        // provide a CBOR map with FULL_SET containing a token hash of a token
+        // that the RS knows nothing about
+        tr.getTrlManager().updateLocalTrl(map);
 
         Map<String, Long> revokedTokens = tr.getTrlManager().getLocalTrlMap();
         Assert.assertTrue(revokedTokens.containsKey(th));
@@ -806,8 +809,11 @@ public class TestTokenRepository {
         CBORObject hashes = CBORObject.NewArray();
         hashes.Add(CBORObject.FromObject(th.getBytes(Constants.charset)));
 
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.FULL_SET, hashes);
+
         // pretend the token is revoked and update the localTrl accordingly
-        tr.getTrlManager().updateLocalTrl(hashes);
+        tr.getTrlManager().updateLocalTrl(map);
 
         // check that the localTrl contains the token hash...
         Map<String, Long> revokedTokens = tr.getTrlManager().getLocalTrlMap();

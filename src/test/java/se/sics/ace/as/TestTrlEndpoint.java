@@ -50,27 +50,25 @@ public class TestTrlEndpoint {
 
         peerIdentitiesToNames.put("Id1", "clientA");
         peerIdentitiesToNames.put("Id2", "clientB");
-        peerIdentitiesToNames.put("Id3", "rs1");
-        peerIdentitiesToNames.put("Id4", "rs2");
+        peerIdentitiesToNames.put("Id3", "clientC");
+        peerIdentitiesToNames.put("Id4", "rs1");
+        peerIdentitiesToNames.put("Id5", "rs2");
         db.addClient("clientA",new HashSet<String>(){{add("coap_dtls");}},
                 null,null,new HashSet<String>(){{add("PSK");}},new OneKey(),null);
         db.addClient("clientB",new HashSet<String>(){{add("coap_dtls");}},
                 null,null,new HashSet<String>(){{add("PSK");}},new OneKey(),null);
+        db.addClient("clientC",new HashSet<String>(){{add("coap_dtls");}},
+                null,null,new HashSet<String>(){{add("PSK");}},new OneKey(),null);
 
-
-        db.addCti2Peers("cti1", "clientB", new HashSet<String>() {{
-            add("rs1");
-        }});
+        db.addCti2Peers("cti1", "clientB", new HashSet<String>() {{add("rs1");}});
         db.addRevokedToken("cti1");
         db.addCti2TokenHash("cti1", "tokenHash1");
 
-        db.addCti2Peers("cti2", "clientA", new HashSet<String>() {{
-            add("rs1");
-        }});
+        db.addCti2Peers("cti2", "clientA", new HashSet<String>() {{add("rs1");}});
         db.addRevokedToken("cti2");
         db.addCti2TokenHash("cti2", "tokenHash2");
 
-        r = new Trl(db, peerIdentitiesToNames, 10);
+        r = new Trl(db, peerIdentitiesToNames, 10, null);
     }
 
     /**
@@ -87,13 +85,13 @@ public class TestTrlEndpoint {
 
     /**
      * Test the trl endpoint, test should fail with Unauthorized client:
-     * Id5 is not allowed to observe
+     * Id6 is not allowed to observe
      *
      * @throws Exception
      */
     @Test
     public void testUnauthorizedClient() throws Exception {
-        Message msg = new LocalMessage(-1, "Id5", null, (CBORObject) null);
+        Message msg = new LocalMessage(-1, "Id6", null, (CBORObject) null);
 
         r.setQueryParameters(new HashMap<>());
         r.setHasObserve(false);
@@ -111,14 +109,15 @@ public class TestTrlEndpoint {
 
 
     /**
-     * Test the trl endpoint, test should succeed and return an empty cbor array:
-     * Id4 has no pertaining tokens in the trl
+     * Test the trl endpoint, test should succeed and return a CBOR map
+     * containing FULL_SET and CURSOR.
+     * FULL_SET is a CBOR array that should be empty as Id3 has no pertaining tokens in the trl
      *
      * @throws Exception
      */
     @Test
     public void testSucceedNoHashes() throws Exception {
-        Message msg = new LocalMessage(-1, "Id4", null, (CBORObject) null);
+        Message msg = new LocalMessage(-1, "Id3", null, (CBORObject) null);
 
         r.setQueryParameters(new HashMap<>());
         r.setHasObserve(false);
@@ -127,15 +126,19 @@ public class TestTrlEndpoint {
 
         assert (response.getMessageCode() == Message.CONTENT);
 
-        CBORObject hashes = CBORObject.NewArray();
+        CBORObject fullSet = CBORObject.DecodeFromBytes(response.getRawPayload()).get(Constants.FULL_SET);
+        assert(fullSet.size() == 0);
+        assert(CBORObject.DecodeFromBytes(response.getRawPayload()).ContainsKey(Constants.CURSOR));
 
-        Assert.assertArrayEquals(hashes.EncodeToBytes(), response.getRawPayload());
+
 
     }
 
     /**
-     * Test the trl endpoint, test should succeed and return a cbor array
-     * containing token hashes
+     * Test the trl endpoint, test should succeed and return a CBOR map
+     * containing FULL_SET and CURSOR.
+     * Check that FULL_SET is a CBOR array, its size is 1, and contains what expected.
+     * (CURSOR is null since no revocation was "really" made by the RevocationHandler)
      *
      * @throws Exception
      */
@@ -154,8 +157,11 @@ public class TestTrlEndpoint {
         String tokenHash = "tokenHash1";
         hashes.Add(CBORObject.FromObject(tokenHash.getBytes(Constants.charset)));
 
-        Assert.assertArrayEquals(hashes.EncodeToBytes(), response.getRawPayload());
-
+        CBORObject fullSet = CBORObject.DecodeFromBytes(response.getRawPayload()).get(Constants.FULL_SET);
+        assert(fullSet.getType() == CBORType.Array);
+        assert(fullSet.size() == 1);
+        assert(hashes.CompareToIgnoreTags(fullSet) == 0);
+        assert(CBORObject.DecodeFromBytes(response.getRawPayload()).ContainsKey(Constants.CURSOR));
     }
 
 
