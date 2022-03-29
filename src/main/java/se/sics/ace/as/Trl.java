@@ -48,10 +48,15 @@ public class Trl implements Endpoint, AutoCloseable {
     private boolean hasObserve = false;
 
     /**
-     * Pre-defined positive integer. The maximum number of diff-entries stored per peer.
+     * Pre-defined positive integer. The maximum number of diff entries stored per peer.
      * It determines the maximum size of the array 'diffSet' in a DiffSet object.
      */
     private int nMax;
+
+    /**
+     * Maximum number of diff entries that the AS can include in a diff query response
+     */
+    private int maxDiffBatch;
 
     /**
      * Map between peer ids and their DiffSets representing their portion of trl
@@ -65,13 +70,17 @@ public class Trl implements Endpoint, AutoCloseable {
      * @param db  the database connector
      * @param peerIdentitiesToNames  mapping between security identities
      *                               of the peers and their names; it can be null
-     * @param nMax
+     * @param nMax maximum number of diff entries stored per peer.
+     * @param maxDiffBatch maximum number of diff entries that the AS can include
+     *                     in a diff query response. It can be null, and, in that case,
+     *                     its value is set to the value of nMax
      *
-     * @throws AceException  if the db connector is null
+     * @throws AceException if the db connector is null, nMax and maxDiffBatch
+     *                      are lower than or equal to zero.
      */
     public Trl(DBConnector db,
                Map<String, String> peerIdentitiesToNames,
-               int nMax)
+               int nMax, Integer maxDiffBatch)
             throws AceException {
 
         if (db == null) {
@@ -83,6 +92,13 @@ public class Trl implements Endpoint, AutoCloseable {
         if (nMax <= 0) {
             LOGGER.severe("nMax value not allowed.");
             throw new AceException("nMax MUST be a positive integer");
+        }
+        if (maxDiffBatch == null) {
+            this.maxDiffBatch = nMax;
+        }
+        else if (maxDiffBatch <= 0) {
+            LOGGER.severe("maxDiffBatch value not allowed.");
+            throw new AceException("maxDiffBatch MUST be a positive integer or null.");
         }
 
         this.db = db;
@@ -138,7 +154,20 @@ public class Trl implements Endpoint, AutoCloseable {
 
         if (queryParameters.containsKey("diff")) {
             // Process a diff-query request
-            return processDiffQuery(msg, id);
+
+            // Empty collection (Appendix B.4.1)
+            if (DiffSetsMap.get(id).getMaxIndex() == 0) {
+                return processDiffQueryEmptyCollection(msg);
+            }
+
+            if (queryParameters.containsKey("cursor")) {
+                // Cursor Specified in the Diff Query Request (Appendix B.4.3)
+                return processDiffQueryWithCursor(msg, id);
+            }
+            else {
+                // Cursor Not Specified in the Diff Query Request (Appendix B.4.2)
+                return processDiffQueryNoCursor(msg, id);
+            }
         }
         else {
             // Process a full-query request
@@ -146,9 +175,22 @@ public class Trl implements Endpoint, AutoCloseable {
         }
     }
 
-    private Message processDiffQuery(Message msg, String id) {
 
-        //1. Get the number of diff-entries to return
+    private Message processDiffQueryEmptyCollection(Message msg) {
+        CBORObject map = CBORObject.NewMap();
+
+        map.Add(Constants.DIFF_SET, CBORObject.NewArray());
+        map.Add(Constants.CURSOR, CBORObject.Null);
+        map.Add(Constants.MORE, CBORObject.False);
+
+        LOGGER.log(Level.FINEST, "Returning diff query Empty Collection");
+        return msg.successReply(Message.CONTENT, map);
+    }
+
+
+    private Message processDiffQueryNoCursor(Message msg, String id) {
+
+        //1. Get the number of diff entries to return
         int num = queryParameters.get("diff");
         if (num == 0 || num > this.nMax) {
             num = this.nMax;
@@ -156,14 +198,22 @@ public class Trl implements Endpoint, AutoCloseable {
 
         int size = DiffSetsMap.get(id).getSize(); // actual size of the diffSet array of the peer
         int u = size < num ? size : num;
-                //min(size,num);
+        //min(size,num);
 
-        //2. Create the CBOR array containing the diff-entries
+        int l = u < maxDiffBatch ? u : maxDiffBatch;
+        //min(u,maxDiffBatch);
+
+        //2. Create the CBOR array containing the diff entries
         CBORObject diffSet;
         try {
-            diffSet = DiffSetsMap.get(id).getLatestDiffEntries(u);
+            if (u <= maxDiffBatch) {
+                diffSet = DiffSetsMap.get(id).getLatestDiffEntries(u);
+            }
+            else {
+                diffSet = DiffSetsMap.get(id).getEldestDiffEntries(u, l);
+            }
         } catch (AceException e) {
-            LOGGER.severe("Message processing aborted (getting latest diff entries): "
+            LOGGER.severe("Message processing aborted (getting diff entries): "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
@@ -172,19 +222,94 @@ public class Trl implements Endpoint, AutoCloseable {
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.DIFF_SET, diffSet);
 
-        int cursor = DiffSetsMap.get(id).getMaxIndex();
-        if (cursor == 0) {
-            map.Add(Constants.CURSOR, CBORObject.Null);
+        int cursor = DiffSetsMap.get(id).getMaxIndex() + u - l;
+        map.Add(Constants.CURSOR, cursor);
+
+        if (u <= maxDiffBatch) {
+            map.Add(Constants.MORE, CBORObject.False);
         }
         else {
-            map.Add(Constants.CURSOR, cursor);
+            map.Add(Constants.MORE, CBORObject.True);
         }
 
-        // placeholder. To edit when the logic for the third mode will be implemented
-        map.Add(Constants.MORE, CBORObject.False);
-
-        LOGGER.log(Level.FINEST, "Returning diff set CBOR array");
+        LOGGER.log(Level.FINEST, "Returning diff set CBOR map");
         return msg.successReply(Message.CONTENT, map);
+    }
+
+
+    private Message processDiffQueryWithCursor(Message msg, String id) {
+
+        int p = queryParameters.get("cursor");
+        int lastIndex = DiffSetsMap.get(id).getMaxIndex();
+        if (p > lastIndex) {
+            // the requester deliberately specified a wrong value of 'cursor'
+            CBORObject errorMap = errorOutOfBoundCursorValueMap(id);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, errorMap);
+        }
+
+        int oldestIndex = DiffSetsMap.get(id).getOldestIndex();
+        //if (p + 1 >= oldestIndex && p + 1 <= lastIndex) { // oldestIndex <= p + 1 <= lastIndex
+        // if (p < oldestIndex && p + 1 < oldestIndex) {
+        if (p + 1 < oldestIndex) {
+            // the index the requester specified in 'cursor' is obsolete
+            // (too old and therefore removed from the diffSet array)
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.DIFF_SET, CBORObject.NewArray());
+            map.Add(Constants.CURSOR, CBORObject.Null);
+            map.Add(Constants.MORE, CBORObject.True);
+
+            LOGGER.log(Level.FINEST, "Returning diff set CBOR map (specified cursor was obsolete)");
+            return msg.successReply(Message.CONTENT, map);
+        }
+
+        // if (p >= oldestIndex - 1 && p <= lastIndex)
+        // is the condition for which we should continue processing, and this means
+        // that p is in the range [oldestIndex-1, lastIndex] and the request is legit.
+
+        //1. Get the number of diff entries to return
+        int num = queryParameters.get("diff");
+        if (num == 0 || num > this.nMax) {
+            num = this.nMax;
+        }
+
+        int subSize = lastIndex - p;
+        int size = DiffSetsMap.get(id).getSize();
+        assert(subSize <= size);
+
+        int subU = subSize < num ? subSize : num;
+        //min(subSize,num);
+
+        int l = subU < maxDiffBatch ? subU : maxDiffBatch;
+
+        //2. Create the CBOR array containing the diff entries
+        CBORObject diffSet;
+        try {
+            int fromArrayPosition = size - (lastIndex - (p + subU));
+            diffSet = DiffSetsMap.get(id).getDiffEntries(subU, l, fromArrayPosition);
+
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted (getting diff entries): "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
+
+        //3. Create the map containing the diff set, cursor value, and more value
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.DIFF_SET, diffSet);
+
+        int cursor = p + l;
+        map.Add(Constants.CURSOR, cursor);
+
+        if (subU <= maxDiffBatch) {
+            map.Add(Constants.MORE, CBORObject.False);
+        }
+        else {
+            map.Add(Constants.MORE, CBORObject.True);
+        }
+
+        LOGGER.log(Level.FINEST, "Returning diff set CBOR map");
+        return msg.successReply(Message.CONTENT, map);
+
     }
 
 
@@ -249,6 +374,17 @@ public class Trl implements Endpoint, AutoCloseable {
     }
 
 
+    /**
+     * Check compliance of query parameters. Note that this check is done on the
+     * "general shape" of query parameters; they are not checked against the values
+     * of the specific instance of the DiffSet structure.
+     * For example, here the 'cursor' value is checked to be not lower than zero.
+     * It is not checked whether its value is lower than the latest TRL update (maxIndex)
+     * in the DiffSet structure of the specific peer.
+     *
+     * @return a map containing an error if one or more query parameters are not
+     *         compliant with the specification, null otherwise
+     */
     private CBORObject checkQueryParameters() {
 
         // accepted parameters:
@@ -264,7 +400,7 @@ public class Trl implements Endpoint, AutoCloseable {
         //         -  a positive integer greater than 0, indicating the maximum
         //            number of diff entries that a (notification) response should
         //            include.
-        // cursor: The index of the first diff-entry to return.
+        // cursor: The index of the first diff entry to return.
         //         Its value MUST be either greater than or equal to zero.
         //         If included, also 'diff' parameter MUST be present.
 
@@ -330,6 +466,24 @@ public class Trl implements Endpoint, AutoCloseable {
         return map;
     }
 
+    /**
+     * Build a CBOR map containing the error 'out of bound cursor value' to return as response.
+     * The map contains also the cursor with value the maxIndex, i.e., the last trl update
+     * for the peer
+     *
+     * @return the map containing the error and error_description
+     */
+    private CBORObject errorOutOfBoundCursorValueMap(String id) {
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.TRL_ERROR,
+                Constants.OUT_OF_BOUND_CURSOR_VALUE);
+        map.Add(Constants.TRL_ERROR_DESCRIPTION,
+                Constants.OUT_OF_BOUND_CURSOR_VALUE_DESCRIPTION);
+        map.Add(Constants.CURSOR, DiffSetsMap.get(id).getMaxIndex());
+        LOGGER.log(Level.INFO, "Message processing aborted: "
+                + Constants.OUT_OF_BOUND_CURSOR_VALUE_DESCRIPTION);
+        return map;
+    }
 
     /**
      * Build a CBOR map containing the error 'unauthorized client' to return as response
