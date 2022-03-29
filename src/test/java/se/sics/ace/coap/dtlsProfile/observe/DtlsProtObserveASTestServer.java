@@ -43,6 +43,7 @@ import se.sics.ace.DBHelper;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.PDP;
+import se.sics.ace.as.TrlConfig;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.DtlsAS;
 import se.sics.ace.examples.KissPDP;
@@ -274,9 +275,10 @@ public class DtlsProtObserveASTestServer
         db.addCti2TokenHash("zxcvbnm", "tokenHash_zxcvbnm");
         db.addCti2TokenHash("mnbvcxz", "tokenHash_mnbvcxz");
 
-        
+        TrlConfig trlConfig = new TrlConfig("trl", 3, null, true);
+
         as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asymmKey,
-                "token", "introspect", "trl", true,
+                "token", "introspect", trlConfig,
                 CoAP.DEFAULT_COAP_SECURE_PORT, null, false);
         as.start();
         System.out.println("Server starting");

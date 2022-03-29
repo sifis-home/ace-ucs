@@ -50,6 +50,7 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.as.AccessTokenFactory;
+import se.sics.ace.as.TrlConfig;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.OscoreAS;
 import se.sics.ace.examples.KissPDP;
@@ -243,7 +244,7 @@ public class OscoreASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new OscoreAS(myName, db, pdp, phpHandlesRevocations, time, asymmKey,"token", "introspect", "trl", false,
+        as = new OscoreAS(myName, db, pdp, phpHandlesRevocations, time, asymmKey,"token", "introspect", new TrlConfig(),
                           CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true,
                           peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
         

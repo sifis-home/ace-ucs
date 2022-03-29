@@ -41,6 +41,7 @@ import org.junit.Assert;
 import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.RevocationHandler;
+import se.sics.ace.as.TrlConfig;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.OscoreAS;
 import se.sics.ace.examples.KissPDP;
@@ -288,8 +289,9 @@ public class OscoreProtObserveASTestServer
         db.addCti2TokenHash("asdfghjkl", "tokenHash_asdfghjkl");
         db.addCti2TokenHash("zxcvbnm", "tokenHash_zxcvbnm");
 
+        TrlConfig trlConfig = new TrlConfig("trl", 3, null, true);
 
-        as = new OscoreAS(myName, db, pdp, phpHandlesRevocations, time, asymmKey,"token", "introspect", "trl", true,
+        as = new OscoreAS(myName, db, pdp, phpHandlesRevocations, time, asymmKey,"token", "introspect", trlConfig,
                           CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true,
                           peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
 

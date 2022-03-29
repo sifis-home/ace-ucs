@@ -279,7 +279,7 @@ public class PlugtestAS {
         claims.add(Constants.PROFILE);
         
         as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asRPK,
-                "token", "introspect", null, false,
+                "token", "introspect", null,
                 5689, claims, true);
         as.start();
         System.out.println("Server starting");
