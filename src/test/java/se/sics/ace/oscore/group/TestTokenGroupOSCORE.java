@@ -467,8 +467,18 @@ public class TestTokenGroupOSCORE {
         pdp.addOSCOREGroupManagers("rs10", aud10);
         Set<String> aud11 = Collections.singleton("aud11");
         pdp.addOSCOREGroupManagers("rs11", aud11);
-        
-        t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
+
+        Set<Short> defaultClaims = new HashSet<>();
+        defaultClaims.add(Constants.CTI);
+        defaultClaims.add(Constants.ISS);
+        defaultClaims.add(Constants.EXI);
+        defaultClaims.add(Constants.AUD);
+        defaultClaims.add(Constants.SCOPE);
+        defaultClaims.add(Constants.CNF);
+
+        t = new Token("AS", pdp, pdpHandlesRevocations, db,
+                new KissTime(), privateKey, defaultClaims,
+                false, (short)0, false, null);
     }
     
     /**

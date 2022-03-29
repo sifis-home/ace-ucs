@@ -57,11 +57,7 @@ import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.DBHelper;
-import se.sics.ace.Message;
+import se.sics.ace.*;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
@@ -331,8 +327,18 @@ public class TestToken {
         pdp.addAccess("clientE", "rs3", "rw_valve");
         pdp.addAccess("clientE", "rs3", "r_pressure");
         pdp.addAccess("clientE", "rs3", "failTokenType");
-        
-        t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
+
+        Set<Short> defaultClaims = new HashSet<>();
+        defaultClaims.add(Constants.CTI);
+        defaultClaims.add(Constants.ISS);
+        defaultClaims.add(Constants.EXI);
+        defaultClaims.add(Constants.AUD);
+        defaultClaims.add(Constants.SCOPE);
+        defaultClaims.add(Constants.CNF);
+
+        t = new Token("AS", pdp, pdpHandlesRevocations, db,
+                new KissTime(), privateKey, defaultClaims,
+                false, (short)0, false, null);
     }
     
     /**

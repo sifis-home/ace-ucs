@@ -358,9 +358,21 @@ public class TestTokenUCS {
         pdp.addAccess("clientF", "rs1", "r_temp");
         pdp.addAccess("clientF", "rs1", "rw_config");
 
-        t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
+
+        Set<Short> defaultClaims = new HashSet<>();
+        defaultClaims.add(Constants.CTI);
+        defaultClaims.add(Constants.ISS);
+        defaultClaims.add(Constants.EXI);
+        defaultClaims.add(Constants.AUD);
+        defaultClaims.add(Constants.SCOPE);
+        defaultClaims.add(Constants.CNF);
 
         KissTime time = new KissTime();
+
+        t = new Token("AS", pdp, pdpHandlesRevocations, db,
+                time, privateKey, defaultClaims,
+                false, (short)0, false, null);
+
         RevocationHandler rh = new RevocationHandler(db, time, null, null, null);
         pdp.setRevocationHandler(rh);
         pdp.setTokenEndpoint(t);
@@ -786,11 +798,6 @@ public class TestTokenUCS {
             t.processMessage(msg);
         }
         Long ctiCtrEnd = db.getCtiCounter();
-        //assert(ctiCtrEnd == ctiCtrStart+10);
-//        assert(ctiCtrEnd == ctiCtrStart);
-        // if EXI is used, ctiCtrEnd == ctiCtrStart
-        // if EXP is used, ctiCtrEnd == ctiCtrStart+10
-        // This test cannot check whether EXI or EXP is used.
         assert(ctiCtrEnd.equals(ctiCtrStart));
     }
 
