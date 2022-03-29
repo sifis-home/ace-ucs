@@ -125,7 +125,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             Map<String, String> myIdentities)
                     throws AceException, OSException {
         this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey, "token", "introspect",
-                "trl", false, port, null, false, (short)0, false, peerNamesToIdentities,
+                new TrlConfig(), port, null, false, (short)0, false, peerNamesToIdentities,
                 peerIdentitiesToNames, myIdentities);
     }
     
@@ -149,7 +149,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             Map<String, String> peerIdentitiesToNames,
             Map<String, String> myIdentities) throws AceException, OSException {
         this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey, "token", "introspect",
-                "trl", false, CoAP.DEFAULT_COAP_PORT, null, false, (short)0, false,
+                new TrlConfig(), CoAP.DEFAULT_COAP_PORT, null, false, (short)0, false,
                 peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
     }
     
@@ -169,9 +169,9 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @param introspectName  the name of the introspect endpoint 
      *      (will be converted into the address as well), if this is null,
      *      no introspection endpoint will be offered
-     * @param trlName the name of the trl endpoint
-     *      (will be converted into the address as well), if this is null,
-     *      no observable endpoint for notification of TRL changes will be offered
+     * @param trlConfig contains the properties of the trl, such as its name,
+     *                  the maximum size of the trl portion for each peer, etc.
+     *                  if null, no observable endpoint for notification of TRL changes will be offered
      * @param port  the port number to run the server on
      * @param claims  the claim types to include in tokens issued by this 
      *                AS, can be null to use default set
@@ -193,8 +193,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
                     OneKey asymmetricKey,
                     String tokenName,
                     String introspectName,
-                    String trlName,
-                    boolean useRevocationHandler,
+                    TrlConfig trlConfig,
                     int port,
                     Set<Short> claims,
                     boolean setAudHeader,
@@ -219,11 +218,11 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             add(this.introspect);    
         }
 
-        if (trlName != null) {
-            this.r = new Trl(db, peerIdentitiesToNames, 10);
-            this.trl = new AceObservableEndpoint(trlName, this.r);
+        if (trlConfig != null) {
+            this.r = new Trl(db, peerIdentitiesToNames, trlConfig.getnMax(), trlConfig.getMaxBatchSize());
+            this.trl = new AceObservableEndpoint(trlConfig.getName(), this.r);
             add(this.trl);
-            if (useRevocationHandler) {
+            if (trlConfig.isUseRevocationHandler()) {
                 this.rh = new RevocationHandler(db, time, peerIdentitiesToNames, this.r.getDiffSetsMap(), trl);
                 pdp.setRevocationHandler(this.rh);
 //            // to remove, it triggers a revocation. Only for test purposes

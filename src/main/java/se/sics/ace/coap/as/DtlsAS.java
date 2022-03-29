@@ -126,7 +126,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
                   OneKey asymmetricKey, int port)
                     throws AceException, CoseException {
         this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey,
-                "token", "introspect", "trl", false, port,
+                "token", "introspect", new TrlConfig(), port,
                 null, false);
     }
     
@@ -150,7 +150,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
                   OneKey asymmetricKey)
                     throws AceException, CoseException {
         this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey,
-                "token", "introspect", "trl", false,
+                "token", "introspect", new TrlConfig(),
                 CoAP.DEFAULT_COAP_SECURE_PORT, null, false);
     }
     
@@ -168,9 +168,10 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      * @param introspectName  the name of the introspect endpoint 
      *      (will be converted into the address as well), if this is null,
      *      no introspection endpoint will be offered
-     * @param trlName the name of the trl endpoint
-     *      (will be converted into the address as well), if this is null,
-     *      no observable endpoint for notification of TRL changes will be offered
+     * @param trlConfig contains the properties of the trl, such as its name,
+     *                  the maximum size of the trl portion for each peer, etc.
+     *                  if null, no observable endpoint for notification of TRL
+     *                  changes will be offered
      * @param port  the port number to run the server on
      * @param claims  the claim types to include in tokens issued by this 
      *                AS, can be null to use default set.
@@ -188,8 +189,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
                   OneKey asymmetricKey,
                   String tokenName,
                   String introspectName,
-                  String trlName,
-                  boolean useRevocationHandler,
+                  TrlConfig trlConfig,
                   int port,
                   Set<Short> claims,
                   boolean setAudHeader)
@@ -210,11 +210,11 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
             add(this.introspect);    
         }
 
-        if (trlName != null) {
-            this.r = new Trl(db, null, 10);  // double check
-            this.trl = new AceObservableEndpoint(trlName, this.r);
+        if (trlConfig != null) {
+            this.r = new Trl(db, null, trlConfig.getnMax(), trlConfig.getMaxBatchSize());  // double check
+            this.trl = new AceObservableEndpoint(trlConfig.getName(), this.r);
             add(this.trl);
-            if (useRevocationHandler) {
+            if (trlConfig.isUseRevocationHandler()) {
                 this.rh = new RevocationHandler(db, time, null, this.r.getDiffSetsMap(), trl);
                 pdp.setRevocationHandler(this.rh);
 //            // to remove, it triggers a revocation. Only for test purposes
