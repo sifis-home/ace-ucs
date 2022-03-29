@@ -113,9 +113,7 @@ public class RevocationHandler {
         String tokenHash = db.getTokenHashMap().get(cti);
 
         CBORObject added = CBORObject.NewArray();
-        Set<byte[]> ad = new HashSet<>();
         added.Add(CBORObject.FromObject(tokenHash.getBytes(Constants.charset)));
-
 
         for (String id : peerIds) {
             try {
