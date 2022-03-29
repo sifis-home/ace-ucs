@@ -120,7 +120,7 @@ public class AceObservableEndpoint extends CoapResource implements AutoCloseable
             // FIXME: Are we supposed to use ACE_TRL_CBOR even if we return
             //        an INTERNAL_SERVER_ERROR?
             //        Currently, the draft does not implement this error.
-            exchange.respond(ResponseCode.CONTENT, res.getRawPayload(),
+            exchange.respond(res.getCode(), res.getRawPayload(),
                     Constants.APPLICATION_ACE_TRL_CBOR);
             return;
         }
