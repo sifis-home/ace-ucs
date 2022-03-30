@@ -241,7 +241,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
 
         this.addEndpoint(new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
-                .setPort(CoAP.DEFAULT_COAP_PORT)
+                .setPort(port)
                 .setCustomCoapStackArgument(OscoreCtxDbSingleton.getInstance())
                 .build());  
         loadOscoreCtx(db, peerNamesToIdentities, myIdentities);

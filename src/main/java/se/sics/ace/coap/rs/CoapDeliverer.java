@@ -150,7 +150,7 @@ public class CoapDeliverer implements MessageDeliverer {
             
         	Request req = ex.getRequest();
             try {
-				subject = CoapReq.getInstance(req).getSenderId();
+				subject = CoapReq.getInstance(req, false).getSenderId();
 				if (subject == null) {
 				    LOGGER.warning("Unauthenticated client tried to get access");
 				    failUnauthz(ex);

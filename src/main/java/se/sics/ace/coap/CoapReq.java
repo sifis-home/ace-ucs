@@ -78,15 +78,15 @@ public class CoapReq implements Message {
     
     /**
      * Create a request from an underlying Californium request.
-     * Payload if any MUST be in CBOR.
      * 
      * @param req  the underlying Californium request
+     * @param payloadMustBeCbor  if true, the payload (if any) MUST be in CBOR
      * @throws AceException 
      */
-    protected CoapReq(Request req) throws AceException {
+    protected CoapReq(Request req, boolean payloadMustBeCbor) throws AceException {
         this.request = req;
         CBORObject cborPayload = null;
-        if (req.getPayload() != null && req.getPayload() != Bytes.EMPTY) {
+        if (req.getPayload() != null && req.getPayload() != Bytes.EMPTY && payloadMustBeCbor) {
             try {
                 cborPayload = CBORObject.DecodeFromBytes(req.getPayload());
             } catch (CBORException ex) {
@@ -197,7 +197,19 @@ public class CoapReq implements Message {
      * @throws AceException 
      */
     public static CoapReq getInstance(Request req) throws AceException {
-        return new CoapReq(req);
+        return new CoapReq(req, true);
+    }
+    
+    /**
+     * Create a CoAPRequest from a Californium <code>Request</code>.
+     * 
+     * @param req  the Californium Request
+     * @param payloadMustBeCbor  if true, the payload (if any) MUST be in CBOR
+     * @return  the ACE CoAP request
+     * @throws AceException 
+     */
+    public static CoapReq getInstance(Request req, boolean payloadMustBeCbor) throws AceException {
+        return new CoapReq(req, payloadMustBeCbor);
     }
 
     @Override

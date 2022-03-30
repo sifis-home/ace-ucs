@@ -173,7 +173,7 @@ public class TestClientDtlsProfileRPKauthPSKpop {
         client.setEndpoint(e);
         dtlsConnector.start();
         
-        // Send a token request to the AS, asking for an access token with asymmetric proof-of-possession key
+        // Send a token request to the AS, asking for an access token with symmetric proof-of-possession key
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp rw_config foobar"));
