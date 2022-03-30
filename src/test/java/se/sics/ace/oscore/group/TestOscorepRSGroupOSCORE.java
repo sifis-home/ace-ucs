@@ -343,7 +343,7 @@ public class TestOscorepRSGroupOSCORE {
 
         ai.processMessage(new LocalMessage(0, null, null, message));
 
-        AsRequestCreationHints archm = new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
+        AsRequestCreationHints archm = new AsRequestCreationHints("coap://blah/authz-info/", null, false, false);
         Resource hello = new HelloWorldResource();
         Resource temp = new TempResource();
         Resource authzInfo = new CoapAuthzInfo(ai);
