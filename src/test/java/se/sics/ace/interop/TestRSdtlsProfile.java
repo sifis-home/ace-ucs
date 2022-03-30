@@ -461,6 +461,8 @@ public class TestRSdtlsProfile {
         rs.stop();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
+
     }
 
 }

@@ -356,11 +356,13 @@ public class TestRSoscoreProfile {
         myScopes.put("rw_config", myResource5);
         
         valid = new KissValidator(auds, myScopes);
-        
-        
-    	String tokenFile = TestConfig.testFilePath + "tokens.json";
-    	//Delete lingering old token files
-    	new File(tokenFile).delete();
+
+
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
+        //Delete lingering old token files
+        new File(tokenFile).delete();
+        new File(tokenHashesFile).delete();
         
         //Setup COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
@@ -368,7 +370,7 @@ public class TestRSoscoreProfile {
 
         // Setup the inner Authz-Info library
     	ai = new OscoreAuthzInfo(Collections.singletonList("AS"), new KissTime(), null,
-    							 rsId, valid, ctx, tokenFile, valid, false);
+    							 rsId, valid, ctx, tokenFile, tokenHashesFile, valid, false, 86400000L);
                 
         // Setup the responder to unauthorized resource requests
   	    AsRequestCreationHints asi = new AsRequestCreationHints("coap://blah/authz-info/", null, false, false);
@@ -411,6 +413,7 @@ public class TestRSoscoreProfile {
         rs.stop();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
 
 }

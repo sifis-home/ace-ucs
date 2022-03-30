@@ -241,9 +241,10 @@ public class TestASoscoreProfile
         pdp.addAccess("clientA", "rs1", "r_temp");
         pdp.addAccess("clientA", "rs1", "rw_config");
         
-        
+
+
         // Create and start the AS
-        as = new OscoreAS(myName, db, pdp, time, null, "token", "introspect",
+        as = new OscoreAS(myName, db, pdp, false, time, null, "token", "introspect", null,
         				  portNumber, null, false, (short)1, true,
         				  peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
         as.start();
