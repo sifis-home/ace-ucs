@@ -484,12 +484,14 @@ public class TestTokenRepository {
         
         // The Token Repository stores as 'kid' the base64 encoding of
         // the binary content from the 'kid' field of the 'cnf' claim.
-        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        String kid = Base64.getEncoder().encodeToString(rpk.getBytes());
         
-        Assert.assertEquals(TokenRepository.OK, tr.canAccess(rpk, null, "co2", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.METHODNA, tr.canAccess(rpk, null, "co2", Constants.POST, null));
-        Assert.assertEquals(TokenRepository.FORBID, tr.canAccess(kidStr, null, "co2", Constants.POST, null));
-        Assert.assertEquals(TokenRepository.OK, tr.canAccess(kidStr, null, "temp", Constants.GET, null));
+        String kid2 = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
+        Assert.assertEquals(TokenRepository.OK, tr.canAccess(kid, null, "co2", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.METHODNA, tr.canAccess(kid, null, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.FORBID, tr.canAccess(kid2, null, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.OK, tr.canAccess(kid2, null, "temp", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ, tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
