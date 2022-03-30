@@ -163,7 +163,9 @@ public class TestClientDtlsProfilePSKauthPSKpop {
         System.out.println("\nPosted access token to the RS");
         System.out.println("Response from the RS : " + response.getCode().toString());
         
+        
         // Perform the DTLS handshake with the Resource Server
+        
         CBORObject cnf = resCBOR.get(Constants.CNF);
         OneKey key = new OneKey(cnf.get(Constants.COSE_KEY_CBOR));
         byte[] kid = key.get(KeyKeys.KeyId).GetByteString();

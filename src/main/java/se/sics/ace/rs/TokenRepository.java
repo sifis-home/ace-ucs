@@ -853,9 +853,8 @@ public class TokenRepository implements AutoCloseable {
 	    }
 	    
 	    else { //Key type is EC2
-	        RawPublicKeyIdentity rpk =
-	                new RawPublicKeyIdentity(key.AsPublicKey());
-	        kid = rpk.getName();
+	        RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(key.AsPublicKey());
+	        kid = Base64.getEncoder().encodeToString(rpk.getName().getBytes());
 	    }
 	    
         if (sid != null) {

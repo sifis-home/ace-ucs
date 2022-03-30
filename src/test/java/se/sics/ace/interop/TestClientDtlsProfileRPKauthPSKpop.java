@@ -41,6 +41,7 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
@@ -62,6 +63,7 @@ import COSE.OneKey;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.as.Token;
+import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -100,6 +102,13 @@ public class TestClientDtlsProfileRPKauthPSKpop {
     private static int portNumberAS = 5689;
     private static String uriAS = "coaps://127.0.0.1:" + portNumberAS;
     private static String pathTokenEndpoint = "token";
+    
+    private static int portNumberNoSecRS = 5690;
+    private static int portNumberSecRS = 5691;
+    private static String addressRS = "127.0.0.1";
+    private static String uriNoSecRS = "coap://" + addressRS + ":" + portNumberNoSecRS;
+    private static String uriSecRS = "coaps://" + addressRS + ":" + portNumberSecRS;
+    private static String pathAuthzinfoEndpoint = "authz-info";
 
     
     /**
@@ -174,13 +183,78 @@ public class TestClientDtlsProfileRPKauthPSKpop {
                 							Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
+        
         // Upload the access token to the Resource Server
         
-        // TODO
+        CBORObject resCBOR = CBORObject.DecodeFromBytes(response.getPayload());
+        CBORObject token = CBORObject.DecodeFromBytes(resCBOR.get(Constants.ACCESS_TOKEN).GetByteString());
+        
+        response = DTLSProfileRequests.postToken(uriNoSecRS + "/" + pathAuthzinfoEndpoint, token, null);
+        System.out.println("\nPosted access token to the RS");
+        System.out.println("Response from the RS : " + response.getCode().toString());
+        
+
+        // Perform the DTLS handshake with the Resource Server
+        
+        CBORObject cnf = resCBOR.get(Constants.CNF);
+        OneKey key = new OneKey(cnf.get(Constants.COSE_KEY_CBOR));
+        byte[] kid = key.get(KeyKeys.KeyId).GetByteString();
+        		
+        CoapClient c = DTLSProfileRequests.getPskClient(
+        				 new InetSocketAddress(addressRS, portNumberSecRS), kid, key);
+
         
         // Send requests to the Resource Server
         
-        // TODO
+        // Expected 4.03 (Forbidden)
+        c.setURI(uriSecRS + "/helloWorld");
+        response = c.get();
+        System.out.println("\nGET request to the RS at " + uriSecRS + "/helloWorld");
+        System.out.println("Response from the RS : " + response.getCode().toString());
+        System.out.println("Response content : " + CBORObject.DecodeFromBytes(response.getPayload()).toString());
+        
+        // Expected 2.05 (Content)
+        c.setURI(uriSecRS + "/temp");
+        response = c.get();
+        System.out.println("\nGET request to the RS at " + uriSecRS + "/temp");
+        System.out.println("Response from the RS : " + response.getCode().toString());
+        System.out.println("Response content : " + new String(response.getPayload()));
+        
+        // Expected 4.05 (Method not allowed)
+        c.setURI(uriSecRS + "/temp");
+        String value = Integer.toString(5);
+        response = c.post(value.getBytes(Constants.charset), MediaTypeRegistry.APPLICATION_OCTET_STREAM);
+        System.out.println("\nPOST request to the RS at " + uriSecRS + "/temp");
+        System.out.println("Response from the RS : " + response.getCode().toString());
+        System.out.println("Response content : " + CBORObject.DecodeFromBytes(response.getPayload()).toString());
+        
+        // Expected 2.05 (Content)
+        c.setURI(uriSecRS + "/temp");
+        response = c.get();
+        System.out.println("\nGET request to the RS at " + uriSecRS + "/temp");
+        System.out.println("Response from the RS : " + response.getCode().toString());
+        System.out.println("Response content : " + new String(response.getPayload()));
+        
+        // Expected 2.05 (Content)
+        c.setURI(uriSecRS + "/config");
+        response = c.get();
+        System.out.println("\nGET request to the RS at " + uriSecRS + "/config");
+        System.out.println("Response from the RS : " + response.getCode().toString());
+        System.out.println("Response content : " + new String(response.getPayload()));
+
+        // Expected 2.04 (Changed)
+        c.setURI(uriSecRS + "/config");
+        value = new String("Custom");
+        response = c.post(value, MediaTypeRegistry.TEXT_PLAIN);
+        System.out.println("\nPOST request to the RS at " + uriSecRS + "/config");
+        System.out.println("Response from the RS : " + response.getCode().toString());
+        
+        // Expected 2.05 (Content)
+        c.setURI(uriSecRS + "/config");
+        response = c.get();
+        System.out.println("\nGET request to the RS at " + uriSecRS + "/config");
+        System.out.println("Response from the RS : " + response.getCode().toString());
+        System.out.println("Response content : " + new String(response.getPayload()));
         
     }
     

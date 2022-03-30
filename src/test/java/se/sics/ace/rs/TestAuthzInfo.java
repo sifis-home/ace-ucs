@@ -268,7 +268,9 @@ public class TestAuthzInfo {
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x01});
-        String kidStr = new RawPublicKeyIdentity(publicKey.AsPublicKey()).getName();
+        
+        String rpk = new RawPublicKeyIdentity(publicKey.AsPublicKey()).getName();
+        String kidStr = Base64.getEncoder().encodeToString(rpk.getBytes());
         assert(1 == TokenRepository.getInstance().canAccess(kidStr, null, "co2", Constants.GET, null));
         
         db.deleteToken(ctiStr);
