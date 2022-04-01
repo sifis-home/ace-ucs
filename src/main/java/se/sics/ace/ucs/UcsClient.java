@@ -1,5 +1,6 @@
 package se.sics.ace.ucs;
 
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -15,7 +16,9 @@ import it.cnr.iit.ucs.message.tryaccess.TryAccessResponseMessage;
 import it.cnr.iit.ucs.pap.PolicyAdministrationPoint;
 import it.cnr.iit.ucs.pdp.PolicyDecisionPoint;
 import it.cnr.iit.ucs.pep.PEPInterface;
+import it.cnr.iit.ucs.properties.components.PapProperties;
 import it.cnr.iit.ucs.properties.components.PepProperties;
+import it.cnr.iit.ucs.properties.components.PipProperties;
 import it.cnr.iit.ucs.ucs.UCSInterface;
 import it.cnr.iit.xacml.wrappers.PolicyWrapper;
 import it.cnr.iit.xacml.wrappers.RequestWrapper;
@@ -30,16 +33,14 @@ public class UcsClient {
 
 	private static final Logger LOGGER = Logger.getLogger(UcsClient.class.getName());
 
-//	private final String policyFileName = "standard_policy";
-
 	private final AceUcsProperties properties;
 
 	private UCSInterface ucs;
 
 	private final String papPath;
 
-	public UcsClient() {
-		properties = new AceUcsProperties();
+	public UcsClient(List<PipProperties> pipPropertiesList, PapProperties papProperties) {
+		properties = new AceUcsProperties(pipPropertiesList, papProperties);
 		try {
 			ucs = new UCSCoreServiceBuilder().setProperties(properties).build();
 		} catch (Exception e) {
@@ -67,18 +68,6 @@ public class UcsClient {
 		PepProperties pepProperties = properties.getPepList().get(0);
 		TryAccessMessage message = new TryAccessMessage(pepProperties.getId(), pepProperties.getUri());
 		message.setRequest(request);
-
-//		ClassLoader classLoader = getClass().getClassLoader();
-//		File file = new File(Objects.requireNonNull(classLoader.getResource(policyFileName)).getFile());
-//		String policy = "";
-//		try {
-//			policy = new String(Files.readAllBytes(file.toPath()));
-//		} catch (IOException e) {
-//			log.severe("error reading policy file");
-//			e.printStackTrace();
-//		}
-//		message.setPolicy(policy);
-
 		return message;
 	}
 

@@ -16,6 +16,14 @@ import it.cnr.iit.ucs.properties.components.SessionManagerProperties;
 
 public class AceUcsProperties implements UCSProperties {
 
+	private List<PipProperties> pipPropertiesList;
+	private PapProperties papProperties;
+
+	public AceUcsProperties(List<PipProperties> pipPropertiesList, PapProperties papProperties) {
+		this.pipPropertiesList = pipPropertiesList;
+		this.papProperties = papProperties;
+	}
+
 	@Override
 	public CoreProperties getCore() {
 		return new UcsCoreProperties();
@@ -43,7 +51,7 @@ public class AceUcsProperties implements UCSProperties {
 
 	@Override
 	public PapProperties getPolicyAdministrationPoint() {
-		return new UcsPapProperties();
+		return this.papProperties;
 	}
 
 	@Override
@@ -53,10 +61,9 @@ public class AceUcsProperties implements UCSProperties {
 
 	@Override
 	public List<PipProperties> getPipList() {
-		List<PipProperties> res = new ArrayList<>();
-		res.add(new UcsPipProperties());
-		return res;
+		return this.pipPropertiesList;
 	}
+
 	@Override
 	public List<PepProperties> getPepList() {
 		List<PepProperties> res = new ArrayList<>();

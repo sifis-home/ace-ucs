@@ -1,10 +1,11 @@
 package se.sics.ace.ucs;
 
 import com.att.research.xacml.api.Request;
-import it.cnr.iit.common.reject.Reject;
 import it.cnr.iit.ucs.message.endaccess.EndAccessResponseMessage;
 import it.cnr.iit.ucs.message.startaccess.StartAccessResponseMessage;
 import it.cnr.iit.ucs.message.tryaccess.TryAccessResponseMessage;
+import it.cnr.iit.ucs.properties.components.PapProperties;
+import it.cnr.iit.ucs.properties.components.PipProperties;
 import se.sics.ace.AceException;
 import se.sics.ace.as.*;
 import se.sics.ace.examples.SQLConnector;
@@ -100,11 +101,15 @@ public class UcsHelper implements PDP, AutoCloseable {
 
 
 
-	public UcsHelper(SQLConnector connection) throws AceException {
+	public UcsHelper(SQLConnector connection,
+					 List<PipProperties> pipPropertiesList,
+					 PapProperties papProperties) throws AceException {
+
+		LOGGER.setLevel(Level.SEVERE);
 
 		initDatabase(connection);
 
-		ucs = new UcsClient();
+		ucs = new UcsClient(pipPropertiesList, papProperties);
 		ucs.setUcsHelperForPeps(this);
 
 		this.pendingSessions = new HashMap<>();
@@ -137,7 +142,7 @@ public class UcsHelper implements PDP, AutoCloseable {
 		try {
 			deletePolicyFile(policyId + ".xml");
 		} catch(IOException e) {
-			LOGGER.info("Error deleting policy file: " + policyId + ".xml");
+			LOGGER.severe("Error deleting policy file: " + policyId + ".xml");
 		}
 
 		String sessionId = getSession(cid, rid, scope);
@@ -263,15 +268,15 @@ public class UcsHelper implements PDP, AutoCloseable {
 			// The entry contains <sessionId, clientId, rsId, scope, cti>
 			// cti is set to null as it will be created later by the token endpoint.
 
-			//LOGGER.info("performing tryAccess, request = " + req);
+			LOGGER.finest("performing tryAccess, request = " + req);
 			TryAccessResponseMessage tryResponse = ucs.tryAccess(req);
-			//LOGGER.info("tryAccess response = " + tryResponse.getEvaluation().getResponse());
+			LOGGER.finest("tryAccess response = " + tryResponse.getEvaluation().getResponse());
 
 			if (tryResponse.getEvaluation() != null && tryResponse.getEvaluation().getResult().equalsIgnoreCase("permit")) {
 				LOGGER.info("tryAccess complete with PERMIT");
 				String sessionId = tryResponse.getSessionId();
 				StartAccessResponseMessage startResponse = ucs.startAccess(sessionId);
-				//LOGGER.info("startAccess response = " + startResponse.getEvaluation().getResponse());
+				LOGGER.finest("startAccess response = " + startResponse.getEvaluation().getResponse());
 
 				if (startResponse.getEvaluation().getResult().equalsIgnoreCase("permit")) {
 					LOGGER.info("startAccess complete with PERMIT");
@@ -283,11 +288,11 @@ public class UcsHelper implements PDP, AutoCloseable {
 					addSession(sessionId, cid, rid, scopeArray[count], null);
 				}
 				else {
-					LOGGER.info("startAccess complete with DENY");
+					LOGGER.severe("startAccess complete with DENY");
 				}
 			}
 			else {
-				LOGGER.info("tryAccess complete with DENY");
+				LOGGER.severe("tryAccess complete with DENY");
 			}
 			count++;
 		}
@@ -444,6 +449,13 @@ public class UcsHelper implements PDP, AutoCloseable {
 		policyIdCounter++;
 	}
 
+	/**
+	 * Add access permission for a client given an XACML policy
+	 *
+	 */
+	public void addAccessFromFile(String policy) {
+		ucs.addPolicy(policy);
+	}
 
 	/**
 	 * Obtain a list of XACML requests, one for each scope
@@ -609,12 +621,12 @@ public class UcsHelper implements PDP, AutoCloseable {
 	public void terminateSessions(List<String> sessionsList) {
 		for (String sessionId : sessionsList) {
 			EndAccessResponseMessage endResponse = ucs.endAccess(sessionId);
-			//LOGGER.info("endAccess response = " + endResponse.getEvaluation().getResponse());
+			LOGGER.finest("endAccess response = " + endResponse.getEvaluation().getResponse());
 			if (endResponse.getEvaluation().getResult().equalsIgnoreCase("permit")) {
 				LOGGER.info("endAccess complete with PERMIT");
 			}
 			else {
-				LOGGER.info("endAccess complete with DENY");
+				LOGGER.severe("endAccess complete with DENY");
 			}
 		}
 	}
@@ -652,7 +664,7 @@ public class UcsHelper implements PDP, AutoCloseable {
 				purgeSession(sessionId);
 			}
 		} catch (AceException e) {
-			LOGGER.info("Unable to delete session from sessionTable");
+			LOGGER.severe("Unable to delete session from sessionTable");
 			throw new AceException(e.getMessage());
 		}
 	}
@@ -763,7 +775,7 @@ public class UcsHelper implements PDP, AutoCloseable {
 			this.rh.revoke(cti);
 		}
 		else {
-			LOGGER.log(Level.INFO, "Cannot revoke the token: " +
+			LOGGER.severe("Cannot revoke the token: " +
 					"RevocationHandler not initialized.");
 		}
 	}

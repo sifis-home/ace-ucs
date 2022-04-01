@@ -7,6 +7,12 @@ import java.util.Map;
 
 public class UcsPapProperties implements PapProperties {
 
+	private String path;
+
+	public UcsPapProperties(String path) {
+		this.path = path;
+	}
+
 	@Override
 	public String getName() {
 		return "it.cnr.iit.ucs.pap.PolicyAdministrationPoint";
@@ -22,16 +28,22 @@ public class UcsPapProperties implements PapProperties {
 		return "1";
 	}
 
+	/**
+	 * Get the path where policy files are stored
+	 *
+	 * @return the path where policy files are stored
+	 */
 	@Override
 	public String getPath() {
-//		ClassLoader classLoader = getClass().getClassLoader();
-//		File file = new File(classLoader.getResource("policy").getFile());
-//		return file.getAbsolutePath();
-//		return "/home/simfac/work/ACE-java/ace-java/src/main/resources/";
-
-		// TODO:  fix the path for Windows systems, or handle it better
-		File file = new File("src/test/resources/policies/");
-		return file.getAbsolutePath() + "/";
+		return this.path;
 	}
 
+	/**
+	 * Set the path where policy files are stored
+	 *
+	 * @param path the path where policy files are stored
+	 */
+	public void setPath(String path) {
+		this.path = path;
+	}
 }
