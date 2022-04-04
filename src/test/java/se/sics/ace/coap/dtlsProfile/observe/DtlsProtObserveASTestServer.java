@@ -277,7 +277,7 @@ public class DtlsProtObserveASTestServer
 
         TrlConfig trlConfig = new TrlConfig("trl", 3, null, true);
 
-        as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asymmKey,
+        as = new DtlsAS("AS", db, pdp, time, asymmKey,
                 "token", "introspect", trlConfig,
                 CoAP.DEFAULT_COAP_SECURE_PORT, null, false);
         as.start();

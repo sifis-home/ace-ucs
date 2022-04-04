@@ -297,7 +297,7 @@ public class MultiTokenAsTestServer
 
         TrlConfig trlConfig = new TrlConfig("trl", 3, null, true);
 
-        as = new OscoreAS(myName, db, pdp, phpHandlesRevocations, time, asymmKey,"token", "introspect", trlConfig,
+        as = new OscoreAS(myName, db, pdp, time, asymmKey,"token", "introspect", trlConfig,
                           CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true,
                           peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
 

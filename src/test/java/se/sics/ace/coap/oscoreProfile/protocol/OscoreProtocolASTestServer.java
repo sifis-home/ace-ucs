@@ -258,7 +258,7 @@ public class OscoreProtocolASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new OscoreAS(myName, db, pdp, phpHandlesRevocations, time, asymmKey,"token", "introspect", null,
+        as = new OscoreAS(myName, db, pdp, time, asymmKey,"token", "introspect", null,
                           CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true,
                           peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
         

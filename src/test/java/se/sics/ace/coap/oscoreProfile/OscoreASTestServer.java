@@ -193,7 +193,6 @@ public class OscoreASTestServer
 
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new KissPDP(db);
-        boolean phpHandlesRevocations = false;
 
         //Initialize data in PDP
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
@@ -244,7 +243,7 @@ public class OscoreASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new OscoreAS(myName, db, pdp, phpHandlesRevocations, time, asymmKey,"token", "introspect", new TrlConfig(),
+        as = new OscoreAS(myName, db, pdp, time, asymmKey,"token", "introspect", new TrlConfig(),
                           CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true,
                           peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
         

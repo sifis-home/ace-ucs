@@ -257,7 +257,7 @@ public class DtlsProtocolASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asymmKey);
+        as = new DtlsAS("AS", db, pdp, time, asymmKey);
         as.start();
         System.out.println("Server starting");
         //stop();

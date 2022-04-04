@@ -63,6 +63,7 @@ import se.sics.ace.TimeProvider;
 import se.sics.ace.Util;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.ucs.UcsHelper;
 
 /**
  * Implements the /token endpoint on the authorization server.
@@ -248,17 +249,12 @@ public class Token implements Endpoint, AutoCloseable {
 	 */
 	private int evalCounter = 0;
 
-	/**
-	 * If true, the provided PDP handles revocation process
-	 */
-	private final boolean pdpHandlesRevocations;
 
 	/**
 	 * Constructor using default set of claims.
 	 * 
 	 * @param asId  the identifier of this AS
 	 * @param pdp   the PDP for deciding access
-	 * @param pdpHandlesRevocations true if the provided PDP supports revocation, false otherwise
 	 * @param db  the database connector
 	 * @param time  the time provider
 	 * @param privateKey  the private key of the AS or null if there isn't any
@@ -266,10 +262,10 @@ public class Token implements Endpoint, AutoCloseable {
 	 * 
 	 * @throws AceException  if fetching the cti from the database fails
 	 */	
-	public Token(String asId, PDP pdp, boolean pdpHandlesRevocations, DBConnector db,
+	public Token(String asId, PDP pdp, DBConnector db,
 	        TimeProvider time, OneKey privateKey,
 	        Map<String, String> peerIdentitiesToNames) throws AceException {
-	    this(asId, pdp, pdpHandlesRevocations, db, time, privateKey, defaultClaims, false, (short)0, false, peerIdentitiesToNames);
+	    this(asId, pdp, db, time, privateKey, defaultClaims, false, (short)0, false, peerIdentitiesToNames);
 	}
 	
 	/**   
@@ -277,7 +273,6 @@ public class Token implements Endpoint, AutoCloseable {
      *  
      * @param asId  the identifier of this AS
      * @param pdp   the PDP for deciding access
-	 * @param pdpHandlesRevocations true if the provided PDP supports revocation, false otherwise
      * @param db  the database connector
      * @param time  the time provider
      * @param privateKey  the private key of the AS or null if there isn't any
@@ -291,11 +286,11 @@ public class Token implements Endpoint, AutoCloseable {
      * 
      * @throws AceException  if fetching the cti from the database fails
      */
-    public Token(String asId, PDP pdp, boolean pdpHandlesRevocations, DBConnector db,
+    public Token(String asId, PDP pdp, DBConnector db,
             TimeProvider time, OneKey privateKey,
             Set<Short> claims, boolean setAudInCwtHeader,
             Map<String, String> peerIdentitiesToNames) throws AceException {
-        this(asId, pdp, pdpHandlesRevocations, db, time, privateKey, claims, setAudInCwtHeader, (short)0, false, peerIdentitiesToNames);
+        this(asId, pdp, db, time, privateKey, claims, setAudInCwtHeader, (short)0, false, peerIdentitiesToNames);
     }
 	
 	
@@ -304,7 +299,6 @@ public class Token implements Endpoint, AutoCloseable {
 	 * 
      * @param asId  the identifier of this AS
      * @param pdp   the PDP for deciding access
-	 * @param pdpHandlesRevocations true if the provided PDP supports revocation, false otherwise
      * @param db  the database connector
      * @param time  the time provider
      * @param privateKey  the private key of the AS or null if there isn't any
@@ -320,7 +314,7 @@ public class Token implements Endpoint, AutoCloseable {
      * 
      * @throws AceException  if fetching the cti from the database fails
 	 */
-	public Token(String asId, PDP pdp, boolean pdpHandlesRevocations, DBConnector db,
+	public Token(String asId, PDP pdp, DBConnector db,
             TimeProvider time, OneKey privateKey, Set<Short> claims, 
             boolean setAudInCwtHeader, short masterSaltSize, boolean provideIdContext,
             Map<String, String> peerIdentitiesToNames) throws AceException {
@@ -355,7 +349,6 @@ public class Token implements Endpoint, AutoCloseable {
         //All checks passed
         this.asId = asId;
         this.pdp = pdp;
-		this.pdpHandlesRevocations = pdpHandlesRevocations;
         this.db = db;
         this.time = time;
         this.privateKey = privateKey;
@@ -534,7 +527,7 @@ public class Token implements Endpoint, AutoCloseable {
 		Object allowedScopes = null;
 		int evalId = -1;
 		try {
-			if (pdpHandlesRevocations)
+			if (pdp instanceof UcsHelper)
 				evalId = getEvalCounter();
 			allowedScopes = this.pdp.canAccess(id, aud, scope, evalId);
 
@@ -1546,14 +1539,14 @@ public class Token implements Endpoint, AutoCloseable {
 			    // The just issued Token is updating access rights, hence delete the superseded Token
 			    if (updateAccessRights == true) {
 			    	removeToken(oldCti);
-					if (pdpHandlesRevocations) {
+					if (pdp instanceof UcsHelper) {
 						this.pdp.removeSessions4Cti(oldCti);
 					}
 			    }
 		    
 			}
 
-			if (pdpHandlesRevocations) {
+			if (pdp instanceof UcsHelper) {
 				this.pdp.updateSessionsWithCti(ctiStr, evalId);
 			}
 			//if (trl != null)
@@ -1861,7 +1854,7 @@ public class Token implements Endpoint, AutoCloseable {
 	}
 
 	private void rollbackPendingSessions(int evaluationId) {
-		if (pdpHandlesRevocations) {
+		if (pdp instanceof UcsHelper) {
 			try{
 				this.pdp.terminatePendingSessions(evaluationId);
 			} catch (AceException ex){
@@ -1870,25 +1863,6 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 	}
 
-//	String computeTokenHash(CBORObject accessToken) {
-//		//if (rsInfo.get(Constants.ACCESS_TOKEN) instanceof CBORObject) ...
-////				CBORObject encodedToken = (rsInfo.get(Constants.ACCESS_TOKEN));
-////				CBORObject hashInput = encodedToken;
-//		CBORObject hashInput = accessToken;
-//		byte[] hashInputB = hashInput.EncodeToBytes();
-//
-//		// Generation of the hash value as per Section 6 of RFC6920.
-//		// Fixed Suite ID to 1 (Section 9.4 of RFC6920).
-//		// The resulting tokenHashB is | 0x01 | hashInputB |
-//		// size: 33 bytes = (8 + 256) bit
-//		SHA256Digest digest = new SHA256Digest();
-//		digest.update(hashInputB, 0, hashInputB.length);
-//		byte[] tokenHashB = new byte[1 + digest.getDigestSize()];
-//		digest.doFinal(tokenHashB, 1);
-//		tokenHashB[0] = (byte) 0x01;
-//
-//		return Base64.getEncoder().encodeToString(tokenHashB);
-//	}
 
 	/**
 	  * Relevant only when the OSCORE profile is used

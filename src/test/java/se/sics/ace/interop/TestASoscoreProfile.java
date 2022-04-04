@@ -244,7 +244,7 @@ public class TestASoscoreProfile
 
 
         // Create and start the AS
-        as = new OscoreAS(myName, db, pdp, false, time, null, "token", "introspect", null,
+        as = new OscoreAS(myName, db, pdp, time, null, "token", "introspect", null,
         				  portNumber, null, false, (short)1, true,
         				  peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
         as.start();

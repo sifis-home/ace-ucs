@@ -157,7 +157,6 @@ public class DtlsASTestServer
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new KissPDP(db);
-        boolean pdpHandlesRevocations = false;
 
         //Initialize data in PDP
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
@@ -208,7 +207,7 @@ public class DtlsASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asymmKey);
+        as = new DtlsAS("AS", db, pdp, time, asymmKey);
         as.start();
         System.out.println("Server starting");
     }

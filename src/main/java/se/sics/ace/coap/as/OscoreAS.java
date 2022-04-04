@@ -107,7 +107,6 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @param asId  identifier of the AS
      * @param db    database connector of the AS
      * @param pdp   PDP for deciding who gets which token
-     * @param pdpHandlesRevocations   true if the pdp implements a revocation mechanism
      * @param time  time provider, must not be null
      * @param asymmetricKey  asymmetric key pair of the AS or 
      *      null if it hasn't any
@@ -118,13 +117,13 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * 
      */
     public OscoreAS(String asId, CoapDBConnector db,
-            PDP pdp, boolean pdpHandlesRevocations, TimeProvider time,
+            PDP pdp, TimeProvider time,
             OneKey asymmetricKey, int port,
             Map<String, String> peerNamesToIdentities,
             Map<String, String> peerIdentitiesToNames,
             Map<String, String> myIdentities)
                     throws AceException, OSException {
-        this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey, "token", "introspect",
+        this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
                 new TrlConfig(), port, null, false, (short)0, false, peerNamesToIdentities,
                 peerIdentitiesToNames, myIdentities);
     }
@@ -136,7 +135,6 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @param asId  identifier of the AS
      * @param db    database connector of the AS
      * @param pdp   PDP for deciding who gets which token
-     * @param pdpHandlesRevocations   true if the pdp implements a revocation mechanism
      * @param time  time provider, must not be null
      * @param asymmetricKey  asymmetric key pair of the AS or 
      *      null if it hasn't any
@@ -144,11 +142,11 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @throws OSException 
      * 
      */
-    public OscoreAS(String asId, CoapDBConnector db, PDP pdp, boolean pdpHandlesRevocations, TimeProvider time,
+    public OscoreAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time,
             OneKey asymmetricKey, Map<String, String> peerNamesToIdentities,
             Map<String, String> peerIdentitiesToNames,
             Map<String, String> myIdentities) throws AceException, OSException {
-        this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey, "token", "introspect",
+        this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
                 new TrlConfig(), CoAP.DEFAULT_COAP_PORT, null, false, (short)0, false,
                 peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
     }
@@ -160,7 +158,6 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @param asId  identifier of the AS
      * @param db    database connector of the AS
      * @param pdp   PDP for deciding who gets which token
-     * @param pdpHandlesRevocations   true if the pdp implements a revocation mechanism
      * @param time  time provider, must not be null
      * @param asymmetricKey  asymmetric key pair of the AS or 
      *      null if it hasn't any
@@ -188,7 +185,6 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
     public OscoreAS(String asId,
                     CoapDBConnector db,
                     PDP pdp,
-                    boolean pdpHandlesRevocations,
                     TimeProvider time,
                     OneKey asymmetricKey,
                     String tokenName,
@@ -203,7 +199,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
                     Map<String, String> peerIdentitiesToNames,
                     Map<String, String> myIdentities) throws AceException, OSException {
 
-        this.t = new Token(asId, pdp, pdpHandlesRevocations, db, time, asymmetricKey, claims, setAudHeader,
+        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader,
         				   masterSaltSize, provideIdContext, peerIdentitiesToNames);
         this.token = new OscoreAceEndpoint(tokenName, this.t);
         add(this.token);

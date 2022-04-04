@@ -369,7 +369,7 @@ public class TestTokenUCS {
 
         KissTime time = new KissTime();
 
-        t = new Token("AS", pdp, pdpHandlesRevocations, db,
+        t = new Token("AS", pdp, db,
                 time, privateKey, defaultClaims,
                 false, (short)0, false, null);
 
@@ -812,7 +812,7 @@ public class TestTokenUCS {
     public void testTokenConfig() throws Exception {
         Set<Short> tokenConfig = new HashSet<>();
         tokenConfig.add(Constants.CTI);
-        t = new Token("testAS2", pdp, pdpHandlesRevocations, db, new KissTime(),
+        t = new Token("testAS2", pdp, db, new KissTime(),
                 privateKey, tokenConfig, false, null);
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
@@ -836,7 +836,7 @@ public class TestTokenUCS {
         assert(claims.containsKey(Constants.CTI));
         assert(claims.size() == 1);
         db.deleteToken(ctiStr);
-        t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
+        t = new Token("AS", pdp, db, new KissTime(), privateKey, null);
     }
 
     /**

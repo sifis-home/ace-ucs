@@ -244,7 +244,6 @@ public class PlugtestAS {
         
         //Setup PDP
         pdp = new KissPDP(db);
-        boolean pdpHandlesRevocations = false;
 
         //Initialize data in PDP
         pdp.addTokenAccess("client2");
@@ -278,7 +277,7 @@ public class PlugtestAS {
         claims.add(Constants.CNF);
         claims.add(Constants.PROFILE);
         
-        as = new DtlsAS("AS", db, pdp, pdpHandlesRevocations, time, asRPK,
+        as = new DtlsAS("AS", db, pdp, time, asRPK,
                 "token", "introspect", null,
                 5689, claims, true);
         as.start();

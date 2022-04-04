@@ -122,10 +122,10 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      * 
      */
     public DtlsAS(String asId, CoapDBConnector db,
-                  PDP pdp, boolean pdpHandlesRevocations, TimeProvider time,
+                  PDP pdp, TimeProvider time,
                   OneKey asymmetricKey, int port)
                     throws AceException, CoseException {
-        this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey,
+        this(asId, db, pdp, time, asymmetricKey,
                 "token", "introspect", new TrlConfig(), port,
                 null, false);
     }
@@ -137,7 +137,6 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      * @param asId  identifier of the AS
      * @param db    database connector of the AS
      * @param pdp   PDP for deciding who gets which token
-     * @param pdpHandlesRevocations   true if the pdp implements a revocation mechanism
      * @param time  time provider, must not be null
      * @param asymmetricKey  asymmetric key pair of the AS for RPK handshakes,
      *   can be null if the AS only ever does PSK handshakes
@@ -146,10 +145,10 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      * 
      */
     public DtlsAS(String asId, CoapDBConnector db,
-                  PDP pdp, boolean pdpHandlesRevocations, TimeProvider time,
+                  PDP pdp, TimeProvider time,
                   OneKey asymmetricKey)
                     throws AceException, CoseException {
-        this(asId, db, pdp, pdpHandlesRevocations, time, asymmetricKey,
+        this(asId, db, pdp, time, asymmetricKey,
                 "token", "introspect", new TrlConfig(),
                 CoAP.DEFAULT_COAP_SECURE_PORT, null, false);
     }
@@ -184,7 +183,6 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
     public DtlsAS(String asId,
                   CoapDBConnector db,
                   PDP pdp,
-                  boolean pdpHandlesRevocations,
                   TimeProvider time,
                   OneKey asymmetricKey,
                   String tokenName,
@@ -195,7 +193,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
                   boolean setAudHeader)
                     throws AceException, CoseException {
 
-        this.t = new Token(asId, pdp, pdpHandlesRevocations, db,
+        this.t = new Token(asId, pdp, db,
                 time, asymmetricKey, claims, setAudHeader, null);
         this.token = new CoapDtlsEndpoint(tokenName, this.t);
         add(this.token);

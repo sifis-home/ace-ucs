@@ -81,7 +81,6 @@ public class TestToken {
     private static String ctiStr1;
     private static String ctiStr2;
     private static KissPDP pdp = null;
-    private static Boolean pdpHandlesRevocations;
 
     /**
      * Set up tests.
@@ -285,7 +284,6 @@ public class TestToken {
         db.addToken(ctiStr2, claims);
         
         pdp = new KissPDP(db);
-        pdpHandlesRevocations = false;
 
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addTokenAccess(rpkid.getName());
@@ -336,7 +334,7 @@ public class TestToken {
         defaultClaims.add(Constants.SCOPE);
         defaultClaims.add(Constants.CNF);
 
-        t = new Token("AS", pdp, pdpHandlesRevocations, db,
+        t = new Token("AS", pdp, db,
                 new KissTime(), privateKey, defaultClaims,
                 false, (short)0, false, null);
     }
@@ -785,7 +783,7 @@ public class TestToken {
     public void testTokenConfig() throws Exception {
         Set<Short> tokenConfig = new HashSet<>();
         tokenConfig.add(Constants.CTI);
-        t = new Token("testAS2", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, tokenConfig, false, null);
+        t = new Token("testAS2", pdp, db, new KissTime(), privateKey, tokenConfig, false, null);
         
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
@@ -809,7 +807,7 @@ public class TestToken {
         assert(claims.size() == 1);
         
         db.deleteToken(ctiStr);
-        t = new Token("AS", pdp, pdpHandlesRevocations, db, new KissTime(), privateKey, null);
+        t = new Token("AS", pdp, db, new KissTime(), privateKey, null);
     }
     
     /**

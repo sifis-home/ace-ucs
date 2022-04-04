@@ -306,7 +306,7 @@ public class TestASdtlsProfile
         
         
         // Create and start the AS
-        as = new DtlsAS("AS", db, pdp, false, time, asRPK, portNumber);
+        as = new DtlsAS("AS", db, pdp, time, asRPK, portNumber);
         as.start();
         System.out.println("Server starting");
     }
