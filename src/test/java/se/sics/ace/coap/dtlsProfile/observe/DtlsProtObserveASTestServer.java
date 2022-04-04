@@ -36,11 +36,9 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import com.upokecenter.cbor.CBORObject;
+import it.cnr.iit.ucs.properties.components.PipProperties;
 import org.eclipse.californium.core.coap.CoAP;
-import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
-import se.sics.ace.DBHelper;
-import se.sics.ace.TimeProvider;
+import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.PDP;
 import se.sics.ace.as.TrlConfig;
@@ -49,6 +47,8 @@ import se.sics.ace.coap.as.DtlsAS;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.ucs.UcsHelper;
+import se.sics.ace.ucs.properties.UcsPapProperties;
+import se.sics.ace.ucs.properties.UcsPipProperties;
 
 import java.util.*;
 
@@ -200,9 +200,11 @@ public class DtlsProtObserveASTestServer
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
 
         //pdp = new KissPDP(db);
-        //boolean pdpHandlesRevocations = false;
-        pdp = new UcsHelper(db);
-        boolean pdpHandlesRevocations = true;
+        List<PipProperties> pipPropertiesList = new ArrayList<>();
+        pipPropertiesList.add(new UcsPipProperties());
+        UcsPapProperties papProperties =
+                new UcsPapProperties(TestConfig.testFilePath + "policies/");
+        pdp = new UcsHelper(db, pipPropertiesList, papProperties);
 
         //Initialize data in PDP
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");

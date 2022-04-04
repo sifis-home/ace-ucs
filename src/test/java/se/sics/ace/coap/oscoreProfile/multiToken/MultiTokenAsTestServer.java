@@ -36,6 +36,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import com.upokecenter.cbor.CBORObject;
+import it.cnr.iit.ucs.properties.components.PipProperties;
 import org.eclipse.californium.core.coap.CoAP;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -47,6 +48,8 @@ import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.OscoreAS;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.ucs.UcsHelper;
+import se.sics.ace.ucs.properties.UcsPapProperties;
+import se.sics.ace.ucs.properties.UcsPipProperties;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -267,9 +270,12 @@ public class MultiTokenAsTestServer
 
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
 
-        pdp = new UcsHelper(db);
-        boolean phpHandlesRevocations = true;
-        
+        List<PipProperties> pipPropertiesList = new ArrayList<>();
+        pipPropertiesList.add(new UcsPipProperties());
+        UcsPapProperties papProperties =
+                new UcsPapProperties(TestConfig.testFilePath + "policies/");
+        pdp = new UcsHelper(db, pipPropertiesList, papProperties);
+
         //Initialize data in PDP
         pdp.addTokenAccess("clientA");
 

@@ -270,10 +270,11 @@ public class UcsHelper implements PDP, AutoCloseable {
 
 			LOGGER.finest("performing tryAccess, request = " + req);
 			TryAccessResponseMessage tryResponse = ucs.tryAccess(req);
-			LOGGER.finest("tryAccess response = " + tryResponse.getEvaluation().getResponse());
 
 			if (tryResponse.getEvaluation() != null && tryResponse.getEvaluation().getResult().equalsIgnoreCase("permit")) {
 				LOGGER.info("tryAccess complete with PERMIT");
+				LOGGER.finest("tryAccess response = " + tryResponse.getEvaluation().getResponse());
+
 				String sessionId = tryResponse.getSessionId();
 				StartAccessResponseMessage startResponse = ucs.startAccess(sessionId);
 				LOGGER.finest("startAccess response = " + startResponse.getEvaluation().getResponse());

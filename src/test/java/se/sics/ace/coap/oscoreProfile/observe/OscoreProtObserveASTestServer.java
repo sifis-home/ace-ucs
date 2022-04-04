@@ -36,8 +36,8 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import com.upokecenter.cbor.CBORObject;
+import it.cnr.iit.ucs.properties.components.PipProperties;
 import org.eclipse.californium.core.coap.CoAP;
-import org.junit.Assert;
 import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.RevocationHandler;
@@ -46,7 +46,13 @@ import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.OscoreAS;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.ucs.PipType;
 import se.sics.ace.ucs.UcsHelper;
+import se.sics.ace.ucs.properties.UcsPapProperties;
+import se.sics.ace.ucs.properties.UcsPipReaderProperties;
+import it.cnr.iit.xacml.Category;
+import it.cnr.iit.xacml.DataType;
+
 
 import java.io.*;
 import java.util.*;
@@ -224,9 +230,39 @@ public class OscoreProtObserveASTestServer
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         //pdp = new KissPDP(db);
         //boolean phpHandlesRevocations = false;
-        pdp = new UcsHelper(db);
-        boolean phpHandlesRevocations = true;
-        
+
+
+//        List<PipProperties> pipPropertiesList = new ArrayList<>();
+//        pipPropertiesList.add(new UcsPipProperties());
+//        UcsPapProperties papProperties =
+//                new UcsPapProperties(TestConfig.testFilePath + "policies/");
+//        pdp = new UcsHelper(db, pipPropertiesList, papProperties);
+
+
+        UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
+        pipReader.addAttribute(
+                "urn:oasis:names:tc:xacml:3.0:environment:dummy_env_attribute",
+                Category.ENVIRONMENT.toString(),
+                DataType.STRING.toString(),
+                TestConfig.testFilePath + "dummy_env_attribute.txt");
+
+//        UcsPipJdbcProperties pipJdbc = new UcsPipJdbcProperties();
+//        pipJdbc.addAttribute(
+//                "urn:oasis:names:tc:xacml:3.0:environment:dummy2",
+//                Category.ENVIRONMENT.toString(),
+//                DataType.STRING.toString(),
+//                TestConfig.testFilePath + "dummy2.txt",
+//                "jdbc:sqlite:memory:myDb");
+
+        List<PipProperties> pipPropertiesList = new ArrayList<>();
+        pipPropertiesList.add(pipReader);
+//        pipPropertiesList.add(pipJdbc);
+
+        UcsPapProperties papProperties =
+                new UcsPapProperties(TestConfig.testFilePath + "policies/");
+
+        pdp = new UcsHelper(db, pipPropertiesList, papProperties);
+
         //Initialize data in PDP
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addTokenAccess("clientA");

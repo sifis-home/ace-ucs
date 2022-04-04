@@ -34,6 +34,9 @@ package se.sics.ace.ucs;
 import COSE.*;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
+import it.cnr.iit.ucs.properties.components.PipProperties;
+import it.cnr.iit.xacml.Category;
+import it.cnr.iit.xacml.DataType;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -49,6 +52,8 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.ucs.properties.UcsPapProperties;
+import se.sics.ace.ucs.properties.UcsPipReaderProperties;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -72,7 +77,6 @@ public class TestTokenUCS {
     private static String ctiStr1;
     private static String ctiStr2;
     private static UcsHelper pdp = null;
-    private static Boolean pdpHandlesRevocations;
 
     /**
      * Set up tests.
@@ -308,8 +312,22 @@ public class TestTokenUCS {
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(ctiStr2, claims);
 
-        pdp = new UcsHelper(db);
-        pdpHandlesRevocations = true;
+        UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
+        pipReader.addAttribute(
+                "urn:oasis:names:tc:xacml:3.0:environment:dummy_env_attribute",
+                Category.ENVIRONMENT.toString(),
+                DataType.STRING.toString(),
+                TestConfig.testFilePath + "dummy_env_attribute.txt");
+//        pipReader.addAttribute(
+//                "urn:oasis:names:tc:xacml:3.0:environment:dummy2",
+//                CATEGORY.ENVIRONMENT.toString(),
+//                DataType.STRING.toString(),
+//                TestConfig.testFilePath + "dummy2.txt");
+        List<PipProperties> pipPropertiesList = new ArrayList<>();
+        pipPropertiesList.add(pipReader);
+        UcsPapProperties papProperties =
+                new UcsPapProperties(TestConfig.testFilePath + "policies/");
+        pdp = new UcsHelper(db, pipPropertiesList, papProperties);
 
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addTokenAccess(rpkid.getName());
