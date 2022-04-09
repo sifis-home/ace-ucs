@@ -504,7 +504,7 @@ public class Constants {
      * Default value for hkdf
      */
     public static final short OS_DEFAULT_HKDF 
-        = AlgorithmID.HKDF_HMAC_SHA_256.AsCBOR().AsInt16();    
+        = AlgorithmID.HMAC_SHA_256.AsCBOR().AsInt16();    
     
 	/**
 	 * RESTful action names ===================================================

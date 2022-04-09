@@ -581,7 +581,7 @@ public class GroupInfo {
     synchronized public void setHkdf(final AlgorithmID hkdf) {
     	
     	if (hkdf == null)
-    		this.hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
+    		this.hkdf = AlgorithmID.HMAC_SHA_256;
     	else
     		this.hkdf = hkdf;
     	
