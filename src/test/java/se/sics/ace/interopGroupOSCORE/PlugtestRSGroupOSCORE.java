@@ -3206,7 +3206,7 @@ public class PlugtestRSGroupOSCORE {
     	final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
   	                                  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
-  	    final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
+  	    final AlgorithmID hkdf = AlgorithmID.HMAC_SHA_256;
   	    final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CCS;
 
   	    // Uncomment to set ECDSA with curve P-256 for countersignatures

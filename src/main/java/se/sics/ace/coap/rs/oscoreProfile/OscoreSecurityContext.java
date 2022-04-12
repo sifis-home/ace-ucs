@@ -84,12 +84,12 @@ public class OscoreSecurityContext {
     private byte[] contextId;
     
     /**
-     * The key derivation function, can be null for default: AES_CCM_16_64_128
+     * The key derivation function, can be null for default: HMAC_SHA_256
      */
     private AlgorithmID hkdf;
     
     /**
-     * The encryption algorithm, can be null for default: HKDF_HMAC_SHA_256
+     * The encryption algorithm, can be null for default: AES_CCM_16_64_128
      */
     private AlgorithmID alg;
     
