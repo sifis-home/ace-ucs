@@ -1,7 +1,6 @@
 package se.sics.ace.ucs.properties;
 
 import it.cnr.iit.ucs.properties.components.PipProperties;
-import se.sics.ace.ucs.PipType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
