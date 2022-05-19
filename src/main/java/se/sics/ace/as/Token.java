@@ -364,6 +364,14 @@ public class Token implements Endpoint, AutoCloseable {
 
 	@Override
 	public Message processMessage(Message msg) {
+		// Purge expired tokens from the database
+		try {
+			this.db.purgeExpiredTokens(this.time.getCurrentTime());
+		} catch (AceException e) {
+			LOGGER.severe("Database error: " + e.getMessage());
+			return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		}
+
 	    if (msg == null) {//This should not happen
 	        LOGGER.severe("Token.processMessage() received null message");
 	        return null;
