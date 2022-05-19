@@ -99,11 +99,18 @@ public class UcsHelper implements PDP, AutoCloseable {
 
 	private Token t = null;
 
+	private final String basicPolicy;
+
 
 
 	public UcsHelper(SQLConnector connection,
 					 List<PipProperties> pipPropertiesList,
 					 PapProperties papProperties) throws AceException {
+
+		this.basicPolicy = readFileAsString(
+				new File(Objects.requireNonNull(
+						getClass().getClassLoader().getResource("policy_template"),
+						"[ERROR] policy template file not found.").getFile()));
 
 		LOGGER.setLevel(Level.SEVERE);
 
@@ -450,6 +457,33 @@ public class UcsHelper implements PDP, AutoCloseable {
 		policyIdCounter++;
 	}
 
+
+	/**
+	 * Add access permission for a client:
+	 * Creates a xml file containing a XACML policy from a template.
+	 * It substitutes placeholder fields with those passed as arguments to this method
+	 *
+	 * @param cid   client identifier
+	 * @param rid   resource server identifier
+	 * @param scope scopes requested, e.g., "r_light", "co2"
+	 * @param templateFile  the file to be used as a template for creating the access policy
+	 *
+	 * @throws AceException ace exception
+	 */
+	public void addAccess(String cid, String rid, String scope, String templateFile) throws AceException {
+		String policy = readFileAsString(
+				new File(templateFile));
+
+		policy = policy.replaceAll("SUBJECT_HERE", cid)
+				.replaceAll("RESOURCE_HERE", scope)
+				.replaceAll("RESOURCESERVER_HERE", rid)
+				.replaceAll("POLICYID_HERE", ("policy_" + policyIdCounter));
+		ucs.addPolicy(policy);
+
+		policyIdCounter++;
+	}
+
+
 	/**
 	 * Add access permission for a client given an XACML policy
 	 *
@@ -776,8 +810,9 @@ public class UcsHelper implements PDP, AutoCloseable {
 			this.rh.revoke(cti);
 		}
 		else {
-			LOGGER.severe("Cannot revoke the token: " +
-					"RevocationHandler not initialized.");
+			LOGGER.info("RevocationHandler not initialized: " +
+					"Token will not be placed in the trlTable, " +
+					"and trl-related procedures will be not executed.");
 		}
 	}
 
