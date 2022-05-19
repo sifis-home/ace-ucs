@@ -858,11 +858,10 @@ public class PlugtestRSGroupOSCORE {
         	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
         	
         	if (clientCred == null && (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR))) {
+        		// TODO: check if the Group Manager already owns this client's public key.
+        		//       If one is found, use it to build 'clientCred' as a CBOR byte string.
         		
-        		// TODO: check if the Group Manager already owns this client's public key
-        		
-        	}
-        	if (clientCred == null && (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR))) {
+        		// Public key not provided and not found
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
         						 "A public key was neither provided nor found as already stored");
         		return;
@@ -873,9 +872,9 @@ public class PlugtestRSGroupOSCORE {
         		OneKey publicKey = null;
         		boolean valid = false;
         		
-        		if (clientCred.getType() != CBORType.ByteString) {
+        		if (clientCred == null || clientCred.getType() != CBORType.ByteString) {
         		    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
-        		                     "The parameter 'client_cred' must be a CBOR byte string");
+        		                     "The parameter 'client_cred' must be present as a CBOR byte string");
         		    return;
         		}
         		
