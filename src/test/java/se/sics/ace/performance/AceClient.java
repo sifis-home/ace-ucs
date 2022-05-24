@@ -44,6 +44,8 @@ import picocli.CommandLine.ParameterException;
 import static java.lang.Thread.sleep;
 
 /**
+ * Client to test with AceRS and AceAS
+ *
  * @author Marco Rasori
  */
 
@@ -54,16 +56,16 @@ import static java.lang.Thread.sleep;
 public class AceClient implements Callable<Integer> {
 
     private final static String DEFAULT_ASURI = "localhost:" + CoAP.DEFAULT_COAP_PORT;
-    private final static int RS_DEFAULT_PORT = 5685;
-    private final static String DEFAULT_RSURI = "localhost:" + RS_DEFAULT_PORT;
+    private final static int DEFAULT_RS_PORT = 5685;
+    private final static String DEFAULT_RSURI = "localhost:" + DEFAULT_RS_PORT;
     private final static int DEFAULT_MAX_DENIAL = 5;
     private final static String DEFAULT_AUD = "rs1";
     private final static String DEFAULT_SCOPE = "r_temp r_helloWorld";
     private final static int DEFAULT_POLLING_INTERVAL = 10;
     private final static String DEFAULT_TRL_ADDR = "/trl";
     private final static int DEFAULT_REQUEST_INTERVAL = 3;
-    private final static String DEFAULT_CLIENT_ID = "0x22";
-    private final static String DEFAULT_PSK = "ClientA-PSK-----";
+    private final static String DEFAULT_SENDER_ID = "0x22";
+    private final static String DEFAULT_MASTER_SECRET = "ClientA-AS-MS---";
 
     @Spec
     CommandSpec spec;
@@ -125,21 +127,22 @@ public class AceClient implements Callable<Integer> {
                     "(default: ${DEFAULT-VALUE})\n")
     private int requestInterval;
 
-    @Option(names = {"-k", "--key"},
+    @Option(names = {"-m", "--mastersecret"},
             required = false,
-            defaultValue = "" + DEFAULT_PSK,
+            defaultValue = "" + DEFAULT_MASTER_SECRET,
             description = "The symmetric pre-shared key between the Client " +
-                    "and the Authorization Server.\n" +
+                    "and the Authorization Server. It is the master secret " +
+                    "used for the OSCORE Security Context.\n" +
                     "(default: ${DEFAULT-VALUE})\n")
     private String key;
 
-    @Option(names = {"-x", "--clientid"},
+    @Option(names = {"-x", "--senderid"},
             required = false,
-            defaultValue = "" + DEFAULT_CLIENT_ID,
+            defaultValue = "" + DEFAULT_SENDER_ID,
             description = "The Sender ID in HEX used for " +
                     "the OSCORE Security Context with the Authorization Server.\n" +
                     "(default: ${DEFAULT-VALUE})\n")
-    private String clientId;
+    private String senderId;
 
     static class PollingArgs {
         @Option(names = {"-p", "--polling"},
@@ -191,7 +194,7 @@ public class AceClient implements Callable<Integer> {
     /**
      * Symmetric key shared with the authorization server and used for the OSCORE context
      */
-    static byte[] key128;
+    private static byte[] key128;
 
     private static OSCoreCtx ctx;
     private static OSCoreCtxDB ctxDB;
@@ -201,10 +204,8 @@ public class AceClient implements Callable<Integer> {
     private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
     private static final byte[] idContext = new byte[] {0x44};
-    private byte[] senderId;
+    private byte[] sId;
 
-
-    private boolean isNone = false;
     private boolean isPolling = false;
     private boolean isObserve = false;
 
@@ -218,7 +219,9 @@ public class AceClient implements Callable<Integer> {
     public static void main(String[] args) {
 
         int exitCode = new CommandLine(new AceClient()).execute(args);
-        System.exit(exitCode);
+        if (exitCode != 0) {
+            System.exit(exitCode);
+        }
     }
 
 
@@ -229,7 +232,7 @@ public class AceClient implements Callable<Integer> {
 
         // initialize OSCORE context
         ctx = new OSCoreCtx(key128, true, null,
-                senderId, // client identity
+                sId, // client identity
                 new byte[] {0x33}, // AS identity
                 null, null, null, idContext, MAX_UNFRAGMENTED_SIZE);
 
@@ -259,7 +262,8 @@ public class AceClient implements Callable<Integer> {
                 ScheduledExecutorService executorService = Executors
                         .newSingleThreadScheduledExecutor();
                 executorService.scheduleAtFixedRate(
-                        new Poller(client4AS, trlAddr, trlStore), pollingInterval, pollingInterval, TimeUnit.SECONDS);
+                        new Poller(client4AS, asUri + trlAddr, trlStore),
+                            pollingInterval, pollingInterval, TimeUnit.SECONDS);
             }
         }
 
@@ -268,17 +272,17 @@ public class AceClient implements Callable<Integer> {
                     client4AS, rsUri.get(i), aud.get(i), scope.get(i))
                     .call();
         }
-        return 1;
+        return 0;
     }
 
     class Poller implements Runnable {
 
         CoapClient client4AS;
-        String trlAddr;
+        String trlUri;
         TrlStore trlStore;
-        public Poller(CoapClient client4AS, String trlAddr, TrlStore trlStore) {
+        public Poller(CoapClient client4AS, String trlUri, TrlStore trlStore) {
             this.client4AS = client4AS;
-            this.trlAddr = trlAddr;
+            this.trlUri = trlUri;
             this.trlStore = trlStore;
         }
 
@@ -288,7 +292,7 @@ public class AceClient implements Callable<Integer> {
                 System.out.println("Now polling:" + new Timestamp(System.currentTimeMillis()));
                 CoapResponse responseTrl =
                         OSCOREProfileRequests.makePollRequest(
-                                client4AS, asUri + trlAddr);
+                                client4AS, trlUri);
                 TrlResponses.processResponse(responseTrl, trlStore);
                 purgeRevokedTokens(trlStore);
             } catch (AceException e) {
@@ -504,10 +508,10 @@ public class AceClient implements Callable<Integer> {
             rsUri.set(i, validateUri(rsUri.get(i)));
         }
 
-        // convert CliendId input from hex string to byte array
-        senderId = hexStringToByteArray(clientId);
+        // convert senderId input from hex string to byte array
+        sId = hexStringToByteArray(senderId);
 
-        // convert the key from string to byte array
+        // convert the OSCORE master secret from string to byte array
         key128 = key.getBytes(Constants.charset);
 
         // parse revoked tokens notification type
