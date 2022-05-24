@@ -8,7 +8,6 @@ import com.upokecenter.cbor.CBORType;
 import org.eclipse.californium.core.*;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
@@ -48,8 +47,6 @@ import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Spec;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParameterException;
-
-import se.sics.ace.performance.resources.*;
 
 /**
  * Resource Server to test with AceClient and AceAS
@@ -235,7 +232,7 @@ public class AceRS implements Callable<Integer> {
     static String asName = "AS";
     private static int rsCoapPort;
 
-    static Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>(); //todo add option scope
+    static Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
     private static OscoreIntrospection introspection = null;
 
     private static final byte[] idContext = new byte[] {0x44};
@@ -273,7 +270,6 @@ public class AceRS implements Callable<Integer> {
 
         parseInputs();
 
-        //associateScopesWithResourcesAndActions();
         parseScope(scope);
         setUpCwtCryptoCtx();
         setUpServer();
@@ -281,10 +277,8 @@ public class AceRS implements Callable<Integer> {
         rs.start();
         System.out.println("Server starting");
 
-        CoapClient client4AS;
-
         if (isObserve) {
-            client4AS = OSCOREProfileRequests.buildClient(asUri, ctx, ctxDB);
+            CoapClient client4AS = OSCOREProfileRequests.buildClient(asUri, ctx, ctxDB);
             // 1. Make Observe request to the /trl endpoint
             TrlCoapHandler handler = new TrlCoapHandler(
                     TokenRepository.getInstance().getTrlManager());
@@ -293,7 +287,7 @@ public class AceRS implements Callable<Integer> {
         }
 
         if (isPolling) {
-            client4AS = OSCOREProfileRequests.buildClient(asUri, ctx, ctxDB);
+            CoapClient client4AS = OSCOREProfileRequests.buildClient(asUri, ctx, ctxDB);
             // 1. Make poll request to the /trl endpoint
             ScheduledExecutorService executorService = Executors
                     .newSingleThreadScheduledExecutor();
@@ -412,7 +406,8 @@ public class AceRS implements Callable<Integer> {
 
 
     private void setUpServer()
-            throws AceException, IOException, CoseException, OSException, ClassNotFoundException, InstantiationException, IllegalAccessException {
+            throws AceException, IOException, CoseException, OSException,
+            ClassNotFoundException, InstantiationException, IllegalAccessException {
 
         KissValidator valid = new KissValidator(Collections.singleton(aud), myScopes);
         deleteOldTokenFiles();
@@ -439,8 +434,6 @@ public class AceRS implements Callable<Integer> {
         for (String res : resources) {
             rs.add((Resource) Class.forName(res).newInstance());
         }
-        //rs.add(new HelloWorldResource());
-        //rs.add(new TempResource());
 
         rs.add(new CoapAuthzInfo(ai));
 
@@ -469,6 +462,7 @@ public class AceRS implements Callable<Integer> {
         System.out.println("Server stopped");
     }
 
+
     private void deleteOldTokenFiles() throws IOException {
         //Delete lingering old files
         File tFile = new File(tokenFile);
@@ -479,7 +473,6 @@ public class AceRS implements Callable<Integer> {
         if (!thFile.delete() && thFile.exists()) {
             throw new IOException("Failed to delete " + thFile);
         }
-
     }
 
 
@@ -491,6 +484,7 @@ public class AceRS implements Callable<Integer> {
         cwtCryptoCtx = CwtCryptoCtx.encrypt0(key256Rs, coseP.getAlg().AsCBOR());
     }
 
+
     private List<String> getClassResourcesNames(String scope) {
         List<String> resources = new ArrayList<>(Arrays.asList(this.scope.split(" ")));
         resources.replaceAll(s -> s.substring(s.indexOf("_") + 1));
@@ -499,28 +493,6 @@ public class AceRS implements Callable<Integer> {
         return resources;
     }
 
-//    private void associateScopesWithResourcesAndActions() {
-//        // r_helloWorld --> GET on /helloWorld
-//        Set<Short> actions = new HashSet<>();
-//        actions.add(Constants.GET);
-//        Map<String, Set<Short>> myResource = new HashMap<>();
-//        myResource.put("helloWorld", actions);
-//        myScopes.put("r_helloWorld", myResource);
-//
-//        // r_temp --> GET on /temp
-//        Set<Short> actions2 = new HashSet<>();
-//        actions2.add(Constants.GET);
-//        Map<String, Set<Short>> myResource2 = new HashMap<>();
-//        myResource2.put("temp", actions2);
-//        myScopes.put("r_temp", myResource2);
-//
-//        // w_temp --> POST on /temp
-//        Set<Short> actions3 = new HashSet<>();
-//        actions3.add(Constants.POST);
-//        Map<String, Set<Short>> myResource3 = new HashMap<>();
-//        myResource3.put("temp", actions3);
-//        myScopes.put("w_temp", myResource3);
-//    }
 
     private void parseScope(String scope) throws AceException {
 
@@ -544,56 +516,6 @@ public class AceRS implements Callable<Integer> {
         }
     }
 
-
-
-//    // --- RESOURCES DEFINITIONS ---
-//
-//    // Definition of the Hello-World Resource
-//    public static class HelloWorldResource extends CoapResource {
-//
-//        public HelloWorldResource() {
-//            // set resource identifier
-//            super("helloWorld");
-//            // set display name
-//            getAttributes().setTitle("Hello-World Resource");
-//        }
-//
-//        @Override
-//        public void handleGET(CoapExchange exchange) {
-//            // respond to the request
-//            exchange.respond("Hello World!");
-//        }
-//    }
-//
-//    // Definition of the Temp Resource
-//    public static class TempResource extends CoapResource {
-//
-//        String tempStr = "19.0 C";
-//
-//        public TempResource() {
-//            // set resource identifier
-//            super("temp");
-//            // set display name
-//            getAttributes().setTitle("Temp Resource");
-//        }
-//
-//        @Override
-//        public void handleGET(CoapExchange exchange) {
-//            // respond to the request
-//            exchange.respond(tempStr);
-//        }
-//
-//        @Override
-//        public void handlePOST(CoapExchange exchange) {
-//            exchange.accept();
-//
-//            tempStr = CBORObject.DecodeFromBytes(exchange.getRequestPayload()).AsString();
-//            System.out.println(getAttributes().getTitle() + ": temperature changed to "
-//                    + tempStr + " as requested by client.");
-//
-//            exchange.respond(CoAP.ResponseCode.CHANGED, "Temperature successfully changed to " + tempStr);
-//        }
-//    }
 
     private void parseInputs() throws ParameterException {
 
@@ -645,6 +567,7 @@ public class AceRS implements Callable<Integer> {
         }
     }
 
+
     private String validateUri(String srvUri) throws ParameterException {
         try {
             if (!srvUri.contains("://")) {
@@ -661,8 +584,8 @@ public class AceRS implements Callable<Integer> {
             throw new ParameterException(spec.commandLine(),
                     String.format("Server address not valid:\n > '%s'\n", srvUri));
         }
-
     }
+
 
     private int validatePort(String portStr) throws ParameterException {
         int port = Integer.parseInt(portStr);
@@ -672,6 +595,7 @@ public class AceRS implements Callable<Integer> {
         }
         return port;
     }
+
 
     private byte[] hexStringToByteArray(String str) throws ParameterException {
         String s = str.replace("0x", "");
