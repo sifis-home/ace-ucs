@@ -82,6 +82,8 @@ public class TestToken {
     private static String ctiStr2;
     private static KissPDP pdp = null;
 
+    private static KissTime time;
+
     /**
      * Set up tests.
      * @throws AceException 
@@ -261,15 +263,16 @@ public class TestToken {
         keyTypes.clear();
         keyTypes.add("RPK");
         db.addClient(rpkid.getName(), profiles, null, null, keyTypes, skey, publicKey);
-        
-        
+
+        time = new KissTime();
+
         //Setup token entries
         byte[] cti = new byte[] {0x00};
         ctiStr1 = Base64.getEncoder().encodeToString(cti);
         Map<Short, CBORObject> claims = new HashMap<>();
         claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
         claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));   
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime() + 1000000L));
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(ctiStr1, claims);
@@ -279,7 +282,7 @@ public class TestToken {
         claims.clear();
         claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
-        claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime() + 2000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(ctiStr2, claims);
         
@@ -335,7 +338,7 @@ public class TestToken {
         defaultClaims.add(Constants.CNF);
 
         t = new Token("AS", pdp, db,
-                new KissTime(), privateKey, defaultClaims,
+                time, privateKey, defaultClaims,
                 false, (short)0, false, null);
     }
     
@@ -725,7 +728,7 @@ public class TestToken {
         Map<Short, CBORObject> claims = db.getClaims(ctiStr1);
         assert(!claims.isEmpty());
         
-        db.purgeExpiredTokens(1000001L);
+        db.purgeExpiredTokens(time.getCurrentTime() + 1000001L);
         claims = db.getClaims(ctiStr1);
         assert(claims.isEmpty());
     }

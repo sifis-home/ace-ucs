@@ -78,6 +78,8 @@ public class TestTokenUCS {
     private static String ctiStr2;
     private static UcsHelper pdp = null;
 
+    private static KissTime time;
+
     /**
      * Set up tests.
      * @throws AceException throws ace exception
@@ -292,13 +294,15 @@ public class TestTokenUCS {
                 keyTypes, skey, publicKey);
 
 
+        time = new KissTime();
+
         //Setup token entries
         byte[] cti = new byte[] {0x00};
         ctiStr1 = Base64.getEncoder().encodeToString(cti);
         Map<Short, CBORObject> claims = new HashMap<>();
         claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
 //        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime() + 1000000L));
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(ctiStr1, claims);
@@ -308,7 +312,7 @@ public class TestTokenUCS {
         claims.clear();
         claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
-        claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime() + 2000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(ctiStr2, claims);
 
@@ -384,8 +388,6 @@ public class TestTokenUCS {
         defaultClaims.add(Constants.AUD);
         defaultClaims.add(Constants.SCOPE);
         defaultClaims.add(Constants.CNF);
-
-        KissTime time = new KissTime();
 
         t = new Token("AS", pdp, db,
                 time, privateKey, defaultClaims,
@@ -775,11 +777,20 @@ public class TestTokenUCS {
      *
      * @throws Exception throws exception
      */
+    // It can't work with dummy values. The token ctiStr1 has
+    // been already purged since its exp is 1000000L. The /token
+    // endpoint purges token that have passed the currentTime.
+    // The current time is about 1652978040581, so it's correct
+    // that tokens with exp = 1000000L have been already purged.
+
+    // The only alternative I see is to initialize a KissTime and
+    // correctly set expiration times for the issued tokens.
+
     @Test
     public void testPurge() throws Exception {
         Map<Short, CBORObject> claims = db.getClaims(ctiStr1);
         assert(!claims.isEmpty());
-        db.purgeExpiredTokens(1000001L);
+        db.purgeExpiredTokens(time.getCurrentTime() + 1000001L);
         claims = db.getClaims(ctiStr1);
         assert(claims.isEmpty());
     }
