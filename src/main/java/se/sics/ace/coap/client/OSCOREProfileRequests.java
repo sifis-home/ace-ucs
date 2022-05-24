@@ -596,4 +596,22 @@ public class OSCOREProfileRequests {
         client.setEndpoint(clientEndpoint);
         return client;    
     }
+
+    public static void setClient(CoapClient client, OSCoreCtxDB db)
+            throws AceException, OSException {
+    String uri = client.getURI();
+        if (uri == null) {
+            throw new IllegalArgumentException(
+                    "Client has null server address");
+        }
+
+        if (db.getContext(uri) == null) {
+            throw new AceException("OSCORE context not set for address: " + uri);
+        }
+        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+        builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+        builder.setCustomCoapStackArgument(db);
+        Endpoint clientEndpoint = builder.build();
+        client.setEndpoint(clientEndpoint);
+    }
 }

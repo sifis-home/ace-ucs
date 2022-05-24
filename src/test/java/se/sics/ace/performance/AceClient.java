@@ -337,6 +337,7 @@ public class AceClient implements Callable<Integer> {
     class Requester implements Callable {
 
         CoapClient client4AS;
+        final CoapClient client4RS;
         String aud;
         String scope;
         String rsAddr;
@@ -346,6 +347,7 @@ public class AceClient implements Callable<Integer> {
             this.rsAddr = rsAddr;
             this.aud = aud;
             this.scope = scope;
+            this.client4RS = new CoapClient(rsAddr);
         }
 
         @Override
@@ -380,6 +382,8 @@ public class AceClient implements Callable<Integer> {
                     return -1;
                 }
 
+                OSCOREProfileRequests.setClient(client4RS, ctxDB);
+
                 // 3. Make GET requests to access the resources
                 List<String> resources = new ArrayList<>(Arrays.asList(allowedScopes.split(" ")));
                 resources.replaceAll(s1 -> s1.substring(s1.indexOf("_") + 1));
@@ -387,7 +391,7 @@ public class AceClient implements Callable<Integer> {
                 int i = 0;
                 while (denialsCount < denials && validTokens.contains(tokenHash)) {
                     sleep(requestInterval * 1000L);
-                    boolean isSuccess = getResource(rsAddr, resources.get(i));
+                    boolean isSuccess = getResource(client4RS, rsAddr + "/" + resources.get(i));
                     if (!isSuccess)
                         denialsCount++;
                     i = (i+1)%resources.size();
@@ -445,10 +449,10 @@ public class AceClient implements Callable<Integer> {
     }
 
 
-    public boolean getResource(String rsUri, String resource)
-            throws AceException, OSException, ConnectorException, IOException {
+    public boolean getResource(CoapClient client, String resourceUri)
+            throws ConnectorException, IOException {
 
-        CoapResponse res = doGetRequest(rsUri, resource);
+        CoapResponse res = doGetRequest(client, resourceUri);
         System.out.println("\nResponse Code:       " + res.getCode() + " - " + res.advanced().getCode().name());
 
         if (res.getCode().isSuccess()) {
@@ -465,22 +469,14 @@ public class AceClient implements Callable<Integer> {
     }
 
 
-    public CoapResponse doGetRequest(String rsUri, String resource)
-            throws OSException, ConnectorException, AceException, IOException {
+    public CoapResponse doGetRequest(CoapClient client, String resourceUri)
+            throws ConnectorException, IOException {
 
-        // fixme in OSCOREProfileRequests: the port is unused.
-        int port;
-        try {
-            port = new URI(rsUri).getPort();
-        } catch (URISyntaxException ex) {
-            throw new AceException("RS address not valid.");
-        }
-        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-                rsUri + "/" + resource, port), ctxDB);
+        client.setURI(resourceUri);
 
-        Request req = new Request(CoAP.Code.GET);
-        req.getOptions().setOscore(new byte[0]);
-        return c.advanced(req);
+        Request request = new Request(CoAP.Code.GET);
+        request.getOptions().setOscore(new byte[0]);
+        return client.advanced(request);
     }
 
 
