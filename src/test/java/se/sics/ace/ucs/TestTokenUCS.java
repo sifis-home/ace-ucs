@@ -777,15 +777,6 @@ public class TestTokenUCS {
      *
      * @throws Exception throws exception
      */
-    // It can't work with dummy values. The token ctiStr1 has
-    // been already purged since its exp is 1000000L. The /token
-    // endpoint purges token that have passed the currentTime.
-    // The current time is about 1652978040581, so it's correct
-    // that tokens with exp = 1000000L have been already purged.
-
-    // The only alternative I see is to initialize a KissTime and
-    // correctly set expiration times for the issued tokens.
-
     @Test
     public void testPurge() throws Exception {
         Map<Short, CBORObject> claims = db.getClaims(ctiStr1);
