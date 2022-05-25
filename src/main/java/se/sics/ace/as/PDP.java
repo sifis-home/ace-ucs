@@ -98,6 +98,16 @@ public interface PDP {
 	public abstract Object canAccess(String clientId, Set<String> aud,
 										Object scopes, int evaluationId) throws AceException;
 
+
+	void close() throws Exception;
+
+	void addIntrospectAccess(String name) throws AceException;
+
+	void addTokenAccess(String name) throws AceException;
+
+	void addAccess(String name, String aud, String s) throws AceException;
+
+
 	public void updateSessionsWithCti(String cti, int evaluationId) throws AceException;
 
 	public void terminatePendingSessions(int evaluationId) throws AceException;

@@ -346,6 +346,26 @@ public class XacmlPDP implements PDP {
 	}
 
 	@Override
+	public void addAccess(String name, String aud, String s) throws AceException {
+		System.out.println("addAccess method not implemented.");
+	};
+
+	@Override
+	public void addTokenAccess(String name) throws AceException {
+		System.out.println("addTokenAccess() method not implemented.");
+	};
+
+	@Override
+	public void close() throws Exception {
+		System.out.println("close() method not implemented.");
+	};
+
+	@Override
+	public void addIntrospectAccess(String name) throws AceException {
+		System.out.println("addIntrospectAccess() method not implemented.");
+	};
+
+	@Override
 	public void removeSessions4Cti(String tokenHash) { }
 
 	@Override
