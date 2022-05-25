@@ -92,6 +92,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	 * @param tokenHashesFile  the file where to save token hashes for the trl
      * @param scopeValidator  the application specific scope validator 
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
+	 * @param defaultExi the default time interval for tokens expiration
 	 * @throws IOException 
 	 * @throws AceException 
 	 */
@@ -104,6 +105,37 @@ public class OscoreAuthzInfo extends AuthzInfo {
 		
 		super(issuers, time, intro, rsId, audience, ctx, null, 0, tokenFile, tokenHashesFile,
 		        scopeValidator, checkCnonce, defaultExi);
+	}
+
+	/**
+	 * Constructor.
+	 *
+	 * @param issuers  the list of acceptable issuer of access tokens
+	 * @param time  the time provider
+	 * @param intro  the introspection handler (can be null)
+	 * @param rsId  the identifier of the Resource Server
+	 * @param audience  the audience validator
+	 * @param ctx  the crypto context to use with the As
+	 * @param tokenFile  the file where to save tokens when persisting
+	 * @param tokenHashesFile  the file where to save token hashes for the trl
+	 * @param scopeValidator  the application specific scope validator
+	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
+	 * @param defaultExi the default time interval for tokens expiration
+	 * @param syncCtisList synchronized list containing ctis of new posted access
+	 *                        tokens and not consumed yet.
+
+	 * @throws IOException
+	 * @throws AceException
+	 */
+	public OscoreAuthzInfo(List<String> issuers,
+						   TimeProvider time, IntrospectionHandler intro, String rsId,
+						   AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
+						   String tokenHashesFile, ScopeValidator scopeValidator,
+						   boolean checkCnonce, long defaultExi, List<String> syncCtisList)
+			throws AceException, IOException {
+
+		super(issuers, time, intro, rsId, audience, ctx, null, 0, tokenFile, tokenHashesFile,
+				scopeValidator, checkCnonce, defaultExi, syncCtisList);
 	}
 
 	@Override

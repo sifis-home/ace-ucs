@@ -117,6 +117,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 */
 	private long defaultExi = 0L;
 
+	private final List<String> syncCtisList;
+
 	/**
 	 * Constructor. Needs an initialized TokenRepository.
 	 * 
@@ -132,6 +134,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @param tokenHashesFile  the file where to save token hashes for the trl
 	 * @param scopeValidator  the application specific scope validator 
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
+	 * @param defaultExi the default time interval for tokens expiration
 	 * @throws AceException  if the token repository is not initialized
 	 * @throws IOException 
 	 */
@@ -159,8 +162,58 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
         	// The set with index 0 refers to Sender IDs with size 1 byte
     		usedRecipientIds.add(new HashSet<Integer>());
     	}
-    	
+    	this.syncCtisList = null;
 	}
+
+	/**
+	 * Constructor. Needs an initialized TokenRepository.
+	 *
+	 * @param issuers  the list of acceptable issuer of access tokens
+	 * @param time  the time provider
+	 * @param intro  the introspection handler (can be null)
+	 * @param rsId  the identifier of the Resource Server
+	 * @param audience  the audience validator
+	 * @param ctx  the crypto context to use with the As
+	 * @param keyDerivationKey  the key derivation key to use with the As, it can be null
+	 * @param derivedKeySize  the size in bytes of symmetric keys derived with the key derivation key
+	 * @param tokenFile  the file where to save tokens when persisting
+	 * @param tokenHashesFile  the file where to save token hashes for the trl
+	 * @param scopeValidator  the application specific scope validator
+	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
+	 * @param defaultExi the default time interval for tokens expiration
+	 * @param syncCtisList list containing ctis of successfully posted access tokens.
+	 *                        This class adds elements to the list and notifies waiting entities,
+	 *                        which consume the ctis and remove them from the list.
+	 * @throws AceException  if the token repository is not initialized
+	 * @throws IOException
+	 */
+	public AuthzInfo(List<String> issuers,
+					 TimeProvider time, IntrospectionHandler intro, String rsId,
+					 AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize,
+					 String tokenFile, String tokenHashesFile, ScopeValidator scopeValidator, boolean checkCnonce,
+					 long defaultExi, List<String> syncCtisList)
+			throws AceException, IOException {
+		if (TokenRepository.getInstance()==null) {
+			TokenRepository.create(scopeValidator, tokenFile, tokenHashesFile, ctx, keyDerivationKey,
+					derivedKeySize, time, rsId);
+		}
+		this.issuers = new ArrayList<>();
+		this.issuers.addAll(issuers);
+		this.time = time;
+		this.intro = intro;
+		this.audience = audience;
+		this.ctx = ctx;
+		this.checkCnonce = checkCnonce;
+		this.defaultExi = defaultExi;
+
+		for (int i = 0; i < 4; i++) {
+			// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+			// The set with index 0 refers to Sender IDs with size 1 byte
+			usedRecipientIds.add(new HashSet<Integer>());
+		}
+		this.syncCtisList = syncCtisList;
+	}
+
 
 	@Override
 	public synchronized Message processMessage(Message msg) {
@@ -646,6 +699,15 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    	rep.Add(Constants.CLIENT_ID, recipientIdString);
 	    	
     	}
+
+		if (syncCtisList != null) {
+			synchronized (syncCtisList) {
+				// no condition on maxCapacity. The queue could grow indefinitely if
+				// some other thread is not comsuming it.
+				syncCtisList.add(Base64.getEncoder().encodeToString(cti.GetByteString()));
+				syncCtisList.notifyAll();
+			}
+		}
 
 	    LOGGER.info("Successfully processed token");
         return msg.successReply(Message.CREATED, rep);
