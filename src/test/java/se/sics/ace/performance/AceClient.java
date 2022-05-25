@@ -483,6 +483,19 @@ public class AceClient implements Callable<Integer> {
         return client.advanced(request);
     }
 
+    // post method. Need to modify the Requester. What do I post, a random value?
+//    public CoapResponse doPostRequest(CoapClient client, String resourceUri, String payload)
+//            throws ConnectorException, IOException {
+//
+//        client.setURI(resourceUri);
+//
+//        Request request = new Request(CoAP.Code.POST);
+//        request.getOptions().setOscore(new byte[0]);
+//        request.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
+//        CBORObject payloadCbor  = CBORObject.FromObject(payload);
+//        request.setPayload(payloadCbor.EncodeToBytes());
+//        return client.advanced(request);
+//    }
 
     private void parseInputs() throws ParameterException {
 
@@ -515,7 +528,6 @@ public class AceClient implements Callable<Integer> {
         key128 = key.getBytes(Constants.charset);
 
         // parse revoked tokens notification type
-
         try {
             isObserve = this.args.notification.observeArgs.observe;
         } catch (NullPointerException e) {

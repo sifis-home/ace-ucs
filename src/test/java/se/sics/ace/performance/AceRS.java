@@ -113,7 +113,7 @@ public class AceRS implements Callable<Integer> {
 
     @Option(names = {"-m", "--mastersecret"},
             required = false,
-            defaultValue = "" + DEFAULT_MASTER_SECRET,
+            defaultValue = DEFAULT_MASTER_SECRET,
             description = "The symmetric pre-shared key between the Resource " +
                     "Server and the Authorization Server. It is the master " +
                     "secret used for the OSCORE Security Context.\n" +
@@ -122,7 +122,7 @@ public class AceRS implements Callable<Integer> {
 
     @Option(names = {"-x", "--senderid"},
             required = false,
-            defaultValue = "" + DEFAULT_SENDER_ID,
+            defaultValue = DEFAULT_SENDER_ID,
             description = "The Sender ID in HEX used for " +
                     "the OSCORE Security Context with the Authorization Server.\n" +
                     "(default: ${DEFAULT-VALUE})\n")
@@ -130,7 +130,7 @@ public class AceRS implements Callable<Integer> {
 
     @Option(names = {"-k", "--key"},
             required = false,
-            defaultValue = "" + DEFAULT_TOKEN_PSK,
+            defaultValue = DEFAULT_TOKEN_PSK,
             description = "The symmetric pre-shared key between the Resource " +
                     "Server and the Authorization Server. It is used by the " +
                     "Authorization Server to protect the tokens for this " +
@@ -259,6 +259,7 @@ public class AceRS implements Callable<Integer> {
 
         int exitCode = new CommandLine(new AceRS()).execute(args);
         if (exitCode != 0) {
+            rs.stop();
             System.exit(exitCode);
         }
     }
