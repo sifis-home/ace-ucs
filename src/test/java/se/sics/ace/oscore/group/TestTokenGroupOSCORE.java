@@ -90,6 +90,8 @@ public class TestTokenGroupOSCORE {
     private static String cti2;
     private static GroupOSCOREJoinPDP pdp = null;
     
+    private static KissTime time;
+    
     /**
      * Set up tests.
      * @throws AceException 
@@ -380,13 +382,15 @@ public class TestTokenGroupOSCORE {
         keyTypes.add("PSK");        
         db.addClient("clientG", profiles, null, null, keyTypes, skey, null);
         
+        time = new KissTime();
+        
         //Setup token entries
         byte[] cti = new byte[] {0x00};
         cti1 = Base64.getEncoder().encodeToString(cti);
         Map<Short, CBORObject> claims = new HashMap<>();
         claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
         claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));   
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime() + 1000000L));
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti1, claims);
@@ -396,7 +400,7 @@ public class TestTokenGroupOSCORE {
         claims.clear();
         claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
-        claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime() + 2000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti2, claims);
         
@@ -465,7 +469,7 @@ public class TestTokenGroupOSCORE {
         Set<String> aud11 = Collections.singleton("aud11");
         pdp.addOSCOREGroupManagers("rs11", aud11);
         
-        t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
+        t = new Token("AS", pdp, db, time, privateKey, null); 
     }
     
     /**
@@ -1810,7 +1814,7 @@ public class TestTokenGroupOSCORE {
         Map<Short, CBORObject> claims = db.getClaims(cti1);
         assert(!claims.isEmpty());
         
-        db.purgeExpiredTokens(1000001L);
+        db.purgeExpiredTokens(time.getCurrentTime() + 1000001L);
         claims = db.getClaims(cti1);
         assert(claims.isEmpty());
     }
