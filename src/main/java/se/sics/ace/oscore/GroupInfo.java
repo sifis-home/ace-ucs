@@ -552,11 +552,10 @@ public class GroupInfo {
     		myArray[i] = (byte) 0x00;
     	
     	System.arraycopy(this.groupIdPrefix, 0, myArray, 0, this.groupIdPrefix.length);
+	
+    	byte[] groupIdEpochArray = Util.intToBytes(this.groupIdEpoch, this.groupIdEpochSize);
     	
-    	// The returned array has the minimal size to represent integer, hence the possible padding with zeros
-    	byte[] groupIdEpochArray = Util.intToBytes(this.groupIdEpoch);
-    	
-    	if (groupIdEpochArray.length == 0 || groupIdEpochArray.length > this.groupIdEpochSize)
+    	if (groupIdEpochArray.length == 0 || groupIdEpochArray.length != this.groupIdEpochSize)
     		return null;
     	
     	System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length, groupIdEpochArray.length);
@@ -763,26 +762,21 @@ public class GroupInfo {
         	if (this.senderIdSize > 4)
         		return null;
         	
-        	if (senderIdSize == 4)
+        	if (this.senderIdSize == 4)
         		this.maxSenderIdValue = (1 << 31) - 1;
         	else
-        		this.maxSenderIdValue = (1 << (senderIdSize * 8)) - 1;
+        		this.maxSenderIdValue = (1 << (this.senderIdSize * 8)) - 1;
     	}
     	
     	byte[] senderIdByteArray = null;
     	for (int i = 0; i <= this.maxSenderIdValue; i++) {
-    		if (!this.usedSenderIds.get(senderIdSize - 1).contains(i)) {
-    			this.usedSenderIds.get(senderIdSize - 1).add(i);
+    		if (!this.usedSenderIds.get(this.senderIdSize - 1).contains(i)) {
+    			this.usedSenderIds.get(this.senderIdSize - 1).add(i);
     			
     			senderIdByteArray = new byte[this.senderIdSize];
-    			for (int j = 0; j < senderIdByteArray.length; j++)
-    				senderIdByteArray[j] = (byte) 0x00;
     			
-    			// The returned array has the minimal size to represent the integer value, hence the possible padding with zeros
-    			byte[] myArray = Util.intToBytes(i);
-    			int diff = senderIdByteArray.length - myArray.length;
+    			senderIdByteArray = Util.intToBytes(i, this.senderIdSize);
     			
-    			System.arraycopy(myArray, 0, senderIdByteArray, diff, myArray.length);
     			break;
     		}
     	}
@@ -917,7 +911,7 @@ public class GroupInfo {
 	    	// Double-check that the specified Sender ID has been in fact allocated
 	    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(Util.bytesToInt(id)))
 	    		nodeName = new String(Utils.bytesToHex(this.groupIdPrefix) +
-	    				              Utils.bytesToHex(Util.intToBytes(this.groupIdEpoch)) +
+	    				              Utils.bytesToHex(Util.intToBytes(this.groupIdEpoch, this.groupIdEpochSize)) +
 	    				              this.nodeNameSeparator +
 	    				              Utils.bytesToHex(id));
     	}

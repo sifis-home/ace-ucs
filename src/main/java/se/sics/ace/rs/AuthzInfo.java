@@ -444,7 +444,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 			        	
 				        for (int j = 0; j <= maxIdValue; j++) {
 				        	
-		        			recipientId = Util.intToBytes(j);
+		        			recipientId = Util.intToBytes(j, idSize);
 		        			
 		        			// The Recipient ID must be different than what offered by the Client in the 'id1' parameter
 		        			if(Arrays.equals(senderId, recipientId))
