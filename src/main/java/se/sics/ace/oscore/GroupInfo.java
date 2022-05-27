@@ -552,7 +552,7 @@ public class GroupInfo {
     		myArray[i] = (byte) 0x00;
     	
     	System.arraycopy(this.groupIdPrefix, 0, myArray, 0, this.groupIdPrefix.length);
-	
+    	
     	byte[] groupIdEpochArray = Util.intToBytes(this.groupIdEpoch, this.groupIdEpochSize);
     	
     	if (groupIdEpochArray.length == 0 || groupIdEpochArray.length != this.groupIdEpochSize)
@@ -774,9 +774,7 @@ public class GroupInfo {
     			this.usedSenderIds.get(this.senderIdSize - 1).add(i);
     			
     			senderIdByteArray = new byte[this.senderIdSize];
-    			
     			senderIdByteArray = Util.intToBytes(i, this.senderIdSize);
-    			
     			break;
     		}
     	}
