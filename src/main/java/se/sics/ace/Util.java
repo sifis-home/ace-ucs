@@ -23,23 +23,37 @@ public class Util {
 
     /**
      *  Convert a positive integer into a byte array of minimal size.
-     *  The positive integer can be up to 2,147,483,647 
+     *  The positive integer can be up to 2,147,483,647
      * @param num
      * @return  the byte array
      */
     public static byte[] intToBytes(final int num) {
+    	return intToBytes(num, 0);
+    }
+	
+    /**
+     *  Convert a positive integer into a byte array of the specified length (in bytes).
+     *  If the specified length is 0, the byte array will be of minimal size.
+     *  The positive integer can be up to 2,147,483,647
+     * @param num
+     * @param length
+     * @return  the byte array
+     */
+    public static byte[] intToBytes(final int num, final int length) {
 
+    	byte[] ret = null;
+    	
     	// Big-endian
-    	if (num < 0)
+    	if (num < 0 || length < 0)
     		return null;
         else if (num < 256) {
-            return new byte[] { (byte) (num) };
+            ret = new byte[] { (byte) (num) };
         } else if (num < 65536) {
-            return new byte[] { (byte) (num >>> 8), (byte) num };
+        	ret = new byte[] { (byte) (num >>> 8), (byte) num };
         } else if (num < 16777216) {
-            return new byte[] { (byte) (num >>> 16), (byte) (num >>> 8), (byte) num };
+        	ret = new byte[] { (byte) (num >>> 16), (byte) (num >>> 8), (byte) num };
         } else { // up to 2,147,483,647
-            return new byte[]{ (byte) (num >>> 24), (byte) (num >>> 16), (byte) (num >>> 8), (byte) num };
+        	ret = new byte[]{ (byte) (num >>> 24), (byte) (num >>> 16), (byte) (num >>> 8), (byte) num };
         }
     	
     	// Little-endian
@@ -47,15 +61,37 @@ public class Util {
     	if (num < 0)
     		return null;
         else if (num < 256) {
-            return new byte[] { (byte) (num) };
+            ret = new byte[] { (byte) (num) };
         } else if (num < 65536) {
-            return new byte[] { (byte) num, (byte) (num >>> 8) };
+            ret = new byte[] { (byte) num, (byte) (num >>> 8) };
         } else if (num < 16777216){
-            return new byte[] { (byte) num, (byte) (num >>> 8), (byte) (num >>> 16) };
+            ret = new byte[] { (byte) num, (byte) (num >>> 8), (byte) (num >>> 16) };
         } else{ // up to 2,147,483,647
-            return new byte[] { (byte) num, (byte) (num >>> 8), (byte) (num >>> 16), (byte) (num >>> 24) };
+            ret = new byte[] { (byte) num, (byte) (num >>> 8), (byte) (num >>> 16), (byte) (num >>> 24) };
         }
     	*/
+    	
+    	if (length == 0 || length <= ret.length)
+    		return ret;
+    	
+    	int paddingLength = length - ret.length;
+    	byte[] retWithPadding = new byte[ret.length + paddingLength];
+    	
+    	// Big-endian
+    	for (int i = 0; i < paddingLength; i++)
+    		retWithPadding[i] = (byte) 0x00;
+    	for (int i = 0; i < ret.length; i++)
+    		retWithPadding[i + paddingLength] = ret[i];
+    	
+    	// Little-endian
+    	/*
+    	for (int i = 0; i < ret.length; i++)
+    		retWithPadding[i] = ret[i];
+    	for (int i = 0; i < paddingLength; i++)
+    		retWithPadding[i + paddingLength] = (byte) 0x00;
+    	*/
+    	
+    	return retWithPadding;
     	
     }
 	

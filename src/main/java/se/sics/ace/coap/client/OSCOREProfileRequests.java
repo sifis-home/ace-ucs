@@ -348,7 +348,7 @@ public class OSCOREProfileRequests {
 		        	
 			        for (int j = 0; j <= maxIdValue; j++) {
 			        	
-	        			recipientId = Util.intToBytes(j);
+	        			recipientId = Util.intToBytes(j, idSize);
 	        			
 	        			// This Recipient ID is marked as not available to use
 	        			if (usedRecipientIds.get(idSize - 1).contains(j))

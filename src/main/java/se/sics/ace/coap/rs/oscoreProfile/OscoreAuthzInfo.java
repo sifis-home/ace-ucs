@@ -323,10 +323,10 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	    	            
 	    	            // Delete the stored Access Token to prevent a deadlock
 	    	    	    CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
-						CBORObject ctiCbor = responseMap.get(Constants.CTI);
-						String cti = Base64.getEncoder().encodeToString(ctiCbor.GetByteString());
-						try {
-							TokenRepository.getInstance().removeToken(cti);
+	    	    	    CBORObject ctiCbor = responseMap.get(Constants.CTI);
+	    	    	    String cti = Base64.getEncoder().encodeToString(ctiCbor.GetByteString());
+	    	    	    try {
+	    	    	    	TokenRepository.getInstance().removeToken(cti);
 	    	    	    }
 	    	    	    catch (AceException e) {
 	    	                LOGGER.info("Error while deleting an Access Token: " + e.getMessage());
