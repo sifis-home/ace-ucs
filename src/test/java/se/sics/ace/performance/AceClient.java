@@ -463,11 +463,14 @@ public class AceClient implements Callable<Integer> {
             System.out.println("Response Message:    " + res.getResponseText() + "\n");
         }
         else if (res.getCode().isServerError() || res.getCode().isClientError()) {
-            // print AS Request Creation Hints
-            System.out.println("Response Message:    " +
-                    AsRequestCreationHints.parseHints(CBORObject.DecodeFromBytes(res.getPayload())) + "\n");
-            // increase the counter only if UNAUTHZ is received
-            return !res.getCode().equals(CoAP.ResponseCode.UNAUTHORIZED);
+
+            if (res.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {
+                // print AS Request Creation Hints
+                System.out.println("Response Message:    " +
+                        AsRequestCreationHints.parseHints(CBORObject.DecodeFromBytes(res.getPayload())) + "\n");
+                // increase the counter only if UNAUTHZ is received
+                return !res.getCode().equals(CoAP.ResponseCode.UNAUTHORIZED);
+            }
         }
         return true;
     }
