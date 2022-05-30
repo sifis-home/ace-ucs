@@ -52,6 +52,7 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.oscore.CoapOSException;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
+import org.eclipse.californium.oscore.OSException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -1008,10 +1009,30 @@ public class TokenRepository implements AutoCloseable {
 	    	
 	    	// Remove the mapping from the subject ID to the OSCORE Input Material ID
 	    	for (String sid: sid2id.keySet()) {
-	    		if (sid2id.get(sid).equals(id))
-	    			sid2id.remove(sid);
+	    		if (sid2id.get(sid).equals(id)) {
+					sid2id.remove(sid);
+
+					// Remove the OSCORE Security Context
+					int index = sid.indexOf(":");
+					byte[] idContext = null;
+					if (index >= 0) {
+						String idContextString = sid.substring(0, index);
+						idContext = Base64.getDecoder().decode(idContextString);
+					}
+					String recipientIdString = sid.substring(index+1, sid.length());
+					byte[] recipientId = Base64.getDecoder().decode(recipientIdString);
+
+					OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+					try {
+						OSCoreCtx ctx = db.getContext(recipientId, idContext);
+						db.removeContext(ctx);
+					} catch (CoapOSException e) {
+						e.printStackTrace();
+						LOGGER.severe("Unable to retrieve the OSCORE Security Context to delete");
+						throw new AceException("Unable to retrieve the OSCORE Security Context to delete");
+					}
+				}
 	    	}
-	    	
 		}
 
 		// Remove the mapping from the token hash to the token identifier
