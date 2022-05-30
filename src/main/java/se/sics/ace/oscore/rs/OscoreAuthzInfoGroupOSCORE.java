@@ -292,20 +292,33 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	            synchronized(db) {
 	            	
 	            	boolean install = true;
-	            	
-	    			try {
-	            			
-	    				// Double check in the database that the OSCORE Security Context
-	    				// with the selected Recipient ID is actually still not present
-	        			if (db.getContext(recipientId) != null) {
-	        				// A Security Context with this Recipient ID exists!
-	        				install = false;
-	        			}        			
-	    			}
-	        		catch(RuntimeException e) {
-	    				// Multiple Security Contexts with this Recipient ID exist!
-	    				install = false;
-	        		}
+
+					try {
+						CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
+						CBORObject subjectCbor = responseMap.get(Constants.SUB);
+						String subjectStr = subjectCbor.AsString();
+						int index = subjectStr.indexOf(":");
+						byte[] idContext = null;
+						if (index >= 0) {
+							String idContextStr = subjectStr.substring(0, index);
+							idContext = Base64.getDecoder().decode(idContextStr);
+						}
+
+						// Double check in the database that the OSCORE Security Context
+						// with the selected Recipient ID is actually still not present
+						if (idContext == null && db.getContext(recipientId) != null) {
+							// A Security Context with this Recipient ID exists!
+							install = false;
+						}
+						else if (idContext != null && db.getContext(recipientId, idContext) != null) {
+							// A Security Context with this ID Context and Recipient ID exists!
+							install = false;
+						}
+					}
+					catch(RuntimeException e) {
+						// Multiple Security Contexts with this Recipient ID exist!
+						install = false;
+					}
 	            	
 	    			if (install)
 	    				db.addContext(ctx);
