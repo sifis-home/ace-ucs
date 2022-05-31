@@ -76,14 +76,15 @@ import static java.lang.Thread.sleep;
                 "The default PDP is the UCS")
 public class AceAS implements Callable<Integer> {
 
+    private final static String DEFAULT_CLIENT_NAME = "ClientA";
+    private final static String DEFAULT_RESOURCE_SERVER_NAME = "rs1";
     private final static String DEFAULT_CLIENT_SCOPE = "r_temp r_helloWorld";
     private final static String DEFAULT_RESOURCE_SERVER_SCOPE = "r_temp r_helloWorld";
     private final static String DEFAULT_CLIENT_AUD = "rs1";
-    private final static String DEFAULT_RESOURCE_SERVER_AUD = "rs1";
+    // the AS automatically adds an audience with the resource server name
+    private final static String DEFAULT_RESOURCE_SERVER_AUD = DEFAULT_RESOURCE_SERVER_NAME;
     private final static String DEFAULT_CLIENT_SENDER_ID = "0x22";
     private final static String DEFAULT_RESOURCE_SERVER_SENDER_ID = "0x11";
-    private final static String DEFAULT_CLIENT_NAME = "ClientA";
-    private final static String DEFAULT_RESOURCE_SERVER_NAME = "rs1";
     private final static String DEFAULT_CLIENT_MASTER_SECRET =
             "ClientA-AS-MS---";
     private final static String DEFAULT_RESOURCE_SERVER_MASTER_SECRET =
@@ -102,45 +103,40 @@ public class AceAS implements Callable<Integer> {
     static class Opt {
         @Option(names = {"-n", "--name"},
                 required = true,
-                defaultValue = "'" + DEFAULT_CLIENT_NAME + "' for the Client;\n" +
-                        "          '" + DEFAULT_RESOURCE_SERVER_MASTER_SECRET + "' for the Resource Server",
                 description = "The peer name.\n" +
-                        "(default: ${DEFAULT-VALUE})\n")
+                        "(default: '" + DEFAULT_CLIENT_NAME + "' for the Client;\n" +
+                        "          '" + DEFAULT_RESOURCE_SERVER_NAME + "' for the Resource Server)")
         String name;
         
         @Option(names = {"-s", "--scope"},
                 required = true,
-                defaultValue = "'" + DEFAULT_CLIENT_SCOPE + "' for the Client;\n" +
-                        "          '" + DEFAULT_RESOURCE_SERVER_SCOPE + "' for the Resource Server",
                 description = "The scope.\n" +
-                        "(default: ${DEFAULT-VALUE})\n")
+                        "(default: '" + DEFAULT_CLIENT_SCOPE + "' for the Client;\n" +
+                "          '" + DEFAULT_RESOURCE_SERVER_SCOPE + "' for the Resource Server)")
         String scope;
         
         @Option(names = {"-u", "--aud"},
                 required = true,
-                defaultValue = "'" + DEFAULT_CLIENT_AUD + "' for the Client;\n" +
-                        "          '" + DEFAULT_RESOURCE_SERVER_AUD + "' for the Resource Server",
                 description = "The audience.\n" +
-                        "(default: ${DEFAULT-VALUE})\n")
+                        "(default: '" + DEFAULT_CLIENT_AUD + "' for the Client;\n" +
+                        "          '" + DEFAULT_RESOURCE_SERVER_AUD + "' for the Resource Server)")
         String aud;
 
         @Option(names = {"-x", "--senderId"},
                 required = true,
-                defaultValue = "'" + DEFAULT_CLIENT_SENDER_ID + "' for the Client;\n" +
-                        "          '" + DEFAULT_RESOURCE_SERVER_SENDER_ID + "' for the Resource Server",
                 description = "The Sender ID in HEX used for " +
                         "the OSCORE Security Context with the Authorization Server.\n" +
-                        "(default: ${DEFAULT-VALUE})\n")
+                        "(default: '" + DEFAULT_CLIENT_SENDER_ID + "' for the Client;\n" +
+                        "          '" + DEFAULT_RESOURCE_SERVER_SENDER_ID + "' for the Resource Server)")
         String sId;
         
         @Option(names = {"-m", "--mastersecret"},
                 required = true,
-                defaultValue = "'" + DEFAULT_CLIENT_MASTER_SECRET + "' for the Client;\n" +
-                        "          '" + DEFAULT_RESOURCE_SERVER_SENDER_ID + "' for the Resource Server",
                 description = "The symmetric pre-shared key between " +
                         "the Authorization Server and the peer. It is the master " +
                         "secret used for the OSCORE Security Context.\n" +
-                        "(default: ${DEFAULT-VALUE})\n")
+                        "(default: '" + DEFAULT_CLIENT_MASTER_SECRET + "' for the Client;\n" +
+                        "          '" + DEFAULT_RESOURCE_SERVER_MASTER_SECRET + "' for the Resource Server)")
         String key;
 
         @Option(names = {"-k", "--key"},
@@ -169,7 +165,7 @@ static class Peer {
         @ArgGroup(exclusive = true, multiplicity = "1")
         Peer peer;
 
-        @ArgGroup(exclusive = false, multiplicity = "0..1")
+        @ArgGroup(exclusive = false, multiplicity = "1")
         Opt opt;
     }
 
