@@ -141,7 +141,7 @@ public class AceRS implements Callable<Integer> {
     static class IntrospectionArgs {
         @Option(names = {"-i", "--introspection"},
                 required = true,
-                description = "The Resource Server introspects the trl endpoint at the AS.\n")
+                description = "The Resource Server introspects the introspection endpoint at the AS.\n")
         boolean introspect;
 
         @Option(names = {"-y", "--introspectioninterval"},
