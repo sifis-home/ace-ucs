@@ -113,14 +113,14 @@ public class AceAS implements Callable<Integer> {
                 description = "The scope.\n" +
                         "(default: '" + DEFAULT_CLIENT_SCOPE + "' for the Client;\n" +
                 "          '" + DEFAULT_RESOURCE_SERVER_SCOPE + "' for the Resource Server)")
-        String scope;
+        List<String> scope;
         
         @Option(names = {"-u", "--aud"},
                 required = true,
                 description = "The audience.\n" +
                         "(default: '" + DEFAULT_CLIENT_AUD + "' for the Client;\n" +
                         "          '" + DEFAULT_RESOURCE_SERVER_AUD + "' for the Resource Server)")
-        String aud;
+        List<String> aud;
 
         @Option(names = {"-x", "--senderId"},
                 required = true,
@@ -262,8 +262,8 @@ static class Peer {
 
         List<Client> clients = new ArrayList<>();
         if (inputClients.isEmpty()) {
-            clients.add(new Client(DEFAULT_CLIENT_NAME, DEFAULT_CLIENT_SCOPE,
-                    DEFAULT_CLIENT_AUD, DEFAULT_CLIENT_SENDER_ID,
+            clients.add(new Client(DEFAULT_CLIENT_NAME, new ArrayList<String>(){{add(DEFAULT_CLIENT_SCOPE);}},
+                    new ArrayList<String>(){{add(DEFAULT_CLIENT_AUD);}}, DEFAULT_CLIENT_SENDER_ID,
                     DEFAULT_CLIENT_MASTER_SECRET));
         }
         for (Args c : inputClients) {
@@ -282,7 +282,16 @@ static class Peer {
                     DEFAULT_RESOURCE_SERVER_TOKEN_PSK));
         }
         for (Args r: inputResourceServers) {
-            resourceServers.add(new ResourceServer(r.opt.name, r.opt.scope, r.opt.aud,
+
+            // check that all the options have been specified
+
+            // if the resource server name is specified within the audience, remove it
+            // (The AS automatically adds an audience with the resource server name for the resource server)
+            if (r.opt.aud.get(0).contains(r.opt.name)) {
+                r.opt.aud.set(0, r.opt.aud.get(0).replaceAll(r.opt.name, ""));
+                r.opt.aud.set(0, r.opt.aud.get(0).trim().replaceAll(" +", " "));
+            }
+            resourceServers.add(new ResourceServer(r.opt.name, r.opt.scope.get(0), r.opt.aud.get(0),
                     r.opt.sId, r.opt.key, r.opt.tokenKey));
         }
         for (ResourceServer r: resourceServers) {
@@ -306,10 +315,14 @@ static class Peer {
         addIdentity(c.getName(), c.getsId());
         pdp.addTokenAccess(c.getName());
 
-        List<String> scopes = new ArrayList<>(Arrays.asList(c.getScope().split(" ")));
-        for (String s : scopes) {
-            pdp.addAccess(c.getName(), c.getAud(), s);
+        for (int i = 0; i < c.getScope().size(); i++) {
+            String scope = c.getScope().get(i);
+            List<String> scopes = new ArrayList<>(Arrays.asList(scope.split(" ")));
+            for (String subScope : scopes) {
+                pdp.addAccess(c.getName(), c.getAud().get(i), subScope);
+            }
         }
+
         //pdp.addAccess("clientA", "rs1", "r_helloWorld", TestConfig.testFilePath + "policy_template_dummy2");
         //pdp.addAccess("clientA", "rs1", "w_temp", TestConfig.testFilePath + "policy_template_dummy2");
     }

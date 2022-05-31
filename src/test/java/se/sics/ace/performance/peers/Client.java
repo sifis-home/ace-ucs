@@ -8,14 +8,15 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class Client {
     private final String name;
     private String defaultScope = null;
     private String defaultAud = null;
-    private final String scope;
-    private final String aud;
+    private final List<String> scope;
+    private final List<String> aud;
 
     private final byte[] sId;
     private final byte[] masterSecret;
@@ -26,8 +27,8 @@ public class Client {
     private final OneKey publicKey = null;
 
 
-    public Client (String name, String scope,
-                   String aud, String sId, String masterSecret)
+    public Client (String name, List<String> scope,
+                   List<String> aud, String sId, String masterSecret)
         throws AceException {
         if (name == null || scope == null || aud == null || sId == null || masterSecret == null) {
             throw new AceException("Peer requires non-null parameters");
@@ -48,11 +49,11 @@ public class Client {
         return name;
     }
 
-    public String getScope() {
+    public List<String> getScope() {
         return scope;
     }
 
-    public String getAud() {
+    public List<String> getAud() {
         return aud;
     }
 
