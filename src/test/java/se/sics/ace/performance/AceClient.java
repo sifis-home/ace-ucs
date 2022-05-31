@@ -468,9 +468,9 @@ public class AceClient implements Callable<Integer> {
                 // print AS Request Creation Hints
                 System.out.println("Response Message:    " +
                         AsRequestCreationHints.parseHints(CBORObject.DecodeFromBytes(res.getPayload())) + "\n");
-                // increase the counter only if UNAUTHZ is received
-                return !res.getCode().equals(CoAP.ResponseCode.UNAUTHORIZED);
             }
+            // increase the counter only if UNAUTHZ is received
+            return !res.getCode().equals(CoAP.ResponseCode.UNAUTHORIZED);
         }
         return true;
     }
