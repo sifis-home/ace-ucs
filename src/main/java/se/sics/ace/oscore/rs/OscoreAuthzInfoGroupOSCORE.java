@@ -292,47 +292,49 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	            synchronized(db) {
 	            	
 	            	boolean install = true;
+					byte[] idContext = null;
+	            	
+					CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
+					CBORObject subjectCbor = responseMap.get(Constants.SUB);
+					String subjectStr = subjectCbor.AsString();
+					int index = subjectStr.indexOf(":");
 
-					try {
-						CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
-						CBORObject subjectCbor = responseMap.get(Constants.SUB);
-						String subjectStr = subjectCbor.AsString();
-						int index = subjectStr.indexOf(":");
-						byte[] idContext = null;
-						if (index >= 0) {
-							String idContextStr = subjectStr.substring(0, index);
-							idContext = Base64.getDecoder().decode(idContextStr);
-						}
-
-						// Double check in the database that the OSCORE Security Context
-						// with the selected Recipient ID is actually still not present
+					if (index >= 0) {
+						// Extract the OSCORE ID Context
+						String idContextStr = subjectStr.substring(0, index);
+						idContext = Base64.getDecoder().decode(idContextStr);
+					}
+	            	
+	    			try {
+    					
+	    				// Double check in the database that the OSCORE Security Context
+	    				// with the selected Recipient ID is actually still not present
 						if (idContext == null && db.getContext(recipientId) != null) {
-							// A Security Context with this Recipient ID exists!
-							install = false;
-						}
+	        				// A Security Context with this Recipient ID exists!
+	        				install = false;
+	        			}
 						else if (idContext != null && db.getContext(recipientId, idContext) != null) {
 							// A Security Context with this ID Context and Recipient ID exists!
 							install = false;
 						}
-					}
-					catch(RuntimeException e) {
-						// Multiple Security Contexts with this Recipient ID exist!
-						install = false;
-					}
-	            	
+	    			}
+	        		catch(RuntimeException e) {
+	    				// Multiple Security Contexts with this Recipient ID exist!
+	    				install = false;
+	        		}
+
 	    			if (install)
 	    				db.addContext(ctx);
 	    			else {
 	    	            LOGGER.info("An OSCORE Security Context with the same Recipient ID"
 					               + " has been installed while running the OSCORE profile");
-
-						// Delete the stored Access Token to prevent a deadlock
-						CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
-						CBORObject ctiCbor = responseMap.get(Constants.CTI);
-						String cti = Base64.getEncoder().encodeToString(ctiCbor.GetByteString());
-						try {
-							TokenRepository.getInstance().removeToken(cti);
-						}
+	    	            
+	    	            // Delete the stored Access Token to prevent a deadlock
+	    	    	    CBORObject ctiCbor = responseMap.get(Constants.CTI);
+	    	    	    String cti = Base64.getEncoder().encodeToString(ctiCbor.GetByteString());
+	    	    	    try {
+	    	    	    	TokenRepository.getInstance().removeToken(cti);
+	    	    	    }
 	    	    	    catch (AceException e) {
 	    	                LOGGER.info("Error while deleting an Access Token: " + e.getMessage());
 	    	    	    }

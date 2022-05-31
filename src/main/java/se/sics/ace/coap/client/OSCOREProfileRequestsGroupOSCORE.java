@@ -48,6 +48,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.oscore.CoapOSException;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
@@ -245,7 +246,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
 			        			
 			        		}
 	        			}
-		        		catch(RuntimeException e) {
+		        		catch(CoapOSException e) {
 	        				// Multiple Security Contexts with this Recipient ID exist and it was not tracked!
 	        				// Update the local list of used Recipient IDs, then move on to the next candidate
 	        				usedRecipientIds.get(idSize - 1).add(j);
@@ -360,7 +361,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
     				install = false;
     			}        			
 			}
-    		catch(RuntimeException e) {
+    		catch(CoapOSException e) {
 				// Multiple Security Contexts with this Recipient ID exist!
 				install = false;
     		}

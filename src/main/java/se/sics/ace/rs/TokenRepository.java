@@ -1016,6 +1016,7 @@ public class TokenRepository implements AutoCloseable {
 					int index = sid.indexOf(":");
 					byte[] idContext = null;
 					if (index >= 0) {
+						// Extract the OSCORE ID Context
 						String idContextString = sid.substring(0, index);
 						idContext = Base64.getDecoder().decode(idContextString);
 					}
