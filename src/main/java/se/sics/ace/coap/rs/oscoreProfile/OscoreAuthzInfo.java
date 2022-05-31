@@ -257,15 +257,32 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	            synchronized(db) {
 	            	
 	            	boolean install = true;
+					byte[] idContext = null;
+	            	
+					CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
+					CBORObject subjectCbor = responseMap.get(Constants.SUB);
+					String subjectStr = subjectCbor.AsString();
+					int index = subjectStr.indexOf(":");
+
+					if (index >= 0) {
+						// Extract the OSCORE ID Context
+						String idContextStr = subjectStr.substring(0, index);
+						idContext = Base64.getDecoder().decode(idContextStr);
+					}
 	            	
 	    			try {
-	            			
+	    					
 	    				// Double check in the database that the OSCORE Security Context
 	    				// with the selected Recipient ID is actually still not present
-	        			if (db.getContext(recipientId) != null) {
+						if (idContext == null && db.getContext(recipientId) != null) {
 	        				// A Security Context with this Recipient ID exists!
 	        				install = false;
-	        			}        			
+	        			}
+						else if (idContext != null && db.getContext(recipientId, idContext) != null) {
+							// A Security Context with this ID Context and Recipient ID exists!
+							install = false;
+						}
+
 	    			}
 	        		catch(RuntimeException e) {
 	    				// Multiple Security Contexts with this Recipient ID exist!
@@ -279,7 +296,6 @@ public class OscoreAuthzInfo extends AuthzInfo {
 					               + " has been installed while running the OSCORE profile");
 	    	            
 	    	            // Delete the stored Access Token to prevent a deadlock
-	    	    	    CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
 	    	    	    CBORObject ctiCbor = responseMap.get(Constants.CTI);
 	    	    	    String cti = Base64.getEncoder().encodeToString(ctiCbor.GetByteString());
 	    	    	    try {
