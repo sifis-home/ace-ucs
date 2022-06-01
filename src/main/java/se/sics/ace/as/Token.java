@@ -367,10 +367,13 @@ public class Token implements Endpoint, AutoCloseable {
 		// Purge expired tokens from the database
 		try {
 			long now = this.time.getCurrentTime();
+			Set<String> ctis = db.getExpiredTokens(now);
 			if (this.pdp instanceof UcsHelper) {
-				Set<String> ctis = db.getExpiredTokens(now);
 				for (String cti : ctis)
 					this.pdp.removeSessions4Cti(cti);
+			}
+			for (String cti : ctis) {
+				this.db.deleteTokenHash(cti);
 			}
 			this.db.purgeExpiredTokens(now);
 		} catch (AceException e) {
@@ -1842,8 +1845,6 @@ public class Token implements Endpoint, AutoCloseable {
         this.cti2aud.remove(cti);
         this.cti2oscId.remove(cti);
         this.cti2kid.remove(cti);
-	    
-	    //FIXME: Add the token to the TRL
 	}
 
     @Override

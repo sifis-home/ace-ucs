@@ -156,10 +156,13 @@ public class RevocationHandler {
             // However, since at least one expired token exists,
             // we purge expired tokens from the database
             try {
+                Set<String> ctis = db.getExpiredTokens(now);
                 if (this.pdp instanceof UcsHelper) {
-                    Set<String> ctis = db.getExpiredTokens(now);
                     for (String i : ctis)
                         this.pdp.removeSessions4Cti(i);
+                }
+                for (String i : ctis) {
+                    this.db.deleteTokenHash(i);
                 }
                 this.db.purgeExpiredTokens(now);
             } catch (AceException e) {

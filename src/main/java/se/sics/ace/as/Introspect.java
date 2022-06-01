@@ -181,10 +181,13 @@ public class Introspect implements Endpoint, AutoCloseable {
 	    // Purge expired tokens from the database
         try {
             long now = this.time.getCurrentTime();
+            Set<String> ctis = db.getExpiredTokens(now);
             if (this.pdp instanceof UcsHelper) {
-                Set<String> ctis = db.getExpiredTokens(now);
                 for (String cti : ctis)
                     this.pdp.removeSessions4Cti(cti);
+            }
+            for (String cti : ctis) {
+                this.db.deleteTokenHash(cti);
             }
             this.db.purgeExpiredTokens(now);
         } catch (AceException e) {
