@@ -52,6 +52,7 @@ import se.sics.ace.ReferenceToken;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.ucs.UcsHelper;
 
 /**
  * The OAuth 2.0 Introspection endpoint.
@@ -179,7 +180,13 @@ public class Introspect implements Endpoint, AutoCloseable {
         
 	    // Purge expired tokens from the database
         try {
-            this.db.purgeExpiredTokens(this.time.getCurrentTime());
+            long now = this.time.getCurrentTime();
+            if (this.pdp instanceof UcsHelper) {
+                Set<String> ctis = db.getExpiredTokens(now);
+                for (String cti : ctis)
+                    this.pdp.removeSessions4Cti(cti);
+            }
+            this.db.purgeExpiredTokens(now);
         } catch (AceException e) {
             LOGGER.severe("Database error: " + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);

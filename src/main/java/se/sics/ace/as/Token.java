@@ -366,7 +366,13 @@ public class Token implements Endpoint, AutoCloseable {
 	public Message processMessage(Message msg) {
 		// Purge expired tokens from the database
 		try {
-			this.db.purgeExpiredTokens(this.time.getCurrentTime());
+			long now = this.time.getCurrentTime();
+			if (this.pdp instanceof UcsHelper) {
+				Set<String> ctis = db.getExpiredTokens(now);
+				for (String cti : ctis)
+					this.pdp.removeSessions4Cti(cti);
+			}
+			this.db.purgeExpiredTokens(now);
 		} catch (AceException e) {
 			LOGGER.severe("Database error: " + e.getMessage());
 			return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);

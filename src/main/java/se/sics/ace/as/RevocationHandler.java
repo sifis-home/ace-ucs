@@ -6,6 +6,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.coap.as.AceObservableEndpoint;
+import se.sics.ace.ucs.UcsHelper;
 
 import java.util.*;
 import java.util.logging.Level;
@@ -35,9 +36,12 @@ public class RevocationHandler {
 
     private Map<String, String> peerIdentitiesToNames = null;
 
+    private PDP pdp = null;
+
     private Map<String, DiffSet> DiffSetsMap;
 
     public RevocationHandler(DBConnector db,
+                             PDP pdp,
                              TimeProvider time,
                              Map<String, String> peerIdentitiesToNames,
                              Map<String, DiffSet> DiffSetsMap,
@@ -54,6 +58,7 @@ public class RevocationHandler {
                     + "must be non-null");
         }
 
+        this.pdp = pdp;
         this.db = db;
         this.time = time;
         this.peerIdentitiesToNames = peerIdentitiesToNames;
@@ -151,7 +156,12 @@ public class RevocationHandler {
             // However, since at least one expired token exists,
             // we purge expired tokens from the database
             try {
-                this.db.purgeExpiredTokens(this.time.getCurrentTime());
+                if (this.pdp instanceof UcsHelper) {
+                    Set<String> ctis = db.getExpiredTokens(now);
+                    for (String i : ctis)
+                        this.pdp.removeSessions4Cti(i);
+                }
+                this.db.purgeExpiredTokens(now);
             } catch (AceException e) {
                 LOGGER.severe("Database error: " + e.getMessage());
                 throw new AceException(e.getMessage());

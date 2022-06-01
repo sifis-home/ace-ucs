@@ -393,7 +393,7 @@ public class TestTokenUCS {
                 time, privateKey, defaultClaims,
                 false, (short)0, false, null);
 
-        RevocationHandler rh = new RevocationHandler(db, time, null, null, null);
+        RevocationHandler rh = new RevocationHandler(db, pdp, time, null, null, null);
         pdp.setRevocationHandler(rh);
         pdp.setTokenEndpoint(t);
     }

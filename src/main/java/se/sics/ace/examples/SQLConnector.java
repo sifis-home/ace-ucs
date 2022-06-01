@@ -2636,6 +2636,30 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		return 0L;
 	}
 
+	/**
+	 * Get the token identifiers of expired tokens
+	 */
+	@Override
+	public synchronized Set<String> getExpiredTokens(long now) throws AceException {
+
+		Set<String> ctis = new HashSet<>();
+		try {
+			ResultSet result = this.selectExpirationTime.executeQuery();
+			while (result.next()) {
+				byte[] rawTime = result.getBytes(DBConnector.claimValueColumn);
+				CBORObject cborTime = CBORObject.DecodeFromBytes(rawTime);
+				long time = cborTime.AsNumber().ToInt64Checked();
+				if (now > time) {
+					ctis.add(result.getString(DBConnector.ctiColumn));
+				}
+			}
+			result.close();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+		return ctis;
+	}
+
 //	/**
 //	 * Get the hash values of a set of token identifiers
 //	 *

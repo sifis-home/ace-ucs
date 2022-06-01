@@ -213,7 +213,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
             this.trl = new AceObservableEndpoint(trlConfig.getName(), this.r);
             add(this.trl);
             if (trlConfig.isUseRevocationHandler()) {
-                this.rh = new RevocationHandler(db, time, null, this.r.getDiffSetsMap(), trl);
+                this.rh = new RevocationHandler(db, pdp, time, null, this.r.getDiffSetsMap(), trl);
                 pdp.setRevocationHandler(this.rh);
 //            // to remove, it triggers a revocation. Only for test purposes
 //            // while implementing the revoke method on the pdp

@@ -928,6 +928,11 @@ public interface DBConnector {
 	public Map<String, String> getTokenHashMap() throws AceException;
 
 	/**
+	 * Get the token identifiers of expired tokens
+	 */
+	Set<String> getExpiredTokens(long now) throws AceException;
+
+	/**
 	 * Close the connections. After this any other method calls to this
 	 * object will lead to an exception.
 	 * 
