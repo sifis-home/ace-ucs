@@ -12,15 +12,8 @@
     </organization>
     <repositories>
         <repository>
-            <id>nexus.snapshots</id>
-            <url>http://nexusc3isp.iit.cnr.it:8081/repository/maven-snapshots/</url>
-            <!-- <url>http://nexusc3isp.iit.cnr.it:8081/repository/maven-public/</url> -->
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
+            <id>gitlab-maven-ucs</id>
+            <url>https://sssg-dev.iit.cnr.it/api/v4/projects/7/packages/maven</url>
         </repository>
         <repository>
             <id>central maven repo</id>
@@ -107,7 +100,7 @@
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
+            <artifactId>slf4j-reload4j</artifactId>
             <version>1.7.36</version>
         </dependency>
         <dependency>
@@ -118,7 +111,7 @@
         <dependency>
             <groupId>it.cnr.iit.ucs</groupId>
             <artifactId>UCSCore</artifactId>
-            <version>0.1.1-SNAPSHOT</version>
+            <version>integration-0.3.0-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -131,47 +124,9 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>it.cnr.iit.ucs</groupId>
-            <artifactId>PIPReader</artifactId>
-            <version>0.1.1-SNAPSHOT</version>
-            <!--            <exclusions>
-                            <exclusion>
-                                <groupId>org.apache.logging.log4j</groupId>
-                                <artifactId>log4j-to-slf4j</artifactId>
-                            </exclusion>
-                            <exclusion>
-                                <groupId>org.apache.logging.log4j</groupId>
-                                <artifactId>log4j-api</artifactId>
-                            </exclusion>
-                            <exclusion>
-                                <groupId>org.slf4j</groupId>
-                                <artifactId>jul-to-slf4j</artifactId>
-                            </exclusion>
-                        </exclusions> -->
-        </dependency>
-        <dependency>
-            <groupId>it.cnr.iit.ucs</groupId>
-            <artifactId>PIPJdbc</artifactId>
-            <version>0.1.1-SNAPSHOT</version>
-        </dependency>
-        <dependency>
             <groupId>com.att.research.xacml</groupId>
             <artifactId>xacml</artifactId>
             <version>2.0.1</version>
-            <!--            <exclusions>
-                            <exclusion>
-                                <groupId>org.slf4j</groupId>
-                                <artifactId>slf4j-ext</artifactId>
-                            </exclusion>
-                            <exclusion>
-                                <groupId>ch.qos.logback</groupId>
-                                <artifactId>logback-core</artifactId>
-                            </exclusion>
-                            <exclusion>
-                                <groupId>ch.qos.logback</groupId>
-                                <artifactId>logback-classic</artifactId>
-                            </exclusion>
-                        </exclusions> -->
         </dependency>
         <dependency>
             <groupId>org.reflections</groupId>
