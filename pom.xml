@@ -76,23 +76,21 @@
             <artifactId>postgresql</artifactId>
             <version>9.3-1104-jdbc4</version>
         </dependency>
-        <!--
-                <dependency>
-                    <groupId>org.eclipse.californium</groupId>
-                    <artifactId>californium-core</artifactId>
-                    <version>3.0.0</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.eclipse.californium</groupId>
-                    <artifactId>scandium</artifactId>
-                    <version>3.0.0</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.eclipse.californium</groupId>
-                    <artifactId>cf-oscore</artifactId>
-                    <version>3.0.0</version>
-                </dependency>
-        -->
+        <dependency>
+            <groupId>org.eclipse.californium</groupId>
+            <artifactId>californium-core</artifactId>
+            <version>3.5.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.californium</groupId>
+            <artifactId>scandium</artifactId>
+            <version>3.5.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.californium</groupId>
+            <artifactId>cf-oscore</artifactId>
+            <version>3.5.0</version>
+        </dependency>
         <dependency>
             <groupId>com.augustcellars.cose</groupId>
             <artifactId>cose-java</artifactId>
@@ -111,7 +109,7 @@
         <dependency>
             <groupId>it.cnr.iit.ucs</groupId>
             <artifactId>UCSCore</artifactId>
-            <version>integration-0.3.0-SNAPSHOT</version>
+            <version>integration-0.3.1-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
