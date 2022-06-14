@@ -279,7 +279,9 @@ public class UcsHelper implements PDP, AutoCloseable {
 			TryAccessResponseMessage tryResponse = ucs.tryAccess(req);
 
 			if (tryResponse.getEvaluation() != null && tryResponse.getEvaluation().getResult().equalsIgnoreCase("permit")) {
-				LOGGER.info("tryAccess complete with PERMIT");
+				LOGGER.info("tryAccess complete with " +
+						tryResponse.getEvaluation().getResult() +
+						" for subscope '" + scopeArray[count] + "'\n" );
 				LOGGER.finest("tryAccess response = " + tryResponse.getEvaluation().getResponse());
 
 				String sessionId = tryResponse.getSessionId();
@@ -287,7 +289,9 @@ public class UcsHelper implements PDP, AutoCloseable {
 				LOGGER.finest("startAccess response = " + startResponse.getEvaluation().getResponse());
 
 				if (startResponse.getEvaluation().getResult().equalsIgnoreCase("permit")) {
-					LOGGER.info("startAccess complete with PERMIT");
+					LOGGER.info("startAccess complete with " +
+							startResponse.getEvaluation().getResult() +
+									" for subscope '" + scopeArray[count] + "'\n" );
 
 					allowedScopes.append(scopeArray[count]).append(" ");
 					allowedSessions.add(sessionId);
@@ -296,11 +300,15 @@ public class UcsHelper implements PDP, AutoCloseable {
 					addSession(sessionId, cid, rid, scopeArray[count], null);
 				}
 				else {
-					LOGGER.severe("startAccess complete with DENY");
+					LOGGER.severe("startAccess complete with " +
+							startResponse.getEvaluation().getResult() +
+							" for subscope '" + scopeArray[count] + "'\n" );
 				}
 			}
 			else {
-				LOGGER.severe("tryAccess complete with DENY");
+				LOGGER.severe("tryAccess complete with " +
+						tryResponse.getEvaluation().getResult() +
+						" for subscope '" + scopeArray[count] + "'\n" );
 			}
 			count++;
 		}
@@ -311,7 +319,7 @@ public class UcsHelper implements PDP, AutoCloseable {
 		}
 
 		allowedScopes.deleteCharAt(allowedScopes.toString().length()-1);
-		LOGGER.info("canAccess results: allowed scopes = " + allowedScopes);
+		LOGGER.severe("canAccess results: allowed scopes = " + allowedScopes);
 		this.pendingSessions.put(evaluationId, allowedSessions);
 
 		return allowedScopes.toString();
