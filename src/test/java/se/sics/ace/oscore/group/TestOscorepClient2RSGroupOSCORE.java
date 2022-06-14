@@ -166,8 +166,8 @@ public class TestOscorepClient2RSGroupOSCORE {
     public static void setUp() throws OSException {
         final Provider PROVIDER = new BouncyCastleProvider();
         final Provider EdDSA = new EdDSASecurityProvider();
-        Security.insertProviderAt(PROVIDER, 1);
-        Security.insertProviderAt(EdDSA, 0);
+        Security.insertProviderAt(PROVIDER, 2);
+        Security.insertProviderAt(EdDSA, 1);
 
         srv = new RunTestServer();
         srv.run();

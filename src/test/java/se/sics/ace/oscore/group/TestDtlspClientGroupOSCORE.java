@@ -177,8 +177,8 @@ public class TestDtlspClientGroupOSCORE {
         
     	final Provider PROVIDER = new BouncyCastleProvider();
     	final Provider EdDSA = new EdDSASecurityProvider();
-    	Security.insertProviderAt(PROVIDER, 1);
-    	Security.insertProviderAt(EdDSA, 0);
+    	Security.insertProviderAt(PROVIDER, 2);
+    	Security.insertProviderAt(EdDSA, 1);
     	
 		// ECDSA asymmetric keys, as serialization of COSE Keys
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
