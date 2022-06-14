@@ -57,9 +57,6 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ArgGroup;
-import picocli.CommandLine.Spec;
-import picocli.CommandLine.Model.CommandSpec;
-import picocli.CommandLine.ParameterException;
 
 import static java.lang.Thread.sleep;
 
@@ -69,7 +66,7 @@ import static java.lang.Thread.sleep;
  * @author Marco Rasori
  *
  */
-@CommandLine.Command(name = "a-server",
+@Command(name = "a-server",
         mixinStandardHelpOptions = true,
         version = "1.0",
         description = "Runs the ACE Authorization Server.\n" +
@@ -206,9 +203,6 @@ static class Peer {
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
 
-        setAttributeValue(TestConfig.testFilePath + "dummy2.txt", "dummy2value");
-        setAttributeValue(TestConfig.testFilePath + "dummy_env_attribute.txt", "a");
-
         setupPDP();
 
         parseInputs();
@@ -319,12 +313,16 @@ static class Peer {
             String scope = c.getScope().get(i);
             List<String> scopes = new ArrayList<>(Arrays.asList(scope.split(" ")));
             for (String subScope : scopes) {
-                pdp.addAccess(c.getName(), c.getAud().get(i), subScope);
+                if (pdp instanceof UcsHelper) {
+                    String res = subScope.substring(subScope.indexOf("_") + 1);
+                    ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope,
+                            TestConfig.testFilePath + "policy_template_" + res);
+                }
+                else {
+                    pdp.addAccess(c.getName(), c.getAud().get(i), subScope);
+                }
             }
         }
-
-        //pdp.addAccess("clientA", "rs1", "r_helloWorld", TestConfig.testFilePath + "policy_template_dummy2");
-        //pdp.addAccess("clientA", "rs1", "w_temp", TestConfig.testFilePath + "policy_template_dummy2");
     }
 
 
@@ -359,27 +357,52 @@ static class Peer {
             pdp = new KissPDP(db);
         }
         else {
-            // TODO create the attribute file and fill it with the value? mmh.. we would also
-            //      need a policy template that uses that attribute... or we should specify a policy
-            //      that uses that attribute.
+            // restore the value of the attributes
+            setAttributeValue(TestConfig.testFilePath + "hygrometer-reachable.txt", "y");
+            setAttributeValue(TestConfig.testFilePath + "thermometer-reachable.txt", "y");
+            setAttributeValue(TestConfig.testFilePath + "welcome-led-panel.txt", "Hi!");
+            setAttributeValue(TestConfig.testFilePath + "role.txt", "ClientB maintainer\n" +
+                                                                                   "ClientC developer\n" +
+                                                                                   "ClientA maintainer\n" +
+                                                                                   "ClientD admin");
 
             UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
             pipReader.addAttribute(
-                    "urn:oasis:names:tc:xacml:3.0:environment:dummy_env_attribute",
+                    "urn:oasis:names:tc:xacml:3.0:environment:thermometer-reachable",
                     Category.ENVIRONMENT.toString(),
                     DataType.STRING.toString(),
-                    TestConfig.testFilePath + "dummy_env_attribute.txt");
+                    TestConfig.testFilePath + "thermometer-reachable.txt");
 
             List<PipProperties> pipPropertiesList = new ArrayList<>();
             pipPropertiesList.add(pipReader);
 
-//        pipReader = new UcsPipReaderProperties();
-//        pipReader.addAttribute(
-//                "urn:oasis:names:tc:xacml:3.0:environment:dummy2",
-//                Category.ENVIRONMENT.toString(),
-//                DataType.STRING.toString(),
-//                TestConfig.testFilePath + "dummy2.txt");
-//        pipPropertiesList.add(pipReader);
+            pipReader = new UcsPipReaderProperties();
+            pipReader.addAttribute(
+                    "urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable",
+                    Category.ENVIRONMENT.toString(),
+                    DataType.STRING.toString(),
+                    TestConfig.testFilePath + "hygrometer-reachable.txt");
+            pipPropertiesList.add(pipReader);
+
+            pipReader = new UcsPipReaderProperties();
+            pipReader.addAttribute(
+                    "urn:oasis:names:tc:xacml:3.0:environment:welcome-led-panel",
+                    Category.ENVIRONMENT.toString(),
+                    DataType.STRING.toString(),
+                    TestConfig.testFilePath + "welcome-led-panel.txt");
+            pipPropertiesList.add(pipReader);
+
+            // code to add a PIPReader monitoring the role of the subject
+
+            pipReader = new UcsPipReaderProperties();
+            pipReader.addAttribute(
+                    "urn:oasis:names:tc:xacml:1.0:subject:role",
+                    Category.SUBJECT.toString(),
+                    DataType.STRING.toString(),
+                    TestConfig.testFilePath + "role.txt");
+            pipPropertiesList.add(pipReader);
+
+
 
             UcsPapProperties papProperties =
                     new UcsPapProperties(TestConfig.testFilePath + "policies/");
@@ -390,9 +413,6 @@ static class Peer {
 
     public static void setAttributeValue(String fileName, String value) {
 
-        // put in the file "dummy2.txt" the value "dummy2value",
-        // which is the value expected from the access policies
-        // created from the file "policy_template_dummy2"
         File file = new File(fileName);
         FileWriter fw = null;
         try {
