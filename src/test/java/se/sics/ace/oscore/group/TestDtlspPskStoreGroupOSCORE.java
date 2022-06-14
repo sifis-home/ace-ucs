@@ -110,8 +110,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         
     	final Provider PROVIDER = new BouncyCastleProvider();
     	final Provider EdDSA = new EdDSASecurityProvider();
-    	Security.insertProviderAt(PROVIDER, 1);
-    	Security.insertProviderAt(EdDSA, 0);
+    	Security.insertProviderAt(PROVIDER, 2);
+    	Security.insertProviderAt(EdDSA, 1);
     	
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);

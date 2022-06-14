@@ -3021,8 +3021,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	
     	final Provider PROVIDER = new BouncyCastleProvider();
     	final Provider EdDSA = new EdDSASecurityProvider();
-    	Security.insertProviderAt(PROVIDER, 1);
-    	Security.insertProviderAt(EdDSA, 0);
+    	Security.insertProviderAt(PROVIDER, 2);
+    	Security.insertProviderAt(EdDSA, 1);
     	
     	final String groupName = "feedca570000";
     	
