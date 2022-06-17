@@ -38,21 +38,14 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.oscore.CoapOSException;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
-import org.eclipse.californium.oscore.OSException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -70,6 +63,7 @@ import se.sics.ace.TrlStore;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.logging.PerformanceLogger;
 
 /**
  * This class is used to store valid access tokens and 
@@ -1044,6 +1038,15 @@ public class TokenRepository implements AutoCloseable {
 
 		persist();
 		trlManager.persist();
+
+		// log to file to record performance
+		try {
+			PerformanceLogger.getInstance().getLogger().log(Level.INFO,
+					"t2C          : " + new Date().getTime() + "\n");
+		} catch (AssertionError e) {
+			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
+		}
+
 	}
 	
 	/**

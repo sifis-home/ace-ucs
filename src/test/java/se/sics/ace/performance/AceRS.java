@@ -31,8 +31,6 @@ import se.sics.ace.rs.TokenRepository;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -77,10 +75,40 @@ public class AceRS implements Callable<Integer> {
     private final static String DEFAULT_SENDER_ID = "0x11";
     private final static String DEFAULT_TOKEN_PSK = "RS1-AS-Default-PSK-for-tokens---"; //32-byte long
     private final static String DEFAULT_MASTER_SECRET = "RS1-AS-MS-------"; //16-byte long
+    private final static String DEFAULT_LOG_FILE_PATH =
+            TestConfig.testFilePath + "logs/rs-" + DEFAULT_SENDER_ID + "-log.log";
+
+    private final static String DEFAULT_RANDOM_FILE_PATH =
+            TestConfig.testFilePath + "logs/random.txt";
 
 
     @Spec
     CommandSpec spec;
+
+    @Option(names = {"-L", "--LogFilePath"},
+            required = false,
+            description = "The path name of the log file where performance statistics " +
+                    "are saved.\n" +
+                    "If the file does not exist, it will be created.\n" +
+                    "By default, logging is enabled and the log file is " +
+                    "'/src/test/resources/logs/rs-0x11-log.log'.\n" +
+                    "If a senderId is specified with the option -x, that senderId " +
+                    "will be used for the file name.")
+    //FIXME: find a way to print the default path.
+    private String logPath;
+
+    @Option(names = {"-X", "--randomFilePath"},
+            required = false,
+            description = "The path name of the file containing a random hexadecimal string." +
+                    "The file MUST exist. It is used to have a unique identifier to track the same test.\n" +
+                    "By default, logging is enabled and this file is '/src/test/resources/logs/random.txt'")
+    //FIXME: find a way to print the default path.
+    private String randomPath;
+
+    @Option(names = {"-D", "--DisableLog"},
+            required = false,
+            description = "Disable recording performance log to file")
+    public boolean isLogDisabled = false;
 
     @Option(names = {"-a", "--asuri"},
             required = false,
@@ -253,9 +281,18 @@ public class AceRS implements Callable<Integer> {
 
     private final Map<String, ScheduledExecutorService> introspectorMap = new HashMap<>();
 
+    private static String logFilePath;
 
+    private static String randomFilePath;
+
+    private static String cliArgs;
+
+
+    private static boolean isLogEnabled;
     //--- MAIN
     public static void main(String[] args) {
+
+        cliArgs = Arrays.toString(args);
 
         int exitCode = new CommandLine(new AceRS()).execute(args);
         if (exitCode != 0) {
@@ -270,6 +307,11 @@ public class AceRS implements Callable<Integer> {
     public Integer call() throws Exception {
 
         parseInputs();
+
+        if (isLogEnabled) {
+            // initialize the PerformanceLogger
+            Utils.initPerformanceLogger(logFilePath, randomFilePath, cliArgs);
+        }
 
         parseScope(scope);
         setUpCwtCryptoCtx();
@@ -521,13 +563,13 @@ public class AceRS implements Callable<Integer> {
     private void parseInputs() throws ParameterException {
 
         // check asUri and prepend the protocol if needed
-        asUri = validateUri(asUri);
+        asUri = Utils.validateUri(asUri, spec);
 
         // check that rs port number is in range
-        rsCoapPort = validatePort(rsPort);
+        rsCoapPort = Utils.validatePort(rsPort, spec);
 
         // convert senderId input from hex string to byte array
-        sId = hexStringToByteArray(senderId);
+        sId = Utils.hexStringToByteArray(senderId, spec);
 
         // convert the OSCORE master secret from string to byte array
         key128 = key.getBytes(Constants.charset);
@@ -566,55 +608,15 @@ public class AceRS implements Callable<Integer> {
         } catch (NullPointerException e) {
             introspectInterval = DEFAULT_INTROSPECT_INTERVAL;
         }
-    }
 
-
-    private String validateUri(String srvUri) throws ParameterException {
-        try {
-            if (!srvUri.contains("://")) {
-                srvUri = "coap://" + srvUri;
-            }
-            URI uri = new URI(srvUri);
-            if (uri.getHost() == null || uri.getPort() == -1) {
-                throw new URISyntaxException(uri.toString(),
-                        "URI must have host and port parts");
-            }
-            return uri.toString();
-        } catch (URISyntaxException ex) {
-            // validation failed
-            throw new ParameterException(spec.commandLine(),
-                    String.format("Server address not valid:\n > '%s'\n", srvUri));
+        isLogEnabled = !isLogDisabled;
+        if (isLogEnabled) {
+            logFilePath = (logPath != null) ?
+                    logPath :
+                    (senderId != null) ?
+                            DEFAULT_LOG_FILE_PATH.replaceFirst("-\\w+-", "-"+ senderId + "-") :
+                            DEFAULT_LOG_FILE_PATH;
+            randomFilePath = (randomPath != null) ? randomPath : DEFAULT_RANDOM_FILE_PATH;
         }
-    }
-
-
-    private int validatePort(String portStr) throws ParameterException {
-        int port = Integer.parseInt(portStr);
-        if (port < 1 || port > 65535) {
-            throw new ParameterException(spec.commandLine(),
-                    String.format("Port number not valid:\n > '%s'\n", port));
-        }
-        return port;
-    }
-
-
-    private byte[] hexStringToByteArray(String str) throws ParameterException {
-        String s = str.replace("0x", "");
-        try {
-            Integer.parseInt(s, 16);
-        }
-        catch(NumberFormatException nfe)
-        {
-            throw new ParameterException(spec.commandLine(),
-                    String.format("Hexadecimal value is not valid:\n > '%s'", str));
-        }
-
-        int len = s.length();
-        byte[] data = new byte[len / 2];
-        for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-                    + Character.digit(s.charAt(i+1), 16));
-        }
-        return data;
     }
 }

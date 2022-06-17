@@ -12,26 +12,22 @@ import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
-import se.sics.ace.AceException;
-import se.sics.ace.Constants;
-import se.sics.ace.TrlStore;
-import se.sics.ace.Util;
+import se.sics.ace.*;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.BasicTrlStore;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.TrlResponses;
+import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -66,9 +62,39 @@ public class AceClient implements Callable<Integer> {
     private final static int DEFAULT_REQUEST_INTERVAL = 3;
     private final static String DEFAULT_SENDER_ID = "0x22";
     private final static String DEFAULT_MASTER_SECRET = "ClientA-AS-MS---";
+    private final static String DEFAULT_LOG_FILE_PATH =
+            TestConfig.testFilePath + "logs/client-" + DEFAULT_SENDER_ID + "-log.log";
+
+    private final static String DEFAULT_RANDOM_FILE_PATH =
+            TestConfig.testFilePath + "logs/random.txt";
 
     @Spec
     CommandSpec spec;
+
+    @Option(names = {"-L", "--LogFilePath"},
+            required = false,
+            description = "The path name of the log file where performance statistics " +
+                    "are saved.\n" +
+                    "If the file does not exist, it will be created.\n" +
+                    "By default, logging is enabled and the log file is " +
+                    "'/src/test/resources/logs/client-0x22-log.log'.\n" +
+                    "If a senderId is specified with the option -x, that senderId " +
+                    "will be used for the file name.")
+    //FIXME: find a way to print the default path.
+    private String logPath;
+
+    @Option(names = {"-X", "--randomFilePath"},
+            required = false,
+            description = "The path name of the file containing a random hexadecimal string." +
+                    "The file MUST exist. It is used to have a unique identifier to track the same test.\n" +
+                    "By default, logging is enabled and this file is '/src/test/resources/logs/random.txt'")
+    //FIXME: find a way to print the default path.
+    private String randomPath;
+
+    @Option(names = {"-D", "--DisableLog"},
+            required = false,
+            description = "Disable recording performance log to file")
+    public boolean isLogDisabled = false;
 
     @Option(names = {"-a", "--asuri"},
             required = false,
@@ -215,8 +241,18 @@ public class AceClient implements Callable<Integer> {
 
     private Set<String> validTokens = new HashSet<>();
 
+    private static String logFilePath;
+
+    private static String randomFilePath;
+
+    private static String cliArgs;
+
+    private static boolean isLogEnabled;
+
 //--- MAIN
     public static void main(String[] args) {
+
+        cliArgs = Arrays.toString(args);
 
         int exitCode = new CommandLine(new AceClient()).execute(args);
         if (exitCode != 0) {
@@ -229,6 +265,11 @@ public class AceClient implements Callable<Integer> {
     public Integer call() throws Exception {
 
         parseInputs();
+
+        if (isLogEnabled) {
+            // initialize the PerformanceLogger
+            Utils.initPerformanceLogger(logFilePath, randomFilePath, cliArgs);
+        }
 
         // initialize OSCORE context
         ctx = new OSCoreCtx(key128, true, null,
@@ -271,6 +312,8 @@ public class AceClient implements Callable<Integer> {
             Integer requester = new Requester(
                     client4AS, rsUri.get(i), aud.get(i), scope.get(i))
                     .call();
+            if (requester == 0)
+                return 0;
         }
         return 0;
     }
@@ -356,11 +399,19 @@ public class AceClient implements Callable<Integer> {
 
         @Override
         public Integer call() throws Exception {
+
+            int tokenCount = 0;
+
             while(true) {
                 String allowedScopes;
                 // 1. Get the token
                 Response asRes;
                 try {
+                    tokenCount ++;
+                    if (tokenCount == 2) {
+                        PerformanceLogger.getInstance().getLogger().log(Level.INFO,
+                                      "t1A          : " + new Date().getTime() + "\n");
+                    }
                     asRes = getToken(client4AS, aud, scope);
                 } catch (AceException e) {
                     System.out.println(e.getMessage());
@@ -394,8 +445,14 @@ public class AceClient implements Callable<Integer> {
 
                 int i = 0;
                 while (denialsCount < denials && validTokens.contains(tokenHash)) {
-                    sleep(requestInterval * 1000L);
+                    sleep(requestInterval * 1000L); // TODO should I put this after the request???
                     boolean isSuccess = getResource(client4RS, rsAddr + "/" + resources.get(i));
+                    if (isSuccess && tokenCount == 2) {
+                        PerformanceLogger.getInstance().getLogger().log(Level.INFO,
+                                "t2D, t2A     : " + new Date().getTime() + "\n");
+                        System.out.println("Test ended successfully.");
+                        return 0;
+                    }
                     if (!isSuccess)
                         denialsCount++;
                     i = (i+1)%resources.size();
@@ -518,14 +575,14 @@ public class AceClient implements Callable<Integer> {
         }
 
         // check asUri and prepend the protocol if needed
-        asUri = validateUri(asUri);
+        asUri = Utils.validateUri(asUri, spec);
         // check rsUri and prepend the protocol if needed
         for (int i = 0; i < rsUri.size(); i++) {
-            rsUri.set(i, validateUri(rsUri.get(i)));
+            rsUri.set(i, Utils.validateUri(rsUri.get(i), spec));
         }
 
         // convert senderId input from hex string to byte array
-        sId = hexStringToByteArray(senderId);
+        sId = Utils.hexStringToByteArray(senderId, spec);
 
         // convert the OSCORE master secret from string to byte array
         key128 = key.getBytes(Constants.charset);
@@ -551,45 +608,17 @@ public class AceClient implements Callable<Integer> {
         } catch (NullPointerException e) {
             trlAddr = DEFAULT_TRL_ADDR;
         }
-    }
 
-    private String validateUri(String srvUri) throws ParameterException {
-        try {
-            if (!srvUri.contains("://")) {
-                srvUri = "coap://" + srvUri;
-            }
-            URI uri = new URI(srvUri);
-            if (uri.getHost() == null || uri.getPort() == -1) {
-                throw new URISyntaxException(uri.toString(),
-                        "URI must have host and port parts");
-            }
-            return uri.toString();
-        } catch (URISyntaxException ex) {
-            // validation failed
-            throw new ParameterException(spec.commandLine(),
-                    String.format("Server address not valid:\n > '%s'\n", srvUri));
-        }
 
-    }
-
-    private byte[] hexStringToByteArray(String str) throws ParameterException {
-        String s = str.replace("0x", "");
-        try {
-            Integer.parseInt(s, 16);
+        isLogEnabled = !isLogDisabled;
+        if (isLogEnabled) {
+            logFilePath = (logPath != null) ?
+                    logPath :
+                    (senderId != null) ?
+                            DEFAULT_LOG_FILE_PATH.replaceFirst("-\\w+-", "-"+ senderId + "-") :
+                            DEFAULT_LOG_FILE_PATH;
+            randomFilePath = (randomPath != null) ? randomPath : DEFAULT_RANDOM_FILE_PATH;
         }
-        catch(NumberFormatException nfe)
-        {
-            throw new ParameterException(spec.commandLine(),
-                    String.format("Hexadecimal value is not valid:\n > '%s'", str));
-        }
-
-        int len = s.length();
-        byte[] data = new byte[len / 2];
-        for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-                    + Character.digit(s.charAt(i+1), 16));
-        }
-        return data;
     }
 }
 

@@ -9,6 +9,7 @@ import it.cnr.iit.ucs.properties.components.PipProperties;
 import se.sics.ace.AceException;
 import se.sics.ace.as.*;
 import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.ucs.xacml.AdditionalAttribute;
 import se.sics.ace.ucs.xacml.CATEGORY;
 import se.sics.ace.ucs.xacml.RequestGenerator;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.sql.*;
 import java.util.*;
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -775,16 +777,24 @@ public class UcsHelper implements PDP, AutoCloseable {
 		// get cti for the given sessionId
 		String cti = getCti4Session(sessionId);
 
-		// terminate all the sessions associated with cti and
-		// purge them from the session table
-		removeSessions4Cti(cti);
-
 		// revoke the token
 		revokeToken(cti);
 
 		// remove the token from the database and the related
 		// quantities from the token endpoint
 		t.removeToken(cti);
+
+		// terminate all the sessions associated with cti and
+		// purge them from the session table
+		removeSessions4Cti(cti);
+
+		// log to file to record performance
+		try {
+			PerformanceLogger.getInstance().getLogger().log(Level.INFO,
+					"t2B          : " + new Date().getTime() + "\n");
+		} catch (AssertionError e) {
+			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
+		}
 	}
 
 	/**
