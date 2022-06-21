@@ -376,14 +376,20 @@ public class TestOscorepClient2RS {
        // Perform new requests to the RS, under the latest posted Token
        
        // This should now fail - Access to this resource is not granted anymore
+       helloReq = new Request(CoAP.Code.GET);
+       helloReq.getOptions().setOscore(new byte[0]);
        helloRes = c.advanced(helloReq);
        assert(helloRes.getCode().equals(CoAP.ResponseCode.FORBIDDEN));
        
        // This should now fail with FORBIDDEN, not with METHOD NOT ALLOWED
+       deleteHello = new Request(CoAP.Code.DELETE);
+       deleteHello.getOptions().setOscore(new byte[0]);
        deleteHelloRes = c.advanced(deleteHello);
        assert(deleteHelloRes.getCode().equals(CoAP.ResponseCode.FORBIDDEN));
        
        // This should now succeed - Access to this resource is now granted by the latest posted Token
+       getTemp = new Request(CoAP.Code.GET);
+       getTemp.getOptions().setOscore(new byte[0]);
        getTempRes = c2.advanced(getTemp);
        assert(getTempRes.getCode().equals(CoAP.ResponseCode.CONTENT));
        Assert.assertEquals("19.0 C", getTempRes.getResponseText());
