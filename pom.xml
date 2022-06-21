@@ -74,17 +74,17 @@
 	<dependency>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>californium-core</artifactId>
-		<version>3.0.0</version>
+		<version>3.5.0</version>
 	</dependency>
 	<dependency>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>scandium</artifactId>
-		<version>3.0.0</version>
+		<version>3.5.0</version>
 	</dependency>
 	<dependency>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>cf-oscore</artifactId>
-		<version>3.0.0</version>
+		<version>3.5.0</version>
 	</dependency>
 	<dependency>
 		<groupId>com.augustcellars.cose</groupId>
