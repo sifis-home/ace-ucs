@@ -47,10 +47,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -195,7 +192,13 @@ public class TestOscoreAuthzInfo {
         new File(TestConfig.testFilePath + "tokens.json").delete();
         new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
-    
+
+
+    @Before
+    public void cleanOscoreCtxDB() {
+        OscoreCtxDbSingleton.getInstance().purge();
+    }
+
     /**
      * Test invalid payload submission to OscoreAuthzInfo
      * 
@@ -953,11 +956,11 @@ public class TestOscoreAuthzInfo {
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         
-        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+        OSCoreCtxDB ctxDB = OscoreCtxDbSingleton.getInstance();
         
         CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
         byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
-        OSCoreCtx osctx = db.getContext(id2);
+        OSCoreCtx osctx = ctxDB.getContext(id2);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
         assert(osctx.equals(osctx2));
@@ -1005,7 +1008,7 @@ public class TestOscoreAuthzInfo {
         
         authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
         id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
-        osctx = db.getContext(id2);
+        osctx = ctxDB.getContext(id2);
         osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
         assert(osctx.equals(osctx2));
@@ -1090,11 +1093,11 @@ public class TestOscoreAuthzInfo {
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         
-        OSCoreCtxDB dbOSCORE = OscoreCtxDbSingleton.getInstance();
+        OSCoreCtxDB ctxDB = OscoreCtxDbSingleton.getInstance();
         
         CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());
         byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
-        OSCoreCtx osctx = dbOSCORE.getContext(id2);
+        OSCoreCtx osctx = ctxDB.getContext(id2);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
         assert(osctx.equals(osctx2));
@@ -1141,7 +1144,7 @@ public class TestOscoreAuthzInfo {
         
         authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
         id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
-        osctx = dbOSCORE.getContext(id2);
+        osctx = ctxDB.getContext(id2);
         osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
         assert(osctx.equals(osctx2));
