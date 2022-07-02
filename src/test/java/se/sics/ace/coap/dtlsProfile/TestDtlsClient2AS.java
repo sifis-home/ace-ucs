@@ -187,7 +187,6 @@ public class TestDtlsClient2AS {
     public void testCoapToken() throws Exception {
         
         Configuration dtlsConfig = Configuration.getStandard();
-        dtlsConfig.set(DtlsConfig.DTLS_ROLE, DtlsConfig.DtlsRole.CLIENT_ONLY);
         dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
         dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
         
@@ -315,7 +314,6 @@ public class TestDtlsClient2AS {
         OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         
         Configuration dtlsConfig = Configuration.getStandard();
-        dtlsConfig.set(DtlsConfig.DTLS_ROLE, DtlsConfig.DtlsRole.CLIENT_ONLY);
         dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
         dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
         
