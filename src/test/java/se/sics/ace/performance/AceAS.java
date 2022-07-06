@@ -410,13 +410,13 @@ static class Peer {
         }
         else {
             // restore the value of the attributes
-            setAttributeValue(TestConfig.testFilePath + "hygrometer-reachable.txt", "y");
+//            setAttributeValue(TestConfig.testFilePath + "hygrometer-reachable.txt", "y");
             setAttributeValue(TestConfig.testFilePath + "thermometer-reachable.txt", "y");
             setAttributeValue(TestConfig.testFilePath + "welcome-led-panel.txt", "Hi!");
-            setAttributeValue(TestConfig.testFilePath + "role.txt", "ClientB maintainer\n" +
-                                                                                   "ClientC developer\n" +
-                                                                                   "ClientA maintainer\n" +
-                                                                                   "ClientD admin");
+//            setAttributeValue(TestConfig.testFilePath + "role.txt", "ClientB maintainer\n" +
+//                                                                                   "ClientC developer\n" +
+//                                                                                   "ClientA maintainer\n" +
+//                                                                                   "ClientD admin");
 
             UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
             pipReader.addAttribute(
@@ -428,13 +428,13 @@ static class Peer {
             List<PipProperties> pipPropertiesList = new ArrayList<>();
             pipPropertiesList.add(pipReader);
 
-            pipReader = new UcsPipReaderProperties();
-            pipReader.addAttribute(
-                    "urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable",
-                    Category.ENVIRONMENT.toString(),
-                    DataType.STRING.toString(),
-                    TestConfig.testFilePath + "hygrometer-reachable.txt");
-            pipPropertiesList.add(pipReader);
+//            pipReader = new UcsPipReaderProperties();
+//            pipReader.addAttribute(
+//                    "urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable",
+//                    Category.ENVIRONMENT.toString(),
+//                    DataType.STRING.toString(),
+//                    TestConfig.testFilePath + "hygrometer-reachable.txt");
+//            pipPropertiesList.add(pipReader);
 
             pipReader = new UcsPipReaderProperties();
             pipReader.addAttribute(
@@ -446,13 +446,13 @@ static class Peer {
 
             // code to add a PIPReader monitoring the role of the subject
 
-            pipReader = new UcsPipReaderProperties();
-            pipReader.addAttribute(
-                    "urn:oasis:names:tc:xacml:1.0:subject:role",
-                    Category.SUBJECT.toString(),
-                    DataType.STRING.toString(),
-                    TestConfig.testFilePath + "role.txt");
-            pipPropertiesList.add(pipReader);
+//            pipReader = new UcsPipReaderProperties();
+//            pipReader.addAttribute(
+//                    "urn:oasis:names:tc:xacml:1.0:subject:role",
+//                    Category.SUBJECT.toString(),
+//                    DataType.STRING.toString(),
+//                    TestConfig.testFilePath + "role.txt");
+//            pipPropertiesList.add(pipReader);
 
 
 
