@@ -89,6 +89,6 @@ public class Utils {
                 "\n\n\n----------------------------" +
                         "\n\nNEW TEST: " + randomizer + "\n");
         PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                "CLI arguments:\n" + cliArgs + "\n");
+                "CLI arguments: " + cliArgs + "\n");
     }
 }
