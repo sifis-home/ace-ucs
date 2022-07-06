@@ -23,7 +23,7 @@ public class ResourceServer {
     private Set<COSEparams> cose =
             new HashSet<COSEparams>(){{add(new COSEparams(MessageTag.Encrypt0,
                     AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct));}};
-    private long expiration = 40000L;
+    private long expiration = 86400000L;
 
     private final OneKey sharedPsk;
     private final OneKey tokenPsk;
