@@ -9,7 +9,6 @@ import it.cnr.iit.ucs.properties.components.PipProperties;
 import se.sics.ace.AceException;
 import se.sics.ace.as.*;
 import se.sics.ace.examples.SQLConnector;
-import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.ucs.xacml.AdditionalAttribute;
 import se.sics.ace.ucs.xacml.CATEGORY;
 import se.sics.ace.ucs.xacml.RequestGenerator;
@@ -20,7 +19,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.sql.*;
 import java.util.*;
-import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -88,6 +86,8 @@ public class UcsHelper implements PDP, AutoCloseable {
 	private PreparedStatement selectSessions4Cti;
 
 	private PreparedStatement selectSession;
+
+	private PreparedStatement selectAllSessions;
 	private PreparedStatement deleteSession;
 //	private PreparedStatement deleteAccess;
 //	private PreparedStatement deleteAllAccess;
@@ -210,6 +210,21 @@ public class UcsHelper implements PDP, AutoCloseable {
 			throw new AceException(e.getMessage());
 		}
 		return null;
+	}
+
+	public synchronized List<String> getAllSessions() throws AceException {
+		List<String> sessions = new ArrayList<>();
+		try {
+			ResultSet result = this.selectAllSessions.executeQuery();
+			this.selectAllSessions.clearParameters();
+			while (result.next()) {
+				sessions.add(result.getString(DBConnector.sessionIdColumn));
+			}
+			result.close();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+		return sessions;
 	}
 
 	/**
@@ -777,6 +792,10 @@ public class UcsHelper implements PDP, AutoCloseable {
 		// get cti for the given sessionId
 		String cti = getCti4Session(sessionId);
 
+		// terminate all the sessions associated with cti and
+		// purge them from the session table
+		removeSessions4Cti(cti);
+
 		// revoke the token
 		revokeToken(cti);
 
@@ -1013,6 +1032,12 @@ public class UcsHelper implements PDP, AutoCloseable {
 						+ " AND (" + DBConnector.rsIdColumn + "=?)"
 						+ " AND (" + DBConnector.scopeColumn + "=?);"));
 
+		this.selectAllSessions = this.db.prepareStatement(
+				this.db.getAdapter().updateEngineSpecificSQL("SELECT "
+						+ DBConnector.sessionIdColumn + " FROM "
+						+ sessionTable
+						+ ";"));
+
 		this.deleteSession = this.db.prepareStatement(
 				this.db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
 						+ sessionTable
@@ -1042,6 +1067,9 @@ public class UcsHelper implements PDP, AutoCloseable {
 	 */
 	@Override
 	public void close() throws Exception {
+
+		terminateSessions(getAllSessions());
+
 		this.db.close();
 
 		// delete all files in the policy folder
