@@ -50,9 +50,7 @@ import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
-import COSE.KeyKeys;
 import COSE.MessageTag;
-import COSE.OneKey;
 import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
@@ -141,7 +139,9 @@ public class OscoreRSTestServer {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-      //Set up DTLSProfileTokenRepository
+
+    	OscoreCtxDbSingleton.getInstance().purge();
+    	
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
         Map<String, Set<Short>> myResource = new HashMap<>();
