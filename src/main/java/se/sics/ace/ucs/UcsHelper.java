@@ -783,18 +783,6 @@ public class UcsHelper implements PDP, AutoCloseable {
 		// remove the token from the database and the related
 		// quantities from the token endpoint
 		t.removeToken(cti);
-
-		// terminate all the sessions associated with cti and
-		// purge them from the session table
-		removeSessions4Cti(cti);
-
-		// log to file to record performance
-		try {
-			PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-					"t2B          : " + new Date().getTime() + "\n");
-		} catch (AssertionError e) {
-			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
-		}
 	}
 
 	/**
