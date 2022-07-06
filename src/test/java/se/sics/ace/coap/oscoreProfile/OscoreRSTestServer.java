@@ -136,7 +136,9 @@ public class OscoreRSTestServer {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-      //Set up DTLSProfileTokenRepository
+
+        OscoreCtxDbSingleton.getInstance().purge();
+
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
         Map<String, Set<Short>> myResource = new HashMap<>();
