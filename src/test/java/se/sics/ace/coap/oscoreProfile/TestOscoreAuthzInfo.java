@@ -47,7 +47,12 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
-import org.junit.*;
+
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -180,6 +185,14 @@ public class TestOscoreAuthzInfo {
     }
     
     /**
+     * Cleanup before each individual test.
+     */
+    @Before
+    public void cleanOscoreCtxDB() {
+        OscoreCtxDbSingleton.getInstance().purge();
+    }
+    
+    /**
      * Deletes the test DB after the tests
      * @throws Exception 
      */
@@ -191,12 +204,6 @@ public class TestOscoreAuthzInfo {
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
         new File(TestConfig.testFilePath + "tokenhashes.json").delete();
-    }
-
-
-    @Before
-    public void cleanOscoreCtxDB() {
-        OscoreCtxDbSingleton.getInstance().purge();
     }
 
     /**
