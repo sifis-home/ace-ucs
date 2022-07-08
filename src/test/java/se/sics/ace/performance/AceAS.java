@@ -265,7 +265,8 @@ static class Peer {
         //as.stop();
 
         timer = new Timer();
-        timer.schedule(new AttributeChanger("thermometer-reachable.txt", "changedValue"),15000);
+        timer.schedule(new AttributeChanger("thermometer-reachable.txt", "changedValue"),
+                30000 + (int)(Math.random() * 30000));
 
         return 0;
     }
