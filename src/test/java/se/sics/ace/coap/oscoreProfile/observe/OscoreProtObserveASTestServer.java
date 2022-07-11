@@ -228,13 +228,7 @@ public class OscoreProtObserveASTestServer
         //pdp = new KissPDP(db);
         //boolean phpHandlesRevocations = false;
 
-
-//        List<PipProperties> pipPropertiesList = new ArrayList<>();
-//        pipPropertiesList.add(new UcsPipProperties());
-//        UcsPapProperties papProperties =
-//                new UcsPapProperties(TestConfig.testFilePath + "policies/");
-//        pdp = new UcsHelper(db, pipPropertiesList, papProperties);
-
+        setAttributeValue(TestConfig.testFilePath + "attributes/dummy_env_attribute.txt", "a");
 
         UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
         pipReader.addAttribute(
@@ -330,8 +324,8 @@ public class OscoreProtObserveASTestServer
 
         // uncomment to revoke the tokens by changing the environment attribute value.
         // This code revert the file content after 10 seconds.
-//        timer = new Timer();
-//        timer.schedule(new RevokeTokens(), 1000);
+        timer = new Timer();
+        timer.schedule(new RevokeTokens(), 15000);
 
         as.start();
         System.out.println("Server starting");
@@ -364,6 +358,25 @@ public class OscoreProtObserveASTestServer
     	identity += Base64.getEncoder().encodeToString(senderId);
     	
     	return identity;
+    }
+
+
+    /**
+     * Restore original attribute's value, i.e., the one for which the policy matches
+     * @param fileName
+     * @param value
+     */
+    public static void setAttributeValue(String fileName, String value) {
+
+        File file = new File(fileName);
+        FileWriter fw = null;
+        try {
+            fw = new FileWriter(file);
+            fw.write(value);
+            fw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 

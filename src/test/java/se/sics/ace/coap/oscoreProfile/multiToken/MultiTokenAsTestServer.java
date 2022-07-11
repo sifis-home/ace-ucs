@@ -361,6 +361,24 @@ public class MultiTokenAsTestServer
 
 
     /**
+     * Restore original attribute's value, i.e., the one for which the policy matches
+     * @param fileName
+     * @param value
+     */
+    public static void setAttributeValue(String fileName, String value) {
+
+        File file = new File(fileName);
+        FileWriter fw = null;
+        try {
+            fw = new FileWriter(file);
+            fw.write(value);
+            fw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
      * Change the dummy_env_attribute value. This triggers the revocation of tokens
      * for the policies that include this attribute.
      * It waits 10 seconds, and then it restores the value "a" in the text file.
