@@ -51,7 +51,7 @@ public class UcsPipProperties implements PipProperties {
 		attributeMap.put("CATEGORY", "urn:oasis:names:tc:xacml:3.0:attribute-category:environment");
 		attributeMap.put("DATA_TYPE","http://www.w3.org/2001/XMLSchema#string");
 
-		File file = new File("src/test/resources/");
+		File file = new File("src/test/resources/attributes/");
 		String filePath = file.getAbsolutePath() + "/dummy_env_attribute.txt";
 
 		attributeMap.put("FILE_PATH",filePath);

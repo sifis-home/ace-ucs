@@ -321,12 +321,12 @@ public class TestTokenUCS {
                 "urn:oasis:names:tc:xacml:3.0:environment:dummy_env_attribute",
                 Category.ENVIRONMENT.toString(),
                 DataType.STRING.toString(),
-                TestConfig.testFilePath + "dummy_env_attribute.txt");
+                TestConfig.testFilePath + "attributes/dummy_env_attribute.txt");
 //        pipReader.addAttribute(
 //                "urn:oasis:names:tc:xacml:3.0:environment:dummy2",
 //                CATEGORY.ENVIRONMENT.toString(),
 //                DataType.STRING.toString(),
-//                TestConfig.testFilePath + "dummy2.txt");
+//                TestConfig.testFilePath + "attributes/dummy2.txt");
         List<PipProperties> pipPropertiesList = new ArrayList<>();
         pipPropertiesList.add(pipReader);
         UcsPapProperties papProperties =

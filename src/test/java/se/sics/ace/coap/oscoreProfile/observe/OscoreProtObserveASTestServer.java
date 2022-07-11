@@ -241,14 +241,14 @@ public class OscoreProtObserveASTestServer
                 "urn:oasis:names:tc:xacml:3.0:environment:dummy_env_attribute",
                 Category.ENVIRONMENT.toString(),
                 DataType.STRING.toString(),
-                TestConfig.testFilePath + "dummy_env_attribute.txt");
+                TestConfig.testFilePath + "attributes/dummy_env_attribute.txt");
 
 //        UcsPipJdbcProperties pipJdbc = new UcsPipJdbcProperties();
 //        pipJdbc.addAttribute(
 //                "urn:oasis:names:tc:xacml:3.0:environment:dummy2",
 //                Category.ENVIRONMENT.toString(),
 //                DataType.STRING.toString(),
-//                TestConfig.testFilePath + "dummy2.txt",
+//                TestConfig.testFilePath + "attributes/dummy2.txt",
 //                "jdbc:sqlite:memory:myDb");
 
         List<PipProperties> pipPropertiesList = new ArrayList<>();
@@ -375,7 +375,7 @@ public class OscoreProtObserveASTestServer
     public static class RevokeTokens extends TimerTask {
 
         public void run() {
-            File file = new File(TestConfig.testFilePath + "dummy_env_attribute.txt");
+            File file = new File(TestConfig.testFilePath + "attributes/dummy_env_attribute.txt");
             FileWriter fw = null;
             try {
                 fw = new FileWriter(file);

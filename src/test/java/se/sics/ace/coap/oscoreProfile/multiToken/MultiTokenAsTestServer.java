@@ -37,6 +37,8 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import com.upokecenter.cbor.CBORObject;
 import it.cnr.iit.ucs.properties.components.PipProperties;
+import it.cnr.iit.xacml.Category;
+import it.cnr.iit.xacml.DataType;
 import org.eclipse.californium.core.coap.CoAP;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -50,6 +52,7 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.ucs.UcsHelper;
 import se.sics.ace.ucs.properties.UcsPapProperties;
 import se.sics.ace.ucs.properties.UcsPipProperties;
+import se.sics.ace.ucs.properties.UcsPipReaderProperties;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -270,10 +273,21 @@ public class MultiTokenAsTestServer
 
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
 
+
+        setAttributeValue(TestConfig.testFilePath + "attributes/dummy_env_attribute.txt", "a");
+
+        UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
+        pipReader.addAttribute(
+                "urn:oasis:names:tc:xacml:3.0:environment:dummy_env_attribute",
+                Category.ENVIRONMENT.toString(),
+                DataType.STRING.toString(),
+                TestConfig.testFilePath + "attributes/dummy_env_attribute.txt");
         List<PipProperties> pipPropertiesList = new ArrayList<>();
-        pipPropertiesList.add(new UcsPipProperties());
+        pipPropertiesList.add(pipReader);
+
         UcsPapProperties papProperties =
                 new UcsPapProperties(TestConfig.testFilePath + "policies/");
+
         pdp = new UcsHelper(db, pipPropertiesList, papProperties);
 
         //Initialize data in PDP
@@ -354,7 +368,7 @@ public class MultiTokenAsTestServer
     public static class RevokeTokens extends TimerTask {
 
         public void run() {
-            File file = new File(TestConfig.testFilePath + "dummy_env_attribute.txt");
+            File file = new File(TestConfig.testFilePath + "attributes/dummy_env_attribute.txt");
             FileWriter fw = null;
             try {
                 fw = new FileWriter(file);
