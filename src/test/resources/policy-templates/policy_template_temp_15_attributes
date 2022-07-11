@@ -1,0 +1,365 @@
+<Policy
+		xmlns="urn:oasis:names:tc:xacml:3.0:core:schema:wd-17"
+		PolicyId="POLICYID_HERE"
+		RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-unless-permit"
+		Version="3.0">
+	<Description>Policy</Description>
+	<Target >
+		<AnyOf >
+			<AllOf >
+				<Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<AttributeDesignator
+							AttributeId="urn:oasis:names:tc:xacml:1.0:subject:subject-id"
+							Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+							DataType="http://www.w3.org/2001/XMLSchema#string"
+							MustBePresent="true">
+					</AttributeDesignator>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string">SUBJECT_HERE</AttributeValue>
+				</Match>
+				<Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<AttributeDesignator
+							AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-server"
+							Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+							DataType="http://www.w3.org/2001/XMLSchema#string"
+							MustBePresent="true">
+					</AttributeDesignator>
+				<AttributeValue
+						DataType="http://www.w3.org/2001/XMLSchema#string">RESOURCESERVER_HERE</AttributeValue>
+				</Match>
+				<Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<AttributeDesignator
+							AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-id"
+							Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+							DataType="http://www.w3.org/2001/XMLSchema#string"
+							MustBePresent="true">
+					</AttributeDesignator>
+				<AttributeValue
+						DataType="http://www.w3.org/2001/XMLSchema#string">RESOURCE_HERE</AttributeValue>
+				</Match>
+			</AllOf>
+		</AnyOf>
+	</Target>
+	<Rule Effect="Permit" RuleId="rule-permit">
+		<Target></Target>
+		<!-- Pre condition -->
+		<Condition DecisionTime="pre">
+			<Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:and">
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-server"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string">RESOURCESERVER_HERE</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:1.0:action:action-id"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string">read</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-id"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string">RESOURCE_HERE</AttributeValue>
+				</Apply>
+			</Apply>
+		</Condition>
+		<!-- On going condition -->
+		<Condition DecisionTime="ongoing">
+			<Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:and">
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute2"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute3"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute4"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute5"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute6"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute7"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute8"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute9"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute10"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute11"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute12"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute13"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute14"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute15"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:thermometer-reachable"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+			</Apply>
+		</Condition>
+		<!-- Post condition -->
+		<Condition DecisionTime="post">
+			<Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:and">
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-server"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string">RESOURCESERVER_HERE</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:1.0:action:action-id"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string">read</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-id"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string">RESOURCE_HERE</AttributeValue>
+				</Apply>
+			</Apply>
+		</Condition>
+	</Rule>
+	<Rule Effect="Deny" RuleId="urn:oasis:names:tc:xacml:3.0:defdeny">
+		<Description>DefaultDeny</Description>
+		<Target></Target>
+	</Rule>
+</Policy>
+
+
+
+
+
+

@@ -111,7 +111,7 @@ public class UcsHelper implements PDP, AutoCloseable {
 
 		this.basicPolicy = readFileAsString(
 				new File(Objects.requireNonNull(
-						getClass().getClassLoader().getResource("policy_template"),
+						getClass().getClassLoader().getResource("policy-templates/policy_template"),
 						"[ERROR] policy template file not found.").getFile()));
 
 		LOGGER.setLevel(Level.SEVERE);
@@ -468,10 +468,8 @@ public class UcsHelper implements PDP, AutoCloseable {
 	 * @throws AceException ace exception
 	 */
 	public void addAccess(String cid, String rid, String scope) throws AceException {
-		String policy = readFileAsString(
-				new File(Objects.requireNonNull(
-						getClass().getClassLoader().getResource("policy_template"),
-						"[ERROR] policy template file not found.").getFile()));
+
+		String policy = new String(this.basicPolicy);
 
 		policy = policy.replaceAll("SUBJECT_HERE", cid)
 					   .replaceAll("RESOURCE_HERE", scope)
