@@ -383,8 +383,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
         
-    	private Set<Integer> validRoleCombinations = new HashSet<Integer>();
-    	
         /**
          * Constructor
          * @param resId  the resource identifier
@@ -397,14 +395,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
             // set display name
             getAttributes().setTitle("Group OSCORE Group-Membership Resource " + resId);
             
-            // Set the valid combinations of roles in a Joining Request
-            // Combinations are expressed with the AIF specific data model AIF-OSCORE-GROUPCOMM
-            validRoleCombinations.add(1 << Constants.GROUP_OSCORE_REQUESTER); // Requester (2)
-            validRoleCombinations.add(1 << Constants.GROUP_OSCORE_RESPONDER); // Responder (4)
-            validRoleCombinations.add(1 << Constants.GROUP_OSCORE_MONITOR); // Monitor (8)
-            validRoleCombinations.add((1 << Constants.GROUP_OSCORE_REQUESTER) +
-            		                  (1 << Constants.GROUP_OSCORE_RESPONDER)); // Requester+Responder (6)
-
         }
         
         @Override
@@ -3023,6 +3013,14 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	final Provider EdDSA = new EdDSASecurityProvider();
     	Security.insertProviderAt(PROVIDER, 2);
     	Security.insertProviderAt(EdDSA, 1);
+    	
+        // Set the valid combinations of roles in a Joining Request
+        // Combinations are expressed with the AIF specific data model AIF-OSCORE-GROUPCOMM
+        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_REQUESTER); // Requester (2)
+        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_RESPONDER); // Responder (4)
+        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_MONITOR); // Monitor (8)
+        validRoleCombinations.add((1 << Constants.GROUP_OSCORE_REQUESTER) +
+        		                  (1 << Constants.GROUP_OSCORE_RESPONDER)); // Requester+Responder (6)
     	
     	final String groupName = "feedca570000";
     	
