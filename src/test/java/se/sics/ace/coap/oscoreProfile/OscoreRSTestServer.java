@@ -50,9 +50,7 @@ import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
-import COSE.KeyKeys;
 import COSE.MessageTag;
-import COSE.OneKey;
 import se.sics.ace.*;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
