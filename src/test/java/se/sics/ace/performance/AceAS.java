@@ -129,6 +129,11 @@ public class AceAS implements Callable<Integer> {
             description = "Disable recording performance log to file")
     public boolean isLogDisabled = false;
 
+    @Option(names = {"-N", "--numberOfAttributes"},
+            required = false,
+            description = "Number of mutable attributes of the policy containing the 'r_temp' subscope.")
+    public int numAttributes = 1;
+
     static class Opt {
         @Option(names = {"-n", "--name"},
                 required = true,
@@ -222,6 +227,8 @@ static class Peer {
 
     private static boolean isLogEnabled;
 
+    private static String attributeFilesPath = TestConfig.testFilePath + "attributes/";
+
     //--- MAIN
     public static void main(String[] args) {
 
@@ -238,6 +245,9 @@ static class Peer {
 
     @Override
     public Integer call() throws Exception {
+
+        parseNumAttributes();
+
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
 
@@ -346,6 +356,18 @@ static class Peer {
         }
     }
 
+    private void parseNumAttributes() {
+        if (numAttributes < 1) {
+            System.out.println("Number of attributes " + numAttributes + " not supported.\n" +
+                    "Setting it to the minimum allowed, i.e., 1");
+            numAttributes = 1;
+        }
+        if (numAttributes > 20) {
+            System.out.println("Number of attributes " + numAttributes + " not supported.\n" +
+                    "Setting it to the maximum allowed, i.e., 20");
+            numAttributes = 20;
+        }
+    }
 
     private void setupResourceServer(ResourceServer r) throws AceException {
 
@@ -368,8 +390,12 @@ static class Peer {
             for (String subScope : scopes) {
                 if (pdp instanceof UcsHelper) {
                     String res = subScope.substring(subScope.indexOf("_") + 1);
+                    String policySuffix = "";
+                    if (res.equals("temp") && numAttributes > 1) {
+                        policySuffix = "_" + numAttributes + "_attributes";
+                    }
                     ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope,
-                            TestConfig.testFilePath + "policy_template_" + res);
+                            TestConfig.testFilePath + "policy-templates/policy_template_" + res + policySuffix);
                 }
                 else {
                     pdp.addAccess(c.getName(), c.getAud().get(i), subScope);
@@ -410,21 +436,25 @@ static class Peer {
             pdp = new KissPDP(db);
         }
         else {
+
             // restore the value of the attributes
-//            setAttributeValue(TestConfig.testFilePath + "hygrometer-reachable.txt", "y");
-            setAttributeValue(TestConfig.testFilePath + "thermometer-reachable.txt", "y");
-            setAttributeValue(TestConfig.testFilePath + "welcome-led-panel.txt", "Hi!");
-//            setAttributeValue(TestConfig.testFilePath + "role.txt", "ClientB maintainer\n" +
+//            setAttributeValue(attributeFilesPath + "hygrometer-reachable.txt", "y");
+            setAttributeValue(attributeFilesPath + "thermometer-reachable.txt", "y");
+            setAttributeValue(attributeFilesPath + "welcome-led-panel.txt", "Hi!");
+//            setAttributeValue(attributeFilesPath + "role.txt", "ClientB maintainer\n" +
 //                                                                                   "ClientC developer\n" +
 //                                                                                   "ClientA maintainer\n" +
 //                                                                                   "ClientD admin");
+            for (int i = 2; i <= numAttributes; i++) {
+                setAttributeValue(attributeFilesPath + "attribute" + i + ".txt", "y");
+            }
 
             UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
             pipReader.addAttribute(
                     "urn:oasis:names:tc:xacml:3.0:environment:thermometer-reachable",
                     Category.ENVIRONMENT.toString(),
                     DataType.STRING.toString(),
-                    TestConfig.testFilePath + "thermometer-reachable.txt");
+                    attributeFilesPath + "thermometer-reachable.txt");
 
             List<PipProperties> pipPropertiesList = new ArrayList<>();
             pipPropertiesList.add(pipReader);
@@ -434,7 +464,7 @@ static class Peer {
 //                    "urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable",
 //                    Category.ENVIRONMENT.toString(),
 //                    DataType.STRING.toString(),
-//                    TestConfig.testFilePath + "hygrometer-reachable.txt");
+//                    attributeFilesPath + "hygrometer-reachable.txt");
 //            pipPropertiesList.add(pipReader);
 
             pipReader = new UcsPipReaderProperties();
@@ -442,7 +472,7 @@ static class Peer {
                     "urn:oasis:names:tc:xacml:3.0:environment:welcome-led-panel",
                     Category.ENVIRONMENT.toString(),
                     DataType.STRING.toString(),
-                    TestConfig.testFilePath + "welcome-led-panel.txt");
+                    attributeFilesPath + "welcome-led-panel.txt");
             pipPropertiesList.add(pipReader);
 
             // code to add a PIPReader monitoring the role of the subject
@@ -452,16 +482,28 @@ static class Peer {
 //                    "urn:oasis:names:tc:xacml:1.0:subject:role",
 //                    Category.SUBJECT.toString(),
 //                    DataType.STRING.toString(),
-//                    TestConfig.testFilePath + "role.txt");
+//                    attributeFilesPath + "role.txt");
 //            pipPropertiesList.add(pipReader);
 
-
+            for (int i = 2;  i <= numAttributes; i++) {
+                pipPropertiesList.add(preparePIPReader("attribute" + i));
+            }
 
             UcsPapProperties papProperties =
                     new UcsPapProperties(TestConfig.testFilePath + "policies/");
 
             pdp = new UcsHelper(db, pipPropertiesList, papProperties);
         }
+    }
+
+    public static UcsPipReaderProperties preparePIPReader(String attribute) {
+        UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
+        pipReader.addAttribute(
+                "urn:oasis:names:tc:xacml:3.0:environment:" + attribute,
+                Category.ENVIRONMENT.toString(),
+                DataType.STRING.toString(),
+                attributeFilesPath + attribute + ".txt");
+        return pipReader;
     }
 
     public static void setAttributeValue(String fileName, String value) {
@@ -493,7 +535,7 @@ static class Peer {
         }
 
         public void run() {
-            File file = new File(TestConfig.testFilePath + this.fileName);
+            File file = new File(attributeFilesPath + this.fileName);
             FileWriter fw = null;
             try {
                 fw = new FileWriter(file);
