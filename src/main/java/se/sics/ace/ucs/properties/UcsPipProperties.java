@@ -10,6 +10,8 @@ import it.cnr.iit.ucs.properties.components.PipProperties;
 
 public class UcsPipProperties implements PipProperties {
 
+	private long refreshRate;
+
 	@Override
 	public String getName() {
 		return "it.cnr.iit.ucs.pipreader.PIPReader";
@@ -67,4 +69,12 @@ public class UcsPipProperties implements PipProperties {
 		return false;
 	}
 
+	@Override
+	public long getRefreshRate() {
+		return refreshRate;
+	}
+
+	public void setRefreshRate(long refreshRate) {
+		this.refreshRate = refreshRate;
+	}
 }

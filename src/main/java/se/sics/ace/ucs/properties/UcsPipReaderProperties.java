@@ -45,6 +45,8 @@ public class UcsPipReaderProperties implements PipProperties {
 		return new ArrayList<>(attributes);
 	}
 
+	private long refreshRate;
+
 	public void addAttribute(String id, String category, String dataType, String filePath) {
 		Map<String,String> attributeMap = new HashMap<>();
 		attributeMap.put("ATTRIBUTE_ID", id);
@@ -72,4 +74,12 @@ public class UcsPipReaderProperties implements PipProperties {
 		return this.attributes.size() > 1;
 	}
 
+	@Override
+	public long getRefreshRate() {
+		return refreshRate;
+	}
+
+	public void setRefreshRate(long refreshRate) {
+		this.refreshRate = refreshRate;
+	}
 }

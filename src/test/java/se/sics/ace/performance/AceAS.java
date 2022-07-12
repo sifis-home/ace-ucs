@@ -455,7 +455,7 @@ static class Peer {
                     Category.ENVIRONMENT.toString(),
                     DataType.STRING.toString(),
                     attributeFilesPath + "thermometer-reachable.txt");
-
+            pipReader.setRefreshRate(10L);
             List<PipProperties> pipPropertiesList = new ArrayList<>();
             pipPropertiesList.add(pipReader);
 
