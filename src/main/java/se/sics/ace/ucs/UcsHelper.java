@@ -9,6 +9,7 @@ import it.cnr.iit.ucs.properties.components.PipProperties;
 import se.sics.ace.AceException;
 import se.sics.ace.as.*;
 import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.ucs.xacml.AdditionalAttribute;
 import se.sics.ace.ucs.xacml.CATEGORY;
 import se.sics.ace.ucs.xacml.RequestGenerator;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.sql.*;
 import java.util.*;
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -103,7 +105,8 @@ public class UcsHelper implements PDP, AutoCloseable {
 
 	private final String basicPolicy;
 
-
+	// for test purposes. Counts the number of times the canAccess method has been invoked
+	private int iterCounter = 0;
 
 	public UcsHelper(SQLConnector connection,
 					 List<PipProperties> pipPropertiesList,
@@ -253,6 +256,8 @@ public class UcsHelper implements PDP, AutoCloseable {
 					"canAccess() requires non-null parameters");
 		}
 
+		iterCounter++;
+
 		String scopeStr;
 		if (scopes instanceof String) {
 			scopeStr = (String) scopes;
@@ -286,6 +291,14 @@ public class UcsHelper implements PDP, AutoCloseable {
 		StringBuilder allowedScopes = new StringBuilder();
 		int count = 0;
 		List<String> allowedSessions = new ArrayList<>();
+
+		// log to file to record performance
+		try {
+			PerformanceLogger.getInstance().getLogger().log(Level.INFO,
+					"t1E" + iterCounter + "         : " + new Date().getTime() + "\n");
+		} catch (AssertionError e) {
+			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
+		}
 
 		for (String req : xacmlRequests) {
 			// if both tryAccess and startAccess return PERMIT, add the entry to the database.
@@ -328,6 +341,14 @@ public class UcsHelper implements PDP, AutoCloseable {
 						" for subscope '" + scopeArray[count] + "'\n" );
 			}
 			count++;
+		}
+
+		// log to file to record performance
+		try {
+			PerformanceLogger.getInstance().getLogger().log(Level.INFO,
+					"t2E" + iterCounter + "         : " + new Date().getTime() + "\n");
+		} catch (AssertionError e) {
+			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
 		}
 
 		if (allowedScopes.toString().equals("")){
