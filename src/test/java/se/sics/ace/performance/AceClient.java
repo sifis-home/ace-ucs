@@ -408,10 +408,8 @@ public class AceClient implements Callable<Integer> {
                 Response asRes;
                 try {
                     tokenCount ++;
-                    if (tokenCount == 2) {
-                        PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                                      "t1A          : " + new Date().getTime() + "\n");
-                    }
+                    PerformanceLogger.getInstance().getLogger().log(Level.INFO,
+                            "t1A" + tokenCount + "         : " + new Date().getTime() + "\n");
                     asRes = getToken(client4AS, aud, scope);
                 } catch (AceException e) {
                     System.out.println(e.getMessage());
@@ -443,19 +441,28 @@ public class AceClient implements Callable<Integer> {
                 List<String> resources = new ArrayList<>(Arrays.asList(allowedScopes.split(" ")));
                 resources.replaceAll(s1 -> s1.substring(s1.indexOf("_") + 1));
 
+                boolean isFirstRequest = true;
+
                 int i = 0;
                 while (denialsCount < denials && validTokens.contains(tokenHash)) {
-                    sleep(requestInterval * 1000L); // TODO should I put this after the request???
                     boolean isSuccess = getResource(client4RS, rsAddr + "/" + resources.get(i));
-                    if (isSuccess && tokenCount == 2) {
+                    if (isSuccess && tokenCount == 1 && isFirstRequest) {
                         PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                                "t2D, t2A     : " + new Date().getTime() + "\n");
+                                "t2A" + tokenCount + "         : " + new Date().getTime() + "\n");
+                    }
+                    else if (isSuccess && tokenCount == 2) {
+                        PerformanceLogger.getInstance().getLogger().log(Level.INFO,
+                                "t2D, t2A" + tokenCount + "    : " + new Date().getTime() + "\n");
                         System.out.println("Test ended successfully.");
                         return 0;
                     }
                     if (!isSuccess)
                         denialsCount++;
                     i = (i+1)%resources.size();
+
+                    isFirstRequest = false;
+
+                    sleep(requestInterval * 1000L);
                 }
                 if (denialsCount == denials) {
                     System.out.println("Too many denials.");
