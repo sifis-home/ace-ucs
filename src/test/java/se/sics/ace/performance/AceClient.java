@@ -453,6 +453,7 @@ public class AceClient implements Callable<Integer> {
                     else if (isSuccess && tokenCount == 2) {
                         PerformanceLogger.getInstance().getLogger().log(Level.INFO,
                                 "t2D, t2A" + tokenCount + "    : " + new Date().getTime() + "\n");
+                        client4AS.shutdown();
                         System.out.println("Test ended successfully.");
                         return 0;
                     }
