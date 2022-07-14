@@ -362,10 +362,10 @@ static class Peer {
                     "Setting it to the minimum allowed, i.e., 1");
             numAttributes = 1;
         }
-        if (numAttributes > 20) {
+        if (numAttributes > 32) {
             System.out.println("Number of attributes " + numAttributes + " not supported.\n" +
                     "Setting it to the maximum allowed, i.e., 20");
-            numAttributes = 20;
+            numAttributes = 32;
         }
     }
 
