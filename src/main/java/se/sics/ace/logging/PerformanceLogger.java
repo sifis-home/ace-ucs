@@ -14,13 +14,16 @@ public class PerformanceLogger {
 
     private static Logger LOGGER;
 
-    private PerformanceLogger(String fileName, String randomizer) {
+    //private Level level = Level.INFO;
+
+    private PerformanceLogger(String fileName, String randomizer, Level level) {
         LOGGER = Logger.getLogger(PerformanceLogger.class.getName());
+        LOGGER.setLevel(level);
 
         FileHandler handler = null;
         try {
             handler =  new FileHandler(fileName, true);
-            handler.setLevel(Level.INFO);
+            handler.setLevel(level);
             handler.setFormatter(new SimpleFormatter() {
                 private final String format = "[%1$tF %1$tT] [%2$-7s] [" + randomizer + "]  %3$s %n";
 
@@ -49,12 +52,12 @@ public class PerformanceLogger {
         return singleton;
     }
 
-    public synchronized static PerformanceLogger init(String fileName, String randomizer) {
+    public synchronized static PerformanceLogger init(String fileName, String randomizer, Level level) {
         if (singleton != null) {
             throw new AssertionError("You already initialized me");
         }
 
-        singleton = new PerformanceLogger(fileName, randomizer);
+        singleton = new PerformanceLogger(fileName, randomizer, level);
         return singleton;
     }
 

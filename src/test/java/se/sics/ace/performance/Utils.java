@@ -81,9 +81,9 @@ public class Utils {
         return data;
     }
 
-    public static void initPerformanceLogger (String logFilePath, String randomFilePath, String cliArgs) {
+    public static void initPerformanceLogger (Level level, String logFilePath, String randomFilePath, String cliArgs) {
         String randomizer = readRandomFile(randomFilePath);
-        PerformanceLogger.init(logFilePath, randomizer);
+        PerformanceLogger.init(logFilePath, randomizer, level);
 
         PerformanceLogger.getInstance().getLogger().log(Level.INFO,
                 "\n\n\n----------------------------" +
