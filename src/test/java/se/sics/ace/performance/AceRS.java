@@ -37,6 +37,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -109,6 +110,12 @@ public class AceRS implements Callable<Integer> {
             required = false,
             description = "Disable recording performance log to file")
     public boolean isLogDisabled = false;
+
+    @Option(names = {"-F", "--FineLogging"},
+            required = false,
+            description = "If logging is enabled, this option logs also " +
+                    "messages with level equal to FINE")
+    public boolean isFineLogging = false;
 
     @Option(names = {"-a", "--asuri"},
             required = false,
@@ -310,7 +317,11 @@ public class AceRS implements Callable<Integer> {
 
         if (isLogEnabled) {
             // initialize the PerformanceLogger
-            Utils.initPerformanceLogger(logFilePath, randomFilePath, cliArgs);
+            Level level = Level.INFO;
+            if (isFineLogging) {
+                level = Level.FINE;
+            }
+            Utils.initPerformanceLogger(level, logFilePath, randomFilePath, cliArgs);
         }
 
         parseScope(scope);

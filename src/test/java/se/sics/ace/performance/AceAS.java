@@ -129,6 +129,12 @@ public class AceAS implements Callable<Integer> {
             description = "Disable recording performance log to file")
     public boolean isLogDisabled = false;
 
+    @Option(names = {"-F", "--FineLogging"},
+            required = false,
+            description = "If logging is enabled, this option logs also " +
+                    "messages with level equal to FINE")
+    public boolean isFineLogging = false;
+
     @Option(names = {"-N", "--numberOfAttributes"},
             required = false,
             description = "Number of mutable attributes of the policy containing the 'r_temp' subscope.")
@@ -258,8 +264,13 @@ static class Peer {
         if (isLogEnabled) {
             // generate and save a new random hex
             new TestRandomizer(randomFilePath, 32);
+
             // initialize the PerformanceLogger
-            Utils.initPerformanceLogger(logFilePath, randomFilePath, cliArgs);
+            Level level = Level.INFO;
+            if (isFineLogging) {
+                level = Level.FINE;
+            }
+            Utils.initPerformanceLogger(level, logFilePath, randomFilePath, cliArgs);
         }
 
         KissTime time = new KissTime();

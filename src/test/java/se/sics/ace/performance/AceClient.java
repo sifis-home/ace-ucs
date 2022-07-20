@@ -96,6 +96,12 @@ public class AceClient implements Callable<Integer> {
             description = "Disable recording performance log to file")
     public boolean isLogDisabled = false;
 
+    @Option(names = {"-F", "--FineLogging"},
+            required = false,
+            description = "If logging is enabled, this option logs also " +
+                    "messages with level equal to FINE")
+    public boolean isFineLogging = false;
+
     @Option(names = {"-a", "--asuri"},
             required = false,
             defaultValue = DEFAULT_ASURI,
@@ -268,7 +274,11 @@ public class AceClient implements Callable<Integer> {
 
         if (isLogEnabled) {
             // initialize the PerformanceLogger
-            Utils.initPerformanceLogger(logFilePath, randomFilePath, cliArgs);
+            Level level = Level.INFO;
+            if (isFineLogging) {
+                level = Level.FINE;
+            }
+            Utils.initPerformanceLogger(level, logFilePath, randomFilePath, cliArgs);
         }
 
         // initialize OSCORE context
@@ -413,6 +423,7 @@ public class AceClient implements Callable<Integer> {
                     asRes = getToken(client4AS, aud, scope);
                 } catch (AceException e) {
                     System.out.println(e.getMessage());
+                    client4AS.shutdown();
                     System.out.println("Quitting.");
                     return -1;
                 }
@@ -431,6 +442,7 @@ public class AceClient implements Callable<Integer> {
                     postToken(rsAddr, asRes, map);
                 } catch (AceException e) {
                     System.out.println(e.getMessage());
+                    client4AS.shutdown();
                     System.out.println("Quitting.");
                     return -1;
                 }
