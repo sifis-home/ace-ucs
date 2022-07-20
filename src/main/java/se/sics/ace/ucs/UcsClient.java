@@ -42,6 +42,11 @@ public class UcsClient {
 
 	private final String papPath;
 
+	// for test purposes. Counts the number of times the tryAccess method has been invoked
+	private int iterCounterTry = 0;
+	// for test purposes. Counts the number of times the startAccess method has been invoked
+	private int iterCounterStart = 0;
+
 	public UcsClient(List<PipProperties> pipPropertiesList, PapProperties papProperties) {
 		properties = new AceUcsProperties(pipPropertiesList, papProperties);
 		try {
@@ -53,11 +58,12 @@ public class UcsClient {
 	}
 
 	public TryAccessResponseMessage tryAccess(String request) {
+		iterCounterTry++;
 		TryAccessMessage message = buildTryAccessMessage(request);
 		// log to file to record performance
 		try {
 			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
-					"t1T          : " + new Date().getTime() + "\n");
+					"t1T" + iterCounterTry + "         : " + new Date().getTime() + "\n");
 		} catch (AssertionError e) {
 			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
 		}
@@ -65,7 +71,7 @@ public class UcsClient {
 		// log to file to record performance
 		try {
 			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
-					"t2T          : " + new Date().getTime() + "\n");
+					"t2T" + iterCounterTry + "         : " + new Date().getTime() + "\n");
 		} catch (AssertionError e) {
 			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
 		}
@@ -73,17 +79,18 @@ public class UcsClient {
 	}
 
 	public StartAccessResponseMessage startAccess(String sessionId) {
+		iterCounterStart++;
 		StartAccessMessage message = buildStartAccessMessage(sessionId);
 		try {
 			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
-					"t1S          : " + new Date().getTime() + "\n");
+					"t1S" + iterCounterStart + "         : " + new Date().getTime() + "\n");
 		} catch (AssertionError e) {
 			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
 		}
 		StartAccessResponseMessage response = (StartAccessResponseMessage) ucs.startAccess(message);
 		try {
 			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
-					"t2S          : " + new Date().getTime() + "\n");
+					"t2S" + iterCounterStart + "         : " + new Date().getTime() + "\n");
 		} catch (AssertionError e) {
 			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
 		}
