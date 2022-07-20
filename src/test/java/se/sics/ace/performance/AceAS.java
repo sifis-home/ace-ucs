@@ -545,8 +545,11 @@ static class Peer {
                 e.printStackTrace();
             }
             if (isLogEnabled) {
+                long now = new Date().getTime();
                 PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                        "t1B, t1C, t1D: " + new Date().getTime() + "\n");
+                        "t1B, t1C, t1D: " + now + "\n");
+                PerformanceLogger.getInstance().getLogger().log(Level.FINE,
+                        "t1R          : " + now + "\n");
             }
         }
     }

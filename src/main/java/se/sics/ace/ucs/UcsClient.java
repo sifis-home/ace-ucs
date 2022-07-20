@@ -1,7 +1,9 @@
 package se.sics.ace.ucs;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import it.cnr.iit.ucs.core.UCSCoreService;
@@ -22,6 +24,7 @@ import it.cnr.iit.ucs.properties.components.PipProperties;
 import it.cnr.iit.ucs.ucs.UCSInterface;
 import it.cnr.iit.xacml.wrappers.PolicyWrapper;
 import it.cnr.iit.xacml.wrappers.RequestWrapper;
+import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.ucs.properties.AceUcsProperties;
 
 /**
@@ -51,12 +54,40 @@ public class UcsClient {
 
 	public TryAccessResponseMessage tryAccess(String request) {
 		TryAccessMessage message = buildTryAccessMessage(request);
-		return (TryAccessResponseMessage) ucs.tryAccess(message);
+		// log to file to record performance
+		try {
+			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
+					"t1T          : " + new Date().getTime() + "\n");
+		} catch (AssertionError e) {
+			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
+		}
+		TryAccessResponseMessage response = (TryAccessResponseMessage) ucs.tryAccess(message);
+		// log to file to record performance
+		try {
+			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
+					"t2T          : " + new Date().getTime() + "\n");
+		} catch (AssertionError e) {
+			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
+		}
+		return response;
 	}
 
 	public StartAccessResponseMessage startAccess(String sessionId) {
 		StartAccessMessage message = buildStartAccessMessage(sessionId);
-		return (StartAccessResponseMessage) ucs.startAccess(message);
+		try {
+			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
+					"t1S          : " + new Date().getTime() + "\n");
+		} catch (AssertionError e) {
+			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
+		}
+		StartAccessResponseMessage response = (StartAccessResponseMessage) ucs.startAccess(message);
+		try {
+			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
+					"t2S          : " + new Date().getTime() + "\n");
+		} catch (AssertionError e) {
+			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
+		}
+		return response;
 	}
 
 	public EndAccessResponseMessage endAccess(String sessionId) {

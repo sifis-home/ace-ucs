@@ -7,7 +7,9 @@ import it.cnr.iit.ucs.pep.PEPInterface;
 import it.cnr.iit.ucs.properties.components.PepProperties;
 import it.cnr.iit.utility.errorhandling.Reject;
 import se.sics.ace.AceException;
+import se.sics.ace.logging.PerformanceLogger;
 
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -43,6 +45,12 @@ public class AcePep implements PEPInterface {
         Reject.ifNull(message);
         LOGGER.log(Level.INFO, "OnGoingEvaluation at PEP " +
                 "for session {0} ", message.getSessionId());
+        try {
+            PerformanceLogger.getInstance().getLogger().log(Level.FINE,
+                    "t2R          : " + new Date().getTime() + "\n");
+        } catch (AssertionError e) {
+            LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
+        }
 
         PDPEvaluation evaluation = message.getEvaluation();
         Reject.ifNull(evaluation);
