@@ -411,12 +411,6 @@ public class TokenRepository implements AutoCloseable {
 									   get(Constants.OS_CLIENTID).GetByteString();
 				oldOscoreContextId = storedCnf.get(Constants.OSCORE_Input_Material).
 						   			   get(Constants.OS_CONTEXTID).GetByteString();
-
-				// Force the same EXP value from the originally posted Token.
-				// Otherwise, a recomputed EXP value from the EXI claim would prolong
-				// the Token lifetime beyond the original intention of the AS. 
-				if (this.cti2claims.get(cti).get(Constants.EXP) != null)
-					claims.put(Constants.EXP, this.cti2claims.get(cti).get(Constants.EXP));
 				
 			}
 			else {
