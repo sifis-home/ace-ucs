@@ -156,7 +156,7 @@ public class TestDtlspPskStoreGroupOSCORE {
                 					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
         final AlgorithmID hkdf = AlgorithmID.HMAC_SHA_256;
-        final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CCS;
+        final int credFmt = Constants.COSE_HEADER_PARAM_CCS;
         
         int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
 
@@ -223,18 +223,18 @@ public class TestDtlspPskStoreGroupOSCORE {
 		}
     	
 
-    	// Serialization of the public key, according to the format used in the group
-    	byte[] gmPublicKey = null;
+    	// Serialization of the authentication credential, according to the format used in the group
+    	byte[] gmAuthenticationCredential = null;
     	
     	/*
-    	// Build the public key according to the format used in the group
+    	// Build the authentication credential according to the format used in the group
     	// Note: most likely, the result will NOT follow the required deterministic
     	//       encoding in byte lexicographic order, and it has to be adjusted offline
-    	switch (pubKeyEnc) {
+    	switch (credFmt) {
 	        case Constants.COSE_HEADER_PARAM_CCS:
 	            // A CCS including the public key
 	        	String subjectName = "";
-	            gmPublicKey = Util.oneKeyToCCS(gmKeyPair, subjectName);
+	            gmAuthenticationCredential = Util.oneKeyToCCS(gmKeyPair, subjectName);
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
 	            // A CWT including the public key
@@ -247,25 +247,25 @@ public class TestDtlspPskStoreGroupOSCORE {
     	}
     	*/
     	
-    	switch (pubKeyEnc) {
+    	switch (credFmt) {
 	        case Constants.COSE_HEADER_PARAM_CCS:
 	            // A CCS including the public key
 	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-	        		gmPublicKey = Utils.hexToBytes("A2026008A101A50102032620012158202236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540225820770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B");
+	        		gmAuthenticationCredential = Utils.hexToBytes("A2026008A101A50102032620012158202236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540225820770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B");
 	        	}
 	        	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-	        		gmPublicKey = Utils.hexToBytes("A2026008A101A4010103272006215820C6EC665E817BD064340E7C24BB93A11E8EC0735CE48790F9C458F7FA340B8CA3");
+	        		gmAuthenticationCredential = Utils.hexToBytes("A2026008A101A4010103272006215820C6EC665E817BD064340E7C24BB93A11E8EC0735CE48790F9C458F7FA340B8CA3");
 	        	}
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
 	            // A CWT including the public key
 	            // TODO
-	        	gmPublicKey = null;
+	        	gmAuthenticationCredential = null;
 	            break;
 	        case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	            // A certificate including the public key
 	            // TODO
-	        	gmPublicKey = null;
+	        	gmAuthenticationCredential = null;
 	            break;
     	}
     	
@@ -280,7 +280,7 @@ public class TestDtlspPskStoreGroupOSCORE {
 						                  prefixMonitorNames,
 						                  nodeNameSeparator,
 						                  hkdf,
-						                  pubKeyEnc,
+						                  credFmt,
 						                  mode,
 						                  signEncAlg,
 						                  signAlg,
@@ -290,7 +290,7 @@ public class TestDtlspPskStoreGroupOSCORE {
 						                  null,
     			                          null,
     			                          gmKeyPair,
-    			                          gmPublicKey);
+    			                          gmAuthenticationCredential);
         
     	// Add this OSCORE group to the set of active groups
 

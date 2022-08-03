@@ -223,7 +223,7 @@ public class TestAuthzInfoGroupOSCORE {
                 					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
         final AlgorithmID hkdf = AlgorithmID.HMAC_SHA_256;
-        final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CCS;
+        final int credFmt = Constants.COSE_HEADER_PARAM_CCS;
         
         int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
 
@@ -287,10 +287,10 @@ public class TestAuthzInfoGroupOSCORE {
     	byte[] gmPublicKey = null;
     	
     	/*
-    	// Build the public key according to the format used in the group
+    	// Build the authentication credential according to the format used in the group
     	// Note: most likely, the result will NOT follow the required deterministic
     	//       encoding in byte lexicographic order, and it has to be adjusted offline
-    	switch (pubKeyEnc) {
+    	switch (credFmt) {
         case Constants.COSE_HEADER_PARAM_CCS:
             // A CCS including the public key
         	String subjectName = "";
@@ -307,7 +307,7 @@ public class TestAuthzInfoGroupOSCORE {
     	}
     	*/
     	
-    	switch (pubKeyEnc) {
+    	switch (credFmt) {
 	        case Constants.COSE_HEADER_PARAM_CCS:
 	            // A CCS including the public key
 	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -340,7 +340,7 @@ public class TestAuthzInfoGroupOSCORE {
 						                  prefixMonitorNames,
 						                  nodeNameSeparator,
 						                  hkdf,
-						                  pubKeyEnc,
+						                  credFmt,
 						                  mode,
 						                  signEncAlg,
 						                  signAlg,

@@ -926,9 +926,9 @@ public class Constants {
     public static final String[] GROUP_OSCORE_ROLES = {"reserved", "requester", "responder", "monitor", "verifier"};
     
      /**
-      * Value for the label "get_pub_keys" in the Join Request message
+      * Value for the label "get_creds" in the Join Request message
       */
-     public static final short GET_PUB_KEYS = 101;
+     public static final short GET_CREDS = 101;
      
      /**
       * Value for the label "client_cred" in the Join Request message
@@ -951,9 +951,9 @@ public class Constants {
      public static final short KEY = 2;
      
      /**
-      * Value for the label "pub_keys" in the Join Response message
+      * Value for the label "creds" in the Join Response message
       */
-     public static final short PUB_KEYS = 3;
+     public static final short CREDS = 3;
      
      /**
       * Value for the label "ace-groupcomm-profile" in the Join Response message
@@ -971,9 +971,9 @@ public class Constants {
      public static final short ECDH_INFO = 204;
      
      /**
-      * Value for the label "gm_dh_pub_keys" in the Token POST request/response and in the error response to the Join Request
+      * Value for the label "kdc_dh_creds" in the Token POST request/response and in the error response to the Join Request
       */
-     public static final short GM_DH_PUB_KEYS = 205;
+     public static final short KDC_DH_CREDS = 205;
      
      /**
       * Value for the label "kdcchallenge" in the Token POST response
