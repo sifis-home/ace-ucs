@@ -50,9 +50,9 @@ package se.sics.ace.oscore;
 		/**
 		 *  'cs_key_enc' - Group OSCORE Public Key Encoding Value
 		 */
-		// Assume that "pub_key_enc" is registered with label 8 in the
+		// Assume that "cred_fmt" is registered with label 8 in the
 		// "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
-		public static final short pub_key_enc = 8; // Major type 0 (unsigned integer) or 1 (negative integer)
+		public static final short cred_fmt = 8; // Major type 0 (unsigned integer) or 1 (negative integer)
 		
 		/**
 		 *  'sign_enc_alg' - Group OSCORE Signature Encryption Algorithm value 
@@ -91,6 +91,6 @@ package se.sics.ace.oscore;
 	     * The string values for the OSCORE Security Context Object parameter abbreviations (use for debugging)
 	     */
 	    public static final String[] CONTEXT_PARAMETER = {"id", "version", "ms", "hkdf", "alg", "salt", "contextId",
-	    		"group_senderId, pub_key_enc", "sign_enc_alg", "sign_alg", "sign_params", "ecdh_alg", "ecdh_params"};
+	    		"group_senderId, cred_fmt", "sign_enc_alg", "sign_alg", "sign_params", "ecdh_alg", "ecdh_params"};
 	 
  }

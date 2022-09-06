@@ -467,7 +467,7 @@ public class PlugtestRSGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
         	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
         	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, targetedGroup.getPubKeyEnc());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cred_fmt, targetedGroup.getAuthCredFormat());
         	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
         	    // The group mode is used
         	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
@@ -508,7 +508,7 @@ public class PlugtestRSGroupOSCORE {
         public void handlePOST(CoapExchange exchange) {
         	
         	Set<String> roles = new HashSet<>();
-        	boolean providePublicKeys = false;
+        	boolean provideAuthCreds = false;
         	
         	String subject = null;
         	Request request = exchange.advanced().getCurrentRequest();
@@ -594,8 +594,8 @@ public class PlugtestRSGroupOSCORE {
         	    else
         	        signInfoEntry.Add(arrayElem);
         	    
-        	    // 'pub_key_enc' element
-        	    signInfoEntry.Add(targetedGroup.getPubKeyEnc());
+        	    // 'cred_fmt' element
+        	    signInfoEntry.Add(targetedGroup.getAuthCredFormat());
         	    signInfo.Add(signInfoEntry);
         	    errorResponseMap.Add(Constants.SIGN_INFO, signInfo);
         	}
@@ -620,8 +620,8 @@ public class PlugtestRSGroupOSCORE {
         	    else
         	        ecdhInfoEntry.Add(arrayElem);
         	    
-        	    // 'pub_key_enc' element
-        	    ecdhInfoEntry.Add(targetedGroup.getPubKeyEnc());
+        	    // 'cred_fmt' element
+        	    ecdhInfoEntry.Add(targetedGroup.getAuthCredFormat());
         	    ecdhInfo.Add(ecdhInfoEntry);
         	    errorResponseMap.Add(Constants.ECDH_INFO, ecdhInfo);
         	}
@@ -774,27 +774,27 @@ public class PlugtestRSGroupOSCORE {
         		return;
         	}
         	
-        	// Retrieve 'get_pub_keys'
+        	// Retrieve 'get_creds'
         	// If present, this parameter must be a CBOR array or the CBOR simple value Null
-        	CBORObject getPubKeys = joinRequest.get(CBORObject.FromObject((Constants.GET_PUB_KEYS)));
-        	if (getPubKeys != null) {
+        	CBORObject getCreds = joinRequest.get(CBORObject.FromObject((Constants.GET_CREDS)));
+        	if (getCreds != null) {
         		
-        		// Invalid format of 'get_pub_keys'
-        		if (!getPubKeys.getType().equals(CBORType.Array) && !getPubKeys.equals(CBORObject.Null)) {
+        		// Invalid format of 'get_creds'
+        		if (!getCreds.getType().equals(CBORType.Array) && !getCreds.equals(CBORObject.Null)) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
         			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
         							 Constants.APPLICATION_ACE_CBOR);
             		return;
         		}
         		
-        		// Invalid format of 'get_pub_keys'
-        		if (getPubKeys.getType().equals(CBORType.Array)) {
-	        		if ( getPubKeys.size() != 3 ||
-	        	        !getPubKeys.get(0).getType().equals(CBORType.Boolean) ||
-	        	         getPubKeys.get(0).AsBoolean() != true ||
-	        			!getPubKeys.get(1).getType().equals(CBORType.Array) ||
-	        			!getPubKeys.get(2).getType().equals(CBORType.Array) || 
-	        			 getPubKeys.get(2).size() != 0) {
+        		// Invalid format of 'get_creds'
+        		if (getCreds.getType().equals(CBORType.Array)) {
+	        		if ( getCreds.size() != 3 ||
+	        	        !getCreds.get(0).getType().equals(CBORType.Boolean) ||
+	        	         getCreds.get(0).AsBoolean() != true ||
+	        			!getCreds.get(1).getType().equals(CBORType.Array) ||
+	        			!getCreds.get(2).getType().equals(CBORType.Array) || 
+	        			 getCreds.get(2).size() != 0) {
 	            		
 	            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
 	        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
@@ -804,13 +804,13 @@ public class PlugtestRSGroupOSCORE {
 	        		}
         		}
         		
-        		// Invalid format of 'get_pub_keys'
-        		if (getPubKeys.getType().equals(CBORType.Array)) {
-	    			for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+        		// Invalid format of 'get_creds'
+        		if (getCreds.getType().equals(CBORType.Array)) {
+	    			for (int i = 0; i < getCreds.get(1).size(); i++) {
 	    				// Possible elements of the first array have to be all integers and
 	    				// express a valid combination of roles encoded in the AIF data model
-	    				if (!getPubKeys.get(1).get(i).getType().equals(CBORType.Integer) ||
-	    					!validRoleCombinations.contains(getPubKeys.get(1).get(i).AsInt32())) {
+	    				if (!getCreds.get(1).get(i).getType().equals(CBORType.Integer) ||
+	    					!validRoleCombinations.contains(getCreds.get(1).get(i).AsInt32())) {
 	    					
 	                		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
 	            			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
@@ -821,7 +821,7 @@ public class PlugtestRSGroupOSCORE {
 	    			}
         		}
         		
-        		providePublicKeys = true;
+        		provideAuthCreds = true;
         		
         	}
         	
@@ -852,15 +852,15 @@ public class PlugtestRSGroupOSCORE {
         	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
         	
         	if (clientCred == null && (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR))) {
-        		// TODO: check if the Group Manager already owns this client's public key.
+        		// TODO: check if the Group Manager already owns this client's authentication credential.
         		//       If one is found, use it to build 'clientCred' as a CBOR byte string.
         		
-        		// Public key not provided and not found
+        		// Authentication credential not provided and not found
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
-        						 "A public key was neither provided nor found as already stored");
+        						 "An authentication credential was neither provided nor found as already stored");
         		return;
         	}
-        	// Process the public key of the joining node
+        	// Process the authentication credential of the joining node
         	else if (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR)) {
         		
         		OneKey publicKey = null;
@@ -873,7 +873,7 @@ public class PlugtestRSGroupOSCORE {
         		}
         		
         		byte[] clientCredBytes = clientCred.GetByteString();
-        		switch(myGroup.getPubKeyEnc()) {
+        		switch(myGroup.getAuthCredFormat()) {
         		    case Constants.COSE_HEADER_PARAM_CCS:
         		        CBORObject ccs = CBORObject.DecodeFromBytes(clientCredBytes);
         		        if (ccs.getType() == CBORType.Map) {
@@ -882,7 +882,7 @@ public class PlugtestRSGroupOSCORE {
         		            valid = true;
         		        }
         		        else {
-        		            Assert.fail("Invalid format of public key");
+        		            Assert.fail("Invalid format of authentication credential");
         		        }
         		        break;
         		    case Constants.COSE_HEADER_PARAM_CWT:
@@ -892,7 +892,7 @@ public class PlugtestRSGroupOSCORE {
         		            // TODO
         		        }
         		        else {
-        		            Assert.fail("Invalid format of public key");
+        		            Assert.fail("Invalid format of authentication credential");
         		        }
         		        break;
         		    case Constants.COSE_HEADER_PARAM_X5CHAIN:
@@ -901,11 +901,11 @@ public class PlugtestRSGroupOSCORE {
         		            // TODO
         		        }
         		        else {
-        		            Assert.fail("Invalid format of public key");
+        		            Assert.fail("Invalid format of authentication credential");
         		        }
         		        break;
         		    default:
-        		        Assert.fail("Invalid format of public key");
+        		        Assert.fail("Invalid format of authentication credential");
         		}
         		if (publicKey == null ||  valid == false) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
@@ -1060,10 +1060,10 @@ public class PlugtestRSGroupOSCORE {
     			    // TODO
     			}
             	
-    			if (!myGroup.storePublicKey(senderId, clientCred)) {
+    			if (!myGroup.storeAuthCred(senderId, clientCred)) {
         			myGroup.deallocateSenderId(senderId);
 					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
-									 "error when storing the public key");
+									 "error when storing the authentication credential");
             		return;
         			
         		}
@@ -1101,7 +1101,7 @@ public class PlugtestRSGroupOSCORE {
         		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" +
         													 groupName + "/nodes/" + nodeName));
         		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" +
-        													 groupName + "/nodes/" + nodeName + "/pub-key"));
+        													 groupName + "/nodes/" + nodeName + "/cred"));
     		}
     		catch(AceException e) {
     			myGroup.removeGroupMemberBySubject(subject);
@@ -1109,7 +1109,7 @@ public class PlugtestRSGroupOSCORE {
     			// The joining node is not a monitor
     			if (senderId != null) {
 	    			myGroup.deallocateSenderId(senderId);
-	    			myGroup.deletePublicKey(senderId);
+	    			myGroup.deleteAuthCred(senderId);
     			}
     			
 				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
@@ -1128,8 +1128,8 @@ public class PlugtestRSGroupOSCORE {
         	actions = new HashSet<>();
         	actions.add(Constants.POST);
         	myScopes.get(rootGroupMembershipResource + "/" + groupName)
-	                .put(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName + "/pub-key", actions);
-        	nodeCoAPResource = new GroupOSCORESubResourceNodenamePubKey("pub-key");
+	                .put(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName + "/cred", actions);
+        	nodeCoAPResource = new GroupOSCORESubResourceNodenameCred("cred");
         	this.getChild("nodes").getChild(nodeName).add(nodeCoAPResource);
         	
         	
@@ -1153,7 +1153,7 @@ public class PlugtestRSGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
         	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
         	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, targetedGroup.getPubKeyEnc());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cred_fmt, targetedGroup.getAuthCredFormat());
         	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
         	    // The group mode is used
         	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
@@ -1187,16 +1187,16 @@ public class PlugtestRSGroupOSCORE {
         	// derived from the 'k' parameter is not valid anymore.
         	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
         	
-        	if (providePublicKeys) {
-        		CBORObject pubKeysArray = CBORObject.NewArray();
+        	if (provideAuthCreds) {
+        		CBORObject authCredsArray = CBORObject.NewArray();
         	    CBORObject peerRoles = CBORObject.NewArray();
         	    CBORObject peerIdentifiers = CBORObject.NewArray();
         	    
-        	    Map<CBORObject, CBORObject> publicKeys = myGroup.getPublicKeys();
+        	    Map<CBORObject, CBORObject> authCreds = myGroup.getAuthCreds();
         	    
-        	    for (CBORObject sid : publicKeys.keySet()) {
+        	    for (CBORObject sid : authCreds.keySet()) {
         	        // This should never happen; silently ignore
-        	        if (publicKeys.get(sid) == null)
+        	        if (authCreds.get(sid) == null)
         	            continue;
 
         	        byte[] peerSenderId = sid.GetByteString();
@@ -1204,38 +1204,38 @@ public class PlugtestRSGroupOSCORE {
         	        if ((senderId != null) && Arrays.equals(senderId, peerSenderId))
         	            continue;
         	        
-        	        boolean includePublicKey = false;
+        	        boolean includeAuthCred = false;
         	        
-        	        // Public keys of all group members are requested
-        	        if (getPubKeys.equals(CBORObject.Null)) {
-        	            includePublicKey = true;
+        	        // Authentication credentials of all group members are requested
+        	        if (getCreds.equals(CBORObject.Null)) {
+        	            includeAuthCred = true;
         	        }
-        	        // Only public keys of group members with certain roles are requested
+        	        // Only authentication credentials of group members with certain roles are requested
         	        else {
-        	            for (int i = 0; i < getPubKeys.get(1).size(); i++) {
-        	                int filterRoles = getPubKeys.get(1).get(i).AsInt32();
+        	            for (int i = 0; i < getCreds.get(1).size(); i++) {
+        	                int filterRoles = getCreds.get(1).get(i).AsInt32();
         	                int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);
-        	                // The owner of this public key does not have
+        	                // The owner of this authentication credential does not have
         	                // all its roles indicated in this AIF integer filter
         	                if (filterRoles != (filterRoles & memberRoles)) {
         	                    continue;
         	                }
         	                else {
-        	                    includePublicKey = true;
+        	                    includeAuthCred = true;
         	                    break;
         	                }
         	            }
         	        }
         	        
-        	        if (includePublicKey) {
-        				pubKeysArray.Add(publicKeys.get(sid));
+        	        if (includeAuthCred) {
+        	        	authCredsArray.Add(authCreds.get(sid));
 	        			peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
 	        			peerIdentifiers.Add(peerSenderId);
         			}
 
         	    }
         	    
-        	    joinResponse.Add(Constants.PUB_KEYS, pubKeysArray);
+        	    joinResponse.Add(Constants.CREDS, authCredsArray);
     			joinResponse.Add(Constants.PEER_ROLES, peerRoles);
     			joinResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
         	    
@@ -1257,14 +1257,14 @@ public class PlugtestRSGroupOSCORE {
         	joinResponse.Add(Constants.GROUP_POLICIES, myGroup.getGroupPolicies());
         	
         	
-        	// Public key of the Group Manager together with proof-of-possession evidence
+        	// Authentication credential of the Group Manager together with proof-of-possession evidence
         	byte[] kdcNonce = new byte[8];
         	new SecureRandom().nextBytes(kdcNonce);
         	joinResponse.Add(Constants.KDC_NONCE, kdcNonce);
 
-        	CBORObject publicKey = CBORObject.FromObject(targetedGroup.getGmPublicKey());
+        	CBORObject authCred = CBORObject.FromObject(targetedGroup.getGmAuthCred());
         	
-        	joinResponse.Add(Constants.KDC_CRED, publicKey);
+        	joinResponse.Add(Constants.KDC_CRED, authCred);
         	
         	PrivateKey gmPrivKey;
 			try {
@@ -1303,21 +1303,21 @@ public class PlugtestRSGroupOSCORE {
     
     
     /**
-     * Definition of the Group OSCORE group-membership sub-resource /pub-key
+     * Definition of the Group OSCORE group-membership sub-resource /creds
      */
-    public static class GroupOSCORESubResourcePubKey extends CoapResource {
+    public static class GroupOSCORESubResourceCreds extends CoapResource {
     	
 		/**
          * Constructor
          * @param resId  the resource identifier
          */
-        public GroupOSCORESubResourcePubKey(String resId) {
+        public GroupOSCORESubResourceCreds(String resId) {
             
             // set resource identifier
             super(resId);
             
             // set display name
-            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"pub-key\"" + resId);
+            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"creds\"" + resId);
             
         }
 
@@ -1397,20 +1397,20 @@ public class PlugtestRSGroupOSCORE {
             	
         	}
             
-        	// Respond to the Public Key Request
+        	// Respond to the Authentication Credential Request
 
         	CBORObject myResponse = CBORObject.NewMap();
         	
-        	CBORObject pubKeysArray = CBORObject.NewArray();
+        	CBORObject authCredsArray = CBORObject.NewArray();
         	CBORObject peerRoles = CBORObject.NewArray();
         	CBORObject peerIdentifiers = CBORObject.NewArray();
 
-        	Map<CBORObject, CBORObject> publicKeys = targetedGroup.getPublicKeys();
+        	Map<CBORObject, CBORObject> authCreds = targetedGroup.getAuthCreds();
 
-        	for (CBORObject sid : publicKeys.keySet()) {
+        	for (CBORObject sid : authCreds.keySet()) {
         	    
         	    // This should never happen; silently ignore
-        	    if (publicKeys.get(sid) == null)
+        	    if (authCreds.get(sid) == null)
         	        continue;
         	    
         	    byte[] peerSenderId = sid.GetByteString();
@@ -1418,7 +1418,7 @@ public class PlugtestRSGroupOSCORE {
         	    if (peerSenderId == null)
         	        continue;
         	    
-        	    pubKeysArray.Add(publicKeys.get(sid));
+        	    authCredsArray.Add(authCreds.get(sid));
         	    peerRoles.Add(targetedGroup.getGroupMemberRoles(peerSenderId));
         	    peerIdentifiers.Add(peerSenderId);
         	    
@@ -1426,7 +1426,7 @@ public class PlugtestRSGroupOSCORE {
 
         	myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
 
-        	myResponse.Add(Constants.PUB_KEYS, pubKeysArray);
+        	myResponse.Add(Constants.CREDS, authCredsArray);
         	myResponse.Add(Constants.PEER_ROLES, peerRoles);
         	myResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
 
@@ -1533,57 +1533,57 @@ public class PlugtestRSGroupOSCORE {
         		
         	}
 
-        	// The CBOR Map must include exactly one element, i.e. 'get_pub_keys'
-        	if ((requestCBOR.size() != 1) || (!requestCBOR.ContainsKey(Constants.GET_PUB_KEYS))) {
+        	// The CBOR Map must include exactly one element, i.e. 'get_creds'
+        	if ((requestCBOR.size() != 1) || (!requestCBOR.ContainsKey(Constants.GET_CREDS))) {
         		valid = false;
         		
         	}
 
-        	// Invalid format of 'get_pub_keys'
+        	// Invalid format of 'get_creds'
     		if (!valid) {
-				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_pub_keys'");
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_creds'");
 	    		return;
     		}
     		
-        	// Retrieve 'get_pub_keys'
+        	// Retrieve 'get_creds'
         	// This parameter must be a CBOR array or the CBOR simple value Null
-        	CBORObject getPubKeys = requestCBOR.get(CBORObject.FromObject((Constants.GET_PUB_KEYS)));
+        	CBORObject getCreds = requestCBOR.get(CBORObject.FromObject((Constants.GET_CREDS)));
         	
-    	    // Invalid format of 'get_pub_keys'
-    	    if (!getPubKeys.getType().equals(CBORType.Array) && !getPubKeys.equals(CBORObject.Null)) {
-				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_pub_keys'");
+    	    // Invalid format of 'get_creds'
+    	    if (!getCreds.getType().equals(CBORType.Array) && !getCreds.equals(CBORObject.Null)) {
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_creds'");
 	    		return;
     	    }
     			    
-    	    if (getPubKeys.getType().equals(CBORType.Array)) {
+    	    if (getCreds.getType().equals(CBORType.Array)) {
     	    
-	    		// 'get_pub_keys' must include exactly two elements, both of which CBOR arrays
-	    		if ( getPubKeys.size() != 3 ||
-	    			!getPubKeys.get(0).getType().equals(CBORType.Boolean) ||
-	    			!getPubKeys.get(1).getType().equals(CBORType.Array) ||
-	    			!getPubKeys.get(2).getType().equals(CBORType.Array)) {
+	    		// 'get_creds' must include exactly two elements, both of which CBOR arrays
+	    		if ( getCreds.size() != 3 ||
+	    			!getCreds.get(0).getType().equals(CBORType.Boolean) ||
+	    			!getCreds.get(1).getType().equals(CBORType.Array) ||
+	    			!getCreds.get(2).getType().equals(CBORType.Array)) {
 	    			
 	    			valid = false;
 	        		
 	    		}
 	
-	    		// Invalid format of 'get_pub_keys'
-	    		if (valid && getPubKeys.get(1).size() == 0 && getPubKeys.get(2).size() == 0) {
+	    		// Invalid format of 'get_creds'
+	    		if (valid && getCreds.get(1).size() == 0 && getCreds.get(2).size() == 0) {
 	    			valid = false;
 	    		}
 	    		
-	    		// Invalid format of 'get_pub_keys'
-	    		if (getPubKeys.get(0).AsBoolean() == false && getPubKeys.get(2).size() == 0) {
+	    		// Invalid format of 'get_creds'
+	    		if (getCreds.get(0).AsBoolean() == false && getCreds.get(2).size() == 0) {
 	    			valid = false;
 	    		}
 	    		
-	    		// Invalid format of 'get_pub_keys'
+	    		// Invalid format of 'get_creds'
 	    		if (valid) {
-					for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+					for (int i = 0; i < getCreds.get(1).size(); i++) {
 						// Possible elements of the first array have to be all integers and
 						// express a valid combination of roles encoded in the AIF data model
-						if (!getPubKeys.get(1).get(i).getType().equals(CBORType.Integer) ||
-							!validRoleCombinations.contains(getPubKeys.get(1).get(i).AsInt32())) {
+						if (!getCreds.get(1).get(i).getType().equals(CBORType.Integer) ||
+							!validRoleCombinations.contains(getCreds.get(1).get(i).AsInt32())) {
 								valid = false;
 								break;
 								
@@ -1591,12 +1591,12 @@ public class PlugtestRSGroupOSCORE {
 					}
 	    		}
 	    		
-	    		// Invalid format of 'get_pub_keys'
+	    		// Invalid format of 'get_creds'
 	    		if (valid) {
-					for (int i = 0; i < getPubKeys.get(2).size(); i++) {
+					for (int i = 0; i < getCreds.get(2).size(); i++) {
 						// Possible elements of the second array have to be all
 						// byte strings, specifying Sender IDs of other group members
-						if (!getPubKeys.get(2).get(i).getType().equals(CBORType.ByteString)) {
+						if (!getCreds.get(2).get(i).getType().equals(CBORType.ByteString)) {
 							valid = false;
 							break;
 							
@@ -1604,34 +1604,34 @@ public class PlugtestRSGroupOSCORE {
 					}
 	    		}
 				
-	    		// Invalid format of 'get_pub_keys'
+	    		// Invalid format of 'get_creds'
 	    		if (!valid) {
-					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_pub_keys'");
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_creds'");
 		    		return;
 	    		}
     		
     	    }
     		
     		
-    	    // Respond to the Public Key Request
+    	    // Respond to the Authentication Credential Request
 
     	    CBORObject myResponse = CBORObject.NewMap();
     	    
-    	    CBORObject pubKeysArray = CBORObject.NewArray();
+    	    CBORObject authCredsArray = CBORObject.NewArray();
     	    CBORObject peerRoles = CBORObject.NewArray();
     	    CBORObject peerIdentifiers = CBORObject.NewArray();
     	    Set<Integer> requestedRoles = new HashSet<Integer>();
     	    Set<ByteBuffer> requestedSenderIDs = new HashSet<ByteBuffer>();
 
-    	    Map<CBORObject, CBORObject> publicKeys = targetedGroup.getPublicKeys();
+    	    Map<CBORObject, CBORObject> authCreds = targetedGroup.getAuthCreds();
 
-    	    // Provide the public keys of all the group members
-    	    if (getPubKeys.equals(CBORObject.Null)) {
+    	    // Provide the authentication credentials of all the group members
+    	    if (getCreds.equals(CBORObject.Null)) {
     	        
-    	        for (CBORObject sid : publicKeys.keySet()) {
+    	        for (CBORObject sid : authCreds.keySet()) {
     	            
     	            // This should never happen; silently ignore
-    	            if (publicKeys.get(sid) == null)
+    	            if (authCreds.get(sid) == null)
     	                continue;
     	            
     	            byte[] memberSenderId = sid.GetByteString();
@@ -1641,35 +1641,35 @@ public class PlugtestRSGroupOSCORE {
 
     	            int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
     	            
-    	            pubKeysArray.Add(publicKeys.get(sid));
+    	            authCredsArray.Add(authCreds.get(sid));
     	            peerRoles.Add(memberRoles);
     	            peerIdentifiers.Add(memberSenderId);
     	            
     	        }
     	        
     	    }
-    	    // Provide the public keys based on the specified filtering
+    	    // Provide the authentication credentials based on the specified filtering
     	    else {
 
     	        // Retrieve the inclusion flag
-    	        boolean inclusionFlag = getPubKeys.get(0).getType().equals(CBORType.Boolean);
+    	        boolean inclusionFlag = getCreds.get(0).getType().equals(CBORType.Boolean);
     	        
     	        // Retrieve and store the combination of roles specified in the request
-    	        for (int i = 0; i < getPubKeys.get(1).size(); i++) {
-    	            requestedRoles.add((getPubKeys.get(1).get(i).AsInt32()));
+    	        for (int i = 0; i < getCreds.get(1).size(); i++) {
+    	            requestedRoles.add((getCreds.get(1).get(i).AsInt32()));
     	        }
     	        
     	        // Retrieve and store the Sender IDs specified in the request
-    	        for (int i = 0; i < getPubKeys.get(2).size(); i++) {
-    	            byte[] myArray = getPubKeys.get(2).get(i).GetByteString();
+    	        for (int i = 0; i < getCreds.get(2).size(); i++) {
+    	            byte[] myArray = getCreds.get(2).get(i).GetByteString();
     	            ByteBuffer myBuffer = ByteBuffer.wrap(myArray);
     	            requestedSenderIDs.add(myBuffer);
     	        }
 
-    	        for (CBORObject sid : publicKeys.keySet()) {
+    	        for (CBORObject sid : authCreds.keySet()) {
     	            
     	            // This should never happen; silently ignore
-    	            if (publicKeys.get(sid) == null)
+    	            if (authCreds.get(sid) == null)
     	                continue;
     	            
     	            byte[] memberSenderId = sid.GetByteString();
@@ -1687,29 +1687,29 @@ public class PlugtestRSGroupOSCORE {
     	                // The role(s) of the key owner match with the role filter
     	                if (filterRoles == (filterRoles & memberRoles)) {
     	                    
-    	                    // This public key has to be included anyway,
+    	                    // This authentication credential has to be included anyway,
     	                    // regardless the Sender ID of the key owner
     	                    if (inclusionFlag) {
     	                        include = true;
     	                    }
-    	                    // This public key has to be included only if the Sender ID
-    	                    // of the key owner is not in the node identifier filter
+    	                    // This authentication credential has to be included only if
+    	                    // the Sender ID of the key owner is not in the node identifier filter
     	                    else if (!requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
     	                        include = true;
     	                    }
     	                    // Stop going through the role filter anyway;
-    	                    // this public key has not to be included
+    	                    // this authentication credential has not to be included
     	                    break;
     	                }	
     	            }
     	            
     	            if(!include) {
-    	                // This public has to be included if the Sender ID
+    	                // This authentication credential has to be included if the Sender ID
     	            	// of the key owner is in the node identifier filter
     	                if (inclusionFlag && requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
     	                    include = true;
     	                }
-    	                // This public has to be included if the Sender ID
+    	                // This authentication credential has to be included if the Sender ID
     	                // of the key owner is not in the node identifier filter
     	                else if (!inclusionFlag && !requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
     	                    include = true;
@@ -1718,7 +1718,7 @@ public class PlugtestRSGroupOSCORE {
     	            
     	            if (include) {
     	                
-    	            	pubKeysArray.Add(publicKeys.get(sid));
+    	            	authCredsArray.Add(authCreds.get(sid));
     	                peerRoles.Add(memberRoles);
     	                peerIdentifiers.Add(memberSenderId);
     	                
@@ -1729,7 +1729,7 @@ public class PlugtestRSGroupOSCORE {
 
     	    myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
     		
-    	    myResponse.Add(Constants.PUB_KEYS, pubKeysArray);
+    	    myResponse.Add(Constants.CREDS, authCredsArray);
 			myResponse.Add(Constants.PEER_ROLES, peerRoles);
 			myResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
         	
@@ -1746,21 +1746,21 @@ public class PlugtestRSGroupOSCORE {
     }
     
     /**
-     * Definition of the Group OSCORE group-membership sub-resource /gm-pub-key
+     * Definition of the Group OSCORE group-membership sub-resource /kdc-cred
      */
-    public static class GroupOSCORESubResourceGmPubKey extends CoapResource {
+    public static class GroupOSCORESubResourceKdcCred extends CoapResource {
     	
 		/**
          * Constructor
          * @param resId  the resource identifier
          */
-        public GroupOSCORESubResourceGmPubKey(String resId) {
+        public GroupOSCORESubResourceKdcCred(String resId) {
             
             // set resource identifier
             super(resId);
             
             // set display name
-            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"gm-pub-key\" " + resId);
+            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"kdc-cred\" " + resId);
             
         }
 
@@ -1841,18 +1841,18 @@ public class PlugtestRSGroupOSCORE {
             	
         	}
             
-        	// Respond to the Group Manager Public Key Request
+        	// Respond to the KDC Authentication Credential Request
             
         	CBORObject myResponse = CBORObject.NewMap();
     		
-    		// Public key of the Group Manager together with proof-of-possession evidence
+    		// Authentication Credential of the Group Manager together with proof-of-possession evidence
         	byte[] kdcNonce = new byte[8];
         	new SecureRandom().nextBytes(kdcNonce);
         	myResponse.Add(Constants.KDC_NONCE, kdcNonce);
         	
-        	CBORObject publicKey = CBORObject.FromObject(targetedGroup.getGmPublicKey());
+        	CBORObject authCred = CBORObject.FromObject(targetedGroup.getGmAuthCred());
         	
-        	myResponse.Add(Constants.KDC_CRED, publicKey);
+        	myResponse.Add(Constants.KDC_CRED, authCred);
         	
         	PrivateKey gmPrivKey;
 			try {
@@ -1984,7 +1984,7 @@ public class PlugtestRSGroupOSCORE {
 	             return;
 	         }
 	         
-	         // Respond to the Public Key Request
+	         // Respond to the Authentication Credential Request
 	         
 	         CBORObject myResponse = CBORObject.NewMap();
 	         
@@ -1999,7 +1999,7 @@ public class PlugtestRSGroupOSCORE {
 	         // Note that no Sender ID is included
 	         myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
 	         myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
-	         myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, targetedGroup.getPubKeyEnc());
+	         myMap.Add(GroupOSCOREInputMaterialObjectParameters.cred_fmt, targetedGroup.getAuthCredFormat());
 	         if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 	             // The group mode is used
 	             myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
@@ -2420,7 +2420,7 @@ public class PlugtestRSGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
         	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
         	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, targetedGroup.getPubKeyEnc());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cred_fmt, targetedGroup.getAuthCredFormat());
         	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
         	    // The group mode is used
         	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
@@ -2545,16 +2545,16 @@ public class PlugtestRSGroupOSCORE {
         	targetedGroup.setGroupMemberRoles(senderId, roles);
         	targetedGroup.setSenderIdToIdentity(subject, senderId);
         	
-        	CBORObject publicKey = targetedGroup.getPublicKey(oldSenderId);
+        	CBORObject authCred = targetedGroup.getAuthCred(oldSenderId);
         	
-        	// Store this client's public key under the new Sender ID
-        	if (!targetedGroup.storePublicKey(senderId, publicKey)) {
+        	// Store this client's authentication credential under the new Sender ID
+        	if (!targetedGroup.storeAuthCred(senderId, authCred)) {
         	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
-        	    				 "Error when storing the public key");
+        	    				 "Error when storing the authentication credential");
         	    return;
         	}
-        	// Delete this client's public key under the old Sender ID
-        	targetedGroup.deletePublicKey(oldSenderId);
+        	// Delete this client's authentication credential under the old Sender ID
+        	targetedGroup.deleteAuthCred(oldSenderId);
         	
 
         	// Respond to the Key Renewal Request
@@ -2644,22 +2644,22 @@ public class PlugtestRSGroupOSCORE {
     
     
     /**
-     * Definition of the Group OSCORE group-membership sub-resource /nodes/NODENAME/pub-key
+     * Definition of the Group OSCORE group-membership sub-resource /nodes/NODENAME/cred
      * for the group members with node name "NODENAME"
      */
-    public static class GroupOSCORESubResourceNodenamePubKey extends CoapResource {
+    public static class GroupOSCORESubResourceNodenameCred extends CoapResource {
     	
 		/**
          * Constructor
          * @param resId  the resource identifier
          */
-        public GroupOSCORESubResourceNodenamePubKey(String resId) {
+        public GroupOSCORESubResourceNodenameCred(String resId) {
             
             // set resource identifier
             super(resId);
             
             // set display name
-            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"nodes/NODENAME/pub-key\" " + resId);
+            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"nodes/NODENAME/cred\" " + resId);
             
         }
 
@@ -2735,7 +2735,7 @@ public class PlugtestRSGroupOSCORE {
 
         	CBORObject PublicKeyUpdateRequest = CBORObject.DecodeFromBytes(requestPayload);
 
-        	// The payload of the Public Key Update Request must be a CBOR Map
+        	// The payload of the Authentication Credential Update Request must be a CBOR Map
         	if (!PublicKeyUpdateRequest.getType().equals(CBORType.Map)) {
         	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
         	    				 "The payload must be a CBOR map");
@@ -2772,7 +2772,7 @@ public class PlugtestRSGroupOSCORE {
 			OneKey publicKey = null;
 			boolean valid = false;
 			
-			switch(targetedGroup.getPubKeyEnc()) {
+			switch(targetedGroup.getAuthCredFormat()) {
 			    case Constants.COSE_HEADER_PARAM_CCS:
 			        if (clientCred.getType() == CBORType.Map) {
 			        	// Retrieve the public key from the CCS
@@ -2780,7 +2780,7 @@ public class PlugtestRSGroupOSCORE {
 			            valid = true;
 			        }
 			        else {
-			            Assert.fail("Invalid format of public key");
+			            Assert.fail("Invalid format of authentication credential");
 			        }
 			        break;
 			    case Constants.COSE_HEADER_PARAM_CWT:
@@ -2789,7 +2789,7 @@ public class PlugtestRSGroupOSCORE {
 			            // TODO
 			        }
 			        else {
-			            Assert.fail("Invalid format of public key");
+			            Assert.fail("Invalid format of authentication credential");
 			        }
 			        break;
 			    case Constants.COSE_HEADER_PARAM_X5CHAIN:
@@ -2798,11 +2798,11 @@ public class PlugtestRSGroupOSCORE {
 			            // TODO
 			        }
 			        else {
-			            Assert.fail("Invalid format of public key");
+			            Assert.fail("Invalid format of authentication credential");
 			        }
 			        break;
 			    default:
-			        Assert.fail("Invalid format of public key");
+			        Assert.fail("Invalid format of authentication credential");
 			}
 			if (publicKey == null ||  valid == false) {
         	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key format");
@@ -2970,13 +2970,13 @@ public class PlugtestRSGroupOSCORE {
 			
 			byte[] senderId = targetedGroup.getGroupMemberSenderId(subject).GetByteString();
 			
-			if (!targetedGroup.storePublicKey(senderId, clientCred)) {
+			if (!targetedGroup.storeAuthCred(senderId, clientCred)) {
 			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
-			    				 "Error when storing the public key");
+			    				 "Error when storing the authentication credential");
 			    return;
 			}
 			
-        	// Respond to the Public Key Update Request     	
+        	// Respond to the Authentication Credential Update Request     	
         	
         	Response coapResponse = new Response(CoAP.ResponseCode.CHANGED);
         	
@@ -3060,10 +3060,10 @@ public class PlugtestRSGroupOSCORE {
         actions3 = new HashSet<>();
         actions3.add(Constants.GET);
         actions3.add(Constants.FETCH);
-        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/pub-key", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/creds", actions3);
         actions3 = new HashSet<>();
         actions3.add(Constants.GET);
-        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/gm-pub-key", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/kdc-cred", actions3);
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/verif-data", actions3);
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/num", actions3);
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/active", actions3);
@@ -3095,8 +3095,8 @@ public class PlugtestRSGroupOSCORE {
         
         // For each OSCORE group, include the associated group-membership resource and its sub-resources
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
-        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/pub-key"));
-        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/gm-pub-key"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/creds"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/kdc-cred"));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/verif-data"));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/num"));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/active"));
@@ -3169,14 +3169,14 @@ public class PlugtestRSGroupOSCORE {
   	    Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource);
   	    Resource join = new GroupOSCOREJoinResource(groupName);
   	    
-  	    // Add the /pub-key sub-resource
-        Resource pubKeySubResource = new GroupOSCORESubResourcePubKey("pub-key");
-        join.add(pubKeySubResource);
-        // Add the /gm-pub-key sub-resource
-        Resource gmPubKeySubResource = new GroupOSCORESubResourcePubKey("gm-pub-key");
-        join.add(gmPubKeySubResource);
+  	    // Add the /creds sub-resource
+        Resource credsSubResource = new GroupOSCORESubResourceCreds("creds");
+        join.add(credsSubResource);
+        // Add the /kdc-cred sub-resource
+        Resource kdcCredSubResource = new GroupOSCORESubResourceKdcCred("kdc-cred");
+        join.add(kdcCredSubResource);
         // Add the /verif-data sub-resource
-        Resource verifDataSubResource = new GroupOSCORESubResourcePubKey("verif-data");
+        Resource verifDataSubResource = new GroupOSCORESubResourceVerifData("verif-data");
         join.add(verifDataSubResource);
         // Add the /num sub-resource
         Resource numSubResource = new GroupOSCORESubResourceNum("num");
@@ -3204,7 +3204,7 @@ public class PlugtestRSGroupOSCORE {
   	                                  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
   	    final AlgorithmID hkdf = AlgorithmID.HMAC_SHA_256;
-  	    final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CCS;
+  	    final int credFmt = Constants.COSE_HEADER_PARAM_CCS;
 
   	    // Uncomment to set ECDSA with curve P-256 for countersignatures
   	    // int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
@@ -3342,18 +3342,18 @@ public class PlugtestRSGroupOSCORE {
     	gmKeyPair = new OneKey(CBORObject.DecodeFromBytes(gmKeyPairBytes));
     	
 
-    	// Serialization of the public key, according to the format used in the group
-    	byte[] gmPublicKey = null;
+    	// Serialization of the authentication credential, according to the format used in the group
+    	byte[] gmAuthCred = null;
     	
     	/*
-    	// Build the public key according to the format used in the group
+    	// Build the authentication credential according to the format used in the group
     	// Note: most likely, the result will NOT follow the required deterministic
     	//       encoding in byte lexicographic order, and it has to be adjusted offline
-    	switch (pubKeyEnc) {
+    	switch (credFmt) {
         case Constants.COSE_HEADER_PARAM_CCS:
             // A CCS including the public key
         	String subjectName = "";
-            gmPublicKey = Util.oneKeyToCCS(gmKeyPair, subjectName);
+            gmAuthCred = Util.oneKeyToCCS(gmKeyPair, subjectName);
             break;
         case Constants.COSE_HEADER_PARAM_CWT:
             // A CWT including the public key
@@ -3367,25 +3367,25 @@ public class PlugtestRSGroupOSCORE {
     	*/
     	
     	
-    	switch (pubKeyEnc) {
+    	switch (credFmt) {
 	        case Constants.COSE_HEADER_PARAM_CCS:
 	            // A CCS including the public key
 	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-	        		gmPublicKey = Utils.hexToBytes("A2026008A101A50102032620012158202236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540225820770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B");
+	        		gmAuthCred = Utils.hexToBytes("A2026008A101A50102032620012158202236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540225820770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B");
 	        	}
 	        	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-	        		gmPublicKey = Utils.hexToBytes("A2026008A101A4010103272006215820C6EC665E817BD064340E7C24BB93A11E8EC0735CE48790F9C458F7FA340B8CA3");
+	        		gmAuthCred = Utils.hexToBytes("A2026008A101A4010103272006215820C6EC665E817BD064340E7C24BB93A11E8EC0735CE48790F9C458F7FA340B8CA3");
 	        	}
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
 	            // A CWT including the public key
 	            // TODO
-	        	gmPublicKey = null;
+	        	gmAuthCred = null;
 	            break;
 	        case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	            // A certificate including the public key
 	            // TODO
-	        	gmPublicKey = null;
+	        	gmAuthCred = null;
 	            break;
     	}
   	    
@@ -3399,7 +3399,7 @@ public class PlugtestRSGroupOSCORE {
   	                                      prefixMonitorNames,
   	                                      nodeNameSeparator,
   	                                      hkdf,
-  	                                      pubKeyEnc,
+  	                                      credFmt,
   	                                      mode,
   	                                      signEncAlg,
   	                                      signAlg,
@@ -3409,7 +3409,7 @@ public class PlugtestRSGroupOSCORE {
     			                          ecdhParams,
     			                          null,
     			                          gmKeyPair,
-    			                          gmPublicKey);
+    			                          gmAuthCred);
 
   	    myGroup.setStatus(true);
 
@@ -3441,57 +3441,57 @@ public class PlugtestRSGroupOSCORE {
     		coseKeyPub1 = Utils.hexToBytes("a401010327200621582077ec358c1d344e41ee0e87b8383d23a2099acd39bdf989ce45b52e887463389b");
     	}
     	
-    	// Serialization of the public key, according to the format used in the group
-    	byte[] pubKey1 = null;
+    	// Serialization of the authentication credential, according to the format used in the group
+    	byte[] authCred1 = null;
     	
     	/*
-    	// Build the public key according to the format used in the group
+    	// Build the authentication credential according to the format used in the group
     	// Note: most likely, the result will NOT follow the required deterministic
     	//       encoding in byte lexicographic order, and it has to be adjusted offline
     	OneKey coseKeyPub1OneKey = null;
     	coseKeyPub1OneKey = new OneKey(CBORObject.DecodeFromBytes(coseKeyPub1));
-    	switch (pubKeyEnc) {
+    	switch (credFmt) {
 	        case Constants.COSE_HEADER_PARAM_CCS:
 	            // A CCS including the public key
 	        	String subjectName = "";
-	        	pubKey1 = Util.oneKeyToCCS(coseKeyPub1OneKey, subjectName);
+	        	authCred1 = Util.oneKeyToCCS(coseKeyPub1OneKey, subjectName);
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
 	            // A CWT including the public key
 	            // TODO
-	        	pubKey1 = null;
+	        	authCred1 = null;
 	            break;
 	        case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	            // A certificate including the public key
 	            // TODO
-	        	pubKey1 = null;
+	        	authCred1 = null;
 	            break;
     	}
     	*/
 
-    	switch (pubKeyEnc) {
+    	switch (credFmt) {
 	        case Constants.COSE_HEADER_PARAM_CCS:
 	            // A CCS including the public key
 	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-	        		pubKey1 = Utils.hexToBytes("A2026008A101A501020326200121582035F3656092E1269AAAEE6262CD1C0D9D38ED78820803305BC8EA41702A50B3AF2258205D31247C2959E7B7D3F62F79622A7082FF01325FC9549E61BB878C2264DF4C4F");
+	        		authCred1 = Utils.hexToBytes("A2026008A101A501020326200121582035F3656092E1269AAAEE6262CD1C0D9D38ED78820803305BC8EA41702A50B3AF2258205D31247C2959E7B7D3F62F79622A7082FF01325FC9549E61BB878C2264DF4C4F");
 	        	}
 	        	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-	        		pubKey1 = Utils.hexToBytes("A2026008A101A401010327200621582077EC358C1D344E41EE0E87B8383D23A2099ACD39BDF989CE45B52E887463389B");
+	        		authCred1 = Utils.hexToBytes("A2026008A101A401010327200621582077EC358C1D344E41EE0E87B8383D23A2099ACD39BDF989CE45B52E887463389B");
 	        	}
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
 	            // A CWT including the public key
 	            // TODO
-	        	pubKey1 = null;
+	        	authCred1 = null;
 	            break;
 	        case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	            // A certificate including the public key
 	            // TODO
-	        	pubKey1 = null;
+	        	authCred1 = null;
 	            break;
     	}
     	
-    	myGroup.storePublicKey(mySid, CBORObject.FromObject(pubKey1));
+    	myGroup.storeAuthCred(mySid, CBORObject.FromObject(authCred1));
   	  
 	  	
   	    // Add a group member
@@ -3518,57 +3518,57 @@ public class PlugtestRSGroupOSCORE {
     	}
     	
     	
-    	// Serialization of the public key, according to the format used in the group
-    	byte[] pubKey2 = null;
+    	// Serialization of the authentication credential, according to the format used in the group
+    	byte[] authCred2 = null;
     	
     	/*
-    	// Build the public key according to the format used in the group
+    	// Build the authentication credential according to the format used in the group
     	// Note: most likely, the result will NOT follow the required deterministic
     	//       encoding in byte lexicographic order, and it has to be adjusted offline
     	OneKey coseKeyPub2OneKey = null;
     	coseKeyPub2OneKey = new OneKey(CBORObject.DecodeFromBytes(coseKeyPub2));
-    	switch (pubKeyEnc) {
+    	switch (credFmt) {
 	        case Constants.COSE_HEADER_PARAM_CCS:
 	            // A CCS including the public key
 	        	String subjectName = "";
-	        	pubKey2 = Util.oneKeyToCCS(coseKeyPub2OneKey, subjectName);
+	        	authCred2 = Util.oneKeyToCCS(coseKeyPub2OneKey, subjectName);
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
 	            // A CWT including the public key
 	            // TODO
-	        	pubKey2 = null;
+	        	authCred2 = null;
 	            break;
 	        case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	            // A certificate including the public key
 	            // TODO
-	        	pubKey2 = null;
+	        	authCred2 = null;
 	            break;
     	}
     	*/
     	
-    	switch (pubKeyEnc) {
+    	switch (credFmt) {
         case Constants.COSE_HEADER_PARAM_CCS:
             // A CCS including the public key
         	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-        		pubKey2 = Utils.hexToBytes("A2026008A101A50102032620012158209DFA6D63FD1515761460B7B02D54F8D7345819D2E5576C160D3148CC7886D5F122582076C81A0C1A872F1730C10317AB4F3616238FB23A08719E8B982B2D9321A2EF7D");
+        		authCred2 = Utils.hexToBytes("A2026008A101A50102032620012158209DFA6D63FD1515761460B7B02D54F8D7345819D2E5576C160D3148CC7886D5F122582076C81A0C1A872F1730C10317AB4F3616238FB23A08719E8B982B2D9321A2EF7D");
         	}
         	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-        		pubKey2 = Utils.hexToBytes("A2026008A101A4010103272006215820105B8C6A8C88019BF0C354592934130BAA8007399CC2AC3BE845884613D5BA2E");
+        		authCred2 = Utils.hexToBytes("A2026008A101A4010103272006215820105B8C6A8C88019BF0C354592934130BAA8007399CC2AC3BE845884613D5BA2E");
         	}
             break;
         case Constants.COSE_HEADER_PARAM_CWT:
             // A CWT including the public key
             // TODO
-        	pubKey2 = null;
+        	authCred2 = null;
             break;
         case Constants.COSE_HEADER_PARAM_X5CHAIN:
             // A certificate including the public key
             // TODO
-        	pubKey2 = null;
+        	authCred2 = null;
             break;
     	}
     	
-    	myGroup.storePublicKey(mySid, CBORObject.FromObject(pubKey2));
+    	myGroup.storeAuthCred(mySid, CBORObject.FromObject(authCred2));
 	  	
 	  	
   	    // Add this OSCORE group to the set of active groups
