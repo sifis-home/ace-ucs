@@ -97,7 +97,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp2"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-helloWorld2"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -111,7 +111,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp3"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-helloWorld3"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -125,7 +125,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp4"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-helloWorld4"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -139,7 +139,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp5"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-helloWorld5"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -153,7 +153,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:thermometer-reachable"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-helloWorld6"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -161,6 +161,48 @@
 					</Apply>
 					<AttributeValue
 							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-helloWorld7"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-helloWorld8"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
+				</Apply>
+				<Apply
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+					<Apply
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+						<AttributeDesignator
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:welcome-led-panel"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								DataType="http://www.w3.org/2001/XMLSchema#string"
+								MustBePresent="true">
+						</AttributeDesignator>
+					</Apply>
+					<AttributeValue
+							DataType="http://www.w3.org/2001/XMLSchema#string" >Hi!</AttributeValue>
 				</Apply>
 			</Apply>
 		</Condition>

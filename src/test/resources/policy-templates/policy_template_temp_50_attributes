@@ -97,7 +97,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute2"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp2"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -111,7 +111,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute3"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp3"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -125,7 +125,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute4"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp4"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -139,7 +139,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute5"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp5"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -153,7 +153,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute6"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp6"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -167,7 +167,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute7"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp7"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -181,7 +181,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute8"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp8"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -195,7 +195,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute9"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp9"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -209,7 +209,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute10"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp10"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -223,7 +223,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute11"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp11"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -237,7 +237,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute12"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp12"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -251,7 +251,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute13"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp13"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -265,7 +265,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute14"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp14"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -279,7 +279,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute15"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp15"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -293,7 +293,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute16"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp16"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -307,7 +307,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute17"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp17"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -321,7 +321,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute18"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp18"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -335,7 +335,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute19"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp19"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -349,7 +349,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute20"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp20"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -363,7 +363,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute21"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp21"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -377,7 +377,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute22"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp22"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -391,7 +391,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute23"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp23"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -405,7 +405,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute24"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp24"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -419,7 +419,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute25"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp25"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -433,7 +433,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute26"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp26"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -447,7 +447,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute27"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp27"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -461,7 +461,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute28"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp28"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -475,7 +475,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute29"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp29"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -489,7 +489,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute30"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp30"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -503,7 +503,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute31"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp31"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -517,7 +517,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute32"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp32"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
@@ -531,7 +531,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute33"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp33"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -545,7 +545,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute34"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp34"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -559,7 +559,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute35"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp35"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -573,7 +573,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute36"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp36"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -587,7 +587,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute37"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp37"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -601,7 +601,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute38"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp38"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -615,7 +615,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute39"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp39"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -629,7 +629,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute40"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp40"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -643,7 +643,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute41"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp41"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -657,7 +657,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute42"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp42"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -671,7 +671,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute43"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp43"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -685,7 +685,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute44"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp44"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -699,7 +699,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute45"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp45"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -713,7 +713,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute46"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp46"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -727,7 +727,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute47"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp47"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -741,7 +741,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute48"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp48"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -755,7 +755,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute49"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp49"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">
@@ -769,7 +769,7 @@
                     <Apply
                             FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
                         <AttributeDesignator
-                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute50"
+                                AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp50"
                                 Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                 DataType="http://www.w3.org/2001/XMLSchema#string"
                                 MustBePresent="true">

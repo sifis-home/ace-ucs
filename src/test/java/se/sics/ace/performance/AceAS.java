@@ -137,7 +137,8 @@ public class AceAS implements Callable<Integer> {
 
     @Option(names = {"-N", "--numberOfAttributes"},
             required = false,
-            description = "Number of mutable attributes of the policy containing the 'r_temp' subscope.")
+            description = "Number of mutable attributes of the policies containing 'r_temp' and 'r_helloWorld' " +
+                    "subscopes.")
     public int numAttributes = 1;
 
     static class Opt {
@@ -405,6 +406,9 @@ static class Peer {
                     if (res.equals("temp") && numAttributes > 1) {
                         policySuffix = "_" + numAttributes + "_attributes";
                     }
+                    if (res.equals("helloWorld") && numAttributes > 1) {
+                        policySuffix = "_" + numAttributes + "_attributes";
+                    }
                     ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope,
                             TestConfig.testFilePath + "policy-templates/policy_template_" + res + policySuffix);
                 }
@@ -457,7 +461,11 @@ static class Peer {
 //                                                                                   "ClientA maintainer\n" +
 //                                                                                   "ClientD admin");
             for (int i = 2; i <= numAttributes; i++) {
-                setAttributeValue(attributeFilesPath + "attribute" + i + ".txt", "y");
+                setAttributeValue(attributeFilesPath + "attribute-temp" + i + ".txt", "y");
+            }
+
+            for (int i = 2; i <= numAttributes; i++) {
+                setAttributeValue(attributeFilesPath + "attribute-helloWorld" + i + ".txt", "y");
             }
 
             UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
@@ -497,7 +505,11 @@ static class Peer {
 //            pipPropertiesList.add(pipReader);
 
             for (int i = 2;  i <= numAttributes; i++) {
-                pipPropertiesList.add(preparePIPReader("attribute" + i));
+                pipPropertiesList.add(preparePIPReader("attribute-temp" + i));
+            }
+
+            for (int i = 2;  i <= numAttributes; i++) {
+                pipPropertiesList.add(preparePIPReader("attribute-helloWorld" + i));
             }
 
             UcsPapProperties papProperties =

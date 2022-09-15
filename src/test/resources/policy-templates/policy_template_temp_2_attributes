@@ -97,7 +97,7 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute2"
+								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-temp2"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
