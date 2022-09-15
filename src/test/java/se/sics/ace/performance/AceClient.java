@@ -17,6 +17,7 @@ import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.BasicTrlStore;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.TrlResponses;
+import se.sics.ace.examples.KissTime;
 import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.rs.AsRequestCreationHints;
 
@@ -245,7 +246,7 @@ public class AceClient implements Callable<Integer> {
 
     private String trlAddr;
 
-    private Set<String> validTokens = new HashSet<>();
+    private final Set<String> validTokens = new HashSet<>();
 
     private static String logFilePath;
 
@@ -385,8 +386,11 @@ public class AceClient implements Callable<Integer> {
         Set<String> intersection = new HashSet<>(validTokens);
         intersection.retainAll(trl);
 
-        for (String th : intersection) {
-            validTokens.remove(th);
+        synchronized (validTokens) {
+            for (String th : intersection) {
+                validTokens.remove(th);
+            }
+            validTokens.notifyAll();
         }
     }
 
@@ -411,6 +415,7 @@ public class AceClient implements Callable<Integer> {
         public Integer call() throws Exception {
 
             int tokenCount = 0;
+            TimeProvider time = new KissTime();
 
             while(true) {
                 String allowedScopes;
@@ -475,7 +480,22 @@ public class AceClient implements Callable<Integer> {
 
                     isFirstRequest = false;
 
-                    sleep(requestInterval * 1000L);
+                    // wait 'requestInterval' before making another request,
+                    // or wake up and ignore the remaining time if the
+                    // current tokenhash has been removed from the variable
+                    // validToken
+                    long curTime = time.getCurrentTime();
+                    long deadline = curTime + requestInterval * 1000L;
+
+                    while (time.getCurrentTime() < deadline) {
+                        long timeout = deadline - time.getCurrentTime();
+                        synchronized (validTokens) {
+                            validTokens.wait(timeout);
+                            if (!validTokens.contains(tokenHash)) {
+                                break;
+                            }
+                        }
+                    }
                 }
                 if (denialsCount == denials) {
                     System.out.println("Too many denials.");
@@ -484,6 +504,10 @@ public class AceClient implements Callable<Integer> {
                 else {
                     System.out.println("Learnt that the token was revoked");
                 }
+
+                PerformanceLogger.getInstance().getLogger().log(Level.INFO,
+                        "tCliLearn    : " + new Date().getTime() + "\n");
+
                 System.out.println("Trying to get a new Access Token from the AS...");
                 denialsCount = 0;
             }
