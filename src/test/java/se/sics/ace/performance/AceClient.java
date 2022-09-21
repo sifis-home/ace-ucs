@@ -298,6 +298,7 @@ public class AceClient implements Callable<Integer> {
 
         CoapClient client4AS = OSCOREProfileRequests.buildClient(asUri, ctx, ctxDB);
 
+        ScheduledExecutorService executorService = null;
         if (isPolling || isObserve) {
             TrlStore trlStore = new BasicTrlStore();
 
@@ -311,7 +312,7 @@ public class AceClient implements Callable<Integer> {
 
             if (isPolling) {
                 // 1. Make poll request to the /trl endpoint
-                ScheduledExecutorService executorService = Executors
+                executorService = Executors
                         .newSingleThreadScheduledExecutor();
                 executorService.scheduleAtFixedRate(
                         new Poller(client4AS, asUri + trlAddr, trlStore),
@@ -321,7 +322,7 @@ public class AceClient implements Callable<Integer> {
 
         for (int i = 0; i < rsUri.size(); i++) {
             Integer requester = new Requester(
-                    client4AS, rsUri.get(i), aud.get(i), scope.get(i))
+                    client4AS, rsUri.get(i), aud.get(i), scope.get(i), executorService)
                     .call();
             if (requester == 0)
                 return 0;
@@ -403,12 +404,18 @@ public class AceClient implements Callable<Integer> {
         String scope;
         String rsAddr;
         int denialsCount = 0;
-        public Requester(CoapClient client4AS, String rsAddr, String aud, String scope) {
+        /*
+         * executorService for the Poller.
+         */
+        ScheduledExecutorService es;
+
+        public Requester(CoapClient client4AS, String rsAddr, String aud, String scope, ScheduledExecutorService es) {
             this.client4AS = client4AS;
             this.rsAddr = rsAddr;
             this.aud = aud;
             this.scope = scope;
             this.client4RS = new CoapClient(rsAddr);
+            this.es = es;
         }
 
         @Override
@@ -429,6 +436,10 @@ public class AceClient implements Callable<Integer> {
                 } catch (AceException e) {
                     System.out.println(e.getMessage());
                     client4AS.shutdown();
+                    if (es != null) {
+                        //Shutting down the Executor Service for the Poller
+                        es.shutdown();
+                    }
                     System.out.println("Quitting.");
                     return -1;
                 }
@@ -471,6 +482,10 @@ public class AceClient implements Callable<Integer> {
                         PerformanceLogger.getInstance().getLogger().log(Level.INFO,
                                 "t2D, t2A" + tokenCount + "    : " + new Date().getTime() + "\n");
                         client4AS.shutdown();
+                        if (es != null) {
+                            //Shutting down the Executor Service for the Poller
+                            es.shutdown();
+                        }
                         System.out.println("Test ended successfully.");
                         return 0;
                     }
