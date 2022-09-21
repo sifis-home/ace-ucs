@@ -55,7 +55,7 @@ public class AceClient implements Callable<Integer> {
     private final static String DEFAULT_ASURI = "localhost:" + CoAP.DEFAULT_COAP_PORT;
     private final static int DEFAULT_RS_PORT = 5685;
     private final static String DEFAULT_RSURI = "localhost:" + DEFAULT_RS_PORT;
-    private final static int DEFAULT_MAX_DENIAL = 5;
+    private final static int DEFAULT_MAX_DENIAL = Integer.MAX_VALUE;
     private final static String DEFAULT_AUD = "rs1";
     private final static String DEFAULT_SCOPE = "r_temp r_helloWorld";
     private final static int DEFAULT_POLLING_INTERVAL = 10;
