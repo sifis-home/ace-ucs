@@ -489,8 +489,14 @@ public class AceClient implements Callable<Integer> {
                         System.out.println("Test ended successfully.");
                         return 0;
                     }
-                    if (!isSuccess)
+                    if (!isSuccess) {
                         denialsCount++;
+                        if (denialsCount == denials) {
+                            System.out.println("Too many denials.");
+                            validTokens.remove(tokenHash); // assume the token is not valid anymore
+                            break;
+                        }
+                    }
                     i = (i+1)%resources.size();
 
                     isFirstRequest = false;
@@ -507,17 +513,11 @@ public class AceClient implements Callable<Integer> {
                         synchronized (validTokens) {
                             validTokens.wait(timeout);
                             if (!validTokens.contains(tokenHash)) {
+                                System.out.println("Learnt that the token was revoked");
                                 break;
                             }
                         }
                     }
-                }
-                if (denialsCount == denials) {
-                    System.out.println("Too many denials.");
-                    validTokens.remove(tokenHash); // assume the token is not valid anymore
-                }
-                else {
-                    System.out.println("Learnt that the token was revoked");
                 }
 
                 PerformanceLogger.getInstance().getLogger().log(Level.INFO,
