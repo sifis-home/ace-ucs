@@ -478,13 +478,14 @@ static class Peer {
             List<PipProperties> pipPropertiesList = new ArrayList<>();
             pipPropertiesList.add(pipReader);
 
-//            pipReader = new UcsPipReaderProperties();
-//            pipReader.addAttribute(
-//                    "urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable",
-//                    Category.ENVIRONMENT.toString(),
-//                    DataType.STRING.toString(),
-//                    attributeFilesPath + "hygrometer-reachable.txt");
-//            pipPropertiesList.add(pipReader);
+            // used only for warm up, if the Client uses the -W option
+            pipReader = new UcsPipReaderProperties();
+            pipReader.addAttribute(
+                    "urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable",
+                    Category.ENVIRONMENT.toString(),
+                    DataType.STRING.toString(),
+                    attributeFilesPath + "hygrometer-reachable.txt");
+            pipPropertiesList.add(pipReader);
 
             pipReader = new UcsPipReaderProperties();
             pipReader.addAttribute(

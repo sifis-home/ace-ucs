@@ -72,6 +72,15 @@ public class AceClient implements Callable<Integer> {
     @Spec
     CommandSpec spec;
 
+    @Option(names = {"-W", "--WarmUp"},
+            required = false,
+            description = "Enable warm up, i.e., the Client request an additional token " +
+                    "before performance are recorded. Audience and scope are fixed to 'rs2' " +
+                    "and 'r_humidity', respectively.\n" +
+                    "Note that the AceAS must be initialized so that the Client has the privileges " +
+                    "such such audience and scope.")
+    public boolean isWarmUpEnabled = false;
+
     @Option(names = {"-L", "--LogFilePath"},
             required = false,
             description = "The path name of the log file where performance statistics " +
@@ -423,6 +432,30 @@ public class AceClient implements Callable<Integer> {
 
             int tokenCount = 0;
             TimeProvider time = new KissTime();
+
+            if (isWarmUpEnabled) {
+                System.out.println("\n[START] Warm up...");
+                // warm up. Ask and obtain a first token to have connections and
+                // structures initialized at the AceAS
+                Response asRes0;
+                try {
+                    asRes0 = getToken(client4AS, "rs2", "r_humidity");
+                } catch (AceException e) {
+                    System.out.println(e.getMessage());
+                    client4AS.shutdown();
+                    if (es != null) {
+                        //Shutting down the Executor Service for the Poller
+                        es.shutdown();
+                    }
+                    System.out.println("Warm up failed. Quitting.");
+                    return -1;
+                }
+                CBORObject resAs0 = CBORObject.DecodeFromBytes(asRes0.getPayload());
+                System.out.println("\nResponse from AS");
+                System.out.println("Response Code:       " + asRes0.getCode());
+                System.out.println("\n[END] Warm up]");
+                sleep(500L);
+            }
 
             while(true) {
                 String allowedScopes;
