@@ -453,7 +453,9 @@ static class Peer {
         else {
 
             // restore the value of the attributes
-//            setAttributeValue(attributeFilesPath + "hygrometer-reachable.txt", "y");
+            setAttributeValue(attributeFilesPath + "hygrometer-reachable.txt", "y");
+            setAttributeValue(attributeFilesPath + "screen-reachable.txt", "y");
+            setAttributeValue(attributeFilesPath + "speaker-reachable.txt", "y");
             setAttributeValue(attributeFilesPath + "thermometer-reachable.txt", "y");
             setAttributeValue(attributeFilesPath + "welcome-led-panel.txt", "Hi!");
 //            setAttributeValue(attributeFilesPath + "role.txt", "ClientB maintainer\n" +
@@ -485,6 +487,22 @@ static class Peer {
                     Category.ENVIRONMENT.toString(),
                     DataType.STRING.toString(),
                     attributeFilesPath + "hygrometer-reachable.txt");
+            pipPropertiesList.add(pipReader);
+
+            pipReader = new UcsPipReaderProperties();
+            pipReader.addAttribute(
+                    "urn:oasis:names:tc:xacml:3.0:environment:screen-reachable",
+                    Category.ENVIRONMENT.toString(),
+                    DataType.STRING.toString(),
+                    attributeFilesPath + "screen-reachable.txt");
+            pipPropertiesList.add(pipReader);
+
+            pipReader = new UcsPipReaderProperties();
+            pipReader.addAttribute(
+                    "urn:oasis:names:tc:xacml:3.0:environment:speaker-reachable",
+                    Category.ENVIRONMENT.toString(),
+                    DataType.STRING.toString(),
+                    attributeFilesPath + "speaker-reachable.txt");
             pipPropertiesList.add(pipReader);
 
             pipReader = new UcsPipReaderProperties();

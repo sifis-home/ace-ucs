@@ -74,11 +74,11 @@ public class AceClient implements Callable<Integer> {
 
     @Option(names = {"-W", "--WarmUp"},
             required = false,
-            description = "Enable warm up, i.e., the Client request an additional token " +
+            description = "Enable warm up, i.e., the Client requests an additional token " +
                     "before performance are recorded. Audience and scope are fixed to 'rs2' " +
                     "and 'r_humidity', respectively.\n" +
                     "Note that the AceAS must be initialized so that the Client has the privileges " +
-                    "such such audience and scope.")
+                    "for such audience and scope.")
     public boolean isWarmUpEnabled = false;
 
     @Option(names = {"-L", "--LogFilePath"},
