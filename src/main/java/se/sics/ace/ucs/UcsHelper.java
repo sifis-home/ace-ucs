@@ -811,16 +811,16 @@ public class UcsHelper implements PDP, AutoCloseable {
 		// get cti for the given sessionId
 		String cti = getCti4Session(sessionId);
 
-		// terminate all the sessions associated with cti and
-		// purge them from the session table
-		removeSessions4Cti(cti);
-
 		// revoke the token
 		revokeToken(cti);
 
 		// remove the token from the database and the related
 		// quantities from the token endpoint
 		t.removeToken(cti);
+
+		// terminate all the sessions associated with cti and
+		// purge them from the session table
+		removeSessions4Cti(cti);
 	}
 
 	/**
