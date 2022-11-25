@@ -312,34 +312,6 @@
 					<Apply
 							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-server"
-								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
-								DataType="http://www.w3.org/2001/XMLSchema#string"
-								MustBePresent="true">
-						</AttributeDesignator>
-					</Apply>
-					<AttributeValue
-							DataType="http://www.w3.org/2001/XMLSchema#string">RESOURCESERVER_HERE</AttributeValue>
-				</Apply>
-				<Apply
-						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
-					<Apply
-							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
-						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:1.0:action:action-id"
-								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
-								DataType="http://www.w3.org/2001/XMLSchema#string"
-								MustBePresent="true">
-						</AttributeDesignator>
-					</Apply>
-					<AttributeValue
-							DataType="http://www.w3.org/2001/XMLSchema#string">read</AttributeValue>
-				</Apply>
-				<Apply
-						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
-					<Apply
-							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
-						<AttributeDesignator
 								AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-id"
 								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
