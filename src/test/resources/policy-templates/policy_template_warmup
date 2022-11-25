@@ -93,32 +93,18 @@
 		<Condition DecisionTime="ongoing">
 			<Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:and">
 				<Apply
-						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
+						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
 					<Apply
-							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
+							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
 						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:attribute-helloWorld2"
-								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+								AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-id"
+								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
 								DataType="http://www.w3.org/2001/XMLSchema#string"
 								MustBePresent="true">
 						</AttributeDesignator>
 					</Apply>
 					<AttributeValue
-							DataType="http://www.w3.org/2001/XMLSchema#string" >y</AttributeValue>
-				</Apply>
-				<Apply
-						FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal" >
-					<Apply
-							FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only" >
-						<AttributeDesignator
-								AttributeId="urn:oasis:names:tc:xacml:3.0:environment:welcome-led-panel"
-								Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
-								DataType="http://www.w3.org/2001/XMLSchema#string"
-								MustBePresent="true">
-						</AttributeDesignator>
-					</Apply>
-					<AttributeValue
-							DataType="http://www.w3.org/2001/XMLSchema#string" >Hi!</AttributeValue>
+							DataType="http://www.w3.org/2001/XMLSchema#string">RESOURCE_HERE</AttributeValue>
 				</Apply>
 			</Apply>
 		</Condition>
