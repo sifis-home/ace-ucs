@@ -60,7 +60,7 @@ public class AceClient implements Callable<Integer> {
     private final static String DEFAULT_SCOPE = "r_temp r_helloWorld";
     private final static int DEFAULT_POLLING_INTERVAL = 10;
     private final static String DEFAULT_TRL_ADDR = "/trl";
-    private final static int DEFAULT_REQUEST_INTERVAL = 3;
+    private final static int DEFAULT_REQUEST_INTERVAL = 1;
     private final static String DEFAULT_SENDER_ID = "0x22";
     private final static String DEFAULT_MASTER_SECRET = "ClientA-AS-MS---";
     private final static String DEFAULT_LOG_FILE_PATH =
