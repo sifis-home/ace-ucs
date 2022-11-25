@@ -62,8 +62,6 @@ import picocli.CommandLine.ArgGroup;
 
 import java.util.logging.Level;
 
-import static java.lang.Thread.sleep;
-
 /**
  * Authorization Server to test with AceClient and AceRS
  *
@@ -98,6 +96,9 @@ public class AceAS implements Callable<Integer> {
 
     private final static String DEFAULT_RANDOM_FILE_PATH =
             TestConfig.testFilePath + "logs/random.txt";
+
+    private final static String DEFAULT_RESOURCES = "Temp HelloWorld";
+
 
     @Option(names = {"-K", "--Kisspdp"},
             required = false,
@@ -140,6 +141,13 @@ public class AceAS implements Callable<Integer> {
             description = "Number of mutable attributes of the policies containing 'r_temp' and 'r_helloWorld' " +
                     "subscopes.")
     public int numAttributes = 1;
+
+    @Option(names = {"-Y", "--resources"},
+            required = false,
+            description = "List of resources managed by the AS. Possible values: 'Brightness', 'HelloWorld', " +
+                    "'Humidity', 'Temp', and 'Volume'.\n" +
+                    "(default: '" + DEFAULT_RESOURCES + "')")
+    String resources;
 
     static class Opt {
         @Option(names = {"-n", "--name"},
@@ -254,6 +262,7 @@ static class Peer {
     public Integer call() throws Exception {
 
         parseNumAttributes();
+        parseResources();
 
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
@@ -366,6 +375,8 @@ static class Peer {
             logFilePath = (logPath != null) ? logPath : DEFAULT_LOG_FILE_PATH;
             randomFilePath = (randomPath != null) ? randomPath : DEFAULT_RANDOM_FILE_PATH;
         }
+
+
     }
 
     private void parseNumAttributes() {
@@ -380,6 +391,16 @@ static class Peer {
             numAttributes = 50;
         }
     }
+
+    private void parseResources() {
+        if (resources == null || resources.isEmpty()) {
+            resources = DEFAULT_RESOURCES;
+        }
+        else {
+            // validate input
+        }
+    }
+
 
     private void setupResourceServer(ResourceServer r) throws AceException {
 
@@ -449,72 +470,72 @@ static class Peer {
 
         if (isKissPDP) {
             pdp = new KissPDP(db);
-        }
-        else {
+        } else {
 
-            // restore the value of the attributes
-            setAttributeValue(attributeFilesPath + "hygrometer-reachable.txt", "y");
-            setAttributeValue(attributeFilesPath + "screen-reachable.txt", "y");
-            setAttributeValue(attributeFilesPath + "speaker-reachable.txt", "y");
-            setAttributeValue(attributeFilesPath + "thermometer-reachable.txt", "y");
-            setAttributeValue(attributeFilesPath + "welcome-led-panel.txt", "Hi!");
-//            setAttributeValue(attributeFilesPath + "role.txt", "ClientB maintainer\n" +
-//                                                                                   "ClientC developer\n" +
-//                                                                                   "ClientA maintainer\n" +
-//                                                                                   "ClientD admin");
-            for (int i = 2; i <= numAttributes; i++) {
-                setAttributeValue(attributeFilesPath + "attribute-temp" + i + ".txt", "y");
-            }
+            restoreAttributesValue();
 
-            for (int i = 2; i <= numAttributes; i++) {
-                setAttributeValue(attributeFilesPath + "attribute-helloWorld" + i + ".txt", "y");
-            }
+            List<String> allowedResources = new ArrayList<>(Arrays.asList(resources.split(" ")));
 
             UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
-            pipReader.addAttribute(
-                    "urn:oasis:names:tc:xacml:3.0:environment:thermometer-reachable",
-                    Category.ENVIRONMENT.toString(),
-                    DataType.STRING.toString(),
-                    attributeFilesPath + "thermometer-reachable.txt");
-            pipReader.setRefreshRate(10L);
-            List<PipProperties> pipPropertiesList = new ArrayList<>();
-            pipPropertiesList.add(pipReader);
+            List<PipProperties> pipPropertiesList= new ArrayList<>();
 
-            // used only for warm up, if the Client uses the -W option
-            pipReader = new UcsPipReaderProperties();
-            pipReader.addAttribute(
-                    "urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable",
-                    Category.ENVIRONMENT.toString(),
-                    DataType.STRING.toString(),
-                    attributeFilesPath + "hygrometer-reachable.txt");
-            pipPropertiesList.add(pipReader);
+            if (allowedResources.contains("Temp")) {
+                pipReader.addAttribute(
+                        "urn:oasis:names:tc:xacml:3.0:environment:thermometer-reachable",
+                        Category.ENVIRONMENT.toString(),
+                        DataType.STRING.toString(),
+                        attributeFilesPath + "thermometer-reachable.txt");
+                pipReader.setRefreshRate(10L);
+                pipPropertiesList.add(pipReader);
 
-            pipReader = new UcsPipReaderProperties();
-            pipReader.addAttribute(
-                    "urn:oasis:names:tc:xacml:3.0:environment:screen-reachable",
-                    Category.ENVIRONMENT.toString(),
-                    DataType.STRING.toString(),
-                    attributeFilesPath + "screen-reachable.txt");
-            pipPropertiesList.add(pipReader);
+                //add additional PIPs as specified by the -N option
+                for (int i = 2; i <= numAttributes; i++) {
+                    pipPropertiesList.add(preparePIPReader("attribute-temp" + i));
+                }
+            }
 
-            pipReader = new UcsPipReaderProperties();
-            pipReader.addAttribute(
-                    "urn:oasis:names:tc:xacml:3.0:environment:speaker-reachable",
-                    Category.ENVIRONMENT.toString(),
-                    DataType.STRING.toString(),
-                    attributeFilesPath + "speaker-reachable.txt");
-            pipPropertiesList.add(pipReader);
+            if (allowedResources.contains("Humidity")) {
+                // used only for warm up, if the Client uses the -W option
+                pipReader = new UcsPipReaderProperties();
+                pipReader.addAttribute(
+                        "urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable",
+                        Category.ENVIRONMENT.toString(),
+                        DataType.STRING.toString(),
+                        attributeFilesPath + "hygrometer-reachable.txt");
+                pipPropertiesList.add(pipReader);
+            }
 
-            pipReader = new UcsPipReaderProperties();
-            pipReader.addAttribute(
-                    "urn:oasis:names:tc:xacml:3.0:environment:welcome-led-panel",
-                    Category.ENVIRONMENT.toString(),
-                    DataType.STRING.toString(),
-                    attributeFilesPath + "welcome-led-panel.txt");
-            pipPropertiesList.add(pipReader);
+            if (allowedResources.contains("Brightness")) {
+                pipReader = new UcsPipReaderProperties();
+                pipReader.addAttribute(
+                        "urn:oasis:names:tc:xacml:3.0:environment:screen-reachable",
+                        Category.ENVIRONMENT.toString(),
+                        DataType.STRING.toString(),
+                        attributeFilesPath + "screen-reachable.txt");
+                pipPropertiesList.add(pipReader);
+            }
+
+            if (allowedResources.contains("Volume")) {
+                pipReader = new UcsPipReaderProperties();
+                pipReader.addAttribute(
+                        "urn:oasis:names:tc:xacml:3.0:environment:speaker-reachable",
+                        Category.ENVIRONMENT.toString(),
+                        DataType.STRING.toString(),
+                        attributeFilesPath + "speaker-reachable.txt");
+                pipPropertiesList.add(pipReader);
+            }
+
+            if (allowedResources.contains("HelloWorld")) {
+                pipReader = new UcsPipReaderProperties();
+                pipReader.addAttribute(
+                        "urn:oasis:names:tc:xacml:3.0:environment:welcome-led-panel",
+                        Category.ENVIRONMENT.toString(),
+                        DataType.STRING.toString(),
+                        attributeFilesPath + "welcome-led-panel.txt");
+                pipPropertiesList.add(pipReader);
+            }
 
             // code to add a PIPReader monitoring the role of the subject
-
 //            pipReader = new UcsPipReaderProperties();
 //            pipReader.addAttribute(
 //                    "urn:oasis:names:tc:xacml:1.0:subject:role",
@@ -523,19 +544,52 @@ static class Peer {
 //                    attributeFilesPath + "role.txt");
 //            pipPropertiesList.add(pipReader);
 
-            for (int i = 2;  i <= numAttributes; i++) {
-                pipPropertiesList.add(preparePIPReader("attribute-temp" + i));
-            }
 
-            for (int i = 2;  i <= numAttributes; i++) {
-                pipPropertiesList.add(preparePIPReader("attribute-helloWorld" + i));
-            }
+
+//            for (int i = 2; i <= numAttributes; i++) {
+//                pipPropertiesList.add(preparePIPReader("attribute-helloWorld" + i));
+//            }
 
             UcsPapProperties papProperties =
                     new UcsPapProperties(TestConfig.testFilePath + "policies/");
 
             pdp = new UcsHelper(db, pipPropertiesList, papProperties);
         }
+    }
+
+    private void restoreAttributesValue() {
+
+        // restore the value of the attributes
+        setAttributeValue(attributeFilesPath +
+                "hygrometer-reachable.txt", "y");
+
+        setAttributeValue(attributeFilesPath +
+                "screen-reachable.txt", "y");
+
+        setAttributeValue(attributeFilesPath +
+                "speaker-reachable.txt", "y");
+
+        setAttributeValue(attributeFilesPath +
+                "thermometer-reachable.txt", "y");
+
+        setAttributeValue(attributeFilesPath +
+                "welcome-led-panel.txt", "Hi!");
+
+//      setAttributeValue(attributeFilesPath +
+//              "role.txt", "ClientB maintainer\n" +
+//              "ClientC developer\n" +
+//              "ClientA maintainer\n" +
+//              "ClientD admin");
+
+        for (int i = 2; i <= numAttributes; i++) {
+            setAttributeValue(attributeFilesPath +
+                    "attribute-temp" + i + ".txt", "y");
+        }
+
+//        for (int i = 2; i <= numAttributes; i++) {
+//            setAttributeValue(attributeFilesPath +
+//                    "attribute-helloWorld" + i + ".txt", "y");
+//        }
     }
 
     public static UcsPipReaderProperties preparePIPReader(String attribute) {

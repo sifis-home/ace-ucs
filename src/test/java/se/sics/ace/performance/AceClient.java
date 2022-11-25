@@ -76,7 +76,7 @@ public class AceClient implements Callable<Integer> {
             required = false,
             description = "Enable warm up, i.e., the Client requests an additional token " +
                     "before performance are recorded. Audience and scope are fixed to 'rs2' " +
-                    "and 'r_humidity', respectively.\n" +
+                    "and 'r_warmup', respectively.\n" +
                     "Note that the AceAS must be initialized so that the Client has the privileges " +
                     "for such audience and scope.")
     public boolean isWarmUpEnabled = false;
@@ -439,7 +439,7 @@ public class AceClient implements Callable<Integer> {
                 // structures initialized at the AceAS
                 Response asRes0;
                 try {
-                    asRes0 = getToken(client4AS, "rs2", "r_humidity");
+                    asRes0 = getToken(client4AS, "rs2", "r_warmup");
                 } catch (AceException e) {
                     System.out.println(e.getMessage());
                     client4AS.shutdown();
