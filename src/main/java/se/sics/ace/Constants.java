@@ -872,7 +872,7 @@ public class Constants {
     /**
      * Content-Format ace+cbor
      */
-    public static final int APPLICATION_ACE_CBOR = 65000;
+    public static final int APPLICATION_ACE_CBOR = 19;
     
     /**
      * Content-Format ace-groupcomm+cbor
