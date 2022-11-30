@@ -442,10 +442,10 @@ public class Constants {
 
 	/**
 	 * The outer map key of a OSCORE_Input_Material object
-	 * XXX: not specified yet
+	 * Specified in RFC9203
 	 */
 	public static final CBORObject OSCORE_Input_Material
-	    = CBORObject.FromObject(99);
+	    = CBORObject.FromObject(4);
 
     /**
      * The input material identifier
