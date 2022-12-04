@@ -338,7 +338,7 @@ public class TestOscorepRSGroupOSCORE {
         byte[] n1 = new byte[8];
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
-        payload.Add(Constants.ID1, new byte[]{0x22});
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, new byte[]{0x22});
         CBORObject message = CBORObject.FromObject(payload);
 
         ai.processMessage(new LocalMessage(0, null, null, message));

@@ -615,34 +615,34 @@ public class Constants {
 
     
     /**
+     * The abbreviation code for the DTLS profile
+     */
+    public static final short COAP_DTLS = 1;
+    
+    /**
      * The abbreviation code for the OSCORE profile
      */
     public static final short COAP_OSCORE = 2;
-
-    /**
-     * The abbreviation code for the DTLS profile
-     */
-    public static final short COAP_DTLS = 4;
     
     /**
      * Value for the label "nonce1" in the Token POST request for the OSCORE profile
      */
-    public static final short NONCE1 = 65;
+    public static final short NONCE1 = 40;
     
     /**
      * Value for the label "nonce2" in the Token POST request for the OSCORE profile
      */
-    public static final short NONCE2 = 66;
+    public static final short NONCE2 = 42;
     
     /**
-     * Value for the label "id1" in the Token POST request for the OSCORE profile
+     * Value for the label "ace_client_recipientid" in the Token POST request for the OSCORE profile
      */
-    public static final short ID1 = 67;
+    public static final short ACE_CLIENT_RECIPIENTID = 43;
     
     /**
-     * Value for the label "id2" in the Token POST request for the OSCORE profile
+     * Value for the label "ace_server_recipientid" in the Token POST request for the OSCORE profile
      */
-    public static final short ID2 = 68;
+    public static final short ACE_SERVER_RECIPIENTID = 44;
     
     /**
      * Return the abbreviated profile id for the full profile name.

@@ -419,7 +419,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
     	    }
     		
 	    	CBORObject cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
-	    	byte[] senderId = cbor.get(Constants.ID1).GetByteString();
+	    	byte[] senderId = cbor.get(Constants.ACE_CLIENT_RECIPIENTID).GetByteString();
 	    	
 	        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
 	        
