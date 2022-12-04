@@ -442,10 +442,10 @@ public class Constants {
 
 	/**
 	 * The outer map key of a OSCORE_Input_Material object
-	 * XXX: not specified yet
+	 * Specified in RFC9203
 	 */
 	public static final CBORObject OSCORE_Input_Material
-	    = CBORObject.FromObject(99);
+	    = CBORObject.FromObject(4);
 
     /**
      * The input material identifier
@@ -872,7 +872,7 @@ public class Constants {
     /**
      * Content-Format ace+cbor
      */
-    public static final int APPLICATION_ACE_CBOR = 65000;
+    public static final int APPLICATION_ACE_CBOR = 19;
     
     /**
      * Content-Format ace-groupcomm+cbor
