@@ -68,7 +68,7 @@ public class GroupInfo {
 	private byte[] masterSalt;
 	private byte[] groupEncryptionKey = null;
 	private AlgorithmID hkdf = null;
-	private int pubKeyEnc; // the format of public keys used in the group
+	private int authCredFormat; // the format of authentication credentials used in the group
 	
 	// Each set of the list refers to a different size of Sender IDs.
 	// The element with index 0 includes as elements Sender IDs with size 1 byte.
@@ -79,10 +79,10 @@ public class GroupInfo {
 	
 	// Each set of the list refers to a different size of Sender IDs.
 	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
-	// Each map has as values CBOR byte strings, with value the serialization of the public keys
-	// of the group members, according to the format used in the group.
+	// Each map has as values CBOR byte strings, with value the serialization of the
+	// authentication credentials of the group members, according to the format used in the group.
 	// The map key (label) is a CBOR byte string with value the Sender ID of the group member.
-	private List<Map<CBORObject, CBORObject>> publicKeyRepo = new ArrayList<Map<CBORObject, CBORObject>>();
+	private List<Map<CBORObject, CBORObject>> authCredRepo = new ArrayList<Map<CBORObject, CBORObject>>();
 	
 	// Each set of the list refers to a different size of Sender IDs.
 	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
@@ -134,7 +134,7 @@ public class GroupInfo {
 	private boolean status; // True if the group is currently active, false otherwise
 	
 	private OneKey gmKeyPair;   // The asymmetric key pair of the Group Manager, as a OneKey object
-	private byte[] gmPublicKey; // The serialization of the public key of the Group Manager, in the format used in the group
+	private byte[] gmAuthCred;  // The serialization of the authentication credential of the Group Manager, in the format used in the group
 	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
@@ -149,7 +149,7 @@ public class GroupInfo {
 	 * @param prefixMonitorNames  the prefix string used to build the name of a group member acting as monitor.
 	 * @param nodeNameSeparator   the string separator used to build the name of a group member non acting as monitor.
 	 * @param hkdf                the HKDF Algorithm.
-	 * @param pubKeyEnc           the format of the public keys used in the OSCORE group.
+	 * @param credFmt             the format of the authentication credentials used in the OSCORE group.
 	 * @param mode			      the mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
 	 * @param signEncAlg          the Signature Encryption Algorithm if the group mode is used, or null otherwise
 	 * @param signAlg             the Signature Algorithm if the group mode is used, or null otherwise
@@ -159,7 +159,7 @@ public class GroupInfo {
 	 * @param ecdhParams          the parameters of the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
 	 * @param groupPolicies		  the map of group policies, or Null for building one with default values
 	 * @param gmKeyPair           the asymmetric key pair of the Group Manager
-	 * @param gmPublicKey		  the serialization of the public key of the Group Manager (in the format used in the group)
+	 * @param gmAuthCred		  the serialization of the authentication credential of the Group Manager, in the format used in the group
 	 */
     public GroupInfo(final String groupName,
     				 final byte[] masterSecret,
@@ -171,7 +171,7 @@ public class GroupInfo {
     		         final String prefixMonitorNames,
     		         final String nodeNameSeparator,
     		         final AlgorithmID hkdf,
-    		         final int pubKeyEnc,
+    		         final int authCredFormat,
     		         final int mode,
     		         final AlgorithmID signEncAlg,
     		         final AlgorithmID signAlg,
@@ -181,7 +181,7 @@ public class GroupInfo {
     		         final CBORObject ecdhParams,
     		         final CBORObject groupPolicies,
     		         final OneKey gmKeyPair,
-    		         final byte[] gmPublicKey) {
+    		         final byte[] gmAuthCred) {
     	
     	this.version = 0;
     	this.status = false;
@@ -197,7 +197,7 @@ public class GroupInfo {
     	setGroupIdEpoch(groupIdEpochSize, groupIdEpoch);
     	
     	this.mode = mode;
-    	this.pubKeyEnc = pubKeyEnc;
+    	this.authCredFormat = authCredFormat;
     	this.prefixMonitorNames = prefixMonitorNames;
     	this.nodeNameSeparator = nodeNameSeparator;
     	
@@ -224,9 +224,9 @@ public class GroupInfo {
         	// The set with index 0 refers to Sender IDs with size 1 byte
     		usedSenderIds.add(new HashSet<Integer>());
     		
-        	// Empty sets of stored public keys; one set for each possible Sender ID size in bytes.
+        	// Empty sets of stored authentication credentials; one set for each possible Sender ID size in bytes.
         	// The set with index 0 refers to Sender IDs with size 1 byte
-    		publicKeyRepo.add(new HashMap<CBORObject, CBORObject>());
+    		authCredRepo.add(new HashMap<CBORObject, CBORObject>());
     		
         	// Empty sets of roles; one set for each possible Sender ID size in bytes.
         	// The set with index 0 refers to Sender IDs with size 1 byte
@@ -245,7 +245,7 @@ public class GroupInfo {
     	}
     	
     	this.gmKeyPair = gmKeyPair;
-    	this.gmPublicKey = gmPublicKey;
+    	this.gmAuthCred = gmAuthCred;
     	
     }
     
@@ -299,23 +299,23 @@ public class GroupInfo {
     	
     }
     
-    /** Retrieve the public key of the Group Manager, according to the format used in the group
+    /** Retrieve the authentication credential of the Group Manager, according to the format used in the group
      * 
-     * @return  The public key of the Group Manager
+     * @return  The authentication credential of the Group Manager
      */
-    synchronized public final byte[] getGmPublicKey() {
+    synchronized public final byte[] getGmAuthCred() {
     	
-    	return this.gmPublicKey;
+    	return this.gmAuthCred;
     	
     }
     
     /** 
-     * Set the public key of the Group Manager, according to the format used in the group
-     * @param The new public key of the Group Manager
+     * Set the authentication credential of the Group Manager, according to the format used in the group
+     * @param The new authentication credential of the Group Manager
      */
-    synchronized public void setGmPublicKey(byte[] gmPublicKey) {
+    synchronized public void setGmAuthCred(byte[] gmAuthCred) {
     	
-    	this.gmPublicKey = gmPublicKey;
+    	this.gmAuthCred = gmAuthCred;
     	
     }
     
@@ -727,11 +727,11 @@ public class GroupInfo {
     }
     
     /**
-     * @return format of the public keys used in the group
+     * @return format of the authentication credentials used in the group
      */
-    synchronized public final int getPubKeyEnc() {
+    synchronized public final int getAuthCredFormat() {
     	
-    	return this.pubKeyEnc;
+    	return this.authCredFormat;
     	
     }
 
@@ -960,7 +960,7 @@ public class GroupInfo {
     }
     
     /**
-     * Add a new group member - Note that the public key has to be added separately
+     * Add a new group member - Note that the authentication credential has to be added separately
      * 
      * @param sid   The Sender ID of the new node. It is Null if the node is a monitor.
      * @param name   The node name of the new node.
@@ -1151,7 +1151,7 @@ public class GroupInfo {
 	    	
 	    	this.nodeRoles.get(sid.length - 1).remove(Util.bytesToInt(sid));
 	    	
-	    	deletePublicKey(sid);
+	    	deleteAuthCred(sid);
 	    	
     	}
     	
@@ -1166,62 +1166,62 @@ public class GroupInfo {
     }
     
     /**
-     * Return the public keys of the current group members
+     * Return the authentication credentials of the current group members
      * 
-     * @return  The set of public keys of the current group members. The public keys are provided as
-     *          CBOR byte strings, with value the serialization of the public keys, according to the
-     *          format used in the group
+     * @return  The set of authentication credentials of the current group members. The authentication credentials
+     * 			are provided as CBOR byte strings, with value the serialization of the authentication credentials
+     * 			according to the format used in the group
      */
-    synchronized public Map<CBORObject, CBORObject> getPublicKeys() {
+    synchronized public Map<CBORObject, CBORObject> getAuthCreds() {
     	
-    	Map<CBORObject, CBORObject> publicKeys = new HashMap<CBORObject, CBORObject>();
+    	Map<CBORObject, CBORObject> authCreds = new HashMap<CBORObject, CBORObject>();
     	
     	// Go through each size of Sender ID, i.e. from 1 (i=0) to 4 (i=3) bytes
-    	for (int i = 0; i < this.publicKeyRepo.size(); i++) {
+    	for (int i = 0; i < this.authCredRepo.size(); i++) {
     		
-    		// Retrieve each public key
-    		for (Map.Entry<CBORObject, CBORObject> pair : publicKeyRepo.get(i).entrySet()) {
-    			publicKeys.put(pair.getKey(), pair.getValue());
+    		// Retrieve each authentication credential
+    		for (Map.Entry<CBORObject, CBORObject> pair : authCredRepo.get(i).entrySet()) {
+    			authCreds.put(pair.getKey(), pair.getValue());
     		}
     		
     	}
     	
-    	return publicKeys;
+    	return authCreds;
     	
     }
     
     /**
-     * Return the public key of the group member indicated by the provided Sender ID
+     * Return the authentication credential of the group member indicated by the provided Sender ID
      * 
-     * @param sid   Sender ID of the group member associated to the public key.
-     * @return  a CBOR byte string, with value the serialization of the public key of the group member,
-     *          according to the format used in the group
+     * @param sid   Sender ID of the group member associated to the authentication credential.
+     * @return  a CBOR byte string, with value the serialization of the authentication credential
+     * 			of the group member, according to the format used in the group
      */
-    synchronized public CBORObject getPublicKey(final byte[] sid) {
+    synchronized public CBORObject getAuthCred(final byte[] sid) {
     	
     	if (sid.length < 1 || sid.length > 4)
     		return null;
     	
-    	return this.publicKeyRepo.get(sid.length - 1).get(CBORObject.FromObject(sid));
+    	return this.authCredRepo.get(sid.length - 1).get(CBORObject.FromObject(sid));
     	
     }
     
     /**
-     *  Add the public key 'key' of the group member with Sender ID 'sid' to the public key repo.
-     * @param sid   Sender ID of the group member associated to the public key.
-     * @param key   A CBOR byte string, with value the serialization of the public key of the group member,
+     *  Add the authentication credential 'cred' of the group member with Sender ID 'sid' to the authentication credential repo.
+     * @param sid   Sender ID of the group member associated to the authentication credential.
+     * @param key   A CBOR byte string, with value the serialization of the authentication credential of the group member,
      *              according to the format used in the group
      * @return  true if it worked, false if it failed
      */
-    synchronized public boolean storePublicKey(final byte[] sid, final CBORObject key) {
+    synchronized public boolean storeAuthCred(final byte[] sid, final CBORObject cred) {
     	
     	if (sid.length < 1 || sid.length > 4)
     		return false;
     	
-    	if (key.getType() != CBORType.ByteString)
+    	if (cred.getType() != CBORType.ByteString)
     		return false;
     	
-    	this.publicKeyRepo.get(sid.length - 1).put(CBORObject.FromObject(sid), key);
+    	this.authCredRepo.get(sid.length - 1).put(CBORObject.FromObject(sid), cred);
     	
     	return true;
     	
@@ -1229,20 +1229,20 @@ public class GroupInfo {
     
 
     /**
-     *  Remove the public key of the group member indicated by the provided Sender ID
+     *  Remove the authentication credential of the group member indicated by the provided Sender ID
      *  
-     * @param sid   Sender ID of the group member associated to the public key.
-     * @return  True if the public key was found and removed, false otherwise
+     * @param sid   Sender ID of the group member associated to the authentication credential.
+     * @return  True if the authentication credential was found and removed, false otherwise
      */
-    synchronized public boolean deletePublicKey(final byte[] sid) {
+    synchronized public boolean deleteAuthCred(final byte[] sid) {
     	
     	if (sid.length < 1 || sid.length > 4)
     		return false;
     	
-    	if (!this.publicKeyRepo.get(sid.length - 1).containsKey(CBORObject.FromObject(sid)))
+    	if (!this.authCredRepo.get(sid.length - 1).containsKey(CBORObject.FromObject(sid)))
     		return false;
     	
-    	this.publicKeyRepo.get(sid.length - 1).remove(CBORObject.FromObject(sid));
+    	this.authCredRepo.get(sid.length - 1).remove(CBORObject.FromObject(sid));
     	
     	return true;
     	

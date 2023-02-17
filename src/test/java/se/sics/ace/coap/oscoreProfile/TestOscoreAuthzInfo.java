@@ -270,7 +270,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         foo.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        foo.Add(Constants.ID1, id1);
+        foo.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         r.setPayload(foo.EncodeToBytes());
         CoapReq request = CoapReq.getInstance(r);
         request.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
@@ -299,7 +299,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         bogusToken.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        bogusToken.Add(Constants.ID1, id1);
+        bogusToken.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, bogusToken);
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -444,7 +444,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -490,7 +490,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -538,7 +538,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -587,7 +587,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -636,7 +636,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -685,7 +685,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -737,7 +737,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -789,7 +789,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -841,7 +841,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -892,7 +892,7 @@ public class TestOscoreAuthzInfo {
         new SecureRandom().nextBytes(n1);
         byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -957,7 +957,7 @@ public class TestOscoreAuthzInfo {
         byte[] n1 = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
         byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -966,7 +966,7 @@ public class TestOscoreAuthzInfo {
         OSCoreCtxDB ctxDB = OscoreCtxDbSingleton.getInstance();
         
         CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
-        byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
+        byte[] id2 = authzInfoResponse.get(Constants.ACE_SERVER_RECIPIENTID).GetByteString();
         OSCoreCtx osctx = ctxDB.getContext(id2);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
@@ -1007,14 +1007,14 @@ public class TestOscoreAuthzInfo {
         n1 = new byte[]{0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01}; // Offer a new nonce N1
         id1 = new byte[]{0x03}; // Offer a new ID1 for the server to use as its own Sender ID
         payload.Add(Constants.NONCE1, n1);
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         request = new LocalMessage(0, null, null, payload);
 
         response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         
         authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
-        id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
+        id2 = authzInfoResponse.get(Constants.ACE_SERVER_RECIPIENTID).GetByteString();
         osctx = ctxDB.getContext(id2);
         osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
@@ -1094,7 +1094,7 @@ public class TestOscoreAuthzInfo {
         byte[] n1 = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
         byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -1103,7 +1103,7 @@ public class TestOscoreAuthzInfo {
         OSCoreCtxDB ctxDB = OscoreCtxDbSingleton.getInstance();
         
         CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());
-        byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
+        byte[] id2 = authzInfoResponse.get(Constants.ACE_SERVER_RECIPIENTID).GetByteString();
         OSCoreCtx osctx = ctxDB.getContext(id2);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
@@ -1143,14 +1143,14 @@ public class TestOscoreAuthzInfo {
         n1 = new byte[]{0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01}; // Offer a new nonce N1
         id1 = new byte[]{0x03}; // Offer a new ID1 for the server to use as its own Sender ID
         payload.Add(Constants.NONCE1, n1);
-        payload.Add(Constants.ID1, id1);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, id1);
         request = new LocalMessage(0, null, null, payload);
 
         response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         
         authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
-        id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
+        id2 = authzInfoResponse.get(Constants.ACE_SERVER_RECIPIENTID).GetByteString();
         osctx = ctxDB.getContext(id2);
         osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         

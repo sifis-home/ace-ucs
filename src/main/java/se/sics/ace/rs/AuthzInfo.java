@@ -517,7 +517,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	            }
     		}
     	    catch (Exception e) {
-    	        LOGGER.info("No Recipient ID available to use");
+    	        LOGGER.info("Invalid/missing OSCORE_Input_Material");
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
                 map.Add(Constants.ERROR_DESCRIPTION, 
@@ -527,7 +527,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
     	    }
     		
 	    	CBORObject cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
-	    	byte[] senderId = cbor.get(Constants.ID1).GetByteString();
+	    	byte[] senderId = cbor.get(Constants.ACE_CLIENT_RECIPIENTID).GetByteString();
 	    	
 	        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
 	        

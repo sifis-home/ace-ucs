@@ -265,7 +265,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         if (!found) {
             throw new AceException("No Recipient ID available to use");
         }
-        payload.Add(Constants.ID1, recipientId);
+        payload.Add(Constants.ACE_CLIENT_RECIPIENTID, recipientId);
         
         
         
@@ -329,7 +329,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         byte[] n2 = n2C.GetByteString();
         
         CBORObject senderIdCBOR = rsPayload.get(
-                CBORObject.FromObject(Constants.ID2));
+                CBORObject.FromObject(Constants.ACE_SERVER_RECIPIENTID));
         if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
             throw new AceException("Missing or malformed 'id2' in RS response");
         }

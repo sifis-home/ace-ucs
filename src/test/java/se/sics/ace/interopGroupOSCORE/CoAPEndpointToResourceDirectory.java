@@ -72,7 +72,7 @@ public class CoAPEndpointToResourceDirectory {
 	
 	private static final String securityGroupRegistrationRequest = "" +
 			/* Beginning of Link-Format payload */
-	        "</ace-group/feedca570000>;ct=65000;rt=\"core.osc.gm\";if=\"ace.group\";" + 
+	        "</ace-group/feedca570000>;ct=19;rt=\"core.osc.gm\";if=\"ace.group\";" + 
 				"sec-gp=\"" + securityGroupName + "\";app-gp=\"" + applicationGroupName + "\";" + 
 				"cs_alg=\"-8\";cs_alg_crv=\"6\";" + 
 				"cs_kenc=\"1\";ecdh_alg=\"-27\";" + 

@@ -1002,8 +1002,13 @@ public class TokenRepository implements AutoCloseable {
 	    	this.id2cti.remove(id);
 	    	
 	    	// Remove the mapping from the subject ID to the OSCORE Input Material ID
+	    	Set<String> sidsToRemove = new HashSet<>();
 	    	for (String sid: sid2id.keySet()) {
-	    		if (sid2id.get(sid).equals(id)) {
+	    	      if (sid2id.get(sid).equals(id)) {
+	    	         sidsToRemove.add(sid);
+	    	      }
+	    	}	    	
+	    	for (String sid: sidsToRemove) {
 					sid2id.remove(sid);
 
 					// Remove the OSCORE Security Context
@@ -1026,7 +1031,6 @@ public class TokenRepository implements AutoCloseable {
 						LOGGER.severe("Unable to retrieve the OSCORE Security Context to delete");
 						throw new AceException("Unable to retrieve the OSCORE Security Context to delete");
 					}
-				}
 	    	}
 		}
 

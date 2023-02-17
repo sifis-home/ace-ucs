@@ -193,7 +193,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
 	        }
 	        
-	        senderIdCBOR = cbor.get(CBORObject.FromObject(Constants.ID1));
+	        senderIdCBOR = cbor.get(CBORObject.FromObject(Constants.ACE_CLIENT_RECIPIENTID));
 	        if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
 	            LOGGER.info("Missing or invalid parameter type for:"
 	                    + "'id1', must be present and byte-string");
@@ -348,7 +348,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	        }
 	        
 	        payload.Add(Constants.NONCE2, n2);
-	        payload.Add(Constants.ID2, recipientId);
+	        payload.Add(Constants.ACE_SERVER_RECIPIENTID, recipientId);
         
 		}
         

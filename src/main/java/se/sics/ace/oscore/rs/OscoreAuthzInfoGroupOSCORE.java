@@ -181,7 +181,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
 	        }
 	        
-	        senderIdCBOR = cbor.get(CBORObject.FromObject(Constants.ID1));
+	        senderIdCBOR = cbor.get(CBORObject.FromObject(Constants.ACE_CLIENT_RECIPIENTID));
 	        if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
 	            LOGGER.info("Missing or invalid parameter type for:"
 	                    + "'id1', must be present and byte-string");
@@ -354,7 +354,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	        }
 	        
 	        payload.Add(Constants.NONCE2, n2);
-	        payload.Add(Constants.ID2, recipientId);
+	        payload.Add(Constants.ACE_SERVER_RECIPIENTID, recipientId);
         
         }
         
@@ -463,8 +463,8 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 				    	else
 				    		signInfoEntry.Add(arrayElem);
 				    	
-				    	// 'pub_key_enc' element
-				    	signInfoEntry.Add(myGroup.getPubKeyEnc());
+				    	// 'cred_fmt' element
+				    	signInfoEntry.Add(myGroup.getAuthCredFormat());
 	
 					    signInfo.Add(signInfoEntry);
 		        	}
@@ -494,8 +494,8 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 				    	else
 				    		ecdhEntry.Add(arrayElem);
 				    	
-				    	// 'pub_key_enc' element
-				    	ecdhEntry.Add(myGroup.getPubKeyEnc());
+				    	// 'cred_fmt' element
+				    	ecdhEntry.Add(myGroup.getAuthCredFormat());
 	
 					    ecdhInfo.Add(ecdhEntry);
 		        	}
