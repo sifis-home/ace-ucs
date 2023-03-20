@@ -151,7 +151,7 @@ public class DtlsASTestServer
         claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
         claims.put(Constants.AUD,  CBORObject.FromObject("aud1"));
         claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
+        claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
         db.addToken(cti, claims);       
         db.addCti2Client(cti, "clientA");
         
