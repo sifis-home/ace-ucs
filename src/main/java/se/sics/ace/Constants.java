@@ -33,9 +33,7 @@ package se.sics.ace;
 
 import java.nio.charset.Charset;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;

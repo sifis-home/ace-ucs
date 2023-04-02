@@ -89,7 +89,6 @@ public class TestOscorepClient2RS {
      * The OSCORE ID Contexts used in these tests
      */
     private static byte[] kidContext = {'a', 'b'};
-    private static byte[] kidContext2 = {'c', 'd'};
     
     /**
      * The AS <-> RS key used in these tests

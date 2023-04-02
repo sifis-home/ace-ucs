@@ -31,20 +31,13 @@
  *******************************************************************************/
 package se.sics.ace.interopGroupOSCORE;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
-import java.security.Signature;
-import java.security.SignatureException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -70,7 +63,6 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
-import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Util;
@@ -79,7 +71,6 @@ import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
-import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
 
 /**
  * Test the coap classes.

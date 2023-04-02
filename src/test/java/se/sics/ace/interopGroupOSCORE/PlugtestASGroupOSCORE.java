@@ -38,8 +38,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
-
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
