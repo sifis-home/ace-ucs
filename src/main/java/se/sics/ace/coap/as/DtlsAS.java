@@ -46,7 +46,9 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 
@@ -183,14 +185,39 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
 
-       if (asymmetricKey != null && 
-               asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2 ) {
+       if (asymmetricKey != null && (asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2 ||
+					 			     asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_OKP)) {
            LOGGER.info("Starting CoapsAS with PSK and RPK");
-           dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+           dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES,
+        		          Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+        		        		        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+           if (asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2) {
+        	   if (asymmetricKey.get(KeyKeys.OKP_Curve) == KeyKeys.EC2_P256) {
+		   		   dtlsConfig.set(DtlsConfig.DTLS_CURVES, Arrays.asList(SupportedGroup.secp256r1));
+		   		   dtlsConfig.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+		   				          Arrays.asList(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+        	   }
+           }
+           if (asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_OKP) {
+        	   if (asymmetricKey.get(KeyKeys.OKP_Curve) == KeyKeys.OKP_Ed25519) {
+		   		   dtlsConfig.set(DtlsConfig.DTLS_CURVES, Arrays.asList(SupportedGroup.X25519));
+		   		   dtlsConfig.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+		   				          Arrays.asList(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519));
+        	   }
+        	   if (asymmetricKey.get(KeyKeys.OKP_Curve) == KeyKeys.OKP_Ed448) {
+		   		   dtlsConfig.set(DtlsConfig.DTLS_CURVES, Arrays.asList(SupportedGroup.X448));
+		   		   dtlsConfig.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+		   				          Arrays.asList(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448));
+        	   }
+           }
        } else {
            LOGGER.info("Starting CoapsAS with PSK only");
            dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
        }
+       
+       
+       
+       
         
        DtlsConnectorConfig.Builder config =  new DtlsConnectorConfig.Builder(dtlsConfig)
                .setAddress(new InetSocketAddress(port));

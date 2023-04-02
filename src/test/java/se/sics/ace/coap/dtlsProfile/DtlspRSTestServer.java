@@ -238,7 +238,8 @@ public class DtlspRSTestServer {
 
       Configuration dtlsConfig = Configuration.getStandard();
       dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
-      dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+      dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+    		  													  CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
       
       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
               .setAddress(
@@ -252,14 +253,15 @@ public class DtlspRSTestServer {
         ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
         certTypes.add(CertificateType.RAW_PUBLIC_KEY);
         AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
-                new RawPublicKeyIdentity[0], certTypes);
+                																			   new RawPublicKeyIdentity[0],
+                																			   certTypes);
         config.setAdvancedCertificateVerifier(verifier);
 
         DTLSConnector connector = new DTLSConnector(config.build());
         CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
                 .setConfiguration(Configuration.getStandard()).build();
         rs.addEndpoint(cep);
-        //Add a CoAP (no 's') endpoint for authz-info
+        // Add a CoAP (no 's') endpoint for authz-info
         CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(
                 new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
         rs.addEndpoint(aiep);

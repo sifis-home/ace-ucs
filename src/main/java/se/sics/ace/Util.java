@@ -442,5 +442,82 @@ public class Util {
         return pubKey;
 		
 	}
+	
+    /**
+     * Read a hex string and transform to bytes
+     * 
+     * @param hex  the hex string
+     * @return  the byte array representation
+     */
+    public static byte[] hexString2byteArray(String hex) {
+        int len = hex.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                    + Character.digit(hex.charAt(i+1), 16));
+        }
+        return data;
+    }
+	
+    /**
+     * Build a CBOR map specifying a public key, possibly together with the corresponding private key
+     * 
+     * @param signKeyCurve  the curve of the signature algorithm
+     * @param x  the x-coordinate of the public key
+     * @param y  the y-coordinate of the public key, or null if not applicable
+     * @param d  the private key, or null if the CBOR map specifies only the public key
+     * @return  The CBOR map specifying a public key, possibly together with the corresponding private key
+     */
+    public static CBORObject buildRpkData (int signKeyCurve, String x, String y, String d) {
+    	
+    	CBORObject rpkData = CBORObject.NewMap();
+    	
+    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+	        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+	        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
+	        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+	        CBORObject Cx = CBORObject.FromObject(hexString2byteArray(x));
+	        CBORObject Cy = CBORObject.FromObject(hexString2byteArray(y));
+	        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), Cx);
+	        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), Cy);
+	        if (d != null) {
+		        CBORObject Cd = CBORObject.FromObject(hexString2byteArray(d));
+		        rpkData.Add(KeyKeys.EC2_D.AsCBOR(), Cd);
+	        }
+    	}
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+	        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+	        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
+	        rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+	        CBORObject Cx = CBORObject.FromObject(hexString2byteArray(x));
+	        rpkData.Add(KeyKeys.OKP_X.AsCBOR(), Cx);
+	        if (d != null) {
+		        CBORObject Cd = CBORObject.FromObject(hexString2byteArray(d));
+		        rpkData.Add(KeyKeys.OKP_D.AsCBOR(), Cd);
+	        }
+    	}
+        
+    	return rpkData;
+    }
+    
+    /**
+     * Return the used major version of Java
+     * 
+     * @return  The used major version of Java
+     */
+    public static int getJavaVersion() {
+        String version = System.getProperty("java.version");
+        
+        if(version.startsWith("1.")) {
+            version = version.substring(2, 3);
+        } else {
+            int dot = version.indexOf(".");
+            if(dot != -1) {
+            	version = version.substring(0, dot);
+            }
+        }
+        
+        return Integer.parseInt(version);
+    }
     
 }

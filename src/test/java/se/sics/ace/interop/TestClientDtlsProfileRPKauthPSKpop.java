@@ -32,6 +32,8 @@
 package se.sics.ace.interop;
 
 import java.net.InetSocketAddress;
+import java.security.Provider;
+import java.security.Security;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,8 +62,10 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.as.Token;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.cwt.CWT;
@@ -77,12 +81,22 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  */
 public class TestClientDtlsProfileRPKauthPSKpop {
     
+	// Uncomment to set ECDSA with curve P-256 as signature algorithm
+	private static int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
+
+	// Uncomment to set EdDSA with curve Ed25519 as signature algorithm
+	// private static int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+	
 	/* START LIST OF KEYS */
 	
 	// Asymmetric key pair of the Client (clientC on the AS)
-    private static String cX = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
-    private static String cY = "283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8";
-    private static String cD = "00A43BAA7ED22FF2699BA62CA4999359B146F065A95C4E46017CD25EB89A94AD29";
+	// ECDSA with P-256
+    private static String cX_ECDSA = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
+    private static String cY_ECDSA = "283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8";
+    private static String cD_ECDSA = "00A43BAA7ED22FF2699BA62CA4999359B146F065A95C4E46017CD25EB89A94AD29";
+    // EdDSA with Ed25519
+    private static String cX_EdDSA = "5394E43633CDAC96F05120EA9F21307C9355A1B66B60A834B53E9BF60B1FB7DF";
+    private static String cD_EdDSA = "E550CD532B881D52AD75CE7B91171063E568F2531FBDFB32EE01D1910BCF810F";
     static OneKey cRPK = null;
 
     
@@ -123,17 +137,27 @@ public class TestClientDtlsProfileRPKauthPSKpop {
      */
     public static void main(String[] args) throws Exception {
 
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	int javaVersion = Util.getJavaVersion();
+	
+			if (javaVersion < 11) {
+				System.err.println("Java Version: " + javaVersion + " ");
+				System.err.println("EdDSA requires at least Java 11!");
+				System.exit(1);
+			}
+			
+			Provider EdDSA = new EdDSASecurityProvider();
+			Security.insertProviderAt(EdDSA, 1);
+        }
+    	
         //Setup the authentication asymmetric key pair of the client (clientC on the AS)
         CBORObject rpkData = CBORObject.NewMap();
-        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject x = CBORObject.FromObject(TestASdtlsProfile.hexString2byteArray(cX));
-        CBORObject y = CBORObject.FromObject(TestASdtlsProfile.hexString2byteArray(cY));
-        CBORObject d = CBORObject.FromObject(TestASdtlsProfile.hexString2byteArray(cD));
-        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
-        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
-        rpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+            rpkData = Util.buildRpkData(signKeyCurve, cX_ECDSA, cY_ECDSA, cD_ECDSA);
+        }
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+            rpkData = Util.buildRpkData(signKeyCurve, cX_EdDSA, null, cD_EdDSA);
+        }
         cRPK = new OneKey(rpkData);
         String keyId = new RawPublicKeyIdentity(cRPK.AsPublicKey()).getName();
         cRPK.add(KeyKeys.KeyId, CBORObject.FromObject(keyId.getBytes(Constants.charset)));
