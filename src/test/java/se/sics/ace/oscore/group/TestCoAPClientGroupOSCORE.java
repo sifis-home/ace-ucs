@@ -382,7 +382,7 @@ public class TestCoAPClientGroupOSCORE {
         
         assert(map.size() == 1);
         assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
+        assert(map.get(Constants.ERROR).AsNumber().ToInt16Checked() == Constants.INVALID_SCOPE);
         
         
         // The requested role is not allowed in the specified group
@@ -412,7 +412,7 @@ public class TestCoAPClientGroupOSCORE {
         
         assert(map.size() == 1);
         assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
+        assert(map.get(Constants.ERROR).AsNumber().ToInt16Checked() == Constants.INVALID_SCOPE);
         
         
         // The requested role is not allowed in the specified group
@@ -442,7 +442,7 @@ public class TestCoAPClientGroupOSCORE {
         
         assert(map.size() == 1);
         assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
+        assert(map.get(Constants.ERROR).AsNumber().ToInt16Checked() == Constants.INVALID_SCOPE);
         
     }
     
@@ -558,7 +558,7 @@ public class TestCoAPClientGroupOSCORE {
         
         assert(map.size() == 1);
         assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
+        assert(map.get(Constants.ERROR).AsNumber().ToInt16Checked() == Constants.INVALID_SCOPE);
         
         
         // Only one role out of the two requested ones is allowed in the specified group
@@ -692,7 +692,7 @@ public class TestCoAPClientGroupOSCORE {
         
         assert(map.size() == 1);
         assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
+        assert(map.get(Constants.ERROR).AsNumber().ToInt16Checked() == Constants.INVALID_SCOPE);
 
         
         // Only one role out of the two requested ones is allowed in the specified group

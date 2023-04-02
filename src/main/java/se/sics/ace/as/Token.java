@@ -1407,7 +1407,7 @@ public class Token implements Endpoint, AutoCloseable {
 			if (claims.containsKey(Constants.EXI) && !claims.containsKey(Constants.EXP)) {
 				
 				Long now = this.time.getCurrentTime();
-				Long exp = now + claims.get(Constants.EXI).AsInt64();
+				Long exp = now + claims.get(Constants.EXI).AsNumber().ToInt64Checked();
 				
 				claims.put(Constants.EXP, CBORObject.FromObject(exp));
 				

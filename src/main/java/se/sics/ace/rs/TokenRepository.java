@@ -1037,11 +1037,11 @@ public class TokenRepository implements AutoCloseable {
 		        if (exp == null) {
 		            continue; //This token never expires
 		        }
-		        if (!exp.isIntegral()) {
+		        if (!(exp.isNumber() && exp.AsNumber().IsInteger())) {
 		            throw new AceException("Expiration time is in wrong format");
 		        }
 		        
-		        if (this.time.getCurrentTime() > exp.AsInt64()) {
+		        if (this.time.getCurrentTime() > exp.AsNumber().ToInt64Checked()) {
 		        	// This Access Token is expired and has to be removed
 		            tokenToRemove.add(foo.getKey());
 		            
@@ -1178,21 +1178,21 @@ public class TokenRepository implements AutoCloseable {
             
             //Check if the token is expired
             CBORObject exp = claims.get(Constants.EXP); 
-             if (exp != null && !exp.isIntegral()) {
+             if (exp != null && !(exp.isNumber() && exp.AsNumber().IsInteger())) {
                     throw new AceException(
                             "Expiration time is in wrong format");
              }
-             if (exp != null && exp.AsInt64() < this.time.getCurrentTime()) {
+             if (exp != null && exp.AsNumber().ToInt64Checked() < this.time.getCurrentTime()) {
                  //Token is expired
                  continue;
              }
             
              //Check nbf
              CBORObject nbf = claims.get(Constants.NBF);
-             if (nbf != null &&  !nbf.isIntegral()) {
+             if (nbf != null &&  !(nbf.isNumber() && nbf.AsNumber().IsInteger())) {
                  throw new AceException("NotBefore time is in wrong format");
              }
-             if (nbf != null && nbf.AsInt64() > this.time.getCurrentTime()) {
+             if (nbf != null && nbf.AsNumber().ToInt64Checked() > this.time.getCurrentTime()) {
                  //Token not valid yet
                  continue;
              }

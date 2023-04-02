@@ -495,14 +495,14 @@ public class Constants {
      * Default value for alg
      */
     public static final short OS_DEFAULT_ALG 
-        = AlgorithmID.AES_CCM_16_64_128.AsCBOR().AsInt16();
+        = AlgorithmID.AES_CCM_16_64_128.AsCBOR().AsNumber().ToInt16Checked();
 
     
     /**
      * Default value for hkdf
      */
     public static final short OS_DEFAULT_HKDF 
-        = AlgorithmID.HMAC_SHA_256.AsCBOR().AsInt16();    
+        = AlgorithmID.HMAC_SHA_256.AsCBOR().AsNumber().ToInt16Checked();
     
 	/**
 	 * RESTful action names ===================================================
@@ -586,7 +586,7 @@ public class Constants {
                 throw new AceException("CBOR key was not a Short: "
                         + key.toString());
             }
-            ret.put(key.AsInt16(), cbor.get(key));
+            ret.put(key.AsNumber().ToInt16Checked(), cbor.get(key));
         }
         return ret;
     }
@@ -806,8 +806,8 @@ public class Constants {
         for (CBORObject key : map.getKeys()) {
             String keyStr = null;
             CBORObject obj = map.get(key);
-            if (key.isIntegral()) {
-                short keyInt = key.AsInt16();
+            if (key.isNumber() && key.AsNumber().IsInteger()) {
+                short keyInt = key.AsNumber().ToInt16Checked();
                 if (keyInt > 0 && keyInt < abbrev.length) {
                    keyStr = abbrev[keyInt];
                     if (keyInt == GRANT_TYPE

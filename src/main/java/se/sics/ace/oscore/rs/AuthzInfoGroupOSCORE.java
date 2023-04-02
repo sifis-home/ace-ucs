@@ -50,7 +50,6 @@ import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupInfo;
-import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionHandler;

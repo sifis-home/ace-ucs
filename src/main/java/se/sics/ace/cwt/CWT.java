@@ -397,11 +397,11 @@ public class CWT implements AccessToken {
 	public boolean isValid(long now) {
 		//Check nbf and exp for the found match
 		CBORObject nbfO = this.claims.get(Constants.NBF);
-		if (nbfO != null &&  nbfO.AsInt64()	> now) {
+		if (nbfO != null &&  nbfO.AsNumber().ToInt64Checked()	> now) {
 			return false;
 		}	
 		CBORObject expO = this.claims.get(Constants.EXP);
-		if (expO != null && expO.AsInt64() < now) {
+		if (expO != null && expO.AsNumber().ToInt64Checked() < now) {
 			//Token has expired
 			return false;
 		}
@@ -418,7 +418,7 @@ public class CWT implements AccessToken {
 	@Override
 	public boolean expired(long now) {
 		CBORObject expO = this.claims.get(Constants.EXP);
-		if (expO != null && expO.AsInt64() < now) {
+		if (expO != null && expO.AsNumber().ToInt64Checked() < now) {
 			//Token has expired
 			return true;
 		}

@@ -100,7 +100,7 @@ public class COSEparams {
     @Override
     public String toString() {
         return new String(this.tag.value + ":" + this.alg.AsCBOR().AsInt32() 
-                + ":" + this.keyWrap.AsCBOR().AsInt16());
+                + ":" + this.keyWrap.AsCBOR().AsNumber().ToInt16Checked());
     }
     
     /**
