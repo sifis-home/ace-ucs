@@ -48,6 +48,7 @@ import COSE.OneKey;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
+import se.sics.ace.Util;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.DtlsAS;
@@ -223,40 +224,14 @@ public class PlugtestASGroupOSCORE
 
         CBORObject rpkData = null;
         
-        // Build the Client public key (for clientC)
-        // Ready for possibly consider clients using the RPK mode
-        rpkData = CBORObject.NewMap();
-        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject C_x = CBORObject.FromObject(hexString2byteArray(cX));
-        CBORObject C_y = CBORObject.FromObject(hexString2byteArray(cY));
-        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), C_x);
-        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), C_y);
-        OneKey akey_c = new OneKey(rpkData);
-        
         // Build the RS public key (the same one for all the RSs)
         rpkData = CBORObject.NewMap();
-        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject rs_x = CBORObject.FromObject(hexString2byteArray(rsX));
-        CBORObject rs_y = CBORObject.FromObject(hexString2byteArray(rsY));
-        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), rs_x);
-        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), rs_y);
+        rpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), rsX, rsY, null);
         OneKey akey_rs = new OneKey(rpkData);
         
         // Build the AS asymmetric key pair
         rpkData = CBORObject.NewMap();
-        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject as_x = CBORObject.FromObject(hexString2byteArray(asX));
-        CBORObject as_y = CBORObject.FromObject(hexString2byteArray(asY));
-        CBORObject as_d = CBORObject.FromObject(hexString2byteArray(asD));
-        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), as_x);
-        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), as_y);
-        rpkData.Add(KeyKeys.EC2_D.AsCBOR(), as_d);
+        rpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), asX, asY, asD);
         OneKey asRPK = new OneKey(rpkData);  
 
         

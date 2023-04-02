@@ -192,93 +192,46 @@ public class PlugtestClientOSCOREGroupOSCORE {
         
         // Setup the asymmetric key pair of the joining node
     	CBORObject rpkData = null;
-    	CBORObject x = null;
-    	CBORObject y = null;
-    	CBORObject d = null;
     	
-    	// ECDSA_256
+		// ECDSA_256
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            rpkData = CBORObject.NewMap();
-            rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-            rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-            x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c1X_ECDSA));
-            y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c1Y_ECDSA));
-            d = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c1D_ECDSA));
-            rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
-            rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
-            rpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
+    		rpkData = CBORObject.NewMap();
+    		rpkData = Util.buildRpkData(signKeyCurve, c1X_ECDSA, c1Y_ECDSA, c1D_ECDSA);
             C1keyPair = new OneKey(rpkData);
        	}
     	// EDDSA (Ed25519)
     	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            rpkData = CBORObject.NewMap();
-            rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
-            rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
-            x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c1X_EDDSA));
-            d = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c1D_EDDSA));
-            rpkData.Add(KeyKeys.OKP_X.AsCBOR(), x);
-            rpkData.Add(KeyKeys.OKP_D.AsCBOR(), d);
-            C1keyPair = new OneKey(rpkData);
+    		rpkData = CBORObject.NewMap();
+    		rpkData = Util.buildRpkData(signKeyCurve, c1X_EDDSA, null, c1D_EDDSA);
     	}
+        C1keyPair = new OneKey(rpkData);
         
         // Setup the public key of the group members and of the Group Manager
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            rpkData = CBORObject.NewMap();
-            rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-            rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-            x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c2X_ECDSA));
-            y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c2Y_ECDSA));
-            rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
-            rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
+    		rpkData = CBORObject.NewMap();
+    		rpkData = Util.buildRpkData(signKeyCurve, c2X_ECDSA, c2Y_ECDSA, null);
             C2pubKey = new OneKey(rpkData);
-            
+
             rpkData = CBORObject.NewMap();
-            rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-            rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-            x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c3X_ECDSA));
-            y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c3Y_ECDSA));
-            rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
-            rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
+            rpkData = Util.buildRpkData(signKeyCurve, c3X_ECDSA, c3Y_ECDSA, null);
             C3pubKey = new OneKey(rpkData);     
             
             rpkData = CBORObject.NewMap();
-            rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-            rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-            x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(gmX_ECDSA));
-            y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(gmY_ECDSA));
-            rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
-            rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
+            rpkData = Util.buildRpkData(signKeyCurve, gmX_ECDSA, gmY_ECDSA, null);
             gmPubKey = new OneKey(rpkData); 
        	}
     	// EDDSA (Ed25519) and of the Group Manager
     	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            rpkData = CBORObject.NewMap();
-            rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
-            rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
-            x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c2X_EDDSA));
-            rpkData.Add(KeyKeys.OKP_X.AsCBOR(), x);
+    		rpkData = CBORObject.NewMap();
+    		rpkData = Util.buildRpkData(signKeyCurve, c2X_EDDSA, null, null);
             C2pubKey = new OneKey(rpkData);
             
             rpkData = CBORObject.NewMap();
-            rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
-            rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
-            x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c3X_EDDSA));
-            rpkData.Add(KeyKeys.OKP_X.AsCBOR(), x);
+            rpkData = Util.buildRpkData(signKeyCurve, c3X_EDDSA, null, null);
             C3pubKey = new OneKey(rpkData);
             
             rpkData = CBORObject.NewMap();
-            rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
-            rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
-            x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(gmX_EDDSA));
-            rpkData.Add(KeyKeys.OKP_X.AsCBOR(), x);
+            rpkData = Util.buildRpkData(signKeyCurve, gmX_EDDSA, null, null);
             gmPubKey = new OneKey(rpkData);
     	}
         

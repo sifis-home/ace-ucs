@@ -47,6 +47,7 @@ import COSE.OneKey;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
+import se.sics.ace.Util;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.DtlsAS;
@@ -146,38 +147,15 @@ public class PlugtestAS {
         
         //Setup RPKs
         CBORObject asRpkData = CBORObject.NewMap();
-        asRpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        asRpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                AlgorithmID.ECDSA_256.AsCBOR());
-        asRpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject x = CBORObject.FromObject(hexString2byteArray(asX));
-        CBORObject y = CBORObject.FromObject(hexString2byteArray(asY));
-        CBORObject d = CBORObject.FromObject(hexString2byteArray(asD));
-        asRpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
-        asRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
-        asRpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
+        asRpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), asX, asY, asD);
         OneKey asRPK = new OneKey(asRpkData);  
         
         CBORObject rsRpkData = CBORObject.NewMap();
-        rsRpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rsRpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                AlgorithmID.ECDSA_256.AsCBOR());
-        rsRpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject rs_x = CBORObject.FromObject(hexString2byteArray(rsX));
-        CBORObject rs_y = CBORObject.FromObject(hexString2byteArray(rsY));
-        rsRpkData.Add(KeyKeys.EC2_X.AsCBOR(), rs_x);
-        rsRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), rs_y);
+        rsRpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), rsX, rsY, null);
         OneKey rsRPK = new OneKey(rsRpkData);
         
         CBORObject cRpkData = CBORObject.NewMap();
-        cRpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cRpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                AlgorithmID.ECDSA_256.AsCBOR());
-        cRpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject c_x = CBORObject.FromObject(hexString2byteArray(cX));
-        CBORObject c_y = CBORObject.FromObject(hexString2byteArray(cY));
-        cRpkData.Add(KeyKeys.EC2_X.AsCBOR(), c_x);
-        cRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), c_y);
+        cRpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), cX, cY, null);
         OneKey cRPK = new OneKey(cRpkData);
         String clientId = new RawPublicKeyIdentity(
                 cRPK.AsPublicKey()).getName();
