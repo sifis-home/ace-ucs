@@ -45,7 +45,7 @@ import java.sql.SQLException;
 /**
  * Helper class to set up databases for tests.
  *
- * @author Sebastian Echeverria
+ * @author Sebastian Echeverria and Marco Tiloca
  *
  */
 public class DBHelper
@@ -59,7 +59,8 @@ public class DBHelper
     private static final String testPassword = "testpwd";
     private static final String testDBName = "testdb";
 
-    private static String dbRootPwd = null;
+    private static String dbAdminUser = null;
+    private static String dbAdminPwd = null;
 
     /**
      * Sets up the DB using the current default adapter.
@@ -69,18 +70,18 @@ public class DBHelper
      */
     public static void setUpDB() throws AceException, IOException
     {
-        // First load the DB root password from an external file.
-        loadRootPassword();
-
+        // First load the DB admin username and password from an external file.
+        loadAdminLoginInformation();
+        
         // Set parameters for the DB.
         dbAdapter.setParams(testUsername, testPassword, testDBName, null);
 
         // In case database and/or user already existed.
-        SQLConnector.wipeDatabase(dbAdapter, dbRootPwd);
+        SQLConnector.wipeDatabase(dbAdapter, dbAdminUser, dbAdminPwd);
 
         // Create the DB and user for the tests.
-        SQLConnector.createUser(dbAdapter, dbRootPwd);
-        SQLConnector.createDB(dbAdapter, dbRootPwd);
+        SQLConnector.createUser(dbAdapter, dbAdminUser, dbAdminPwd);
+        SQLConnector.createDB(dbAdapter, dbAdminUser, dbAdminPwd);
     }
 
     /**
@@ -110,27 +111,36 @@ public class DBHelper
     public static void tearDownDB() throws AceException
     {
         dbAdapter.setParams(testUsername, testPassword, testDBName, null);
-        SQLConnector.wipeDatabase(dbAdapter, dbRootPwd);
+        SQLConnector.wipeDatabase(dbAdapter, dbAdminUser, dbAdminPwd);
     }
 
     /**
-     * Loads the root password form an external file.
+     * Loads the admin username nad password form an external file.
      * @throws IOException
      */
-    private static void loadRootPassword() throws IOException
+    private static void loadAdminLoginInformation() throws IOException
     {
         BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
+        int readLines = 0;
         try
         {
             StringBuilder sb = new StringBuilder();
             String line = br.readLine();
-            while (line != null)
+            while (line != null && readLines < 2)
             {
+            	sb.delete(0, sb.length());
                 sb.append(line);
                 sb.append(System.lineSeparator());
+                
+                if (readLines == 0) {
+                	dbAdminUser = sb.toString().replace(System.getProperty("line.separator"), "");
+                }
+                if (readLines == 1) {
+                	dbAdminPwd = sb.toString().replace(System.getProperty("line.separator"), "");
+                }
+                readLines++;
                 line = br.readLine();
             }
-            dbRootPwd = sb.toString().replace(System.getProperty("line.separator"), "");
         }
         finally
         {

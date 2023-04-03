@@ -53,12 +53,13 @@ public interface SQLDBAdapter {
     void setParams (String user, String pwd, String dbName, String dbUrl);
 
     /**
-     * Returns a connection to the DB engine with root credentials.
-     * @param rootPwd the root password.
+     * Returns a connection to the DB engine with admin credentials.
+     * @param adminUser the admin user name.
+     * @param adminPwd the admin password.
      * @return an SQL Connection.
      * @throws SQLException
      */
-    Connection getRootConnection(String rootPwd) throws SQLException;
+    Connection getAdminConnection(String adminUser, String adminPwd) throws SQLException;
 
     /**
      * Returns a connection to the current DB.
@@ -70,27 +71,30 @@ public interface SQLDBAdapter {
     /**
      * Creates a new user in the DB.
      *
-     * @param rootPwd the root or base password to use.
+     * @param adminUser  the admin user name.
+     * @param adminPwd  the admin or base password to use.
      * @throws AceException
      */
-    void createUser(String rootPwd) throws AceException;
+    void createUser(String adminUser, String adminPwd) throws AceException;
 
     /**
      * Creates a new DB and the appropriate tables to handle authorization data.
      *
-     * @param rootPwd
+     * @param adminUser  the admin user name.
+     * @param adminPwd  the admin or base password to use.
      * @throws AceException
      */
-    void createDBAndTables(String rootPwd) throws AceException;
+    void createDBAndTables(String adminUser, String adminPwd) throws AceException;
 
 
     /**
      * Totally deletes a DB as well as the user that owns it.
      *
-     * @param rootPwd the root or base password to use.
+     * @param adminUser  the admin user name.
+     * @param adminPwd  the admin or base password to use.
      * @throws AceException
      */
-    void wipeDB(String rootPwd) throws AceException;
+    void wipeDB(String adminUser, String adminPwd) throws AceException;
 
     /**
      * Updates any SQL queries that need to be specific for each DB engine.
