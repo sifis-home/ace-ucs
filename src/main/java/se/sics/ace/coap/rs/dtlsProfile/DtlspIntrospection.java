@@ -39,6 +39,7 @@ import java.security.NoSuchProviderException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -62,9 +63,11 @@ import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.CoseException;
+import COSE.KeyKeys;
 import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.coap.BksStore;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
@@ -83,10 +86,17 @@ public class DtlspIntrospection implements IntrospectionHandler {
     private static final Logger LOGGER 
         = Logger.getLogger(DtlspIntrospection.class.getName());
     
-        /**
+     /**
      * The CoAP client
      */
     private CoapClient client = null;
+    
+    // Authentication asymmetric key pair of the Resource Server
+    // ECDSA with P-256
+    private static String rsX_ECDSA = "73B7D755827D5D59D73FD4015D47B445762F7CDB59799CD966714AB2727F1BA5";
+    private static String rsY_ECDSA = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
+    private static String rsD_ECDSA = "00EA086573C683477D74EB7A0C63A6D031D5DEB10F3CC2876FDA6D3400CAA4E507";
+    private static OneKey rsRPK = null;
     
     /**
      * Constructor, builds a client that uses raw public keys.
@@ -155,7 +165,7 @@ public class DtlspIntrospection implements IntrospectionHandler {
             NoSuchProviderException {
     	
         Configuration dtlsConfig = Configuration.getStandard();
-        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
         dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
     	
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig)
@@ -164,6 +174,26 @@ public class DtlspIntrospection implements IntrospectionHandler {
                 keystoreLocation, keystorePwd, addr2idFile);
         builder.setAdvancedPskStore(keystore);
 
+        
+        CBORObject rpkData = CBORObject.NewMap();
+        rpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), rsX_ECDSA, rsY_ECDSA, rsD_ECDSA);
+        rsRPK = new OneKey(rpkData);
+        String keyId = new RawPublicKeyIdentity(rsRPK.AsPublicKey()).getName();
+        rsRPK.add(KeyKeys.KeyId, CBORObject.FromObject(keyId.getBytes(Constants.charset)));
+
+        builder.setCertificateIdentityProvider(
+                new SingleCertificateProvider(rsRPK.AsPrivateKey(), rsRPK.AsPublicKey()));
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        certTypes.add(CertificateType.X_509);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+                                                            new X509Certificate[0],
+                                                            new RawPublicKeyIdentity[0],
+                                                            certTypes);
+        builder.setAdvancedCertificateVerifier(verifier);
+        
+        
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         
         CoapEndpoint e = new CoapEndpoint.Builder()

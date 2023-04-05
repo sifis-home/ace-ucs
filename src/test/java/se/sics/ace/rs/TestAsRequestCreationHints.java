@@ -44,7 +44,6 @@ import com.upokecenter.cbor.CBORObject;
 import org.junit.Assert;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
-import se.sics.ace.rs.AsRequestCreationHints;
 
 /**
  * Tests the AsRequestCreationHints  class.

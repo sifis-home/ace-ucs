@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Random;
@@ -454,7 +455,8 @@ public class DTLSProfileRequests {
         Configuration dtlsConfig = Configuration.getStandard();
         dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
         dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
-        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+        dtlsConfig.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, null);
+        dtlsConfig.set(DtlsConfig.DTLS_CURVES, null);
     	
         DtlsConnectorConfig.Builder builder 
             = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
@@ -509,10 +511,11 @@ public class DTLSProfileRequests {
         }
         
         Configuration dtlsConfig = Configuration.getStandard();
-        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
-        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
-        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
-    	
+        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        dtlsConfig.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, null);
+        dtlsConfig.set(DtlsConfig.DTLS_CURVES, null);
+        
         DtlsConnectorConfig.Builder builder 
             = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                 new InetSocketAddress(0));
@@ -551,7 +554,6 @@ public class DTLSProfileRequests {
         Configuration dtlsConfig = Configuration.getStandard();
         dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
         dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
-        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
     	
         DtlsConnectorConfig.Builder builder 
             = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(

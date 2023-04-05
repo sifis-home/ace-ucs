@@ -1006,18 +1006,19 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
 	/**
 	 * Create the necessary database and tables. Requires the
-	 * root user password.
+	 * admin user password.
 	 * @param dbAdapter 
 	 * 
-	 * @param rootPwd  the root user password
+	 * @param adminUser  the admin user name
+	 * @param adminPwd  the admin user password
 	 * @throws AceException
 	 */
-	public static void createDB(SQLDBAdapter dbAdapter, String rootPwd) throws AceException {
-		if (rootPwd == null) {
+	public static void createDB(SQLDBAdapter dbAdapter, String adminUser, String adminPwd) throws AceException {
+		if (adminPwd == null) {
 			throw new AceException(
 					"Cannot initialize the database without the password");
 		}
-        dbAdapter.createDBAndTables(rootPwd);
+        dbAdapter.createDBAndTables(adminUser, adminPwd);
 	}
 
 	/**
@@ -1027,16 +1028,17 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * It's main function is to clean the database during test runs.
 	 * 
 	 * @param dbAdapter handler for engine-db specific commands, containing DB name and owner data as well.
-	 * @param rootPwd  the root password
+	 * @param adminUser  the admin user name
+	 * @param adminPwd  the admin password
 	 * @throws AceException
 	 * @throws SQLException 
 	 */
-	public static void wipeDatabase(SQLDBAdapter dbAdapter, String rootPwd) throws AceException {
+	public static void wipeDatabase(SQLDBAdapter dbAdapter, String adminUser, String adminPwd) throws AceException {
 		if(SQLConnector.connector != null)
 		{
 			SQLConnector.connector.close();
 		}
-		dbAdapter.wipeDB(rootPwd);
+		dbAdapter.wipeDB(adminUser, adminPwd);
 	}
 	
 	/**
@@ -2097,12 +2099,13 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * Creates the user that manages this database.
      *
 	 * @param dbAdapter an adapter instance for the specific DB type being used.
-     * @param rootPwd  the database root password
+     * @param adminUser  the database admin user name
+     * @param adminPwd  the database admin password
      *
      * @throws AceException 
      */
-    public synchronized static void createUser(SQLDBAdapter dbAdapter, String rootPwd) throws AceException {
-		dbAdapter.createUser(rootPwd);
+    public synchronized static void createUser(SQLDBAdapter dbAdapter, String adminUser, String adminPwd) throws AceException {
+		dbAdapter.createUser(adminUser, adminPwd);
     }
     
     @Override

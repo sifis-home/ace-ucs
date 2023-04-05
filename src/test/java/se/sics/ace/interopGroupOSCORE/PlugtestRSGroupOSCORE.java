@@ -3108,15 +3108,7 @@ public class PlugtestRSGroupOSCORE {
         
         //Setup the Group Manager RPK
         CBORObject rpkData = CBORObject.NewMap();
-        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsX));
-        CBORObject y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsY));
-        CBORObject d = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsD));
-        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
-        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
-        rpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
+        rpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), rsX, rsY, rsD);
         OneKey asymmetric = new OneKey(rpkData);
         String keyId = new RawPublicKeyIdentity(asymmetric.AsPublicKey()).getName();
         asymmetric.add(KeyKeys.KeyId, CBORObject.FromObject(keyId.getBytes(Constants.charset)));

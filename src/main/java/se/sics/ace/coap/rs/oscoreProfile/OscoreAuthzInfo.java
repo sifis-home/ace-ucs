@@ -279,7 +279,6 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	            
 	        OSCoreCtx ctx;
 	        try {
-	        	byte[] senderId = senderIdCBOR.GetByteString();        	
 	            ctx = osc.getContext(false, n1, n2);
 	            
 	            OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();

@@ -50,9 +50,8 @@ import java.util.Properties;
 public class PostgreSQLDBAdapter implements SQLDBAdapter {
 
     /**
-     * The default root-user name
+     * The default admin-user name
      */
-    public static final String ROOT_USER = "postgres";
     
     /**
      * The default database name
@@ -95,10 +94,10 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public Connection getRootConnection(String rootPwd) throws SQLException {
+    public Connection getAdminConnection(String adminUser, String adminPwd) throws SQLException {
         Properties connectionProps = new Properties();
-        connectionProps.put("user", PostgreSQLDBAdapter.ROOT_USER);
-        connectionProps.put("password", rootPwd);
+        connectionProps.put("user", adminUser);
+        connectionProps.put("password", adminPwd);
         return DriverManager.getConnection(this.baseDbUrl + "/" 
                 + PostgreSQLDBAdapter.BASE_DB, connectionProps);
     }
@@ -112,7 +111,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public synchronized void createUser(String rootPwd) throws AceException {
+    public synchronized void createUser(String adminUser, String adminPwd) throws AceException {
         String createUser = "DO\n" +
                 "$body$\n" +
                 "BEGIN\n" +
@@ -127,8 +126,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 "END\n" +
                 "$body$;";
 
-        try (Connection rootConn = getRootConnection(rootPwd);
-             Statement stmt = rootConn.createStatement())
+        try (Connection adminConn = getAdminConnection(adminUser, adminPwd);
+             Statement stmt = adminConn.createStatement())
         {
             stmt.execute(createUser);
         } catch (SQLException e) {
@@ -138,13 +137,13 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public synchronized void createDBAndTables(String rootPwd) 
+    public synchronized void createDBAndTables(String adminUser, String adminPwd) 
             throws AceException {
         // First check it DB exists.
         String checkDB = "SELECT datname FROM pg_catalog.pg_database "
                 + "WHERE datname = '" + this.dbName + "';";
-        try (Connection rootConn = getRootConnection(rootPwd);
-             Statement stmt = rootConn.createStatement();
+        try (Connection adminConn = getAdminConnection(adminUser, adminPwd);
+             Statement stmt = adminConn.createStatement();
              ResultSet result = stmt.executeQuery(checkDB))
         {
             if (result.next())
@@ -162,8 +161,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + " WITH OWNER= " + this.user 
                 + " ENCODING = 'UTF8' TEMPLATE = template0 " 
                 + " CONNECTION LIMIT = -1;";
-        try (Connection rootConn = getRootConnection(rootPwd);
-             Statement stmt = rootConn.createStatement())
+        try (Connection adminConn = getAdminConnection(adminUser, adminPwd);
+             Statement stmt = adminConn.createStatement())
         {
             stmt.execute(createDB);
         } catch (SQLException e) {
@@ -265,10 +264,10 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.claimValueColumn + " bytea);";
 
         // Table creation in PostgreSQL needs to be done with a connection 
-        //using the local user and not the root user, so that the local 
+        //using the local user and not the admin user, so that the local 
         //user will be automatically set as the owner of the tables.
-        try (Connection rootConn = getDBConnection();
-             Statement stmt = rootConn.createStatement())
+        try (Connection adminConn = getDBConnection();
+             Statement stmt = adminConn.createStatement())
         {
             stmt.execute(createRs);
             stmt.execute(createC);
@@ -320,10 +319,10 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public void wipeDB(String rootPwd) throws AceException
+    public void wipeDB(String adminUser, String adminPwd) throws AceException
     {
-        try (Connection rootConn = getRootConnection(rootPwd);
-             Statement stmt = rootConn.createStatement())
+        try (Connection adminConn = getAdminConnection(adminUser, adminPwd);
+             Statement stmt = adminConn.createStatement())
         {
             String dropConnections = "SELECT pg_terminate_backend(pg_stat_activity.pid) " 
                     + "    FROM pg_stat_activity " 

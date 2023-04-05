@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.interop;
 
+import java.security.Provider;
+import java.security.Security;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -40,10 +42,11 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
+import se.sics.ace.Util;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.DtlsAS;
@@ -62,6 +65,12 @@ import se.sics.ace.examples.KissTime;
 public class TestASdtlsProfile
 {
 	
+	// Uncomment to set ECDSA with curve P-256 as signature algorithm
+	private static int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
+
+	// Uncomment to set EdDSA with curve Ed25519 as signature algorithm
+	// private static int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+	
 	/* START LIST OF KEYS */
 	
 	// PSK authentication key for clientA
@@ -78,8 +87,11 @@ public class TestASdtlsProfile
     */
     
 	// Authentication public key of a Client (client_C)
-    private static String cX = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
-    private static String cY = "283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8";
+    // ECDSA with P-256
+    private static String cX_ECDSA = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
+    private static String cY_ECDSA = "283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8";
+    // EdDSA with Ed25519
+    private static String cX_EdDSA = "5394E43633CDAC96F05120EA9F21307C9355A1B66B60A834B53E9BF60B1FB7DF";
     
     
     // PSK authentication key for the Resource Server rs1
@@ -88,8 +100,11 @@ public class TestASdtlsProfile
 						    			(byte)0x0d, (byte)0x0e, (byte)0x0f, (byte)0x10};
     
 	// Authentication public key of the Resource Server rs1 (public coordinates)
-    private static String rsX = "73B7D755827D5D59D73FD4015D47B445762F7CDB59799CD966714AB2727F1BA5";
-    private static String rsY = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
+    // ECDSA with P-256
+    private static String rsX_ECDSA = "73B7D755827D5D59D73FD4015D47B445762F7CDB59799CD966714AB2727F1BA5";
+    private static String rsY_ECDSA = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
+    // EdDSA with Ed25519
+    private static String rsX_EdDSA = "CE616F28426EF24EDB51DBCEF7A23305F886F657959D4DF889DDFC0255042159";
     
 	// PSK to encrypt access tokens issued for Resource Server rs1
     private static byte[] key128_token_rs1 = {(byte)0xa1, (byte)0xa2, (byte)0xa3, (byte)0x04, (byte)0x05, (byte)0x06,
@@ -98,9 +113,13 @@ public class TestASdtlsProfile
 
     
     // Authentication asymmetric key pair of the AS (public and private coordinates)
-    private static String asX = "058F35F3C0D34D3DF50DEBC82208CDA9BE373AF7B8F7AAC381577B144D5FA781";
-    private static String asY = "364269649744067D4600A529AE12076750D90C5EFCD9835137DB1AE2B4BACCB8";
-	private static String asD = "0089A92D07B34F1D806FABFF444AF6507C5F18F47BB2CCFAA7FBEC447303790D53";
+    // ECDSA with P-256
+    private static String asX_ECDSA = "058F35F3C0D34D3DF50DEBC82208CDA9BE373AF7B8F7AAC381577B144D5FA781";
+    private static String asY_ECDSA = "364269649744067D4600A529AE12076750D90C5EFCD9835137DB1AE2B4BACCB8";
+	private static String asD_ECDSA = "0089A92D07B34F1D806FABFF444AF6507C5F18F47BB2CCFAA7FBEC447303790D53";
+    // EdDSA with Ed25519
+	private static String asX_EdDSA = "2668BA6CA302F14E952228DA1250A890C143FDBA4DAED27246188B9E42C94B6D";
+	private static String asD_EdDSA = "70559B9EECDC578D5FC2CA37F9969630029F1592AFF3306392AB15546C6A184A";
     
     
     /* END LIST OF KEYS */
@@ -122,6 +141,19 @@ public class TestASdtlsProfile
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
 
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	int javaVersion = Util.getJavaVersion();
+	
+			if (javaVersion < 11) {
+				System.err.println("Java Version: " + javaVersion + " ");
+				System.err.println("EdDSA requires at least Java 11!");
+				System.exit(1);
+			}
+			
+			Provider EdDSA = new EdDSASecurityProvider();
+			Security.insertProviderAt(EdDSA, 1);
+        }
+        
         // Setup the PSK authentication key for clientA
         CBORObject keyData = CBORObject.NewMap();
         String kidStr = "PSK_clientA";
@@ -145,13 +177,12 @@ public class TestASdtlsProfile
         
         // Setup the authentication public key of clientC
         CBORObject rpkData = CBORObject.NewMap();
-        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject C_x = CBORObject.FromObject(hexString2byteArray(cX));
-        CBORObject C_y = CBORObject.FromObject(hexString2byteArray(cY));
-        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), C_x);
-        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), C_y);
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	rpkData = Util.buildRpkData(signKeyCurve, cX_ECDSA, cY_ECDSA, null);
+        }
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	rpkData = Util.buildRpkData(signKeyCurve, cX_EdDSA, null, null);
+        }
         OneKey akey_c = new OneKey(rpkData);
         
         
@@ -165,13 +196,12 @@ public class TestASdtlsProfile
         
         // Setup the authentication public key of the Resource Server rs1
         rpkData = CBORObject.NewMap();
-        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject rs_x = CBORObject.FromObject(hexString2byteArray(rsX));
-        CBORObject rs_y = CBORObject.FromObject(hexString2byteArray(rsY));
-        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), rs_x);
-        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), rs_y);
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	rpkData = Util.buildRpkData(signKeyCurve, rsX_ECDSA, rsY_ECDSA, null);
+        }
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	rpkData = Util.buildRpkData(signKeyCurve, rsX_EdDSA, null, null);
+        }
         OneKey akey_rs = new OneKey(rpkData);
         
         // Setup the PSK to encrypt access tokens issued for Resource Server rs1
@@ -183,15 +213,12 @@ public class TestASdtlsProfile
         
         // Setup the authentication asymmetric key pair of the AS
         rpkData = CBORObject.NewMap();
-        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject as_x = CBORObject.FromObject(hexString2byteArray(asX));
-        CBORObject as_y = CBORObject.FromObject(hexString2byteArray(asY));
-        CBORObject as_d = CBORObject.FromObject(hexString2byteArray(asD));
-        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), as_x);
-        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), as_y);
-        rpkData.Add(KeyKeys.EC2_D.AsCBOR(), as_d);
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	rpkData = Util.buildRpkData(signKeyCurve, asX_ECDSA, asY_ECDSA, asD_ECDSA);
+        }
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	rpkData = Util.buildRpkData(signKeyCurve, asX_EdDSA, null, asD_EdDSA);
+        }
         OneKey asRPK = new OneKey(rpkData);  
 
         
@@ -271,8 +298,14 @@ public class TestASdtlsProfile
         keyTypes.clear();
         keyTypes.add("RPK");
 
-        db.addClient("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", profiles, null, null, keyTypes, null, akey_c);
-        
+        String id = "";
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	id = "ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w";
+        }
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	id = "ni:///sha-256;RaHX1OaRECvpHjWSa6rx5PbLELbeKiO04QqAVFMeV54";
+        }
+        db.addClient(id, profiles, null, null, keyTypes, null, akey_c);      
         
         //Setup time provider
         KissTime time = new KissTime();
@@ -282,13 +315,25 @@ public class TestASdtlsProfile
         pdp = new KissPDP(db);
         
         // Allow accesses to the /introspect endpoint
-        pdp.addIntrospectAccess("ni:///sha-256;sU09Kz-RXT8izVvD3n7v3d5vHVGF1NcYShZZ-oczcVE");
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	id = "ni:///sha-256;sU09Kz-RXT8izVvD3n7v3d5vHVGF1NcYShZZ-oczcVE";
+        }
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	id = "ni:///sha-256;6VSBYixxpmJEu21znZVgWn6RNvOQN97HRbDzfkFfZlY";
+        }
+        pdp.addIntrospectAccess(id);
         pdp.addIntrospectAccess("rs1");
 
         // Allow accesses to the /token endpoint
         pdp.addTokenAccess("clientA");
         // pdp.addTokenAccess("clientB");
-        pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w"); // clientC
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	id = "ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w";
+        }
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	id = "ni:///sha-256;RaHX1OaRECvpHjWSa6rx5PbLELbeKiO04QqAVFMeV54";
+        }
+        pdp.addTokenAccess(id); // clientC
 
         // Configure access policies for clientA
         pdp.addAccess("clientA", "rs1", "r_temp");
@@ -301,8 +346,8 @@ public class TestASdtlsProfile
         */
         
         // Configure access policies for clientC
-        pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs1", "r_temp");
-        pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs1", "rw_config");
+        pdp.addAccess(id, "rs1", "r_temp");
+        pdp.addAccess(id, "rs1", "rw_config");
         
         
         // Create and start the AS

@@ -59,6 +59,7 @@ import org.junit.Test;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import COSE.KeyKeys;
 import COSE.OneKey;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.config.Configuration;
@@ -81,6 +82,14 @@ public class TestCoAPClientGroupOSCORE {
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
+    
+	// Asymmetric key pair of the Client
+	// ECDSA with P-256
+	private static String cX_ECDSA = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
+	private static String cY_ECDSA = "283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8";
+	private static String cD_ECDSA = "00A43BAA7ED22FF2699BA62CA4999359B146F065A95C4E46017CD25EB89A94AD29";
+	static OneKey cRPK = null;
+    
     static RunTestServer srv = null;
     
     private static class RunTestServer implements Runnable {
@@ -187,7 +196,7 @@ public class TestCoAPClientGroupOSCORE {
     @Test
     public void testCoapToken() throws Exception {
         Configuration dtlsConfig = Configuration.getStandard();
-        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
         
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
@@ -195,6 +204,24 @@ public class TestCoAPClientGroupOSCORE {
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientA", key128);
         builder.setAdvancedPskStore(pskStore);
 
+        CBORObject rpkData = CBORObject.NewMap();
+        rpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), cX_ECDSA, cY_ECDSA, cD_ECDSA);
+        cRPK = new OneKey(rpkData);
+        String keyId = new RawPublicKeyIdentity(cRPK.AsPublicKey()).getName();
+        cRPK.add(KeyKeys.KeyId, CBORObject.FromObject(keyId.getBytes(Constants.charset)));
+
+        builder.setCertificateIdentityProvider(
+                new SingleCertificateProvider(cRPK.AsPrivateKey(), cRPK.AsPublicKey()));
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        certTypes.add(CertificateType.X_509);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+                                                            new X509Certificate[0],
+                                                            new RawPublicKeyIdentity[0],
+                                                            certTypes);
+        builder.setAdvancedCertificateVerifier(verifier);
+        
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
@@ -233,7 +260,7 @@ public class TestCoAPClientGroupOSCORE {
         String gid2 = new String("feedca570001");
     	
         Configuration dtlsConfig = Configuration.getStandard();
-        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
         
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
@@ -241,6 +268,24 @@ public class TestCoAPClientGroupOSCORE {
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientF", key128);
         builder.setAdvancedPskStore(pskStore);
 
+        CBORObject rpkData = CBORObject.NewMap();
+        rpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), cX_ECDSA, cY_ECDSA, cD_ECDSA);
+        cRPK = new OneKey(rpkData);
+        String keyId = new RawPublicKeyIdentity(cRPK.AsPublicKey()).getName();
+        cRPK.add(KeyKeys.KeyId, CBORObject.FromObject(keyId.getBytes(Constants.charset)));
+
+        builder.setCertificateIdentityProvider(
+                new SingleCertificateProvider(cRPK.AsPrivateKey(), cRPK.AsPublicKey()));
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        certTypes.add(CertificateType.X_509);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+                                                            new X509Certificate[0],
+                                                            new RawPublicKeyIdentity[0],
+                                                            certTypes);
+        builder.setAdvancedCertificateVerifier(verifier);
+        
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
@@ -415,7 +460,7 @@ public class TestCoAPClientGroupOSCORE {
         String gid2 = new String("feedca570001");
     	
         Configuration dtlsConfig = Configuration.getStandard();
-        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
         
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
@@ -423,6 +468,24 @@ public class TestCoAPClientGroupOSCORE {
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientF", key128);
         builder.setAdvancedPskStore(pskStore);
 
+        CBORObject rpkData = CBORObject.NewMap();
+        rpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), cX_ECDSA, cY_ECDSA, cD_ECDSA);
+        cRPK = new OneKey(rpkData);
+        String keyId = new RawPublicKeyIdentity(cRPK.AsPublicKey()).getName();
+        cRPK.add(KeyKeys.KeyId, CBORObject.FromObject(keyId.getBytes(Constants.charset)));
+
+        builder.setCertificateIdentityProvider(
+                new SingleCertificateProvider(cRPK.AsPrivateKey(), cRPK.AsPublicKey()));
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        certTypes.add(CertificateType.X_509);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+                                                            new X509Certificate[0],
+                                                            new RawPublicKeyIdentity[0],
+                                                            certTypes);
+        builder.setAdvancedCertificateVerifier(verifier);
+        
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
 
@@ -565,7 +628,7 @@ public class TestCoAPClientGroupOSCORE {
     	String gid = new String("feedca570000");
     	
         Configuration dtlsConfig = Configuration.getStandard();
-        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
     	
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
@@ -573,6 +636,24 @@ public class TestCoAPClientGroupOSCORE {
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientG", key128);
         builder.setAdvancedPskStore(pskStore);
 
+        CBORObject rpkData = CBORObject.NewMap();
+        rpkData = Util.buildRpkData(KeyKeys.EC2_P256.AsInt32(), cX_ECDSA, cY_ECDSA, cD_ECDSA);
+        cRPK = new OneKey(rpkData);
+        String keyId = new RawPublicKeyIdentity(cRPK.AsPublicKey()).getName();
+        cRPK.add(KeyKeys.KeyId, CBORObject.FromObject(keyId.getBytes(Constants.charset)));
+
+        builder.setCertificateIdentityProvider(
+                new SingleCertificateProvider(cRPK.AsPrivateKey(), cRPK.AsPublicKey()));
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        certTypes.add(CertificateType.X_509);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+                                                            new X509Certificate[0],
+                                                            new RawPublicKeyIdentity[0],
+                                                            certTypes);
+        builder.setAdvancedCertificateVerifier(verifier);
+        
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);

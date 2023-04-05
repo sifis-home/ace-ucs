@@ -121,7 +121,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 
 	/**
 	 * Constructor. Needs an initialized TokenRepository.
-	 * 
+	 *
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
@@ -132,11 +132,11 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @param derivedKeySize  the size in bytes of symmetric keys derived with the key derivation key
 	 * @param tokenFile  the file where to save tokens when persisting
 	 * @param tokenHashesFile  the file where to save token hashes for the trl
-	 * @param scopeValidator  the application specific scope validator 
+	 * @param scopeValidator  the application specific scope validator
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
 	 * @param defaultExi the default time interval for tokens expiration
 	 * @throws AceException  if the token repository is not initialized
-	 * @throws IOException 
+	 * @throws IOException
 	 */
 	public AuthzInfo(List<String> issuers,
 					 TimeProvider time, IntrospectionHandler intro, String rsId,
@@ -144,7 +144,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 					 String tokenFile, String tokenHashesFile, ScopeValidator scopeValidator, boolean checkCnonce,
 					 long defaultExi)
 			        throws AceException, IOException {
-        if (TokenRepository.getInstance()==null) {     
+        if (TokenRepository.getInstance()==null) {
             TokenRepository.create(scopeValidator, tokenFile, tokenHashesFile, ctx, keyDerivationKey,
 					derivedKeySize, time, rsId);
         }
@@ -185,7 +185,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 *                        This class adds elements to the list and notifies waiting entities,
 	 *                        which consume the ctis and remove them from the list.
 	 * @throws AceException  if the token repository is not initialized
-	 * @throws IOException
+	 * @throws IOException 
 	 */
 	public AuthzInfo(List<String> issuers,
 					 TimeProvider time, IntrospectionHandler intro, String rsId,
@@ -213,7 +213,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		}
 		this.syncCtisList = syncCtisList;
 	}
-
 
 	@Override
 	public synchronized Message processMessage(Message msg) {

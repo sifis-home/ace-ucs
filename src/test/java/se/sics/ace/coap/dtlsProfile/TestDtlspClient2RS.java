@@ -170,7 +170,7 @@ public class TestDtlspClient2RS {
                 "coaps://localhost/authz-info/test", cbor, key);
         Assert.assertEquals("UNAUTHORIZED", r.getCode().name());
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertEquals("{1: \"coaps://blah/authz-info/\"}", rPayload.toString());    
+        Assert.assertEquals("{1: \"coaps://blah/authz-info/\"}", rPayload.toString());
     }
     
     /**
@@ -318,7 +318,8 @@ public class TestDtlspClient2RS {
         c.setURI("coaps://localhost/helloWorld");
         CoapResponse r2 = c.get();
         Assert.assertEquals("CONTENT", r2.getCode().name());
-        Assert.assertEquals("Hello World!", r2.getResponseText());  
+        Assert.assertEquals("Hello World!", r2.getResponseText());
+        
     }
     
     /** 
@@ -371,7 +372,8 @@ public class TestDtlspClient2RS {
             }
         }
         
-        Assert.fail("Client should not accept DTLS connection");    
+        Assert.fail("Client should not accept DTLS connection");
+
     }
     
     

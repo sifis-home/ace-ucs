@@ -49,9 +49,8 @@ import se.sics.ace.as.DBConnector;
 public class MySQLDBAdapter implements SQLDBAdapter {
     
     /**
-     * The default root-user name
+     * The default admin-user name
      */
-    public static final String ROOT_USER = "root";
 
     /**
      * The default connection URL for the database.
@@ -88,10 +87,10 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public Connection getRootConnection(String rootPwd) throws SQLException {
+    public Connection getAdminConnection(String adminUser, String adminPwd) throws SQLException {
         Properties connectionProps = new Properties();
-        connectionProps.put("user", MySQLDBAdapter.ROOT_USER);
-        connectionProps.put("password", rootPwd);
+        connectionProps.put("user", adminUser);
+        connectionProps.put("password", adminPwd);
         return DriverManager.getConnection(this.dbUrl + "/?useSSL=FALSE&allowPublicKeyRetrieval=true", connectionProps);
     }
 
@@ -105,15 +104,15 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public synchronized void createUser(String rootPwd) throws AceException {
+    public synchronized void createUser(String adminUser, String adminPwd) throws AceException {
         String cUser = "CREATE USER IF NOT EXISTS'" + this.user
                 + "'@'localhost' IDENTIFIED BY '" + this.password
                 + "';";
         String authzUser = "GRANT DELETE, INSERT, SELECT, UPDATE, CREATE ON "
                 + this.dbName + ".* TO '" + this.user + "'@'localhost';";
 
-        try (Connection rootConn = getRootConnection(rootPwd);
-             Statement stmt = rootConn.createStatement()) {
+        try (Connection adminConn = getAdminConnection(adminUser, adminPwd);
+             Statement stmt = adminConn.createStatement()) {
             stmt.execute(cUser);
             stmt.execute(authzUser);
         } catch (SQLException e) {
@@ -122,7 +121,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public synchronized void createDBAndTables(String rootPwd) throws AceException {
+    public synchronized void createDBAndTables(String adminUser, String adminPwd) throws AceException {
 
         String createDB = "CREATE DATABASE IF NOT EXISTS " + this.dbName
                 + " CHARACTER SET utf8 COLLATE utf8_bin;";
@@ -252,8 +251,8 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.tokenHashColumn + " varchar(255) NOT NULL,"
                 + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
 
-        try (Connection rootConn = getRootConnection(rootPwd);
-             Statement stmt = rootConn.createStatement()) {
+        try (Connection adminConn = getAdminConnection(adminUser, adminPwd);
+             Statement stmt = adminConn.createStatement()) {
             stmt.execute(createDB);
             stmt.execute(createRs);
             stmt.execute(createC);
@@ -273,7 +272,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createGrant2RSInfo);
             stmt.execute(createTrl);
             stmt.execute(createCti2TokenHash);
-            rootConn.close();
+            adminConn.close();
             stmt.close();
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
@@ -288,10 +287,10 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public void wipeDB(String rootPwd) throws AceException
+    public void wipeDB(String adminUser, String adminPwd) throws AceException
     {
-        try (Connection rootConn = getRootConnection(rootPwd);
-             Statement stmt = rootConn.createStatement())
+        try (Connection adminConn = getAdminConnection(adminUser, adminPwd);
+             Statement stmt = adminConn.createStatement())
         {
             String dropDB = "DROP DATABASE IF EXISTS " + this.dbName + ";";
             String dropUser = "DROP USER IF EXISTS '" + this.user 

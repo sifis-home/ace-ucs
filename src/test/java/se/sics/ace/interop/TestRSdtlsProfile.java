@@ -34,6 +34,8 @@ package se.sics.ace.interop;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.Provider;
+import java.security.Security;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -72,10 +74,12 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
+import se.sics.ace.Util;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
@@ -96,10 +100,21 @@ import se.sics.ace.rs.AuthzInfo;
  */
 public class TestRSdtlsProfile {
 
+	// Uncomment to set ECDSA with curve P-256 as signature algorithm
+	private static int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
+
+	// Uncomment to set EdDSA with curve Ed25519 as signature algorithm
+	// private static int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+	
     // Authentication asymmetric key pair of the Resource Server (rs1 on the AS)
-    private static String rsX = "73B7D755827D5D59D73FD4015D47B445762F7CDB59799CD966714AB2727F1BA5";
-    private static String rsY = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
-    private static String rsD = "00EA086573C683477D74EB7A0C63A6D031D5DEB10F3CC2876FDA6D3400CAA4E507";
+    // ECDSA with P-256
+    private static String rsX_ECDSA = "73B7D755827D5D59D73FD4015D47B445762F7CDB59799CD966714AB2727F1BA5";
+    private static String rsY_ECDSA = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
+    private static String rsD_ECDSA = "00EA086573C683477D74EB7A0C63A6D031D5DEB10F3CC2876FDA6D3400CAA4E507";
+    // EdDSA with Ed25519
+	private static String rsX_EdDSA = "CE616F28426EF24EDB51DBCEF7A23305F886F657959D4DF889DDFC0255042159";
+	private static String rsD_EdDSA = "397CEB5A8D21D74A9258C20C33FC45AB152B02CF479B2E3081285F77454CF347";
+    
 
 	// PSK to encrypt access tokens issued for this Resource Server
     private static byte[] key128_token = {(byte)0xa1, (byte)0xa2, (byte)0xa3, (byte)0x04, (byte)0x05, (byte)0x06,
@@ -311,20 +326,30 @@ public class TestRSdtlsProfile {
         for (Handler h : rootLogger.getHandlers()) {
             h.setLevel(Level.FINEST);
         }
+        
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	int javaVersion = Util.getJavaVersion();
+	
+			if (javaVersion < 11) {
+				System.err.println("Java Version: " + javaVersion + " ");
+				System.err.println("EdDSA requires at least Java 11!");
+				System.exit(1);
+			}
+			
+			Provider EdDSA = new EdDSASecurityProvider();
+			Security.insertProviderAt(EdDSA, 1);
+        }
     	
     	new File(TestConfig.testFilePath + "tokens.json").delete();
 
     	// Setup the authentication asymmetric key pair of the Resource Server (rs1 on the AS)
         CBORObject rpkData = CBORObject.NewMap();
-        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
-        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject x = CBORObject.FromObject(PlugtestAS.hexString2byteArray(rsX));
-        CBORObject y = CBORObject.FromObject(PlugtestAS.hexString2byteArray(rsY));
-        CBORObject d = CBORObject.FromObject(PlugtestAS.hexString2byteArray(rsD));
-        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
-        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
-        rpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	rpkData = Util.buildRpkData(signKeyCurve, rsX_ECDSA, rsY_ECDSA, rsD_ECDSA);
+        }
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	rpkData = Util.buildRpkData(signKeyCurve, rsX_EdDSA, null, rsD_EdDSA);
+        }
         rsRPK = new OneKey(rpkData);
     	
     	

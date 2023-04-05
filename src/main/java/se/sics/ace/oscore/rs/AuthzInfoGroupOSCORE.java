@@ -47,7 +47,6 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.*;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupInfo;
-import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionHandler;
