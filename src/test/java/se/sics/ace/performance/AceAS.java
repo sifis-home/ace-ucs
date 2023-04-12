@@ -39,6 +39,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import se.sics.ace.*;
 import se.sics.ace.as.PDP;
 import se.sics.ace.as.TrlConfig;
+import se.sics.ace.as.logging.DhtLogger;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.OscoreAS;
 import se.sics.ace.examples.KissPDP;
@@ -99,6 +100,10 @@ public class AceAS implements Callable<Integer> {
 
     private final static String DEFAULT_RESOURCES = "Temp HelloWorld";
 
+    @Option(names = {"-d", "--dht"},
+            required = false,
+            description = "Enable DHT logging")
+    public boolean isDhtLoggingEnabled = false;
 
     @Option(names = {"-K", "--Kisspdp"},
             required = false,
@@ -376,6 +381,12 @@ static class Peer {
             randomFilePath = (randomPath != null) ? randomPath : DEFAULT_RANDOM_FILE_PATH;
         }
 
+        if (isDhtLoggingEnabled) {
+            // Possibly set up connection to the DHT for sending logging statements
+            System.out.println("Connecting to the DHT for logging.");
+            DhtLogger.setLogging(true);
+            DhtLogger.establishConnection();
+        }
 
     }
 
