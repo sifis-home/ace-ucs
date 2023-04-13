@@ -5,6 +5,8 @@ import org.eclipse.californium.core.observe.ObserveRelationFilter;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.as.logging.DhtLogger;
+import se.sics.ace.as.logging.Const;
 import se.sics.ace.coap.as.AceObservableEndpoint;
 import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.ucs.UcsHelper;
@@ -70,11 +72,22 @@ public class RevocationHandler {
     public void revoke(String cti) throws AceException {
 
         // Get token expiration time (exp)
-        long delay = getTimeToExpire(cti);
+        long delay;
+        try {
+            delay = getTimeToExpire(cti);
+        } catch (AceException e) {
+            DhtLogger.sendLog("Revocation aborted: " +
+                            "(getting token expiration time)",
+                    Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+            throw e;
+        }
 
         // The token to be revoked was already expired
         if (delay < 0){
             LOGGER.log(Level.INFO, "The token to revoke was already expired");
+            DhtLogger.sendLog("Revocation aborted: " +
+                    "The token to revoke was already expired",
+                    Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
             return;
         }
 
@@ -84,7 +97,14 @@ public class RevocationHandler {
 
         // Put the token hash in each DiffSet of the pertaining peers
         Set<String> peerIds = db.getPertainingPeers(cti);
-        addRevokedTokenHashToDiffSets(cti, peerIds);
+        try {
+            addRevokedTokenHashToDiffSets(cti, peerIds);
+        } catch (AceException e) {
+            DhtLogger.sendLog("Revocation aborted: " +
+                            "(adding diff entry)",
+                    Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+            throw e;
+        }
 
         // Schedule a task to run at time exp-now, that:
         //   - if /trl is present, calls the changed(filter) to notify peers
@@ -106,6 +126,11 @@ public class RevocationHandler {
             trl.changed(filter);
         }
 
+        LOGGER.log(Level.INFO, "Token revoked: " + cti);
+        DhtLogger.sendLog("Token revoked. "
+                + "[ctiStr: " + cti + ". "
+                + "pertainingPeers: " + peerIds + "]",
+                Const.PRIO1, Const.SEV0, Const.CATEGORY_TRL);
 
         // +----------------------NOTES----------------------+
         // The UCS must have a reference to this component.
@@ -212,8 +237,13 @@ public class RevocationHandler {
             try {
                 peerIds = db.getPertainingPeers(cti);
             } catch (AceException e) {
-                LOGGER.severe("Error getting peers identities: "
+                LOGGER.severe("Token removal from trl aborted: "
+                        + "(getting peers identities from db) "
                         + e.getMessage());
+                DhtLogger.sendLog("Token removal from trl aborted: " +
+                        "(getting peers identities from db)",
+                        Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+                return;
             }
 
 
@@ -222,8 +252,13 @@ public class RevocationHandler {
             try {
                 tokenHash = db.getTokenHashMap().get(cti);
             } catch (AceException e) {
-                LOGGER.severe("Error getting token hash: "
+                LOGGER.severe("Token removal from trl aborted:" +
+                        "(getting token hash from db) "
                         + e.getMessage());
+                DhtLogger.sendLog("Token removal from trl aborted: " +
+                        "(getting token hash from db)",
+                        Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+                return;
             }
             if (tokenHash == null) {
                 LOGGER.severe("Error deleting token: Token hash not found.");
@@ -238,6 +273,9 @@ public class RevocationHandler {
                 } catch (AceException e) {
                     LOGGER.severe("Error adding a diff entry " +
                             "to the DiffSet object: " + e.getMessage());
+                    DhtLogger.sendLog("Error adding a diff entry " +
+                            "to the DiffSet object",
+                            Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
                 }
             }
 
@@ -249,6 +287,9 @@ public class RevocationHandler {
             } catch (AceException e) {
                 LOGGER.severe("Error deleting expired token: "
                         + e.getMessage());
+                DhtLogger.sendLog("Token removal from trl aborted: " +
+                        "(deleting token hash from db)",
+                        Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
                 return;
             }
 
@@ -259,7 +300,11 @@ public class RevocationHandler {
                 trl.changed(filter); // notify observers
             }
 
-            LOGGER.info("Successfully handled revoked token expiration");
+            LOGGER.info("Token removal from the trl completed: " + cti);
+            DhtLogger.sendLog("Token removal from the trl completed. "
+                    + "[ctiStr: " + cti + ". "
+                    + "pertainingPeers: " + peerIds + "]",
+                    Const.PRIO1, Const.SEV0, Const.CATEGORY_TRL);
         }
     }
 }
