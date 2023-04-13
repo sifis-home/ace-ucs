@@ -5,10 +5,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.CountDownLatch;
 
-import com.google.gson.GsonBuilder;
 import org.glassfish.tyrus.client.ClientManager;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import jakarta.websocket.ClientEndpoint;
 import jakarta.websocket.CloseReason;
@@ -26,7 +26,7 @@ import jakarta.websocket.Session;
       "topic_uuid":"Logs",
       "value":{
          "logs":{
-            "message":"Returning token. ctiStr: cnMyMA\u003d\u003d. rsName: rs2. audStr: rs2. id: Server1",
+            "message":"Returning token. ctiStr: cnMyMA==. rsName: rs2. audStr: rs2. id: Server1",
             "priority":1,
             "severity":0,
             "category":"ACE Authorization Server"
@@ -53,7 +53,7 @@ public class DhtLogger {
 
 	/**
 	 * Sends a logging message to the DHT
-	 * 
+	 *
 	 * @param message the message
 	 * @param priority the priority
 	 * @param severity the severity
@@ -68,14 +68,13 @@ public class DhtLogger {
 
 		// If a connection is not established yet (which should
 		// have been done from the application), do it now
-		boolean dhtConnected = true;
 		if (dhtClient == null || session == null) {
-			dhtConnected = establishConnection();
-		}
+			boolean dhtConnected = establishConnection();
 
-		// If the connection failed to be established, do nothing
-		if (!dhtConnected) {
-			return;
+			// If the connection failed to be established, return
+			if (!dhtConnected) {
+				return;
+			}
 		}
 
 		// Build the outgoing JSON payload for the DHT
@@ -111,40 +110,16 @@ public class DhtLogger {
 
 	/**
 	 * Enable or disable logging to the DHT
-	 * 
+	 *
 	 * @param logging true/false
 	 */
 	static public void setLogging(boolean logging) {
 		loggingEnabled = logging;
 	}
 
-	// {"Command":{"value":{"logs":{"message":"error","priority":1,"severity":5,"category":"AS"}}}}
-	static public void main(String[] args) {
-
-		// Build outgoing JSON to DHT
-		JsonOut outgoing = new JsonOut();
-
-		RequestPostTopicUUID commandVal = new RequestPostTopicUUID();
-		OutValue valueVal = new OutValue();
-		Logs logsVal = new Logs();
-
-		logsVal.setMessage("Error");
-		logsVal.setPriority(10);
-		logsVal.setSeverity(4);
-		logsVal.setCategory("AS");
-
-		valueVal.setLogs(logsVal);
-		commandVal.setValue(valueVal);
-		outgoing.setPayload(commandVal);
-
-		Gson gsonOut = new GsonBuilder().disableHtmlEscaping().create();
-		String jsonOut = gsonOut.toJson(outgoing);
-		System.out.println("AAAAAAAAAAA " + jsonOut);
-	}
-
 	/**
 	 * Retrieve the client instance connected to the DHT.
-	 * 
+	 *
 	 * @return the client
 	 */
 	public static ClientManager getClientInstance() {
@@ -158,7 +133,7 @@ public class DhtLogger {
 
 	/**
 	 * Retrieve the session instance associated with the connection to the DHT.
-	 * 
+	 *
 	 * @return the session
 	 */
 	public static Session getSessionInstance() {
@@ -172,7 +147,7 @@ public class DhtLogger {
 
 	/**
 	 * Establish the connection to the DHT.
-	 * 
+	 *
 	 * @return if the connection was successfully established
 	 */
 	public static boolean establishConnection() {
@@ -187,8 +162,8 @@ public class DhtLogger {
 			session = dhtClient.connectToServer(DhtLogger.class, uri);
 			// latch.await();
 		} catch (DeploymentException | URISyntaxException | IOException e) {
-			System.out.println("Error: Failed to connect to DHT for logging");
-			System.out.println(e.getMessage());
+			System.err.println("Error: Failed to connect to DHT for logging");
+			System.err.println(e.getMessage());
 			//e.printStackTrace();
 			return false;
 		}
@@ -201,15 +176,12 @@ public class DhtLogger {
 	@OnOpen
 	public void onOpen(Session session) {
 		System.out.println("--- Connected " + session.getId());
-		// try {
-		// session.getBasicRemote().sendText("start");
-		// } catch (IOException e) {
-		// throw new RuntimeException(e);
-		// }
+
 	}
 
 	@OnMessage
 	public String onMessage(String message, Session session) {
+		// Do nothing for incoming messages from DHT
 		return null;
 	}
 
