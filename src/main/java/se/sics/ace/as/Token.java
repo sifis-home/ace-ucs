@@ -771,6 +771,7 @@ public class Token implements Endpoint, AutoCloseable {
 		        break;
 		    case Constants.CNF:
 		    	CBORObject cnf = msg.getParameter(Constants.REQ_CNF);
+		    	
 		        if (cnf == null) { //The client wants to use PSK
 		            keyType = "PSK"; //save for later
 		            
@@ -808,144 +809,37 @@ public class Token implements Endpoint, AutoCloseable {
                                 Message.FAIL_INTERNAL_SERVER_ERROR, null);
                     }   
  
-		            //Audience supports PSK, make a new PSK
+		            // Audience supports PSK, make a new PSK
                     try {
                         KeyGenerator kg = KeyGenerator.getInstance("AES");
-                        
-                    	// Check if the new Token is intended to update the access rights for this client
-                        Set<String> ctiSet = new HashSet<>();
-                    	try {
-                            ctiSet = this.db.getCtis4Client(id);
-                            
-						} catch (AceException e) {
-							if (!includeExi) {
-								this.cti--; //roll-back
-							}
-					       	else {
-				        		//roll-back
-				        		exiSequenceNumbers.put(rsName, exiSeqNum);
-				        	}
-	                        LOGGER.severe("Message processing aborted "
-	                                + "(finding cti of issues tokens): "
-	                                + e.getMessage());
-	                        return msg.failReply(
-	                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
-						}
 
-                    	if (ctiSet.size() != 0) {
-                    		// Some Tokens have been issued to this client.
-                    		
-                    		for (String myCti : ctiSet) {
-                    			
-                    			// Check that not only the Token was released at some point in time,
-                    			// but that it is also currently stored in the Database. If so, it
-                    			// is possible to retrieve a non empty set of claims through its cti. 
-                    			try {
-									if (this.db.getClaims(myCti).size() == 0) {
-										// A Token with this cti is not active anymore.
-										// Continue with checking the next Token.
-										
-										// But first take the opportunity to clean up some other
-										// data structures, which might not have happened already
-								        this.cti2aud.remove(myCti);
-								        this.cti2oscId.remove(myCti);
-								        this.cti2kid.remove(myCti);
-										
-										continue;
-									}
-								} catch (AceException e) {
-									if (!includeExi) {
-										this.cti--; //roll-back
-									}
-							       	else {
-						        		//roll-back
-						        		exiSequenceNumbers.put(rsName, exiSeqNum);
-						        	}
-			                        LOGGER.severe("Message processing aborted "
-			                                + "(finding previously released token): "
-			                                + e.getMessage());
-			                        return msg.failReply(
-			                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
-								}
-                    			
-                    			String myAud = this.cti2aud.get(myCti);
-                    			
-                        		// Check especially if the previously released Token was intended to
-                        		// the same Resource Server intended to consume the just requested Token
-                    			if (myAud != null && audStr.equals(myAud)) {
-                            		// The new Token is intended to update access rights
-                    				
-                            		updateAccessRights = true;
-                            		oldCti = new String(myCti);
-                            		break;
-                    			}
-                    			
-                    		}
-                    	}
-
-                        //check if profile == OSCORE
+                        // OSCORE profile
                         if (profile == Constants.COAP_OSCORE) {
-                        	
                             //Generate OSCORE cnf
-                        	if (updateAccessRights == false) {
-	                        	SecretKey key = kg.generateKey();
-	                            byte[] masterSecret = key.getEncoded();
-	                            CBORObject osc = makeOscoreCnf(masterSecret, audStr);
-	                            claims.put(Constants.CNF, osc);
-                        	}
-                        	else {
-                        		// The new Token is intended to update access rights
-                        		CBORObject oscId = this.cti2oscId.get(oldCti);
-                        		if (oscId == null) {
-                        			if (!includeExi) {
-                        				this.cti--; //roll-back
-                        			}
-                        	       	else {
-                                		//roll-back
-                                		exiSequenceNumbers.put(rsName, exiSeqNum);
-                                	}
-        	                        LOGGER.severe("Message processing aborted "
-        	                                + "(finding OSCORE ID when updating access rights)");
-        	                        return msg.failReply(
-        	                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
-                        		}
-	                            CBORObject osc = makeOscoreCnfUpdateAccessRights(oscId);
-	                            claims.put(Constants.CNF, osc);
-                        	}
-                            
+                        	SecretKey key = kg.generateKey();
+                            byte[] masterSecret = key.getEncoded();
+                            CBORObject osc = makeOscoreCnf(masterSecret, audStr);
+                            claims.put(Constants.CNF, osc);
                         }
-                        
-                        else {//Make a DTLS style psk
+                        // DTLS profile
+                        else {
+                        	// Make a DTLS style psk
                         	CBORObject keyData = CBORObject.NewMap();
                             CBORObject coseKey = CBORObject.NewMap();
 
-                        	if (updateAccessRights == false) {
-	                            keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-	                            
-	                            //Note: kid is the same as cti 
-	                            byte[] kid = ctiB;
-	                        	keyData.Add(KeyKeys.KeyId.AsCBOR(), kid);
-	                            
-	                        	SecretKey key = kg.generateKey();
-	                        	keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                                    	CBORObject.FromObject(key.getEncoded()));
-	                            
-	                        	OneKey psk = new OneKey(keyData);
-	                            coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
-	                            claims.put(Constants.CNF, coseKey);
-                        	}
-                        	else {
-                        		// The new Token is intended to update access rights
-                            	keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-                            	
-                        		CBORObject kidCbor = this.cti2kid.get(oldCti);
-                        		
-                            	keyData.Add(KeyKeys.KeyId.AsCBOR(), kidCbor);
-                            	
-                            	coseKey.Add(Constants.COSE_KEY, keyData);
-                                claims.put(Constants.CNF, coseKey);
-                        	}
-                        	
+                            keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+                            
+                            //Note: kid is the same as cti 
+                            byte[] kid = ctiB;
+                        	keyData.Add(KeyKeys.KeyId.AsCBOR(), kid);
+                            
+                        	SecretKey key = kg.generateKey();
+                        	keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                                	CBORObject.FromObject(key.getEncoded()));
+                            
+                        	OneKey psk = new OneKey(keyData);
+                            coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
+                            claims.put(Constants.CNF, coseKey);
                         }
                     } catch (NoSuchAlgorithmException | CoseException e) {
                     	if (!includeExi) {
@@ -962,9 +856,7 @@ public class Token implements Endpoint, AutoCloseable {
                     }
 		            
 		        } else if (cnf.ContainsKey(Constants.COSE_KID_CBOR)) {
-		            // The client requested a specific kid,
-	                // assume the client knows what it's doing
-	                // i.e. that the RS has that key and can process it
+		            // The client requested a specific kid
 		            
 		            //Check that the kid is well-formed
 		            CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
@@ -985,7 +877,180 @@ public class Token implements Endpoint, AutoCloseable {
 		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		            }
 		            keyType = "KID";
-		            claims.put(Constants.CNF, cnf);
+
+                	// Check if the new Token is intended to update the access rights for this client
+                    Set<String> ctiSet = new HashSet<>();
+                	try {
+                        ctiSet = this.db.getCtis4Client(id);
+                        
+					} catch (AceException e) {
+						if (!includeExi) {
+							this.cti--; //roll-back
+						}
+				       	else {
+			        		//roll-back
+			        		exiSequenceNumbers.put(rsName, exiSeqNum);
+			        	}
+                        LOGGER.severe("Message processing aborted "
+                                + "(finding cti of issues tokens): "
+                                + e.getMessage());
+                        return msg.failReply(
+                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
+					}
+                	
+                	if (ctiSet.size() != 0) {
+                		// Some Tokens have been issued to this client.
+                		
+                		for (String myCti : ctiSet) {
+                			
+                			// Check that not only the Token was released at some point in time,
+                			// but that it is also currently stored in the Database. If so, it
+                			// is possible to retrieve a non empty set of claims through its cti. 
+                			try {
+								if (this.db.getClaims(myCti).size() == 0) {
+									// A Token with this cti is not active anymore.
+									// Continue with checking the next Token.
+									
+									// But first take the opportunity to clean up some other
+									// data structures, which might not have happened already
+							        this.cti2aud.remove(myCti);
+							        this.cti2oscId.remove(myCti);
+							        this.cti2kid.remove(myCti);
+									
+									continue;
+								}
+							} catch (AceException e) {
+								if (!includeExi) {
+									this.cti--; //roll-back
+								}
+						       	else {
+					        		//roll-back
+					        		exiSequenceNumbers.put(rsName, exiSeqNum);
+					        	}
+		                        LOGGER.severe("Message processing aborted "
+		                                + "(finding previously released token): "
+		                                + e.getMessage());
+		                        return msg.failReply(
+		                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
+							}
+                			
+                			String myAud = this.cti2aud.get(myCti);
+                			
+                    		// Check especially if the previously released Token was intended to
+                    		// the same Resource Server intended to consume the just requested Token
+                			if (myAud != null && audStr.equals(myAud)) {
+                				
+                				// Retrieve the claims of the previously released Token
+                				Map<Short, CBORObject> myClaims = null;
+                				try {
+									myClaims = this.db.getClaims(myCti);
+								} catch (AceException e) {
+									if (!includeExi) {
+										this.cti--; //roll-back
+									}
+							       	else {
+						        		//roll-back
+						        		exiSequenceNumbers.put(rsName, exiSeqNum);
+						        	}
+			                        LOGGER.severe("Message processing aborted "
+			                                + "(finding previously released token): "
+			                                + e.getMessage());
+			                        return msg.failReply(
+			                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
+								}
+                				
+            					CBORObject oldCnf = myClaims.get(Constants.CNF);
+            					
+            					if (oldCnf.get(Constants.COSE_KID) != null) {
+            						if (Arrays.equals(kidC.GetByteString(), oldCnf.get(Constants.COSE_KID).GetByteString())) {
+                                		// The new Token is intended to update access rights (not the first update in the series)
+                                		updateAccessRights = true;
+                                		oldCti = new String(myCti);
+                                		break;
+            						}
+            						continue;
+            					}
+            					
+                				// OSCORE profile
+                				if (profile == Constants.COAP_OSCORE) {
+            						if (Arrays.equals(kidC.GetByteString(),
+            							oldCnf.get(Constants.OSCORE_Input_Material).get(Constants.OS_ID).GetByteString())) {
+                                		// The new Token is intended to update access rights (first update in the series)
+                                		updateAccessRights = true;
+                                		oldCti = new String(myCti);
+                                		break;
+            						}
+            						continue;
+                				}
+                				// DTLS profile
+                				else {               					
+            						if (Arrays.equals(kidC.GetByteString(),
+            							oldCnf.get(Constants.COSE_KEY).get(KeyKeys.KeyId.AsCBOR()).GetByteString())) {
+                                    		// The new Token is intended to update access rights (first update in the series)
+                                    		updateAccessRights = true;
+                                    		oldCti = new String(myCti);
+                                    		break;
+                						}
+                						continue;
+                				}                			
+                		}
+                	}
+		            
+                	if (updateAccessRights == true) {
+                		// The new Token is intended to update access rights
+                	
+                		// OSCORE profile
+                		if (profile == Constants.COAP_OSCORE) {
+	                		//Generate OSCORE cnf
+		            		CBORObject oscId = this.cti2oscId.get(oldCti);
+		            		if (oscId == null) {
+		            			if (!includeExi) {
+		            				this.cti--; //roll-back
+		            			}
+		            	       	else {
+		                    		//roll-back
+		                    		exiSequenceNumbers.put(rsName, exiSeqNum);
+		                    	}
+		                        LOGGER.severe("Message processing aborted "
+		                                + "(finding OSCORE ID when updating access rights)");
+		                        return msg.failReply(
+		                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		            		}
+		                    CBORObject osc = makeOscoreCnfUpdateAccessRights(oscId);
+		                    claims.put(Constants.CNF, osc);
+                		}
+                		// DTLS profile
+                		else {
+                        	// Make a DTLS style psk
+                			CBORObject keyData = CBORObject.NewMap();
+                			CBORObject coseKey = CBORObject.NewMap();
+                			
+                		    keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+
+                		    CBORObject kidCbor = this.cti2kid.get(oldCti);
+
+                		    keyData.Add(KeyKeys.KeyId.AsCBOR(), kidCbor);
+
+                		    coseKey.Add(Constants.COSE_KEY, keyData);
+                		    claims.put(Constants.CNF, coseKey);
+                		}
+                	}
+
+            	}
+                	
+                if (updateAccessRights == false) {
+                    LOGGER.severe("Message processing aborted "
+                            + "(cannot find access token for which access right have to be updated)");
+                    CBORObject myMap = CBORObject.NewMap();
+                    myMap.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
+                    return msg.failReply(
+                            Message.FAIL_BAD_REQUEST, myMap);
+                }
+            	
+                // Assume the client knows what it's doing,
+                // i.e. that the RS has that key and can process it
+	            claims.put(Constants.CNF, cnf);
+		            
 		        } else {//Client has provided a key 
 		            //Check what key the client provided
 		            OneKey key = null;
@@ -1214,7 +1279,6 @@ public class Token implements Endpoint, AutoCloseable {
 
 		if (keyType != null && keyType.equals("PSK")) {
 			if (profile == Constants.COAP_OSCORE) {
-				
 				if (updateAccessRights == false) {
 					rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
 				}

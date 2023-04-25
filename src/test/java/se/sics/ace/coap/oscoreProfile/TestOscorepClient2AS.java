@@ -175,9 +175,13 @@ public class TestOscorepClient2AS {
         
         // Ask for a new Token for updating access rights, with a different 'scope'
         
+       CBORObject myKid = map.get(Constants.CNF).get(Constants.OSCORE_Input_Material).get(Constants.OS_ID);
+       CBORObject myCnf = CBORObject.NewMap();
+       myCnf.Add(Constants.COSE_KID_CBOR, myKid);
+        
         params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs2"),
-                CBORObject.FromObject("r_temp rw_config rw_light foobar"), null);
+                CBORObject.FromObject("r_temp rw_config rw_light foobar"), myCnf);
         
         response = OSCOREProfileRequests.getToken(
                 "coap://localhost/token", params, ctx, ctxDB);
