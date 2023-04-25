@@ -1131,38 +1131,6 @@ public class Token implements Endpoint, AutoCloseable {
 		    case Constants.PROFILE:
 		        claims.put(Constants.PROFILE, CBORObject.FromObject(profile));
 		        break;
-		    case Constants.RS_CNF:
-		        if (keyType != null && keyType.equals("RPK")) {
-		           try {
-		               Set<CBORObject> rscnfs = makeRsCnf(aud);
-		               for (CBORObject rscnf : rscnfs) {
-	                       claims.put(Constants.RS_CNF, rscnf);
-	                   }
-		           } catch (AceException e) {
-		        	   if (!includeExi) {
-		        		   this.cti--; //roll-back
-		        	   }
-		              	else {
-		            		//roll-back
-		            		exiSequenceNumbers.put(rsName, exiSeqNum);
-		            	}
-		               
-		               // If the OSCORE profile is used, and this was a first-released Token
-		               // to this client for RS in question, roll-back the counter used for
-		               // the 'id' parameter in the OSCORE Security Context and the
-				        // Id Context value assigned for this Resource Server
-		               if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
-		            	   this.OSCORE_material_counter--;
-		            	   if (this.idContextInfoMap.containsKey(audStr)) {
-		            		   this.idContextInfoMap.get(audStr).rollback();
-		            	   }
-		               }
-		               
-                       LOGGER.severe("Message processing aborted: " + e.getMessage());
-                       return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-		           }
-		        }
-		        break;
 		    default :
 		       LOGGER.severe("Unknown claim type in /token endpoint configuration: " + c);
 		       return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);   
