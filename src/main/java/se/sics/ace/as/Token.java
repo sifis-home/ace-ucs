@@ -897,7 +897,7 @@ public class Token implements Endpoint, AutoCloseable {
                         return msg.failReply(
                                 Message.FAIL_INTERNAL_SERVER_ERROR, null);
 					}
-                	
+                	                	
                 	if (ctiSet.size() != 0) {
                 		// Some Tokens have been issued to this client.
                 		
@@ -993,63 +993,57 @@ public class Token implements Endpoint, AutoCloseable {
                 						}
                 						continue;
                 				}                			
+                			}
                 		}
-                	}
 		            
-                	if (updateAccessRights == true) {
-                		// The new Token is intended to update access rights
-                	
-                		// OSCORE profile
-                		if (profile == Constants.COAP_OSCORE) {
-	                		//Generate OSCORE cnf
-		            		CBORObject oscId = this.cti2oscId.get(oldCti);
-		            		if (oscId == null) {
-		            			if (!includeExi) {
-		            				this.cti--; //roll-back
-		            			}
-		            	       	else {
-		                    		//roll-back
-		                    		exiSequenceNumbers.put(rsName, exiSeqNum);
-		                    	}
-		                        LOGGER.severe("Message processing aborted "
-		                                + "(finding OSCORE ID when updating access rights)");
-		                        return msg.failReply(
-		                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
-		            		}
-		                    CBORObject osc = makeOscoreCnfUpdateAccessRights(oscId);
-		                    claims.put(Constants.CNF, osc);
-                		}
-                		// DTLS profile
-                		else {
-                        	// Make a DTLS style psk
-                			CBORObject keyData = CBORObject.NewMap();
-                			CBORObject coseKey = CBORObject.NewMap();
-                			
-                		    keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-
-                		    CBORObject kidCbor = this.cti2kid.get(oldCti);
-
-                		    keyData.Add(KeyKeys.KeyId.AsCBOR(), kidCbor);
-
-                		    coseKey.Add(Constants.COSE_KEY, keyData);
-                		    claims.put(Constants.CNF, coseKey);
-                		}
+	                	if (updateAccessRights == true) {
+	                		// The new Token is intended to update access rights
+	                	
+	                		// OSCORE profile
+	                		if (profile == Constants.COAP_OSCORE) {
+			                	//Generate OSCORE cnf
+				            	CBORObject oscId = this.cti2oscId.get(oldCti);
+				            	if (oscId == null) {
+			            			if (!includeExi) {
+			            				this.cti--; //roll-back
+			            			}
+			            	       	else {
+			                    		//roll-back
+			                    		exiSequenceNumbers.put(rsName, exiSeqNum);
+			                    	}
+			                        LOGGER.severe("Message processing aborted "
+			                                + "(finding OSCORE ID when updating access rights)");
+			                        return msg.failReply(
+			                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
+			            		}
+			                    CBORObject osc = makeOscoreCnfUpdateAccessRights(oscId);
+			                    claims.put(Constants.CNF, osc);
+	                		}
+	                		// DTLS profile
+	                		else {
+	                        	// Make a DTLS style psk
+	                			CBORObject keyData = CBORObject.NewMap();
+	                			CBORObject coseKey = CBORObject.NewMap();
+	                			
+	                		    keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+	
+	                		    CBORObject kidCbor = this.cti2kid.get(oldCti);
+	
+	                		    keyData.Add(KeyKeys.KeyId.AsCBOR(), kidCbor);
+	
+	                		    coseKey.Add(Constants.COSE_KEY, keyData);
+	                		    claims.put(Constants.CNF, coseKey);
+	                		}
+	                	}
+	                	else {
+	                        LOGGER.severe("Message processing aborted "
+	                                + "(cannot find access token for which access right have to be updated)");
+	                        CBORObject myMap = CBORObject.NewMap();
+	                        myMap.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
+	                        return msg.failReply(
+	                                Message.FAIL_BAD_REQUEST, myMap);
+	                    }	
                 	}
-
-            	}
-                	
-                if (updateAccessRights == false) {
-                    LOGGER.severe("Message processing aborted "
-                            + "(cannot find access token for which access right have to be updated)");
-                    CBORObject myMap = CBORObject.NewMap();
-                    myMap.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
-                    return msg.failReply(
-                            Message.FAIL_BAD_REQUEST, myMap);
-                }
-            	
-                // Assume the client knows what it's doing,
-                // i.e. that the RS has that key and can process it
-	            claims.put(Constants.CNF, cnf);
 		            
 		        } else {//Client has provided a key 
 		            //Check what key the client provided
