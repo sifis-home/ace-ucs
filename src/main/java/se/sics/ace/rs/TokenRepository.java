@@ -63,7 +63,6 @@ import se.sics.ace.TrlStore;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
-import se.sics.ace.logging.PerformanceLogger;
 
 /**
  * This class is used to store valid access tokens and 
@@ -1042,15 +1041,6 @@ public class TokenRepository implements AutoCloseable {
 
 		persist();
 		trlManager.persist();
-
-		// log to file to record performance
-		try {
-			PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-					"t2C          : " + new Date().getTime() + "\n");
-		} catch (AssertionError e) {
-			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
-		}
-
 	}
 	
 	/**

@@ -76,46 +76,9 @@ public class AceRS implements Callable<Integer> {
     private final static String DEFAULT_SENDER_ID = "0x11";
     private final static String DEFAULT_TOKEN_PSK = "RS1-AS-Default-PSK-for-tokens---"; //32-byte long
     private final static String DEFAULT_MASTER_SECRET = "RS1-AS-MS-------"; //16-byte long
-    private final static String DEFAULT_LOG_FILE_PATH =
-            TestConfig.testFilePath + "logs/rs-" + DEFAULT_SENDER_ID + "-log.log";
-
-    private final static String DEFAULT_RANDOM_FILE_PATH =
-            TestConfig.testFilePath + "logs/random.txt";
-
 
     @Spec
     CommandSpec spec;
-
-    @Option(names = {"-L", "--LogFilePath"},
-            required = false,
-            description = "The path name of the log file where performance statistics " +
-                    "are saved.\n" +
-                    "If the file does not exist, it will be created.\n" +
-                    "By default, logging is enabled and the log file is " +
-                    "'/src/test/resources/logs/rs-0x11-log.log'.\n" +
-                    "If a senderId is specified with the option -x, that senderId " +
-                    "will be used for the file name.")
-    //FIXME: find a way to print the default path.
-    private String logPath;
-
-    @Option(names = {"-X", "--randomFilePath"},
-            required = false,
-            description = "The path name of the file containing a random hexadecimal string." +
-                    "The file MUST exist. It is used to have a unique identifier to track the same test.\n" +
-                    "By default, logging is enabled and this file is '/src/test/resources/logs/random.txt'")
-    //FIXME: find a way to print the default path.
-    private String randomPath;
-
-    @Option(names = {"-D", "--DisableLog"},
-            required = false,
-            description = "Disable recording performance log to file")
-    public boolean isLogDisabled = false;
-
-    @Option(names = {"-F", "--FineLogging"},
-            required = false,
-            description = "If logging is enabled, this option logs also " +
-                    "messages with level equal to FINE")
-    public boolean isFineLogging = false;
 
     @Option(names = {"-a", "--asuri"},
             required = false,
@@ -288,18 +251,8 @@ public class AceRS implements Callable<Integer> {
 
     private final Map<String, ScheduledExecutorService> introspectorMap = new HashMap<>();
 
-    private static String logFilePath;
-
-    private static String randomFilePath;
-
-    private static String cliArgs;
-
-
-    private static boolean isLogEnabled;
     //--- MAIN
     public static void main(String[] args) {
-
-        cliArgs = Arrays.toString(args);
 
         int exitCode = new CommandLine(new AceRS()).execute(args);
         if (exitCode != 0) {
@@ -314,15 +267,6 @@ public class AceRS implements Callable<Integer> {
     public Integer call() throws Exception {
 
         parseInputs();
-
-        if (isLogEnabled) {
-            // initialize the PerformanceLogger
-            Level level = Level.INFO;
-            if (isFineLogging) {
-                level = Level.FINE;
-            }
-            Utils.initPerformanceLogger(level, logFilePath, randomFilePath, cliArgs);
-        }
 
         parseScope(scope);
         setUpCwtCryptoCtx();
@@ -618,16 +562,6 @@ public class AceRS implements Callable<Integer> {
             introspectInterval = this.args.IntrospectionArgs.interval;
         } catch (NullPointerException e) {
             introspectInterval = DEFAULT_INTROSPECT_INTERVAL;
-        }
-
-        isLogEnabled = !isLogDisabled;
-        if (isLogEnabled) {
-            logFilePath = (logPath != null) ?
-                    logPath :
-                    (senderId != null) ?
-                            DEFAULT_LOG_FILE_PATH.replaceFirst("-\\w+-", "-"+ senderId + "-") :
-                            DEFAULT_LOG_FILE_PATH;
-            randomFilePath = (randomPath != null) ? randomPath : DEFAULT_RANDOM_FILE_PATH;
         }
     }
 }

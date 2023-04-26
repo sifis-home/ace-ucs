@@ -1,14 +1,9 @@
 package se.sics.ace.performance;
 
 import picocli.CommandLine;
-import se.sics.ace.logging.PerformanceLogger;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Scanner;
-import java.util.logging.Level;
 
 public class Utils {
 
@@ -62,33 +57,5 @@ public class Utils {
                     + Character.digit(s.charAt(i+1), 16));
         }
         return data;
-    }
-
-    public static String readRandomFile(String pathName) {
-        String data = null;
-        try {
-            File myObj = new File(pathName);
-            Scanner reader = new Scanner(myObj);
-            // while (reader.hasNextLine()) {
-            data = reader.nextLine();
-            //     System.out.println(data);
-            //}
-            reader.close();
-        } catch (FileNotFoundException e) {
-            System.out.println("An error occurred.");
-            e.printStackTrace();
-        }
-        return data;
-    }
-
-    public static void initPerformanceLogger (Level level, String logFilePath, String randomFilePath, String cliArgs) {
-        String randomizer = readRandomFile(randomFilePath);
-        PerformanceLogger.init(logFilePath, randomizer, level);
-
-        PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                "\n\n\n----------------------------" +
-                        "\n\nNEW TEST: " + randomizer + "\n");
-        PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                "CLI arguments: " + cliArgs + "\n");
     }
 }

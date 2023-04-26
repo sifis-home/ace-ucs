@@ -8,7 +8,6 @@ import se.sics.ace.TimeProvider;
 import se.sics.ace.as.logging.DhtLogger;
 import se.sics.ace.as.logging.Const;
 import se.sics.ace.coap.as.AceObservableEndpoint;
-import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.ucs.UcsHelper;
 
 import java.util.*;
@@ -111,14 +110,6 @@ public class RevocationHandler {
         //   - removes the token from trlTable
         Timer timer = new Timer();
         timer.schedule(new ExpirationTask(cti), delay);
-
-        // log to file to record performance
-        try {
-            PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                    "t2B          : " + new Date().getTime() + "\n");
-        } catch (AssertionError e) {
-            LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
-        }
 
         // Notify observing pertaining peers
         if (trl != null) {

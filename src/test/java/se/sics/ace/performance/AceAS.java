@@ -44,8 +44,6 @@ import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.OscoreAS;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.logging.PerformanceLogger;
-import se.sics.ace.logging.TestRandomizer;
 import se.sics.ace.performance.peers.Client;
 import se.sics.ace.performance.peers.ResourceServer;
 import se.sics.ace.ucs.UcsHelper;
@@ -92,11 +90,7 @@ public class AceAS implements Callable<Integer> {
     private final static String DEFAULT_RESOURCE_SERVER_TOKEN_PSK =
             "RS1-AS-Default-PSK-for-tokens---"; //32-byte long
 
-    private final static String DEFAULT_LOG_FILE_PATH =
-            TestConfig.testFilePath + "logs/as-log.log";
 
-    private final static String DEFAULT_RANDOM_FILE_PATH =
-            TestConfig.testFilePath + "logs/random.txt";
 
     private final static String DEFAULT_RESOURCES = "Temp HelloWorld";
 
@@ -110,36 +104,6 @@ public class AceAS implements Callable<Integer> {
             description = "Use the KissPDP as PDP.\n" +
                     "(default: UCS)\n")
     private boolean isKissPDP;
-
-    @Option(names = {"-L", "--LogFilePath"},
-            required = false,
-            description = "The path name of the log file where performance statistics " +
-                    "are saved.\n" +
-                    "If the file does not exist, it will be created.\n" +
-                    "By default, logging is enabled and the log file is '/src/test/resources/logs/as-log.log'")
-                    //FIXME: find a way to print the default path.
-    private String logPath;
-
-    @Option(names = {"-X", "--randomFilePath"},
-            required = false,
-            description = "The path name of the file containing a random hexadecimal string." +
-                    "If the file does not exist, it will be created.\n" +
-                    "This file will be read by Clients and Resource Servers, so that " +
-                    "we have a unique identifier to track the same test.\n" +
-                    "By default, logging is enabled and this file is '/src/test/resources/logs/random.txt'")
-                    //FIXME: find a way to print the default path.
-    private String randomPath;
-
-    @Option(names = {"-D", "--DisableLog"},
-            required = false,
-            description = "Disable recording performance log to file")
-    public boolean isLogDisabled = false;
-
-    @Option(names = {"-F", "--FineLogging"},
-            required = false,
-            description = "If logging is enabled, this option logs also " +
-                    "messages with level equal to FINE")
-    public boolean isFineLogging = false;
 
     @Option(names = {"-N", "--numberOfAttributes"},
             required = false,
@@ -241,18 +205,11 @@ static class Peer {
     private final String asIdentity = buildOscoreIdentity(new byte[] {0x33}, idContext);
 
     private static Timer timer;
-    private static String logFilePath;
-    private static String randomFilePath;
-    private static String cliArgs;
-
-    private static boolean isLogEnabled;
 
     private static String attributeFilesPath = TestConfig.testFilePath + "attributes/";
 
     //--- MAIN
     public static void main(String[] args) {
-
-        cliArgs = Arrays.toString(args);
 
         int exitCode = new CommandLine(new AceAS()).execute(args);
         if (exitCode != 0) {
@@ -275,18 +232,6 @@ static class Peer {
         setupPDP();
 
         parseInputs();
-
-        if (isLogEnabled) {
-            // generate and save a new random hex
-            new TestRandomizer(randomFilePath, 32);
-
-            // initialize the PerformanceLogger
-            Level level = Level.INFO;
-            if (isFineLogging) {
-                level = Level.FINE;
-            }
-            Utils.initPerformanceLogger(level, logFilePath, randomFilePath, cliArgs);
-        }
 
         KissTime time = new KissTime();
 
@@ -373,12 +318,6 @@ static class Peer {
         }
         for (ResourceServer r: resourceServers) {
             setupResourceServer(r);
-        }
-
-        isLogEnabled = !isLogDisabled;
-        if (isLogEnabled) {
-            logFilePath = (logPath != null) ? logPath : DEFAULT_LOG_FILE_PATH;
-            randomFilePath = (randomPath != null) ? randomPath : DEFAULT_RANDOM_FILE_PATH;
         }
 
         if (isDhtLoggingEnabled) {
@@ -650,13 +589,6 @@ static class Peer {
                 fw.close();
             } catch (IOException e) {
                 e.printStackTrace();
-            }
-            if (isLogEnabled) {
-                long now = new Date().getTime();
-                PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                        "t1B, t1C, t1D: " + now + "\n");
-                PerformanceLogger.getInstance().getLogger().log(Level.FINE,
-                        "t1R          : " + now + "\n");
             }
         }
     }

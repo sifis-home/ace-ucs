@@ -24,7 +24,6 @@ import it.cnr.iit.ucs.properties.components.PipProperties;
 import it.cnr.iit.ucs.ucs.UCSInterface;
 import it.cnr.iit.xacml.wrappers.PolicyWrapper;
 import it.cnr.iit.xacml.wrappers.RequestWrapper;
-import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.ucs.properties.AceUcsProperties;
 
 /**
@@ -42,11 +41,6 @@ public class UcsClient {
 
 	private final String papPath;
 
-	// for test purposes. Counts the number of times the tryAccess method has been invoked
-	private int iterCounterTry = 0;
-	// for test purposes. Counts the number of times the startAccess method has been invoked
-	private int iterCounterStart = 0;
-
 	public UcsClient(List<PipProperties> pipPropertiesList, PapProperties papProperties) {
 		properties = new AceUcsProperties(pipPropertiesList, papProperties);
 		try {
@@ -58,43 +52,13 @@ public class UcsClient {
 	}
 
 	public TryAccessResponseMessage tryAccess(String request) {
-		iterCounterTry++;
 		TryAccessMessage message = buildTryAccessMessage(request);
-		// log to file to record performance
-		try {
-			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
-					"t1T" + iterCounterTry + "         : " + new Date().getTime() + "\n");
-		} catch (AssertionError e) {
-			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
-		}
-		TryAccessResponseMessage response = (TryAccessResponseMessage) ucs.tryAccess(message);
-		// log to file to record performance
-		try {
-			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
-					"t2T" + iterCounterTry + "         : " + new Date().getTime() + "\n");
-		} catch (AssertionError e) {
-			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
-		}
-		return response;
+		return (TryAccessResponseMessage) ucs.tryAccess(message);
 	}
 
 	public StartAccessResponseMessage startAccess(String sessionId) {
-		iterCounterStart++;
 		StartAccessMessage message = buildStartAccessMessage(sessionId);
-		try {
-			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
-					"t1S" + iterCounterStart + "         : " + new Date().getTime() + "\n");
-		} catch (AssertionError e) {
-			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
-		}
-		StartAccessResponseMessage response = (StartAccessResponseMessage) ucs.startAccess(message);
-		try {
-			PerformanceLogger.getInstance().getLogger().log(Level.FINE,
-					"t2S" + iterCounterStart + "         : " + new Date().getTime() + "\n");
-		} catch (AssertionError e) {
-			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
-		}
-		return response;
+		return (StartAccessResponseMessage) ucs.startAccess(message);
 	}
 
 	public EndAccessResponseMessage endAccess(String sessionId) {

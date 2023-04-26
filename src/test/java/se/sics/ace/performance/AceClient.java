@@ -18,7 +18,6 @@ import se.sics.ace.coap.client.BasicTrlStore;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.TrlResponses;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 import java.io.IOException;
@@ -63,11 +62,6 @@ public class AceClient implements Callable<Integer> {
     private final static int DEFAULT_REQUEST_INTERVAL = 1;
     private final static String DEFAULT_SENDER_ID = "0x22";
     private final static String DEFAULT_MASTER_SECRET = "ClientA-AS-MS---";
-    private final static String DEFAULT_LOG_FILE_PATH =
-            TestConfig.testFilePath + "logs/client-" + DEFAULT_SENDER_ID + "-log.log";
-
-    private final static String DEFAULT_RANDOM_FILE_PATH =
-            TestConfig.testFilePath + "logs/random.txt";
 
     @Spec
     CommandSpec spec;
@@ -80,37 +74,6 @@ public class AceClient implements Callable<Integer> {
                     "Note that the AceAS must be initialized so that the Client has the privileges " +
                     "for such audience and scope.")
     public boolean isWarmUpEnabled = false;
-
-    @Option(names = {"-L", "--LogFilePath"},
-            required = false,
-            description = "The path name of the log file where performance statistics " +
-                    "are saved.\n" +
-                    "If the file does not exist, it will be created.\n" +
-                    "By default, logging is enabled and the log file is " +
-                    "'/src/test/resources/logs/client-0x22-log.log'.\n" +
-                    "If a senderId is specified with the option -x, that senderId " +
-                    "will be used for the file name.")
-    //FIXME: find a way to print the default path.
-    private String logPath;
-
-    @Option(names = {"-X", "--randomFilePath"},
-            required = false,
-            description = "The path name of the file containing a random hexadecimal string." +
-                    "The file MUST exist. It is used to have a unique identifier to track the same test.\n" +
-                    "By default, logging is enabled and this file is '/src/test/resources/logs/random.txt'")
-    //FIXME: find a way to print the default path.
-    private String randomPath;
-
-    @Option(names = {"-D", "--DisableLog"},
-            required = false,
-            description = "Disable recording performance log to file")
-    public boolean isLogDisabled = false;
-
-    @Option(names = {"-F", "--FineLogging"},
-            required = false,
-            description = "If logging is enabled, this option logs also " +
-                    "messages with level equal to FINE")
-    public boolean isFineLogging = false;
 
     @Option(names = {"-a", "--asuri"},
             required = false,
@@ -257,18 +220,8 @@ public class AceClient implements Callable<Integer> {
 
     private final Set<String> validTokens = new HashSet<>();
 
-    private static String logFilePath;
-
-    private static String randomFilePath;
-
-    private static String cliArgs;
-
-    private static boolean isLogEnabled;
-
 //--- MAIN
     public static void main(String[] args) {
-
-        cliArgs = Arrays.toString(args);
 
         int exitCode = new CommandLine(new AceClient()).execute(args);
         if (exitCode != 0) {
@@ -281,15 +234,6 @@ public class AceClient implements Callable<Integer> {
     public Integer call() throws Exception {
 
         parseInputs();
-
-        if (isLogEnabled) {
-            // initialize the PerformanceLogger
-            Level level = Level.INFO;
-            if (isFineLogging) {
-                level = Level.FINE;
-            }
-            Utils.initPerformanceLogger(level, logFilePath, randomFilePath, cliArgs);
-        }
 
         // initialize OSCORE context
         ctx = new OSCoreCtx(key128, true, null,
@@ -463,8 +407,6 @@ public class AceClient implements Callable<Integer> {
                 Response asRes;
                 try {
                     tokenCount ++;
-                    PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                            "t1A" + tokenCount + "         : " + new Date().getTime() + "\n");
                     asRes = getToken(client4AS, aud, scope);
                 } catch (AceException e) {
                     System.out.println(e.getMessage());
@@ -502,18 +444,10 @@ public class AceClient implements Callable<Integer> {
                 List<String> resources = new ArrayList<>(Arrays.asList(allowedScopes.split(" ")));
                 resources.replaceAll(s1 -> s1.substring(s1.indexOf("_") + 1));
 
-                boolean isFirstRequest = true;
-
                 int i = 0;
                 while (denialsCount < denials && validTokens.contains(tokenHash)) {
                     boolean isSuccess = getResource(client4RS, rsAddr + "/" + resources.get(i));
-                    if (isSuccess && tokenCount == 1 && isFirstRequest) {
-                        PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                                "t2A" + tokenCount + "         : " + new Date().getTime() + "\n");
-                    }
-                    else if (isSuccess && tokenCount == 2) {
-                        PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                                "t2D, t2A" + tokenCount + "    : " + new Date().getTime() + "\n");
+                    if (isSuccess && tokenCount == 2) {
                         client4AS.shutdown();
                         if (es != null) {
                             //Shutting down the Executor Service for the Poller
@@ -531,8 +465,6 @@ public class AceClient implements Callable<Integer> {
                         }
                     }
                     i = (i+1)%resources.size();
-
-                    isFirstRequest = false;
 
                     // wait 'requestInterval' before making another request,
                     // or wake up and ignore the remaining time if the
@@ -552,10 +484,6 @@ public class AceClient implements Callable<Integer> {
                         }
                     }
                 }
-
-                PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-                        "tCliLearn    : " + new Date().getTime() + "\n");
-
                 System.out.println("Trying to get a new Access Token from the AS...");
                 denialsCount = 0;
             }
@@ -699,17 +627,6 @@ public class AceClient implements Callable<Integer> {
             trlAddr = this.args.trlAddrArg.trlAddress;
         } catch (NullPointerException e) {
             trlAddr = DEFAULT_TRL_ADDR;
-        }
-
-
-        isLogEnabled = !isLogDisabled;
-        if (isLogEnabled) {
-            logFilePath = (logPath != null) ?
-                    logPath :
-                    (senderId != null) ?
-                            DEFAULT_LOG_FILE_PATH.replaceFirst("-\\w+-", "-"+ senderId + "-") :
-                            DEFAULT_LOG_FILE_PATH;
-            randomFilePath = (randomPath != null) ? randomPath : DEFAULT_RANDOM_FILE_PATH;
         }
     }
 }

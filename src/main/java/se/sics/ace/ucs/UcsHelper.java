@@ -9,7 +9,6 @@ import it.cnr.iit.ucs.properties.components.PipProperties;
 import se.sics.ace.AceException;
 import se.sics.ace.as.*;
 import se.sics.ace.examples.SQLConnector;
-import se.sics.ace.logging.PerformanceLogger;
 import se.sics.ace.ucs.xacml.AdditionalAttribute;
 import se.sics.ace.ucs.xacml.CATEGORY;
 import se.sics.ace.ucs.xacml.RequestGenerator;
@@ -292,14 +291,6 @@ public class UcsHelper implements PDP, AutoCloseable {
 		int count = 0;
 		List<String> allowedSessions = new ArrayList<>();
 
-		// log to file to record performance
-		try {
-			PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-					"t1E" + iterCounter + "         : " + new Date().getTime() + "\n");
-		} catch (AssertionError e) {
-			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
-		}
-
 		for (String req : xacmlRequests) {
 			// if both tryAccess and startAccess return PERMIT, add the entry to the database.
 			// The entry contains <sessionId, clientId, rsId, scope, cti>
@@ -341,14 +332,6 @@ public class UcsHelper implements PDP, AutoCloseable {
 						" for subscope '" + scopeArray[count] + "'\n" );
 			}
 			count++;
-		}
-
-		// log to file to record performance
-		try {
-			PerformanceLogger.getInstance().getLogger().log(Level.INFO,
-					"t2E" + iterCounter + "         : " + new Date().getTime() + "\n");
-		} catch (AssertionError e) {
-			LOGGER.finest("Unable to record performance. PerformanceLogger not initialized");
 		}
 
 		if (allowedScopes.toString().equals("")){
