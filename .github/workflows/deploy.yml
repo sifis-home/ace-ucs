@@ -15,6 +15,16 @@ jobs:
         with:
           java-version: '8.0.x'
           distribution: 'zulu'
+          
+      - name: Install MySql for tests
+        run: |
+          echo "mysql-server mysql-server/root_password password root" | sudo debconf-set-selections
+          echo "mysql-server mysql-server/root_password_again password root" | sudo debconf-set-selections
+          sudo apt-get -y install mysql-server
+        sudo systemctl start mysql.service
+        echo "root" > db.pwd # Root username
+        echo "root" >> db.pwd # Root pw
+          
       - name: Publish package
         run: mvn --batch-mode deploy
         env:
