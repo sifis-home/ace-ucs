@@ -214,11 +214,11 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
 
-	<distributionManagement>
-		<repository>
-			<id>github</id>
-			<name>GitHub Packages</name>
-			<url>https://maven.pkg.github.com/Daven00/ace-java</url>
-		</repository>
-	</distributionManagement>
+<!--	<distributionManagement>-->
+<!--		<repository>-->
+<!--			<id>github</id>-->
+<!--			<name>GitHub Packages</name>-->
+<!--			<url>https://maven.pkg.github.com/Daven00/ace-java</url>-->
+<!--		</repository>-->
+<!--	</distributionManagement>-->
 </project>
