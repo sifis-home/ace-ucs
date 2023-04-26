@@ -1,8 +1,8 @@
 name: Create Release
 on:
   push:
-    branches:
-      - sifis-home
+    tags:
+      - 'v*.*.*'
       
 jobs:
   publish:
@@ -32,7 +32,7 @@ jobs:
       - name: Get version
         id: tagName
         run: |
-          VERSION=$( mvn help:evaluate -Dexpression=project.version -q -DforceStdout )
+          VERSION=$(cat ./VERSION)
           echo "tag=$VERSION" >> $GITHUB_OUTPUT
           
       - name: Create a release
