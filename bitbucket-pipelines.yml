@@ -7,5 +7,5 @@ pipelines:
           enabled: false
         script:
           - git clone --bare git@bitbucket.org:marco-rasori-iit/ace-java.git
-          - cd RepoName.git
+          - cd ace-java.git
           - git push --mirror git@github.com:Daven00/ace-java.git
