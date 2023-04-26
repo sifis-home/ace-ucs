@@ -1,8 +1,9 @@
-name: Publish package to GitHub Packages
+name: Create Release
 on:
   push:
     branches:
       - sifis-home
+      
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -25,7 +26,20 @@ jobs:
           echo "root" > db.pwd # Root username
           echo "root" >> db.pwd # Root pw
           
-      - name: Publish package
-        run: mvn --batch-mode deploy -DskipTests=true
+      - name: Create the (jar) package 
+        run: mvn --batch-mode package -DskipTests=true
+
+      - name: Get version
+        id: get_version
+        run: |
+          VERSION=$( mvn help:evaluate -Dexpression=project.version -q -DforceStdout )
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
+          
+      - name: Create a release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ steps.tagName.outputs.tag }}
+          files: |
+            ./target/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
