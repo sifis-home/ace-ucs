@@ -26,11 +26,11 @@ jobs:
           echo "root" > db.pwd # Root username
           echo "root" >> db.pwd # Root pw
           
-      - name: Create the (jar) package 
+      - name: Create the (jar) package
         run: mvn --batch-mode package -DskipTests=true
 
       - name: Get version
-        id: get_version
+        id: tagName
         run: |
           VERSION=$( mvn help:evaluate -Dexpression=project.version -q -DforceStdout )
           echo "tag=$VERSION" >> $GITHUB_OUTPUT
