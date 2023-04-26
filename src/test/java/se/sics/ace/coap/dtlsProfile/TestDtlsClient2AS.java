@@ -326,6 +326,10 @@ public class TestDtlsClient2AS {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp rw_config rw_light foobar"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        CBORObject myKid = map.get(Constants.CNF).get(Constants.COSE_KEY).get(KeyKeys.KeyId.AsCBOR());
+        CBORObject myCnf = CBORObject.NewMap();
+        myCnf.Add(Constants.COSE_KID_CBOR, myKid);
+        params.put(Constants.REQ_CNF, myCnf);
         
         response = client.post(Constants.getCBOR(params).EncodeToBytes(), Constants.APPLICATION_ACE_CBOR); 
         
@@ -335,13 +339,17 @@ public class TestDtlsClient2AS {
         
         assert(map.containsKey(Constants.ACCESS_TOKEN));
         assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
+        assert(!map.containsKey(Constants.CNF)); // The 'cnf' parameter must not be present here
+        
+        /*
         assert(map.get(Constants.CNF).ContainsKey(Constants.COSE_KEY));
         Assert.assertEquals(2, map.get(Constants.CNF).get(Constants.COSE_KEY).size());
         Assert.assertEquals(true, map.get(Constants.CNF).get(Constants.COSE_KEY).ContainsKey(KeyKeys.KeyId.AsCBOR()));
         Assert.assertEquals(true, map.get(Constants.CNF).get(Constants.COSE_KEY).ContainsKey(KeyKeys.KeyType.AsCBOR()));
         Assert.assertEquals(KeyKeys.KeyType_Octet, map.get(Constants.CNF).get(Constants.COSE_KEY).get(KeyKeys.KeyType.AsCBOR()));
         Assert.assertArrayEquals(kid, map.get(Constants.CNF).get(Constants.COSE_KEY).get(KeyKeys.KeyId.AsCBOR()).GetByteString());
+        */
+        
         assert(map.containsKey(Constants.SCOPE));
         assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config rw_light"));
         

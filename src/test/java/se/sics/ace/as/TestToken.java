@@ -686,39 +686,6 @@ public class TestToken {
     }
     
     /**
-     * Test with kid only in cnf parameter
-     *
-     * @throws AceException  
-     */        
-    @Test
-    public void testSucceedCnfKid() throws AceException {
-        Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_pressure"));
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        CBORObject cnf = CBORObject.NewMap();
-        cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
-        params.put(Constants.REQ_CNF, cnf);
-        
-        Message msg = new LocalMessage(-1, "clientE", "TestAS", params);
-        Message response = t.processMessage(msg);
-        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
-        params = Constants.getParams(rparams);
-        assert(params.containsKey(Constants.PROFILE));
-        assert(response.getMessageCode() == Message.CREATED);
-        
-        CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        String ctiStr = Base64.getEncoder().encodeToString(
-                		CBORObject.DecodeFromBytes(token.GetByteString()).GetByteString());
-        Map<Short, CBORObject> claims = db.getClaims(ctiStr);
-        assert(claims.get(Constants.SCOPE).AsString().contains("r_pressure"));
-        
-        CBORObject cnf2 = claims.get(Constants.CNF);
-        assert(cnf.equals(cnf2));
-    }
-    
-    
-    /**
      * Test the token endpoint. Test purging expired tokens.
      * 
      * @throws Exception

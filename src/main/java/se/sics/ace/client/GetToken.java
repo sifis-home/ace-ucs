@@ -176,13 +176,13 @@ public class GetToken {
      *   
      * @param aud  Audience restriction. OPTIONAL
      * @param scope  The requested scope. OPTIONAL 
-     * @param cnf  Proof-of-Possession key requested. OPTIONAL 
+     * @param req_cnf  Proof-of-Possession key requested. OPTIONAL 
      *   
      * @return  the CBOR map representing the access token request
      *      payload
      */
     public static CBORObject getClientCredentialsRequest(CBORObject aud, 
-            CBORObject scope, CBORObject cnf) {
+            CBORObject scope, CBORObject reqCnf) {
         CBORObject payload = CBORObject.NewMap();
         if (aud != null) {
             payload.Add(Constants.AUDIENCE, aud);
@@ -190,8 +190,8 @@ public class GetToken {
         if (scope != null) {
             payload.Add(Constants.SCOPE, scope);
         }
-        if (cnf != null) {
-            payload.Add(Constants.CNF, cnf);
+        if (reqCnf != null) {
+            payload.Add(Constants.REQ_CNF, reqCnf);
         }
         return payload;
     }
