@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>se.sics</groupId>
 	<artifactId>ace</artifactId>
-	<version>0.0.4-UCS</version>
+	<version>0.0.5-UCS</version>
 	<packaging>jar</packaging>
 	<name>ACE library</name>
 	<description>A java library for the ACE IETF WG</description>
