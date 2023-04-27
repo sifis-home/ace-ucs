@@ -51,6 +51,9 @@ import se.sics.ace.ucs.UcsHelper;
 import se.sics.ace.ucs.properties.UcsPapProperties;
 import se.sics.ace.ucs.properties.UcsPipProperties;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -212,7 +215,16 @@ public class OscoreProtocolASTestServer
         pipPropertiesList.add(new UcsPipProperties());
         UcsPapProperties papProperties =
                 new UcsPapProperties(TestConfig.testFilePath + "policies/");
-        pdp = new UcsHelper(db, pipPropertiesList, papProperties);
+
+        String policyTemplate = null;
+        try {
+            policyTemplate = new String(Files.readAllBytes(
+                    Paths.get(TestConfig.testFilePath + "policy-templates/policy_template")));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        pdp = new UcsHelper(db, pipPropertiesList, papProperties, policyTemplate);
 
         //Initialize data in PDP
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");

@@ -57,6 +57,8 @@ import se.sics.ace.ucs.properties.UcsPipReaderProperties;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 import static java.lang.Thread.sleep;
@@ -288,7 +290,15 @@ public class MultiTokenAsTestServer
         UcsPapProperties papProperties =
                 new UcsPapProperties(TestConfig.testFilePath + "policies/");
 
-        pdp = new UcsHelper(db, pipPropertiesList, papProperties);
+        String policyTemplate = null;
+        try {
+            policyTemplate = new String(Files.readAllBytes(
+                    Paths.get(TestConfig.testFilePath + "policy-templates/policy_template")));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        pdp = new UcsHelper(db, pipPropertiesList, papProperties, policyTemplate);
 
         //Initialize data in PDP
         pdp.addTokenAccess("clientA");

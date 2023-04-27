@@ -51,6 +51,8 @@ import se.sics.ace.ucs.properties.UcsPapProperties;
 import se.sics.ace.ucs.properties.UcsPipReaderProperties;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.Callable;
 
@@ -380,8 +382,14 @@ static class Peer {
 //                    if (res.equals("helloWorld") && numAttributes > 1) {
 //                        policySuffix = "_" + numAttributes + "_attributes";
 //                    }
-                    ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope,
-                            TestConfig.testFilePath + "policy-templates/policy_template_" + res + policySuffix);
+                    String policyTemplate = null;
+                    try {
+                        policyTemplate = new String(Files.readAllBytes(
+                                Paths.get(TestConfig.testFilePath + "policy-templates/policy_template_" + res + policySuffix)));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope, policyTemplate);
                 }
                 else {
                     pdp.addAccess(c.getName(), c.getAud().get(i), subScope);
@@ -503,7 +511,15 @@ static class Peer {
             UcsPapProperties papProperties =
                     new UcsPapProperties(TestConfig.testFilePath + "policies/");
 
-            pdp = new UcsHelper(db, pipPropertiesList, papProperties);
+            String policyTemplate = null;
+            try {
+                policyTemplate = new String(Files.readAllBytes(
+                        Paths.get(TestConfig.testFilePath + "policy-templates/policy_template")));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            pdp = new UcsHelper(db, pipPropertiesList, papProperties, policyTemplate);
         }
     }
 

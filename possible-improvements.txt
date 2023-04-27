@@ -1,0 +1,10 @@
+Cambiare UcsClient in class UCS.
+Questa classe contiene tutto quello che ha UcsClient, tranne le buildXxxAccessMessage
+
+In UcsHelper, inizializzo UCS e inizializzo il PEP passandogli l'UCS, cosicché possa chiamare la tryAccess, startAccess, e endAccess sull'UCS.
+
+L'UCS deve avere un riferimento al PEP per mandargli la ongoingEvaluation di sua sponte.
+
+Il PEP, ricevuta la ongoingEvaluation, chiama la revoke sull'UcsHelper o, ancora meglio, ci dovrebbe essere un thread sull'UcsHelper che rimane in attesa su una coda. 
+Il PEP mette il sID nella coda e, quando il thread trova la coda non vuota, fa partire la revoke sull'UcsHelper.
+

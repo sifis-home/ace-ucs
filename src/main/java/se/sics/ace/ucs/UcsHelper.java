@@ -109,12 +109,13 @@ public class UcsHelper implements PDP, AutoCloseable {
 
 	public UcsHelper(SQLConnector connection,
 					 List<PipProperties> pipPropertiesList,
-					 PapProperties papProperties) throws AceException {
+					 PapProperties papProperties, String policyTemplate) throws AceException {
 
-		this.basicPolicy = readFileAsString(
-				new File(Objects.requireNonNull(
-						getClass().getClassLoader().getResource("policy-templates/policy_template"),
-						"[ERROR] policy template file not found.").getFile()));
+		this.basicPolicy = policyTemplate;
+//		readFileAsString(
+//				new File(Objects.requireNonNull(
+//						getClass().getClassLoader().getResource("policy-templates/policy_template"),
+//						"[ERROR] policy template file not found.").getFile()));
 
 		LOGGER.setLevel(Level.SEVERE);
 
@@ -493,19 +494,17 @@ public class UcsHelper implements PDP, AutoCloseable {
 	 * @param cid   client identifier
 	 * @param rid   resource server identifier
 	 * @param scope scopes requested, e.g., "r_light", "co2"
-	 * @param templateFile  the file to be used as a template for creating the access policy
+	 * @param policyTemplate  the file to be used as a template for creating the access policy
 	 *
 	 * @throws AceException ace exception
 	 */
-	public void addAccess(String cid, String rid, String scope, String templateFile) throws AceException {
-		String policy = readFileAsString(
-				new File(templateFile));
+	public void addAccess(String cid, String rid, String scope, String policyTemplate) throws AceException {
 
-		policy = policy.replaceAll("SUBJECT_HERE", cid)
+		policyTemplate = policyTemplate.replaceAll("SUBJECT_HERE", cid)
 				.replaceAll("RESOURCE_HERE", scope)
 				.replaceAll("RESOURCESERVER_HERE", rid)
 				.replaceAll("POLICYID_HERE", ("policy_" + policyIdCounter));
-		ucs.addPolicy(policy);
+		ucs.addPolicy(policyTemplate);
 
 		policyIdCounter++;
 	}
