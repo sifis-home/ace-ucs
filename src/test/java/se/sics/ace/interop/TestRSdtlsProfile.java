@@ -431,8 +431,6 @@ public class TestRSdtlsProfile {
   	    rs.add(temp);
   	    rs.add(conf);
   	    rs.add(authzInfo);
-      
-  	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
   	    
   	    
   	    // Setup the DTLS server
@@ -468,7 +466,10 @@ public class TestRSdtlsProfile {
                 new InetSocketAddress(portNumberNoSec)).build();
   	    
   	    rs.addEndpoint(aiep);
+  	    
+  	    dpd = new CoapDeliverer(rs.getRoot(), null, asi, cep);
   	    rs.setMessageDeliverer(dpd);
+  	    
   	    rs.start();
   	    System.out.println("Server starting");
     }

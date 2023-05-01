@@ -384,19 +384,18 @@ public class TestRSoscoreProfile {
   	    rs.add(temp);
   	    rs.add(conf);
   	    rs.add(authzInfo);
-      
-  	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
-  	    
   	    
   	    // Setup the OSCORE server
+  	    CoapEndpoint cep = new CoapEndpoint.Builder()
+              .setCoapStackFactory(new OSCoreCoapStackFactory())
+              .setPort(portNumber)
+              .setCustomCoapStackArgument(OscoreCtxDbSingleton.getInstance())
+              .build();
+  	    rs.addEndpoint(cep);
   	    
-  	    rs.addEndpoint(new CoapEndpoint.Builder()
-                .setCoapStackFactory(new OSCoreCoapStackFactory())
-                .setPort(portNumber)
-                .setCustomCoapStackArgument(OscoreCtxDbSingleton.getInstance())
-                .build());
-  	    
+  	    dpd = new CoapDeliverer(rs.getRoot(), null, asi, cep);
   	    rs.setMessageDeliverer(dpd);
+  	    
   	    rs.start();
   	    System.out.println("Server starting");
     }

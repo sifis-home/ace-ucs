@@ -3574,8 +3574,6 @@ public class PlugtestRSGroupOSCORE {
   	    rs.add(groupOSCORERootMembership);
   	    groupOSCORERootMembership.add(join);
   	    rs.add(authzInfo);
-      
-  	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
   	    
         Configuration dtlsConfig = Configuration.getStandard();
         dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
@@ -3606,7 +3604,10 @@ public class PlugtestRSGroupOSCORE {
                 new InetSocketAddress(portNumberNoSec)).build();
   	    
   	    rs.addEndpoint(aiep);
+  	    
+  	    dpd = new CoapDeliverer(rs.getRoot(), null, asi, cep);
   	    rs.setMessageDeliverer(dpd);
+  	    
   	    rs.start();
   	    System.out.println("Server starting");
     }

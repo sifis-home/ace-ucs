@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
@@ -41,10 +42,15 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.scandium.DTLSConnector;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -91,7 +97,15 @@ public class CoapDeliverer implements MessageDeliverer {
      * The class managing the AS Request Creation Hints
      */
     private AsRequestCreationHints asRCH;
-  
+    
+	/**
+	 * CoAP Endpoint used by the Resource Server for secure communication with the Clients.
+	 * This is required in order to be able to terminate secure associations with a Client
+	 * upon deleting the last access token bound to that association. This is the case, e.g.,
+	 * for access tokens bound to a DTLS connection.
+	 */
+	private CoapEndpoint coapEndpoint;
+    
     /** 
      * The ServerMessageDeliverer that processes the request
      * after access control has been done
@@ -107,16 +121,20 @@ public class CoapDeliverer implements MessageDeliverer {
      * @param root  the root of the resources that this deliverer controls
      * @param i  the introspection handler or null if there isn't any.
      * @param asRCHM  the AS Request Creation Hints Manager.
+     * @param cep  the CoAP endpoint used by the Resource Server for secure communication with the Clients
      * @throws AceException   if the token repository is not initialized
      */
-    public CoapDeliverer(Resource root,
-            IntrospectionHandler i, AsRequestCreationHints asRCHM) 
-                    throws AceException {
+    public CoapDeliverer(Resource root, IntrospectionHandler i, AsRequestCreationHints asRCHM, CoapEndpoint cep) throws AceException {
         if (TokenRepository.getInstance() == null) {
             throw new AceException("Must initialize TokenRepository");
         }
         this.d = new ServerMessageDeliverer(root);
-        this.asRCH = asRCHM; 
+        this.asRCH = asRCHM;
+        
+        if (cep == null) {
+            throw new AceException("Null CoAP Endpoint when setting up the CoAPDeliverer");
+        }
+        this.coapEndpoint = cep;
     }
   
     //Really the TokenRepository _should not_ be closed here
@@ -234,6 +252,25 @@ public class CoapDeliverer implements MessageDeliverer {
                 return;
             case TokenRepository.UNAUTHZ :
                failUnauthz(ex);
+               
+               EndpointContext ctx = request.getSourceContext();
+               if (ctx != null && ctx instanceof DtlsEndpointContext) {
+            	   // The canAccess() method of the TokenRepository has returned Unauthorized, even though
+            	   // the request from the Client was protected. That can happen only if the Resource Server
+            	   // has deleted the previously stored access token associated with the Client.
+            	   //
+            	   // Consequently, the secure association with the Client must be terminated.
+            	   // The handling below terminates a DTLS connection. In case of an OSCORE association,
+            	   // the corresponding OSCORE Security Context has been already deleted in the removeToken()
+            	   // method of the TokenRepository, following the deletion of the access token. 
+            	   
+            	   InetSocketAddress peerAddress = (InetSocketAddress) ex.getPeersIdentity();
+            	   Connector connector = coapEndpoint.getConnector();
+            	   if (connector instanceof DTLSConnector) {
+            		   ((DTLSConnector) connector).close(peerAddress);
+            	   }
+               }
+               
                return;
             case TokenRepository.FORBID :
                 r = new Response(ResponseCode.FORBIDDEN);

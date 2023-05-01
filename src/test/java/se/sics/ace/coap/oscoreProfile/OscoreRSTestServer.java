@@ -220,16 +220,19 @@ public class OscoreRSTestServer {
         rs.add(hello);
         rs.add(temp);
         rs.add(authzInfo);
-        rs.addEndpoint(new CoapEndpoint.Builder()
+        
+  	    // Setup the OSCORE server
+        CoapEndpoint cep = new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(CoAP.DEFAULT_COAP_PORT)
                 .setCustomCoapStackArgument(
                         OscoreCtxDbSingleton.getInstance())
-                .build());
+                .build(); 
+        rs.addEndpoint(cep);
 
-        dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
-
+        dpd = new CoapDeliverer(rs.getRoot(), null, archm, cep); 
         rs.setMessageDeliverer(dpd);
+        
         rs.start();
         System.out.println("Server starting");
       

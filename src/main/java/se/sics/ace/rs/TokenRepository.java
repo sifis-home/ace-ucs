@@ -215,7 +215,7 @@ public class TokenRepository implements AutoCloseable {
 	 * Sequence Number received in any of such Tokens, as encoded in the 'cti' claim 
 	 */
 	private int topExiSequenceNumber;	
-	
+
 	/**
 	 * The singleton getter.
 	 * Note: The caller is expected to check if the singleton was initialized
@@ -334,6 +334,7 @@ public class TokenRepository implements AutoCloseable {
 	 * Add a new Access Token to the repo.  Note that this method DOES NOT 
 	 * check the validity of the token.
 	 * 
+	 * @param token  the token
 	 * @param claims  the claims of the token
 	 * @param ctx  the crypto context of this RS  
 	 * @param sid  the subject identity of the user of this token, or null if not needed
@@ -536,10 +537,6 @@ public class TokenRepository implements AutoCloseable {
 	      	                          LOGGER.severe("Malformed cnf in the retrieved stored token");
 	      	                          throw new AceException("cnf claim malformed in the retrieved stored token");
 	      	                      }
-	      	                      if (!storedCnf.getType().equals(CBORType.Map)) {
-	      	                          LOGGER.severe("Malformed cnf in the retrieved stored token");
-	      	                          throw new AceException("cnf claim malformed in the retrieved storedtoken");
-	      	                      }
 	    	                      
 			                      // Copy the "full" 'cnf' claim of the Token to replace into the new Token to store.
 			                      // This will overwrite the orginal 'cnf' considered above in the new Token to store.
@@ -633,10 +630,6 @@ public class TokenRepository implements AutoCloseable {
                     if (!storedCnf.getType().equals(CBORType.Map)) {
                         LOGGER.severe("Malformed cnf in the retrieved stored token");
                         throw new AceException("cnf claim malformed in the retrieved stored token");
-                    }
-                    if (!storedCnf.getType().equals(CBORType.Map)) {
-                        LOGGER.severe("Malformed cnf in the retrieved stored token");
-                        throw new AceException("cnf claim malformed in the retrieved storedtoken");
                     }
             		
                     if (storedCnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
@@ -769,7 +762,6 @@ public class TokenRepository implements AutoCloseable {
                 // and the base64 encoded cti of this Access Token; this will be updated in case a new
                 // Access Token with updated access rights (and a new cti) is posted as still associated
                 // to this OSCORE input material identifier and hence to the same kid
-            	
             	String id = Base64.getEncoder().encodeToString(osc.getId());
 	            this.id2cti.put(id, cti);
 	            
@@ -973,28 +965,28 @@ public class TokenRepository implements AutoCloseable {
 	    	      }
 	    	}	    	
 	    	for (String sid: sidsToRemove) {
-					sid2id.remove(sid);
+				sid2id.remove(sid);
 
-					// Remove the OSCORE Security Context
-					int index = sid.indexOf(":");
-					byte[] idContext = null;
-					if (index >= 0) {
-						// Extract the OSCORE ID Context
-						String idContextString = sid.substring(0, index);
-						idContext = Base64.getDecoder().decode(idContextString);
-					}
-					String recipientIdString = sid.substring(index+1, sid.length());
-					byte[] recipientId = Base64.getDecoder().decode(recipientIdString);
+				// Remove the OSCORE Security Context
+				int index = sid.indexOf(":");
+				byte[] idContext = null;
+				if (index >= 0) {
+					// Extract the OSCORE ID Context
+					String idContextString = sid.substring(0, index);
+					idContext = Base64.getDecoder().decode(idContextString);
+				}
+				String recipientIdString = sid.substring(index+1, sid.length());
+				byte[] recipientId = Base64.getDecoder().decode(recipientIdString);
 
-					OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
-					try {
-						OSCoreCtx ctx = db.getContext(recipientId, idContext);
-						db.removeContext(ctx);
-					} catch (CoapOSException e) {
-						e.printStackTrace();
-						LOGGER.severe("Unable to retrieve the OSCORE Security Context to delete");
-						throw new AceException("Unable to retrieve the OSCORE Security Context to delete");
-					}
+				OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+				try {
+					OSCoreCtx ctx = db.getContext(recipientId, idContext);
+					db.removeContext(ctx);
+				} catch (CoapOSException e) {
+					e.printStackTrace();
+					LOGGER.severe("Unable to retrieve the OSCORE Security Context to delete");
+					throw new AceException("Unable to retrieve the OSCORE Security Context to delete");
+				}
 	    	}
 	    	
 		}
@@ -1561,11 +1553,11 @@ public class TokenRepository implements AutoCloseable {
      * 
      * @param seqNum   The new highest Exi Sequence Number value
      */
-    public synchronized void setTopExiSequenceNumber(int seqNum) {
+    private synchronized void setTopExiSequenceNumber(int seqNum) {
     	if (seqNum > this.topExiSequenceNumber) {
     		this.topExiSequenceNumber = seqNum;
     	}
     }
-    
+        
 }
 

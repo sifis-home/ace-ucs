@@ -3560,15 +3560,17 @@ public class PlugtestRSOSCOREGroupOSCORE {
   	    groupOSCORERootMembership.add(join);
   	    rs.add(authzInfo);
       
-  	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
-
-  	    rs.addEndpoint(new CoapEndpoint.Builder()
+  	    // Setup the OSCORE server
+  	    CoapEndpoint cep = new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(portNumberNoSec)
                 .setCustomCoapStackArgument(OscoreCtxDbSingleton.getInstance())
-                .build());
+                .build(); 
+  	    rs.addEndpoint(cep);
 
+  	    dpd = new CoapDeliverer(rs.getRoot(), null, asi, cep);
   	    rs.setMessageDeliverer(dpd);
+  	    
   	    rs.start();
   	    System.out.println("Server starting");
     }
