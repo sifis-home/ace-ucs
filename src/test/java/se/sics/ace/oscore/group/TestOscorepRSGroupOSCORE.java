@@ -68,7 +68,7 @@ import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.TokenRepository;
 
 /**
- * A RS for testing the OSCORE profile of ACE (https://datatracker.ietf.org/doc/draft-ietf-ace-oscore-profile)
+ * A RS for testing the OSCORE profile of ACE (RFC 9203)
  * 
  * Server for testing Group Joining over OSCORE.
  * Should first receive a Token to authz-info.

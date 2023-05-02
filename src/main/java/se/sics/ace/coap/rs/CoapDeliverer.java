@@ -68,11 +68,9 @@ import se.sics.ace.rs.TokenRepository;
 
 /**
  * This deliverer processes incoming and outgoing messages at the RS 
- * according to the specifications of the ACE framework 
- * (draft-ietf-ace-oauth-authz).
+ * according to the specifications of the ACE framework (RFC 9200)
  * 
- *  It can handle tokens passed through the DTLS handshake as specified in
- *  draft-ietf-ace-dtls-authorize.
+ *  It can handle tokens passed through the DTLS handshake as specified in Section 3.3.2 of RFC 9202.
  * 
  * It's specific task is to match requests against existing access tokens
  * to see if the request is authorized.

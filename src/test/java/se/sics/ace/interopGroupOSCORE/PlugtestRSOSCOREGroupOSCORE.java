@@ -109,13 +109,13 @@ import se.sics.ace.rs.TokenRepository;
 public class PlugtestRSOSCOREGroupOSCORE {
 
 	// For old tests - PSK to encrypt the token (used for both audiences rs1 and rs2)
-    private static byte[] key128_token = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 
-            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-            0x10};
+    private static byte[] key128_token = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 0x05,
+    										    0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c,
+    										    0x0d, 0x0e, 0x0f, 0x10};
     
     private final static String rootGroupMembershipResource = "ace-group";
     
- // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
+    // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	private final static int groupIdPrefixSize = 4;
 	
 	// Initial part of the node name for monitors, since they do not have a Sender ID
@@ -138,9 +138,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
 	
 	// For the sake of testing, a particular Sender ID is used as known to be available.
     static byte[] senderId = new byte[] { (byte) 0x25 };
-    
-    
-	
+
     /**
      * Definition of the Hello-World Resource
      */
@@ -224,8 +222,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
 			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
 			}
             if (subject == null) {
-            	// At this point, this should not really happen,
-            	// due to the earlier check at the Token Repository
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
             	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
             					 "Unauthenticated client tried to get access");
             	return;
@@ -396,7 +393,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
             getAttributes().setTitle("Group OSCORE Group-Membership Resource " + resId);
             
         }
-        
+
         @Override
         public void handleGET(CoapExchange exchange) {
         	System.out.println("GET request reached the GM");
@@ -538,14 +535,15 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	byte[] requestPayload = exchange.getRequestPayload();
         	
         	if(requestPayload == null) {
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A payload must be present");
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        						 "A payload must be present");
         		return;
         	}
-        	
+
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
-            
+
 			CBORObject errorResponseMap = CBORObject.NewMap();
-        	
+
         	// Prepare the 'sign_info' and 'ecdh_info' parameter,
 			// to possibly return it in a 4.00 (Bad Request) response        	
     		CBORObject signInfo = CBORObject.NewArray();
@@ -704,8 +702,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
       	  	scopeElement = cborScope.get(1);
       	  	
       	  	int roleSet = 0;
-      	  	
-          	// NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
+
         	if (scopeElement.getType().equals(CBORType.Integer)) {
         		roleSet = scopeElement.AsInt32();
         		
@@ -761,8 +758,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	else {
         		for (int index = 0; index < roleSetToken.length; index++) {
             		if ((roleSet & roleSetToken[index]) == roleSet) {
-            			// 'scope' in at least one Access Token admits all the roles indicated
-            			// for this group in the Joining Request
+            			// 'scope' in at least one Access Token admits all the roles
+            			// indicated for this group in the Joining Request
             			allowed = true;
             			break;
             		}
@@ -983,7 +980,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
             		return;
                 }
         		
-        		// Check the proof-of-possession evidence over (scope | rsnonce | cnonce), using the Client's public key
+        		// Check the proof-of-possession evidence over
+            	// (scope | rsnonce | cnonce), using the Client's public key
             	CBORObject clientPopEvidence = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
             	
             	// A client PoP evidence must be included
@@ -1133,8 +1131,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 	                .put(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName + "/cred", actions);
         	nodeCoAPResource = new GroupOSCORESubResourceNodenameCred("cred");
         	this.getChild("nodes").getChild(nodeName).add(nodeCoAPResource);
-        	
-        	        	
+
+
             // Respond to the Join Request
             
         	CBORObject joinResponse = CBORObject.NewMap();
@@ -1142,7 +1140,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
         	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
         	
-        	// This map is filled as the Group_OSCORE_Input_Material object, as defined in draft-ace-key-groupcomm-oscore
+        	// This map is filled as the Group_OSCORE_Input_Material object,
+        	// as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter
@@ -1207,11 +1206,11 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	        
         	        boolean includeAuthCred = false;
         	        
-        	        // Public keys of all group members are requested
+        	        // Authentication credentials of all group members are requested
         	        if (getCreds.equals(CBORObject.Null)) {
         	            includeAuthCred = true;
         	        }
-        	        // Only public keys of group members with certain roles are requested
+        	        // Only authentication credentials of group members with certain roles are requested
         	        else {
         	            for (int i = 0; i < getCreds.get(1).size(); i++) {
         	                int filterRoles = getCreds.get(1).get(i).AsInt32();
@@ -1258,7 +1257,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	joinResponse.Add(Constants.GROUP_POLICIES, myGroup.getGroupPolicies());
         	
         	
-        	// Authentication Credential of the Group Manager together with proof-of-possession evidence
+        	// Authentication credential of the Group Manager together with proof-of-possession evidence
         	byte[] kdcNonce = new byte[8];
         	new SecureRandom().nextBytes(kdcNonce);
         	joinResponse.Add(Constants.KDC_NONCE, kdcNonce);
@@ -1354,7 +1353,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
 			}
             if (subject == null) {
-            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	// At this point, this should not really happen,
+            	// due to the earlier check at the Token Repository
             	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
             					 "Unauthenticated client tried to get access");
             	return;
@@ -1471,7 +1471,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
 			}
             if (subject == null) {
-            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	// At this point, this should not really happen,
+            	// due to the earlier check at the Token Repository
             	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
             					 "Unauthenticated client tried to get access");
             	return;
@@ -1540,7 +1541,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 
         	// Invalid format of 'get_creds'
     		if (!valid) {
-				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_creds'");
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+								 "Invalid format of 'get_creds'");
 	    		return;
     		}
     		
@@ -1550,7 +1552,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	
     	    // Invalid format of 'get_creds'
     	    if (!getCreds.getType().equals(CBORType.Array) && !getCreds.equals(CBORObject.Null)) {
-				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_creds'");
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+								 "Invalid format of 'get_creds'");
 	    		return;
     	    }
     			    
@@ -1605,7 +1608,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 				
 	    		// Invalid format of 'get_creds'
 	    		if (!valid) {
-					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_creds'");
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+									 "Invalid format of 'get_creds'");
 		    		return;
 	    		}
     		
@@ -1623,7 +1627,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
 
     	    Map<CBORObject, CBORObject> authCreds = targetedGroup.getAuthCreds();
 
-    	    // Provide the public keys of all the group members
+    	    // Provide the authentication credentials of all the group members
     	    if (getCreds.equals(CBORObject.Null)) {
     	        
     	        for (CBORObject sid : authCreds.keySet()) {
@@ -1690,8 +1694,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	                    if (inclusionFlag) {
     	                        include = true;
     	                    }
-    	                    // This authentication credential has to be included only if the Sender ID
-    	                    // of the key owner is not in the node identifier filter
+    	                    // This authentication credential has to be included only if
+    	                    // the Sender ID of the key owner is not in the node identifier filter
     	                    else if (!requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
     	                        include = true;
     	                    }
@@ -1808,7 +1812,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         		// This is still fine, as long as at least one Access Tokens
         		// of the requester allows also the role "Verifier" in this group
         		
-        		// Check that at least one of the Access Tokens for this node allows (also) the Verifier role for this group
+        		// Check that at least one of the Access Tokens for this node
+        		// allows (also) the Verifier role for this group
             	
         		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
         		boolean allowed = false;
@@ -1942,7 +1947,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 	             System.err.println("Error while retrieving the client identity: " + e.getMessage());
 	         }
 	         if (subject == null) {
-	             // At this point, this should not really happen, due to the earlier check at the Token Repository
+	             // At this point, this should not really happen,
+	        	 // due to the earlier check at the Token Repository
 	             exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
 	            		 		  "Unauthenticated client tried to get access");
 	             return;
@@ -2430,7 +2436,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_alg, targetedGroup.getEcdhAlg().AsCBOR());
         	    if (targetedGroup.getEcdhParams().size() != 0)
         	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_params, targetedGroup.getEcdhParams());
-        	}        	
+        	}
         	myResponse.Add(Constants.KEY, myMap);
         	
         	// The current version of the symmetric keying material
@@ -2541,10 +2547,10 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	targetedGroup.setGroupMemberRoles(senderId, roles);
         	targetedGroup.setSenderIdToIdentity(subject, senderId);
         	
-        	CBORObject publicKey = targetedGroup.getAuthCred(oldSenderId);
+        	CBORObject authCred = targetedGroup.getAuthCred(oldSenderId);
         	
         	// Store this client's authentication credential under the new Sender ID
-        	if (!targetedGroup.storeAuthCred(senderId, publicKey)) {
+        	if (!targetedGroup.storeAuthCred(senderId, authCred)) {
         	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
         	    				 "Error when storing the authentication credential");
         	    return;
@@ -2575,7 +2581,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         public void handleDELETE(CoapExchange exchange) {
         	System.out.println("DELETE request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
@@ -2603,7 +2610,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
 			}
             if (subject == null) {
-            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	// At this point, this should not really happen,
+            	// due to the earlier check at the Token Repository
             	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
             					 "Unauthenticated client tried to get access");
             	return;
@@ -2689,7 +2697,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
 			}
             if (subject == null) {
-            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	// At this point, this should not really happen,
+            	// due to the earlier check at the Token Repository
             	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
             					 "Unauthenticated client tried to get access");
             	return;
@@ -2720,7 +2729,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	byte[] requestPayload = exchange.getRequestPayload();
         	
         	if(requestPayload == null) {
-        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A payload must be present");
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        	    				 "A payload must be present");
         	    return;
         	}
 
@@ -2797,7 +2807,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 			        Assert.fail("Invalid format of authentication credential");
 			}
 			if (publicKey == null ||  valid == false) {
-	    	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key format");
+	    	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+	    	    				 "Invalid public key format");
 			    return;
 			}
         	
@@ -2861,8 +2872,10 @@ public class PlugtestRSOSCOREGroupOSCORE {
 
 			
 			
-			// Check the proof-of-possession evidence over (scope | rsnonce | cnonce), using the Client's public key
-			CBORObject clientPopEvidence = PublicKeyUpdateRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+			// Check the proof-of-possession evidence over
+			// (scope | rsnonce | cnonce), using the Client's public key
+			CBORObject clientPopEvidence = PublicKeyUpdateRequest.
+						get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
 
 			// A client PoP evidence must be included
 			if (clientPopEvidence == null) {
@@ -2912,7 +2925,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
                 responseMap.Add(Constants.KDCCHALLENGE, rsnonce);
                 TokenRepository.getInstance().setRsnonce(subject, Base64.getEncoder().encodeToString(rsnonce));
                 byte[] responsePayload = responseMap.EncodeToBytes();
-            	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, responsePayload, Constants.APPLICATION_ACE_CBOR);
+            	exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+            					 responsePayload, Constants.APPLICATION_ACE_CBOR);
             	return;
             }
 			byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
@@ -2949,7 +2963,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 
 			    // Invalid Client's PoP signature
 			    if (!Util.verifySignature(signKeyCurve, pubKey, popInput, rawClientPopEvidence)) {
-			    	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid PoP Signature");
+			    	exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+			    					 "Invalid PoP Signature");
 			        return;
 			    }
 			}
@@ -2975,8 +2990,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         }
         
     }
-    
-    
+
+
     private static OscoreAuthzInfoGroupOSCORE ai = null;
     
     private static CoapServer rs = null;
@@ -3023,7 +3038,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	
     	final String groupName = "feedca570000";
     	
-        //Set up DTLSProfileTokenRepository
+        //Set up OSCORE Profile Token Repository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
         Map<String, Set<Short>> myResource = new HashMap<>();
@@ -3057,7 +3072,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/active", actions3);
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/policies", actions3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
-                
+
         // Adding another group-membership resource, with group name "fBBBca570000".
         // There will NOT be a token enabling the access to this resource.
         Map<String, Set<Short>> myResource4 = new HashMap<>();
@@ -3134,8 +3149,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
         CWT token = new CWT(params);
         ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));  
       
-  	    AsRequestCreationHints asi 
-  	    	= new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
+  	    AsRequestCreationHints asi = new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
   	    Resource hello = new HelloWorldResource();
   	    Resource temp = new TempResource();
   	    Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource);
@@ -3272,7 +3286,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
 	        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        	ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
 	        	ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-	        	ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+	        	ecdhKeyCapabilities.Add(KeyKeys.EC2_P256);    // Curve
 	        }
 	        
 	        // EDDSA (Ed25519)
@@ -3315,8 +3329,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	gmKeyPair = new OneKey(CBORObject.DecodeFromBytes(gmKeyPairBytes));
     	
 
-    	// Serialization of the public key, according to the format used in the group
-    	byte[] gmPublicKey = null;
+    	// Serialization of the authentication credential, according to the format used in the group
+    	byte[] gmAuthCred = null;
     	
     	/*
     	// Build the authentication credential according to the format used in the group
@@ -3326,7 +3340,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
         case Constants.COSE_HEADER_PARAM_CCS:
             // A CCS including the public key
         	String subjectName = "";
-            gmPublicKey = Util.oneKeyToCCS(gmKeyPair, subjectName);
+            gmAuthCred = Util.oneKeyToCCS(gmKeyPair, subjectName);
             break;
         case Constants.COSE_HEADER_PARAM_CWT:
             // A CWT including the public key
@@ -3344,21 +3358,21 @@ public class PlugtestRSOSCOREGroupOSCORE {
 	        case Constants.COSE_HEADER_PARAM_CCS:
 	            // A CCS including the public key
 	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-	        		gmPublicKey = Utils.hexToBytes("A2026008A101A50102032620012158202236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540225820770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B");
+	        		gmAuthCred = Utils.hexToBytes("A2026008A101A50102032620012158202236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540225820770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B");
 	        	}
 	        	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-	        		gmPublicKey = Utils.hexToBytes("A2026008A101A4010103272006215820C6EC665E817BD064340E7C24BB93A11E8EC0735CE48790F9C458F7FA340B8CA3");
+	        		gmAuthCred = Utils.hexToBytes("A2026008A101A4010103272006215820C6EC665E817BD064340E7C24BB93A11E8EC0735CE48790F9C458F7FA340B8CA3");
 	        	}
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
 	            // A CWT including the public key
 	            // TODO
-	        	gmPublicKey = null;
+	        	gmAuthCred = null;
 	            break;
 	        case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	            // A certificate including the public key
 	            // TODO
-	        	gmPublicKey = null;
+	        	gmAuthCred = null;
 	            break;
     	}
     	
@@ -3382,7 +3396,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
     			                          ecdhParams,
     			                          null,
     			                          gmKeyPair,
-    			                          gmPublicKey);
+    			                          gmAuthCred);
         
     	myGroup.setStatus(true);
     	
@@ -3434,7 +3448,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
         case Constants.COSE_HEADER_PARAM_CWT:
             // A CWT including the public key
             // TODO
-        	authCred= null;
+        	authCred1= null;
             break;
         case Constants.COSE_HEADER_PARAM_X5CHAIN:
             // A certificate including the public key
@@ -3483,17 +3497,17 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
     		return;
     	
+    	// Set the public key of the group member with Sender ID 0x77
+    	
     	// The serialization of the COSE Key, including only the public part
     	byte[] coseKeyPub2 = null;
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
     		coseKeyPub2 = Utils.hexToBytes("a50102032620012158209dfa6d63fd1515761460b7b02d54f8d7345819d2e5576c160d3148cc7886d5f122582076c81a0c1a872f1730c10317ab4f3616238fb23a08719e8b982b2d9321a2ef7d");
     	}
-    	// Store the public key of the group member with Sender ID 0x52
     	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
     		coseKeyPub2 = Utils.hexToBytes("a4010103272006215820105b8c6a8c88019bf0c354592934130baa8007399cc2ac3be845884613d5ba2e");
     	}
-    	
-    	
+
     	// Serialization of the authentication credential, according to the format used in the group
     	byte[] authCred2 = null;
     	
@@ -3602,8 +3616,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	String kid = TokenRepository.getInstance().getKid(subject);
     	Set<String> ctis = TokenRepository.getInstance().getCtis(kid);
     	
-    	// This should never happen at this point, since a valid Access Token
-    	// has just made this request pass through 
+    	// This should never happen at this point, since a valid
+    	// Access Token has just made this request pass through 
     	if (ctis == null)
     		return null;
     	
@@ -3706,5 +3720,5 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	}
     	
     }
-    
+
 }

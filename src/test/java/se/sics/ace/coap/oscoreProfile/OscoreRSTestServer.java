@@ -70,8 +70,9 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 /**
- * A RS for testing the OSCORE profile of ACE (https://datatracker.ietf.org/doc/draft-ietf-ace-oscore-profile)
- * @author Ludwig Seitz
+ * A RS for testing the OSCORE profile of ACE (RFC 9203)
+ * 
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreRSTestServer {
@@ -249,6 +250,5 @@ public class OscoreRSTestServer {
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
-
 
 }
