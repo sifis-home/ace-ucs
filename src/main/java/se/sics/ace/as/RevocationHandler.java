@@ -75,18 +75,17 @@ public class RevocationHandler {
         try {
             delay = getTimeToExpire(cti);
         } catch (AceException e) {
-            DhtLogger.sendLog("Revocation aborted: " +
-                            "(getting token expiration time)",
-                    Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+            LOGGER.log(Level.INFO, "Revocation aborted: (getting token expiration time)");
+            DhtLogger.sendLog(Const.TYPE_ERROR, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+                    "Revocation aborted: (getting token expiration time)");
             throw e;
         }
 
         // The token to be revoked was already expired
         if (delay < 0){
             LOGGER.log(Level.INFO, "The token to revoke was already expired");
-            DhtLogger.sendLog("Revocation aborted: " +
-                    "The token to revoke was already expired",
-                    Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+            DhtLogger.sendLog(Const.TYPE_ERROR, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+                    "Revocation aborted: The token to revoke was already expired");
             return;
         }
 
@@ -99,9 +98,9 @@ public class RevocationHandler {
         try {
             addRevokedTokenHashToDiffSets(cti, peerIds);
         } catch (AceException e) {
-            DhtLogger.sendLog("Revocation aborted: " +
-                            "(adding diff entry)",
-                    Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+            LOGGER.log(Level.INFO, "Revocation aborted: (adding diff entry)");
+            DhtLogger.sendLog(Const.TYPE_ERROR, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+                    "Revocation aborted: (adding diff entry)");
             throw e;
         }
 
@@ -118,10 +117,10 @@ public class RevocationHandler {
         }
 
         LOGGER.log(Level.INFO, "Token revoked: " + cti);
-        DhtLogger.sendLog("Token revoked. "
-                + "[ctiStr: " + cti + ". "
-                + "pertainingPeers: " + peerIds + "]",
-                Const.PRIO1, Const.SEV0, Const.CATEGORY_TRL);
+        DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_LOW, Const.CAT_STATUS, Const.DEVICE_NAME,
+                "Token revoked. "
+                        + "[ctiStr: " + cti + ". "
+                        + "pertainingPeers: " + peerIds + "]");
 
         // +----------------------NOTES----------------------+
         // The UCS must have a reference to this component.
@@ -231,9 +230,8 @@ public class RevocationHandler {
                 LOGGER.severe("Token removal from trl aborted: "
                         + "(getting peers identities from db) "
                         + e.getMessage());
-                DhtLogger.sendLog("Token removal from trl aborted: " +
-                        "(getting peers identities from db)",
-                        Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+                DhtLogger.sendLog(Const.TYPE_ERROR, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+                        "Token removal from trl aborted: (getting peers identities from db)");
                 return;
             }
 
@@ -246,9 +244,8 @@ public class RevocationHandler {
                 LOGGER.severe("Token removal from trl aborted:" +
                         "(getting token hash from db) "
                         + e.getMessage());
-                DhtLogger.sendLog("Token removal from trl aborted: " +
-                        "(getting token hash from db)",
-                        Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+                DhtLogger.sendLog(Const.TYPE_ERROR, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+                        "Token removal from trl aborted: (getting token hash from db)");
                 return;
             }
             if (tokenHash == null) {
@@ -264,9 +261,8 @@ public class RevocationHandler {
                 } catch (AceException e) {
                     LOGGER.severe("Error adding a diff entry " +
                             "to the DiffSet object: " + e.getMessage());
-                    DhtLogger.sendLog("Error adding a diff entry " +
-                            "to the DiffSet object",
-                            Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+                    DhtLogger.sendLog(Const.TYPE_ERROR, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+                            "Error adding a diff entry to the DiffSet object");
                 }
             }
 
@@ -278,9 +274,8 @@ public class RevocationHandler {
             } catch (AceException e) {
                 LOGGER.severe("Error deleting expired token: "
                         + e.getMessage());
-                DhtLogger.sendLog("Token removal from trl aborted: " +
-                        "(deleting token hash from db)",
-                        Const.PRIO1, Const.SEV1, Const.CATEGORY_TRL);
+                DhtLogger.sendLog(Const.TYPE_ERROR, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+                        "Token removal from trl aborted: (deleting token hash from db)");
                 return;
             }
 
@@ -292,10 +287,10 @@ public class RevocationHandler {
             }
 
             LOGGER.info("Token removal from the trl completed: " + cti);
-            DhtLogger.sendLog("Token removal from the trl completed. "
-                    + "[ctiStr: " + cti + ". "
-                    + "pertainingPeers: " + peerIds + "]",
-                    Const.PRIO1, Const.SEV0, Const.CATEGORY_TRL);
+            DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_LOW, Const.CAT_STATUS, Const.DEVICE_NAME,
+                    "Token removal from the trl completed. "
+                            + "[ctiStr: " + cti + ". "
+                            + "pertainingPeers: " + peerIds + "]");
         }
     }
 }

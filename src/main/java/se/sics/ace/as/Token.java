@@ -380,6 +380,7 @@ public class Token implements Endpoint, AutoCloseable {
 			this.db.purgeExpiredTokens(now);
 		} catch (AceException e) {
 			LOGGER.severe("Database error: " + e.getMessage());
+			DhtLogger.sendLog(Const.TYPE_ERROR, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME, "Database error");
 			return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
 		
@@ -397,7 +398,9 @@ public class Token implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "unauthorized client: " + id);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+			DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted: " + "unauthorized client: " + id);
+			return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
 		}
 		
 		if (peerIdentitiesToNames != null) {
@@ -407,7 +410,10 @@ public class Token implements Endpoint, AutoCloseable {
 	            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
 	            LOGGER.log(Level.INFO, "Message processing aborted: "
 	                    + "unauthorized client: " + id);
-	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+				DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted: " + "unauthorized client: " + id);
+
+				return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
 		    }
 		}
 		
@@ -417,12 +423,15 @@ public class Token implements Endpoint, AutoCloseable {
                 map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
                 LOGGER.log(Level.INFO, "Message processing aborted: "
                         + "unauthorized client: " + id);
-            	return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+				DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted: " + "unauthorized client: " + id);
+				return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
             }
         } catch (AceException e) {
             LOGGER.severe("Database error: "
                     + e.getMessage());
-            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+			DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME, "Database error");
+			return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
    
 	    //2. Check that this is a supported grant type
@@ -438,6 +447,8 @@ public class Token implements Endpoint, AutoCloseable {
 	    map.Add(Constants.ERROR, Constants.UNSUPPORTED_GRANT_TYPE);
 	    LOGGER.log(Level.INFO, "Message processing aborted: "
 	            + "unsupported_grant_type");
+		DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+				"Message processing aborted: " + "unsupported_grant_type");
 	    return msg.failReply(Message.FAIL_BAD_REQUEST, map); 	    
 	}
 	
@@ -457,8 +468,8 @@ public class Token implements Endpoint, AutoCloseable {
 	            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
 	            LOGGER.log(Level.INFO, "Message processing aborted: "
 	                    + "unauthorized client: " + id);
-				DhtLogger.sendLog("Message processing aborted: "
-						+ "unauthorized client: " + id, Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted: " + "unauthorized client: " + id);
 	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
 		    }
 		}
@@ -472,7 +483,8 @@ public class Token implements Endpoint, AutoCloseable {
             } catch (AceException e) {
                 LOGGER.severe("Message processing aborted (checking scope): "
                         + e.getMessage());
-				DhtLogger.sendLog("Message processing aborted (checking scope)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted (checking scope)");
 				return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
 		} else {
@@ -487,8 +499,8 @@ public class Token implements Endpoint, AutoCloseable {
 	                    "Invalid datatype for scope");
 	            LOGGER.log(Level.INFO, "Message processing aborted: "
 	                    + "Invalid datatype for scope in message");
-				DhtLogger.sendLog("Message processing aborted: "
-						+ "Invalid datatype for scope in message", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted: " + "Invalid datatype for scope in message");
 				return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
 		}
@@ -498,8 +510,8 @@ public class Token implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR_DESCRIPTION, "No scope found for message");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "No scope found for message");
-			DhtLogger.sendLog("Message processing aborted: "
-					+ "No scope found for message", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted: " + "No scope found for message");
 		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
@@ -522,7 +534,8 @@ public class Token implements Endpoint, AutoCloseable {
             } catch (AceException e) {
                 LOGGER.severe("Message processing aborted (checking aud): "
                         + e.getMessage());
-				DhtLogger.sendLog("Message processing aborted (checking aud)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted (checking aud)");
 				return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
 		} else {
@@ -536,8 +549,8 @@ public class Token implements Endpoint, AutoCloseable {
 	                    "Audience malformed");
 	            LOGGER.log(Level.INFO, "Message processing aborted: "
 	                    + "Audience malformed");
-				  DhtLogger.sendLog("Message processing aborted: "
-						  + "Audience malformed", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+				  DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+						  "Message processing aborted: " + "Audience malformed");
 	            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
 		}
@@ -548,9 +561,9 @@ public class Token implements Endpoint, AutoCloseable {
 		            "No audience found for message");
 		    LOGGER.log(Level.INFO, "Message processing aborted: "
 		            + "No audience found for message");
-			DhtLogger.sendLog("Message processing aborted: "
-					+ "No audience found for message", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
-		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+			DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted: " + "No audience found for message");
+			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
 
@@ -565,7 +578,8 @@ public class Token implements Endpoint, AutoCloseable {
 		} catch (AceException e) {
 			LOGGER.severe("Message processing aborted (checking permissions): "
 					+ e.getMessage());
-			DhtLogger.sendLog("Message processing aborted (checking permissions)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted (checking permissions)");
 			return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
 		if (allowedScopes == null) {
@@ -573,8 +587,8 @@ public class Token implements Endpoint, AutoCloseable {
 			map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
 			LOGGER.log(Level.INFO, "Message processing aborted: "
 					+ "invalid_scope");
-			DhtLogger.sendLog("Message processing aborted: "
-					+ "invalid_scope", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted: " + "invalid_scope");
 			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
@@ -586,7 +600,8 @@ public class Token implements Endpoint, AutoCloseable {
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted (creating token): "
                     + e.getMessage());
-			DhtLogger.sendLog("Message processing aborted (creating token)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted (creating token)");
 			// roll-back: remove pdp pending sessions
 			rollbackPendingSessions(evalId);
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -596,8 +611,8 @@ public class Token implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR, "Audience incompatible on token type");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Audience incompatible on token type");
-			DhtLogger.sendLog("Message processing aborted: "
-					+ "Audience incompatible on token type", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted: " + "Audience incompatible on token type");
 			// roll-back: remove pdp pending sessions
 			rollbackPendingSessions(evalId);
 		    return msg.failReply(Message.FAIL_BAD_REQUEST,
@@ -641,8 +656,9 @@ public class Token implements Endpoint, AutoCloseable {
 			} catch (AceException e) {
                 LOGGER.severe("Message processing aborted: Error when retrieving the name"
                 		+ " of the Resource Server with Audience " + audStr + " from the database.\n" + e.getMessage());
-				DhtLogger.sendLog("Message processing aborted: Error when retrieving the name"
-						+ " of the Resource Server with Audience " + audStr + " from the database.", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted: Error when retrieving the name"
+								+ " of the Resource Server with Audience " + audStr + " from the database.");
 				// roll-back: remove pdp pending sessions
 				rollbackPendingSessions(evalId);
 			    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -655,8 +671,9 @@ public class Token implements Endpoint, AutoCloseable {
 	            		+ " exactly one Resource Server");
 	            LOGGER.log(Level.INFO, "Message processing aborted: The 'exi' claim has to be included,"
 	            		+ "thus Audience must contain exactly one Resource Server");
-				DhtLogger.sendLog("Message processing aborted: The 'exi' claim has to be included,"
-						+ "thus Audience must contain exactly one Resource Server", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted: The 'exi' claim has to be included,"
+								+ "thus Audience must contain exactly one Resource Server");
 				// roll-back: remove pdp pending sessions
 				rollbackPendingSessions(evalId);
 			    return msg.failReply(Message.FAIL_BAD_REQUEST,
@@ -678,8 +695,9 @@ public class Token implements Endpoint, AutoCloseable {
 				} catch (AceException e) {
 	                LOGGER.severe("Message processing aborted: Error when retrieving the Exi Sequence Number"
 	                		+ " for the Resource Server with Audience " + audStr + " from the database.\n" + e.getMessage());
-					DhtLogger.sendLog("Message processing aborted: Error when retrieving the Exi Sequence Number"
-							+ " for the Resource Server with Audience " + audStr + " from the database.", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+					DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+							"Message processing aborted: Error when retrieving the Exi Sequence Number"
+									+ " for the Resource Server with Audience " + audStr + " from the database.");
 					// roll-back: remove pdp pending sessions
 					rollbackPendingSessions(evalId);
 				    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -712,7 +730,8 @@ public class Token implements Endpoint, AutoCloseable {
         	}
             LOGGER.severe("Message processing aborted (finding profile): "
                     + e.getMessage());
-			DhtLogger.sendLog("Message processing aborted (finding profile)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted (finding profile)");
 			// roll-back: remove pdp pending sessions
 			rollbackPendingSessions(evalId);
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -729,8 +748,8 @@ public class Token implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR, Constants.INCOMPATIBLE_PROFILES);
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "No compatible profile found");
-			DhtLogger.sendLog("Message processing aborted: "
-					+ "No compatible profile found", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted: " + "No compatible profile found");
 			// roll-back: remove pdp pending sessions
 			rollbackPendingSessions(evalId);
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
@@ -749,8 +768,8 @@ public class Token implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR, "Unsupported token type");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Unsupported token type");
-			DhtLogger.sendLog("Message processing aborted: "
-					+ "Unsupported token type", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted: " + "Unsupported token type");
 			// roll-back: remove pdp pending sessions
 			rollbackPendingSessions(evalId);
             return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
@@ -788,7 +807,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        } catch (AceException e) {
 		            LOGGER.severe("Message processing aborted (setting exp): "
 		                    + e.getMessage());
-					DhtLogger.sendLog("Message processing aborted (setting exp)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+					DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+							"Message processing aborted (setting exp)");
 					// roll-back: remove pdp pending sessions
 					rollbackPendingSessions(evalId);
 		            return msg.failReply(
@@ -809,7 +829,8 @@ public class Token implements Endpoint, AutoCloseable {
                 } catch (AceException e) {
                     LOGGER.severe("Message processing aborted (setting exp): "
                             + e.getMessage());
-					DhtLogger.sendLog("Message processing aborted (setting exp)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+					DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+							"Message processing aborted (setting exp)");
 					// roll-back: remove pdp pending sessions
 					rollbackPendingSessions(evalId);
                     return msg.failReply(
@@ -859,8 +880,8 @@ public class Token implements Endpoint, AutoCloseable {
 	                        LOGGER.log(Level.INFO, 
 	                                "Message processing aborted: "
 	                                + "Unsupported pop key type PSK");
-							DhtLogger.sendLog("Message processing aborted: "
-									+ "Unsupported pop key type PSK", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+							DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+									"Message processing aborted: " + "Unsupported pop key type PSK");
 							// roll-back: remove pdp pending sessions
 							rollbackPendingSessions(evalId);
 	                        return msg.failReply(
@@ -877,8 +898,8 @@ public class Token implements Endpoint, AutoCloseable {
                         LOGGER.severe("Message processing aborted "
                                 + "(finding key type): "
                                 + e.getMessage());
-						DhtLogger.sendLog("Message processing aborted "
-								+ "(finding key type)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+						DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+								"Message processing aborted " + "(finding key type)");
 						// roll-back: remove pdp pending sessions
 						rollbackPendingSessions(evalId);
                         return msg.failReply(
@@ -927,8 +948,8 @@ public class Token implements Endpoint, AutoCloseable {
                     	}
                         LOGGER.severe("Message processing aborted "
                                 + "(making PSK): " + e.getMessage());
-						DhtLogger.sendLog("Message processing aborted "
-								+ "(making PSK)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+						DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+								"Message processing aborted " + "(making PSK)");
 						// roll-back: remove pdp pending sessions
 						rollbackPendingSessions(evalId);
                         return msg.failReply(
@@ -954,8 +975,8 @@ public class Token implements Endpoint, AutoCloseable {
 		                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 		                map.Add(Constants.ERROR_DESCRIPTION,
 		                        "Malformed kid in 'cnf' parameter");
-						DhtLogger.sendLog("Message processing aborted: "
-								+ " Malformed kid in request parameter 'cnf'", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+						DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+								"Message processing aborted: " + " Malformed kid in request parameter 'cnf'");
 						// roll-back: remove pdp pending sessions
 						rollbackPendingSessions(evalId);
 		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
@@ -978,8 +999,8 @@ public class Token implements Endpoint, AutoCloseable {
                         LOGGER.severe("Message processing aborted "
                                 + "(finding cti of issues tokens): "
                                 + e.getMessage());
-						DhtLogger.sendLog("Message processing aborted "
-								+ "(finding cti of issues tokens)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+						DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+								"Message processing aborted " + "(finding cti of issues tokens)");
 						// roll-back: remove pdp pending sessions
 						rollbackPendingSessions(evalId);
                         return msg.failReply(
@@ -1018,8 +1039,8 @@ public class Token implements Endpoint, AutoCloseable {
 		                        LOGGER.severe("Message processing aborted "
 		                                + "(finding previously released token): "
 		                                + e.getMessage());
-								DhtLogger.sendLog("Message processing aborted "
-										+ "(finding previously released token)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+								DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+										"Message processing aborted " + "(finding previously released token)");
 								// roll-back: remove pdp pending sessions
 								rollbackPendingSessions(evalId);
 		                        return msg.failReply(
@@ -1047,8 +1068,8 @@ public class Token implements Endpoint, AutoCloseable {
 			                        LOGGER.severe("Message processing aborted "
 			                                + "(finding previously released token): "
 			                                + e.getMessage());
-									DhtLogger.sendLog("Message processing aborted "
-											+ "(finding previously released token)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+									DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+											"Message processing aborted " + "(finding previously released token)");
 									// roll-back: remove pdp pending sessions
 									rollbackPendingSessions(evalId);
 			                        return msg.failReply(
@@ -1109,8 +1130,9 @@ public class Token implements Endpoint, AutoCloseable {
 			                    	}
 			                        LOGGER.severe("Message processing aborted "
 			                                + "(finding OSCORE ID when updating access rights)");
-									DhtLogger.sendLog("Message processing aborted "
-											+ "(finding OSCORE ID when updating access rights)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+									DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+											"Message processing aborted "
+													+ "(finding OSCORE ID when updating access rights)");
 									// roll-back: remove pdp pending sessions
 									rollbackPendingSessions(evalId);
 			                        return msg.failReply(
@@ -1140,8 +1162,9 @@ public class Token implements Endpoint, AutoCloseable {
 	                                + "(cannot find access token for which access right have to be updated)");
 	                        CBORObject myMap = CBORObject.NewMap();
 	                        myMap.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
-							DhtLogger.sendLog("Message processing aborted "
-									+ "(cannot find access token for which access right have to be updated)", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+							DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+									"Message processing aborted "
+											+ "(cannot find access token for which access right have to be updated)");
 							// roll-back: remove pdp pending sessions
 							rollbackPendingSessions(evalId);
 	                        return msg.failReply(
@@ -1164,7 +1187,8 @@ public class Token implements Endpoint, AutoCloseable {
 		            	}
 		                LOGGER.severe("Message processing aborted: "
 		                        + e.getMessage());
-						DhtLogger.sendLog("Message processing aborted", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+						DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+								"Message processing aborted");
 						if (e.getMessage().startsWith("Malformed")) {
 		                    CBORObject map = CBORObject.NewMap();
 		                    map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -1193,8 +1217,8 @@ public class Token implements Endpoint, AutoCloseable {
 		                        "Couldn't retrieve RPK");
 		                LOGGER.log(Level.INFO, "Message processing aborted: "
 		                        + "Couldn't retrieve RPK");
-						DhtLogger.sendLog("Message processing aborted: "
-								+ "Couldn't retrieve RPK", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+						DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+								"Message processing aborted: " + "Couldn't retrieve RPK");
 						// roll-back: remove pdp pending sessions
 						rollbackPendingSessions(evalId);
 		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
@@ -1215,8 +1239,8 @@ public class Token implements Endpoint, AutoCloseable {
 		                        "Client tried to provide cnf PSK");
 		                LOGGER.log(Level.INFO, "Message processing aborted: "
 		                        + "Client tried to provide cnf PSK");
-						DhtLogger.sendLog("Message processing aborted: "
-								+ "Client tried to provide cnf PSK", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+						DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+								"Message processing aborted: " + "Client tried to provide cnf PSK");
 						// roll-back: remove pdp pending sessions
 						rollbackPendingSessions(evalId);
 		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
@@ -1243,8 +1267,8 @@ public class Token implements Endpoint, AutoCloseable {
                             LOGGER.log(Level.INFO, 
                                     "Message processing aborted: "
                                        + "Client used unauthenticated RPK");
-							DhtLogger.sendLog("Message processing aborted: "
-									+ "Client used unauthenticated RPK", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+							DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+									"Message processing aborted: " + "Client used unauthenticated RPK");
 							// roll-back: remove pdp pending sessions
 							rollbackPendingSessions(evalId);
                             return msg.failReply(
@@ -1265,8 +1289,8 @@ public class Token implements Endpoint, AutoCloseable {
                         LOGGER.log(Level.INFO, 
                                 "Message processing aborted: "
                                         + "Unsupported pop key type RPK");
-						DhtLogger.sendLog("Message processing aborted: "
-								+ "Unsupported pop key type RPK", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+						DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+								"Message processing aborted: " + "Unsupported pop key type RPK");
                         LOGGER.log(Level.FINEST, e.getMessage());
 						// roll-back: remove pdp pending sessions
 						rollbackPendingSessions(evalId);
@@ -1290,8 +1314,8 @@ public class Token implements Endpoint, AutoCloseable {
 		                    LOGGER.log(Level.INFO, 
 		                            "Message processing aborted: "
 		                                    + "Unsupported pop key type RPK");
-							DhtLogger.sendLog("Message processing aborted: "
-									+ "Unsupported pop key type RPK", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+							DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+									"Message processing aborted: " + "Unsupported pop key type RPK");
 							// roll-back: remove pdp pending sessions
 							rollbackPendingSessions(evalId);
 		                    return msg.failReply(
@@ -1307,7 +1331,8 @@ public class Token implements Endpoint, AutoCloseable {
 		            	}
 		                LOGGER.severe("Message processing aborted: "
 		                        + e.getMessage());
-						DhtLogger.sendLog("Message processing aborted", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+						DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+								"Message processing aborted");
 						// roll-back: remove pdp pending sessions
 						rollbackPendingSessions(evalId);
 		                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -1325,7 +1350,8 @@ public class Token implements Endpoint, AutoCloseable {
 		    default :
 				LOGGER.severe("Unknown claim type in /token "
 						+ "endpoint configuration: " + c);
-				DhtLogger.sendLog("Unknown claim type in /token endpoint configuration: " + c, Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Unknown claim type in /token endpoint configuration: " + c);
 				// roll-back: remove pdp pending sessions
 				rollbackPendingSessions(evalId);
 				return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -1357,7 +1383,8 @@ public class Token implements Endpoint, AutoCloseable {
 		    
 		    LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
-			DhtLogger.sendLog("Message processing aborted", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted");
 			// roll-back: remove pdp pending sessions
 			rollbackPendingSessions(evalId);
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -1407,7 +1434,8 @@ public class Token implements Endpoint, AutoCloseable {
 		    
 		    LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
-			DhtLogger.sendLog("Message processing aborted", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted");
 			// roll-back: remove pdp pending sessions
 			rollbackPendingSessions(evalId);
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -1451,7 +1479,8 @@ public class Token implements Endpoint, AutoCloseable {
                 
                 LOGGER.severe("Message processing aborted: "
                         + e.getMessage());
-				DhtLogger.sendLog("Message processing aborted", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted");
 				// roll-back: remove pdp pending sessions
 				rollbackPendingSessions(evalId);
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -1497,7 +1526,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        
 		        LOGGER.severe("Message processing aborted: "
 		                + e.getMessage());
-				DhtLogger.sendLog("Message processing aborted", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted");
 				// roll-back: remove pdp pending sessions
 				rollbackPendingSessions(evalId);
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -1527,8 +1557,8 @@ public class Token implements Endpoint, AutoCloseable {
 		                "No common security context found for audience");
 		        LOGGER.log(Level.INFO, "Message processing aborted: "
 		                + "No common security context found for audience");
-				DhtLogger.sendLog("Message processing aborted: " +
-						"No common security context found for audience", Const.PRIO1, Const.SEV1, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_WARNING, Const.PRIO_MEDIUM, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted: No common security context found for audience");
 				// roll-back: remove pdp pending sessions
 				rollbackPendingSessions(evalId);
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
@@ -1568,7 +1598,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        
 		        LOGGER.severe("Message processing aborted: "
 		                + e.getMessage());
-				DhtLogger.sendLog("Message processing aborted", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+				DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+						"Message processing aborted");
 				// roll-back: remove pdp pending sessions
 				rollbackPendingSessions(evalId);
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -1702,18 +1733,20 @@ public class Token implements Endpoint, AutoCloseable {
 
 		    LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
-			DhtLogger.sendLog("Message processing aborted", Const.PRIO1, Const.SEV2, Const.CATEGORY_TOKEN);
+			DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_HIGH, Const.CAT_STATUS, Const.DEVICE_NAME,
+					"Message processing aborted");
 			// roll-back: remove pdp pending sessions
 			rollbackPendingSessions(evalId);
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
 		LOGGER.log(Level.INFO, "Returning token: " + ctiStr);
-		DhtLogger.sendLog("Returning token. "
-				+ "[ctiStr: " + ctiStr + ". "
-				+ "rsName: " + rsName + ". "
-				+ "audStr: " + audStr + ". "
-				+ "id: " + id + "]", Const.PRIO1, Const.SEV0, Const.CATEGORY_TOKEN);
-
+		DhtLogger.sendLog(Const.TYPE_INFO, Const.PRIO_LOW, Const.CAT_STATUS, Const.DEVICE_NAME, 
+				"Returning token. " 
+						+ "[ctiStr: " + ctiStr + ". " 
+						+ "rsName: " + rsName + ". " 
+						+ "audStr: " + audStr + ". " 
+						+ "id: " + id + "]");
+		
 		// If the EXP claim was added after the actual creation of the Access Token,
 		// then print all the claims except for EXP and the sentinel claim.
 		if (claims.containsKey(Constants.LATE_ADDED_EXP)) {
