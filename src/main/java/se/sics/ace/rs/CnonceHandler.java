@@ -50,7 +50,7 @@ import se.sics.ace.Constants;
 
 /**
  * This class handles the freshness verification using client-nonces
- * (see section 5.6.4.4 of draft-ietf-ace-oauth-authz-24).
+ * (see Section 5.3.1 of RFC 9200).
  * 
  * @author Ludwig Seitz
  *

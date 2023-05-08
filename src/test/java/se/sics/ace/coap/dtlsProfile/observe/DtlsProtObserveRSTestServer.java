@@ -33,7 +33,10 @@ package se.sics.ace.coap.dtlsProfile.observe;
 
 import COSE.*;
 import com.upokecenter.cbor.CBORObject;
-import org.eclipse.californium.core.*;
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -48,8 +51,10 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import se.sics.ace.*;
-import se.sics.ace.coap.TrlCoapHandler;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
+import se.sics.ace.TestConfig;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
@@ -74,7 +79,6 @@ import java.util.*;
  * Resource Server to test with DtlsProtObserveCTestClient
  *
  * @author Marco Rasori
- *
  */
 public class DtlsProtObserveRSTestServer {
 
@@ -110,6 +114,7 @@ public class DtlsProtObserveRSTestServer {
     public static class TempResource extends CoapResource {
 
         String tempStr = "19.0 C";
+
         /**
          * Constructor
          */
@@ -202,7 +207,7 @@ public class DtlsProtObserveRSTestServer {
         KissValidator valid = new KissValidator(Collections.singleton(rsId), myScopes);
 
         //Symmetric key shared with the AS. The AS can protect the tokens with this key.
-        byte[] key256Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'K', 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
+        byte[] key256Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'K', 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
 
         byte[] keyDerivationKey = {'f', 'f', 'f', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
@@ -228,33 +233,31 @@ public class DtlsProtObserveRSTestServer {
             throw new IOException("Failed to delete " + thFile);
         }
 
-      //Set up the inner Authz-Info library
-      ai = new AuthzInfo(Collections.singletonList("AS"),
+        //Set up the inner Authz-Info library
+        ai = new AuthzInfo(Collections.singletonList("AS"),
                 new KissTime(), null, rsId, valid, ctx, keyDerivationKey, derivedKeySize,
                 tokenFile, tokenHashesFile, valid, false, 86400000L);
 
-      // process an in-house-built token
-      addTestToken(ctx);
+        // process an in-house-built token
+        addTestToken(ctx);
 
-      AsRequestCreationHints archm
-          = new AsRequestCreationHints(
-                  "coaps://blah/authz-info/", null, false, false);
-      Resource hello = new HelloWorldResource();
-      Resource temp = new TempResource();
-      Resource authzInfo = new CoapAuthzInfo(ai);
+        AsRequestCreationHints archm
+                = new AsRequestCreationHints(
+                "coaps://blah/authz-info/", null, false, false);
+        Resource hello = new HelloWorldResource();
+        Resource temp = new TempResource();
+        Resource authzInfo = new CoapAuthzInfo(ai);
 
-      rs = new CoapServer();
-      rs.add(hello);
-      rs.add(temp);
-      rs.add(authzInfo);
-
-      dpd = new CoapDeliverer(rs.getRoot(), null, archm);
+        rs = new CoapServer();
+        rs.add(hello);
+        rs.add(temp);
+        rs.add(authzInfo);
 
         Configuration dtlsConfig = Configuration.getStandard();
         dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
         dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(
-                                                        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-                                                        CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
 
         DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
                 .setAddress(
@@ -279,6 +282,8 @@ public class DtlsProtObserveRSTestServer {
         CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(
                 new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
         rs.addEndpoint(aiep);
+
+        dpd = new CoapDeliverer(rs.getRoot(), null, archm, cep);
 
         InetSocketAddress asAddress =
                 new InetSocketAddress("localhost", CoAP.DEFAULT_COAP_SECURE_PORT);
@@ -355,7 +360,7 @@ public class DtlsProtObserveRSTestServer {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
 
-        byte[] kid  = new byte[] {0x01, 0x02, 0x03};
+        byte[] kid = new byte[]{0x01, 0x02, 0x03};
         CBORObject kidC = CBORObject.FromObject(kid);
         key.add(KeyKeys.KeyId, kidC);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
@@ -388,9 +393,9 @@ public class DtlsProtObserveRSTestServer {
         public void run() {
 
             CoapResponse response = null;
-            try{
-                response= DTLSProfileRequests.makePollRequest(client);
-            } catch(AceException e) {
+            try {
+                response = DTLSProfileRequests.makePollRequest(client);
+            } catch (AceException e) {
                 System.out.println("Exception caught: " + e.getMessage());
             }
 

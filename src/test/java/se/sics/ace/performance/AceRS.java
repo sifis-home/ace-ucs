@@ -5,7 +5,10 @@ import COSE.CoseException;
 import COSE.MessageTag;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
-import org.eclipse.californium.core.*;
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapObserveRelation;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -13,7 +16,13 @@ import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
-import se.sics.ace.*;
+import picocli.CommandLine;
+import picocli.CommandLine.*;
+import picocli.CommandLine.Model.CommandSpec;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
+import se.sics.ace.TestConfig;
 import se.sics.ace.coap.TrlCoapHandler;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.TrlResponses;
@@ -39,19 +48,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.ArgGroup;
-import picocli.CommandLine.Spec;
-import picocli.CommandLine.Model.CommandSpec;
-import picocli.CommandLine.ParameterException;
-
 /**
  * Resource Server to test with AceClient and AceAS
  *
  * @author Marco Rasori
- *
  */
 
 // todo (possible improvements):
@@ -270,7 +270,7 @@ public class AceRS implements Callable<Integer> {
     static Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
     private static OscoreIntrospection introspection = null;
 
-    private static final byte[] idContext = new byte[] {0x44};
+    private static final byte[] idContext = new byte[]{0x44};
     private byte[] sId;
 
     private boolean isPolling = false;
@@ -296,6 +296,7 @@ public class AceRS implements Callable<Integer> {
 
 
     private static boolean isLogEnabled;
+
     //--- MAIN
     public static void main(String[] args) {
 
@@ -307,7 +308,6 @@ public class AceRS implements Callable<Integer> {
             System.exit(exitCode);
         }
     }
-
 
 
     @Override
@@ -347,7 +347,7 @@ public class AceRS implements Callable<Integer> {
                     .newSingleThreadScheduledExecutor();
             executorService.scheduleAtFixedRate(
                     new Poller(client4AS, asUri + trlAddr),
-                        pollingInterval, pollingInterval, TimeUnit.SECONDS);
+                    pollingInterval, pollingInterval, TimeUnit.SECONDS);
         }
 
         Set<String> validTokens = TokenRepository.getInstance().getCtis();
@@ -355,13 +355,13 @@ public class AceRS implements Callable<Integer> {
             startIntrospector(cti);
         }
 
-        while(isIntrospect) {
+        while (isIntrospect) {
             synchronized (syncCtisList) {
                 while (syncCtisList.isEmpty()) {
                     syncCtisList.wait();
                 }
                 ListIterator<String> iter = syncCtisList.listIterator();
-                while(iter.hasNext()) {
+                while (iter.hasNext()) {
                     startIntrospector(iter.next());
                     iter.remove();
                 }
@@ -405,8 +405,7 @@ public class AceRS implements Callable<Integer> {
 
                     introspectorMap.get(cti).shutdown();
                     introspectorMap.remove(cti);
-                }
-                else {
+                } else {
                     System.out.println("Introspection result: Token is valid.");
                 }
             } catch (AceException | IntrospectionException e) {
@@ -491,23 +490,24 @@ public class AceRS implements Callable<Integer> {
 
         rs.add(new CoapAuthzInfo(ai));
 
-        rs.addEndpoint(new CoapEndpoint.Builder()
+        CoapEndpoint cep = new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(rsCoapPort)
                 .setCustomCoapStackArgument(ctxDB)
-                .build());
+                .build();
+        rs.addEndpoint(cep);
 
         AsRequestCreationHints archm = new AsRequestCreationHints(
                 asUri, null, false, false); //todo should include /token?
-        CoapDeliverer dpd = new CoapDeliverer(rs.getRoot(), null, archm);
+        CoapDeliverer dpd = new CoapDeliverer(rs.getRoot(), null, archm, cep);
         rs.setMessageDeliverer(dpd);
     }
 
     /**
      * Stops the server
-     * 
+     *
      * @throws IOException
-     * @throws AceException 
+     * @throws AceException
      */
     public void stop() throws IOException, AceException {
         rs.stop();
@@ -625,7 +625,7 @@ public class AceRS implements Callable<Integer> {
             logFilePath = (logPath != null) ?
                     logPath :
                     (senderId != null) ?
-                            DEFAULT_LOG_FILE_PATH.replaceFirst("-\\w+-", "-"+ senderId + "-") :
+                            DEFAULT_LOG_FILE_PATH.replaceFirst("-\\w+-", "-" + senderId + "-") :
                             DEFAULT_LOG_FILE_PATH;
             randomFilePath = (randomPath != null) ? randomPath : DEFAULT_RANDOM_FILE_PATH;
         }

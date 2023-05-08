@@ -233,8 +233,6 @@ public class DtlspRSTestServer {
       rs.add(temp);
       rs.add(authzInfo);
 
-      dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
-
       Configuration dtlsConfig = Configuration.getStandard();
       dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
       dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
@@ -264,7 +262,10 @@ public class DtlspRSTestServer {
         CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(
                 new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
         rs.addEndpoint(aiep);
+        
+        dpd = new CoapDeliverer(rs.getRoot(), null, archm, cep);
         rs.setMessageDeliverer(dpd);
+        
         rs.start();
         System.out.println("Server starting");
     }

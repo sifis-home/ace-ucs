@@ -196,9 +196,9 @@ public class TestOscorepClient2RS {
         osc.Add(Constants.OS_MS, keyCnf);
         osc.Add(Constants.OS_SALT, salt);
         osc.Add(Constants.OS_CONTEXTID, kidContext);
-        byte[] id = Util.intToBytes(0);
+        byte[] id = Util.intToBytes(1);
         osc.Add(Constants.OS_ID, id);
-
+        
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cnf);
@@ -208,7 +208,7 @@ public class TestOscorepClient2RS {
         payload.Add(Constants.CNF, cnf);
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
-
+        
         Response rsRes = OSCOREProfileRequests.postToken("coap://localhost/authz-info", asRes, ctxDB, usedRecipientIds);
 
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
@@ -218,7 +218,7 @@ public class TestOscorepClient2RS {
 
         
        //Submit a request
-       
+
        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
                "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT), ctxDB);
        
@@ -291,7 +291,7 @@ public class TestOscorepClient2RS {
         osc.Add(Constants.OS_MS, keyCnf2);
         osc.Add(Constants.OS_SALT, salt2);
         osc.Add(Constants.OS_CONTEXTID, kidContext);
-        byte[] id = Util.intToBytes(1);
+        byte[] id = Util.intToBytes(2);
         osc.Add(Constants.OS_ID, id);
 
         cbor.Add(Constants.OSCORE_Input_Material, osc);
@@ -348,7 +348,7 @@ public class TestOscorepClient2RS {
        // Now the 'cnf' claim includes only a 'kid' with value the 'id'
        // used in the first Token and identifying the OSCORE_Input_Material
        cbor = CBORObject.NewMap();
-       cbor.Add(Constants.COSE_KID_CBOR, Util.intToBytes(1));
+       cbor.Add(Constants.COSE_KID_CBOR, Util.intToBytes(2));
        params.put(Constants.CNF, cbor);
        token = new CWT(params);
        

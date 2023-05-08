@@ -63,7 +63,7 @@ import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.TokenRepository;
 
 /**
- * A RS for testing the OSCORE profile of ACE (https://datatracker.ietf.org/doc/draft-ietf-ace-oscore-profile)
+ * A RS for testing the OSCORE profile of ACE (RFC 9203)
  * 
  * Server for testing Group Joining over OSCORE.
  * Should first receive a Token to authz-info.
@@ -388,17 +388,17 @@ public class TestOscorepRSGroupOSCORE {
   	    rs.add(groupOSCORERootMembership);
   	    groupOSCORERootMembership.add(join);
 
-      
-        rs.addEndpoint(new CoapEndpoint.Builder()
+        CoapEndpoint cep = new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(CoAP.DEFAULT_COAP_PORT)
                 .setCustomCoapStackArgument(OscoreCtxDbSingleton.getInstance())
-                .build());
+                .build();
+        rs.addEndpoint(cep);
       
-        dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
+        dpd = new CoapDeliverer(rs.getRoot(), null, archm, cep); 
         // Add special allowance for Token and message from this OSCORE Sender ID
-
         rs.setMessageDeliverer(dpd);
+        
         rs.start();
         System.out.println("OSCORE RS (GM) Server starting on port " + PORT);
       
