@@ -65,8 +65,9 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 /**
- * A RS for testing the OSCORE profile of ACE (https://datatracker.ietf.org/doc/draft-ietf-ace-oscore-profile)
- * @author Ludwig Seitz
+ * A RS for testing the OSCORE profile of ACE (RFC 9203)
+ * 
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreRSTestServer {
@@ -217,16 +218,19 @@ public class OscoreRSTestServer {
         rs.add(hello);
         rs.add(temp);
         rs.add(authzInfo);
-        rs.addEndpoint(new CoapEndpoint.Builder()
+        
+  	    // Setup the OSCORE server
+        CoapEndpoint cep = new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(CoAP.DEFAULT_COAP_PORT)
                 .setCustomCoapStackArgument(
                         OscoreCtxDbSingleton.getInstance())
-                .build());
+                .build(); 
+        rs.addEndpoint(cep);
 
-        dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
-
+        dpd = new CoapDeliverer(rs.getRoot(), null, archm, cep); 
         rs.setMessageDeliverer(dpd);
+        
         rs.start();
         System.out.println("Server starting");
       
@@ -243,6 +247,5 @@ public class OscoreRSTestServer {
         new File(TestConfig.testFilePath + "tokens.json").delete();
         new File(TestConfig.testFilePath + "tokenhashes.json").delete();
     }
-
 
 }

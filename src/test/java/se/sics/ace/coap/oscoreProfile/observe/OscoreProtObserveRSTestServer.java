@@ -65,21 +65,18 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.*;
 
-import static java.lang.Thread.sleep;
-
 /**
  * Resource Server to test with OscoreProtObserveCTestClient
  *
  * @author Marco Rasori
- *
  */
 public class OscoreProtObserveRSTestServer {
-	
+
     /**
      * Definition of the Hello-World Resource
      */
     public static class HelloWorldResource extends CoapResource {
-        
+
         /**
          * Constructor
          */
@@ -99,21 +96,22 @@ public class OscoreProtObserveRSTestServer {
             exchange.respond("Hello World!");
         }
     }
-    
+
     /**
      * Definition of the Temp Resource
      */
     public static class TempResource extends CoapResource {
 
         String tempStr = "19.0 C";
+
         /**
          * Constructor
          */
         public TempResource() {
-            
+
             // set resource identifier
             super("temp");
-            
+
             // set display name
             getAttributes().setTitle("Temp Resource");
         }
@@ -134,14 +132,14 @@ public class OscoreProtObserveRSTestServer {
                     + tempStr + " as requested by client.");
             //exchange.respond(ResponseCode.CREATED);
 
-            exchange.respond(CoAP.ResponseCode.CHANGED,"Temperature successfully changed to " + tempStr);
+            exchange.respond(CoAP.ResponseCode.CHANGED, "Temperature successfully changed to " + tempStr);
         }
     }
-    
+
     private static OscoreAuthzInfo ai = null;
-    
+
     private static CoapServer rs = null;
-    
+
     private static CoapDeliverer dpd = null;
 
     /**
@@ -154,7 +152,7 @@ public class OscoreProtObserveRSTestServer {
     /**
      * Symmetric key shared between AS and RS. Used to protect the tokens issued by the AS.
      */
-    static byte[] key256Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'K', 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
+    static byte[] key256Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'K', 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
 
     /**
      * Symmetric key shared between AS and RS. Used for the OSCORE security context.
@@ -174,7 +172,7 @@ public class OscoreProtObserveRSTestServer {
 
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
-     *  
+     *
      * @param args
      * @throws Exception
      */
@@ -186,7 +184,7 @@ public class OscoreProtObserveRSTestServer {
         myResource.put("helloWorld", actions);
         Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
         myScopes.put("r_helloWorld", myResource);
-        
+
         Set<Short> actions2 = new HashSet<>();
         actions2.add(Constants.GET);
         Map<String, Set<Short>> myResource2 = new HashMap<>();
@@ -198,16 +196,16 @@ public class OscoreProtObserveRSTestServer {
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put("temp", actions3);
         myScopes.put("w_temp", myResource3);
-        
+
         String rsId = "rs1";
-        
+
         KissValidator valid = new KissValidator(Collections.singleton("rs1"), myScopes);
 
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0,
                 AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
-        CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(key256Rs, coseP.getAlg().AsCBOR());
+        CwtCryptoCtx ctx
+                = CwtCryptoCtx.encrypt0(key256Rs, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
@@ -222,35 +220,36 @@ public class OscoreProtObserveRSTestServer {
         }
 
         //Set up the inner Authz-Info library
-    	ai = new OscoreAuthzInfo(Collections.singletonList("AS"),
-                  new KissTime(), null, rsId, valid, ctx,
-                  tokenFile, tokenHashesFile, valid, false, 86400000L);
+        ai = new OscoreAuthzInfo(Collections.singletonList("AS"),
+                new KissTime(), null, rsId, valid, ctx,
+                tokenFile, tokenHashesFile, valid, false, 86400000L);
 
         // process an in-house-built token
         // addTestToken(ctx);
 
-        AsRequestCreationHints archm 
-            = new AsRequestCreationHints(
-                    "coap://localhost/token", null, false, false);
+        AsRequestCreationHints archm
+                = new AsRequestCreationHints(
+                "coap://localhost/token", null, false, false);
         Resource hello = new HelloWorldResource();
         Resource temp = new TempResource();
         Resource authzInfo = new CoapAuthzInfo(ai);
 
         ctxDB = OscoreCtxDbSingleton.getInstance();
-      
+
         rs = new CoapServer();
         rs.add(hello);
         rs.add(temp);
         rs.add(authzInfo);
-        rs.addEndpoint(new CoapEndpoint.Builder()
+        CoapEndpoint cep = new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(RS_COAP_PORT)
                 .setCustomCoapStackArgument(ctxDB)
-                .build());
+                .build();
+        rs.addEndpoint(cep);
 
         byte[] senderId = new byte[]{0x11};     // RS identity
         byte[] recipientId = new byte[]{0x33};  // AS identity
-        byte[] contextId = new byte[] {0x44};   // RS-AS context ID (hardcoded)
+        byte[] contextId = new byte[]{0x44};   // RS-AS context ID (hardcoded)
         oscoreCtx = new OSCoreCtx(key128rs, true, null, senderId,
                 recipientId, null, null, null, contextId, MAX_UNFRAGMENTED_SIZE);
 
@@ -260,14 +259,14 @@ public class OscoreProtObserveRSTestServer {
         // uncomment for observe
         TrlCoapHandler handler = new TrlCoapHandler(TokenRepository.getInstance().getTrlManager());
         CoapObserveRelation relation = OSCOREProfileRequests.
-                                          makeObserveRequest(client4AS, trlAddr, handler);
+                makeObserveRequest(client4AS, trlAddr, handler);
 
         // uncomment for polling
 //        timer = new Timer();
 //        timer.schedule(new PollTrl(client4AS, trlAddr), 5000, 5000);
 
 
-        dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
+        dpd = new CoapDeliverer(rs.getRoot(), null, archm, cep);
 
         rs.setMessageDeliverer(dpd);
         rs.start();
@@ -276,9 +275,9 @@ public class OscoreProtObserveRSTestServer {
 
     /**
      * Stops the server
-     * 
+     *
      * @throws IOException
-     * @throws AceException 
+     * @throws AceException
      */
     public static void stop() throws IOException, AceException {
         rs.stop();
@@ -322,7 +321,7 @@ public class OscoreProtObserveRSTestServer {
         params.put(Constants.CNF, osccnf);
 
         AccessToken token = AccessTokenFactory.generateToken(AccessTokenFactory.CWT_TYPE, params);
-        CWT cwt = (CWT)token;
+        CWT cwt = (CWT) token;
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx).EncodeToBytes());
@@ -348,9 +347,9 @@ public class OscoreProtObserveRSTestServer {
         public void run() {
 
             CoapResponse response = null;
-            try{
-                response= OSCOREProfileRequests.makePollRequest(client, srvAddr);
-            } catch(AceException e) {
+            try {
+                response = OSCOREProfileRequests.makePollRequest(client, srvAddr);
+            } catch (AceException e) {
                 System.out.println("Exception caught: " + e.getMessage());
                 return;
             }
@@ -359,7 +358,7 @@ public class OscoreProtObserveRSTestServer {
             try {
                 payload = TrlResponses.checkAndGetPayload(response);
                 if (payload.getType() == CBORType.Map &&
-                    Constants.getParams(payload).containsKey(Constants.TRL_ERROR)) {
+                        Constants.getParams(payload).containsKey(Constants.TRL_ERROR)) {
                     System.out.println("Trl response contains an error");
                     return;
                 }

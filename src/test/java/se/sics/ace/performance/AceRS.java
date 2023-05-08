@@ -435,15 +435,16 @@ public class AceRS implements Callable<Integer> {
 
         rs.add(new CoapAuthzInfo(ai));
 
-        rs.addEndpoint(new CoapEndpoint.Builder()
+        CoapEndpoint cep = new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(rsCoapPort)
                 .setCustomCoapStackArgument(ctxDB)
-                .build());
+                .build();
+        rs.addEndpoint(cep);
 
         AsRequestCreationHints archm = new AsRequestCreationHints(
                 asUri, null, false, false); //todo should include /token?
-        CoapDeliverer dpd = new CoapDeliverer(rs.getRoot(), null, archm);
+        CoapDeliverer dpd = new CoapDeliverer(rs.getRoot(), null, archm, cep);
         rs.setMessageDeliverer(dpd);
     }
 

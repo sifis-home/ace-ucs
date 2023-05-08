@@ -31,12 +31,11 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile.protocol;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.security.cert.X509Certificate;
-import java.util.*;
-
+import COSE.AlgorithmID;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
+import com.upokecenter.cbor.CBORObject;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
@@ -47,24 +46,18 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-
 import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-
-import com.upokecenter.cbor.CBORObject;
-
-import COSE.AlgorithmID;
-import COSE.KeyKeys;
-import COSE.MessageTag;
-import COSE.OneKey;
-import se.sics.ace.*;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
+import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
-//import se.sics.ace.coap.rs.dtlsProfile.DtlspIntrospection;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -74,11 +67,16 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.AuthzInfo;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.security.cert.X509Certificate;
+import java.util.*;
+
 /**
  * Resource Server to test with DtlsProtocolCTestClient
- * 
- * @author Marco Rasori
  *
+ * @author Marco Rasori
  */
 public class DtlsProtocolRSTestServer {
 
@@ -87,48 +85,49 @@ public class DtlsProtocolRSTestServer {
      * Definition of the Hello-World Resource
      */
     public static class HelloWorldResource extends CoapResource {
-        
+
         /**
          * Constructor
          */
         public HelloWorldResource() {
-            
+
             // set resource identifier
             super("helloWorld");
-            
+
             // set display name
             getAttributes().setTitle("Hello-World Resource");
         }
 
         @Override
         public void handleGET(CoapExchange exchange) {
-            
+
             // respond to the request
             exchange.respond("Hello World!");
         }
     }
-    
+
     /**
      * Definition of the Temp Resource
      */
     public static class TempResource extends CoapResource {
 
         String tempStr = "19.0 C";
+
         /**
          * Constructor
          */
         public TempResource() {
-            
+
             // set resource identifier
             super("temp");
-            
+
             // set display name
             getAttributes().setTitle("Temp Resource");
         }
 
         @Override
         public void handleGET(CoapExchange exchange) {
-            
+
             // respond to the request
             exchange.respond(tempStr);
         }
@@ -146,11 +145,11 @@ public class DtlsProtocolRSTestServer {
         }
 
     }
-    
+
     private static AuthzInfo ai = null;
-    
+
     private static CoapServer rs = null;
-    
+
     private static CoapDeliverer dpd = null;
 
     /*
@@ -167,7 +166,7 @@ public class DtlsProtocolRSTestServer {
 
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
-     *  
+     *
      * @param args
      * @throws Exception
      */
@@ -180,7 +179,7 @@ public class DtlsProtocolRSTestServer {
         myResource.put("helloWorld", actions);
         Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
         myScopes.put("r_helloWorld", myResource);
-        
+
         Set<Short> actions2 = new HashSet<>();
         actions2.add(Constants.GET);
         Map<String, Set<Short>> myResource2 = new HashMap<>();
@@ -192,21 +191,21 @@ public class DtlsProtocolRSTestServer {
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put("temp", actions3);
         myScopes.put("w_temp", myResource3);
-        
+
         String rsId = "rs1";
-        
+
         KissValidator valid = new KissValidator(Collections.singleton("rs1"), myScopes);
 
         //Symmetric key shared with the AS. The AS can protect the tokens with this key.
-        byte[] key256Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'K', 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
+        byte[] key256Rs = {'R', 'S', '-', 'A', 'S', ' ', 'P', 'S', 'K', 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
 
         byte[] keyDerivationKey = {'f', 'f', 'f', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        
+
         int derivedKeySize = 16;
 
         // RS asymmetric key (used in RPK mode)
         OneKey asymmetric = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpk)));
-        
+
         // Set up COSE parameters using the psk (key256) shared with the AS.
         // In PSK mode, this secret information will be used to decrypt the token
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
@@ -224,27 +223,26 @@ public class DtlsProtocolRSTestServer {
             throw new IOException("Failed to delete " + thFile);
         }
 
-      //Set up the inner Authz-Info library
-      ai = new AuthzInfo(Collections.singletonList("AS"),
+        //Set up the inner Authz-Info library
+        ai = new AuthzInfo(Collections.singletonList("AS"),
                 new KissTime(), null, rsId, valid, ctx, keyDerivationKey, derivedKeySize,
                 tokenFile, tokenHashesFile, valid, false, 86400000L);
-      
-      // process an in-house-built token
-      addTestToken(ctx);
 
-      AsRequestCreationHints archm 
-          = new AsRequestCreationHints(
-                  "coaps://blah/authz-info/", null, false, false);
-      Resource hello = new HelloWorldResource();
-      Resource temp = new TempResource();
-      Resource authzInfo = new CoapAuthzInfo(ai);
+        // process an in-house-built token
+        addTestToken(ctx);
 
-      rs = new CoapServer();
-      rs.add(hello);
-      rs.add(temp);
-      rs.add(authzInfo);
+        AsRequestCreationHints archm
+                = new AsRequestCreationHints(
+                "coaps://blah/authz-info/", null, false, false);
+        Resource hello = new HelloWorldResource();
+        Resource temp = new TempResource();
+        Resource authzInfo = new CoapAuthzInfo(ai);
 
-      dpd = new CoapDeliverer(rs.getRoot(), null, archm);
+        rs = new CoapServer();
+        rs.add(hello);
+        rs.add(temp);
+        rs.add(authzInfo);
+
 
         Configuration dtlsConfig = Configuration.getStandard();
         dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
@@ -273,6 +271,9 @@ public class DtlsProtocolRSTestServer {
         CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(
                 new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
         rs.addEndpoint(aiep);
+
+        dpd = new CoapDeliverer(rs.getRoot(), null, archm, cep);
+
         rs.setMessageDeliverer(dpd);
         rs.start();
         System.out.println("Server starting");
@@ -281,9 +282,9 @@ public class DtlsProtocolRSTestServer {
 
     /**
      * Stops the server
-     * 
-     * @throws IOException 
-     * @throws AceException 
+     *
+     * @throws IOException
+     * @throws AceException
      */
     public static void stop() throws IOException, AceException {
         rs.stop();
@@ -316,7 +317,7 @@ public class DtlsProtocolRSTestServer {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
 
-        byte[] kid  = new byte[] {0x01, 0x02, 0x03};
+        byte[] kid = new byte[]{0x01, 0x02, 0x03};
         CBORObject kidC = CBORObject.FromObject(kid);
         key.add(KeyKeys.KeyId, kidC);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
