@@ -99,7 +99,7 @@ public class DtlsProtocolASTestServer
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getCoapDBConnector();
 
         OneKey aKeyRs = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(asymKeyRs)));

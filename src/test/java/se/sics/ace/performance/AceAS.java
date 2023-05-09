@@ -101,6 +101,18 @@ public class AceAS implements Callable<Integer> {
 
     private final static String DEFAULT_RESOURCES = "Temp HelloWorld";
 
+    private final static String DEFAULT_DBURI = "jdbc:mysql://localhost:3306";
+
+    @Option(names = {"-d", "--dbUri"},
+            required = false,
+            defaultValue = DEFAULT_DBURI,
+            description = "The URI of the sql database.\n" +
+                    "Hostname and port MUST be specified.\n" +
+                    "Optionally, admin credentials can be specified \n" +
+                    "in the form username:password within the URI, e.g., \n" +
+                    "jdbc:mysql://username:password@host:port \n" +
+                    "(default: ${DEFAULT-VALUE})\n")
+    private String dbUri;
 
     @Option(names = {"-K", "--Kisspdp"},
             required = false,
@@ -266,7 +278,7 @@ static class Peer {
         parseNumAttributes();
         parseResources();
 
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(dbUri);
         db = DBHelper.getCoapDBConnector();
 
         setupPDP();

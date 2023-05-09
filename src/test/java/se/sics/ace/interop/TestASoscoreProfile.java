@@ -147,7 +147,7 @@ public class TestASoscoreProfile
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getCoapDBConnector();
 
         // Setup the OSCORE Master Secret for clientA

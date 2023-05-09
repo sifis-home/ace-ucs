@@ -107,7 +107,7 @@ public class TestOscoreAuthzInfo {
     public static void setUp() 
             throws SQLException, AceException, IOException, CoseException {
 
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getSQLConnector();
 
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);

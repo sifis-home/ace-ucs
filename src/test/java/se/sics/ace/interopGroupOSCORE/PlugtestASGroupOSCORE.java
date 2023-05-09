@@ -148,7 +148,7 @@ public class PlugtestASGroupOSCORE
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getCoapDBConnector();
 
         // Setup PSKs for Clients
