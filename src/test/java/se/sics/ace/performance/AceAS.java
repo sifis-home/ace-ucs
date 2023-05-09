@@ -91,15 +91,34 @@ public class AceAS implements Callable<Integer> {
             "RS1-AS-MS-------"; //16-byte long
     private final static String DEFAULT_RESOURCE_SERVER_TOKEN_PSK =
             "RS1-AS-Default-PSK-for-tokens---"; //32-byte long
-
-
-
     private final static String DEFAULT_RESOURCES = "Temp HelloWorld";
+    private final static String DEFAULT_DHT_ADDRESS = "ws://localhost:3000/ws";
+    private final static String DEFAULT_DBURI = "jdbc:mysql://localhost:3306";
 
-    @Option(names = {"-d", "--dht"},
+    @Option(names = {"-d", "--dbUri"},
             required = false,
-            description = "Enable DHT logging")
-    public boolean isDhtLoggingEnabled = false;
+            defaultValue = DEFAULT_DBURI,
+            description = "The URI of the sql database.\n" +
+                    "Hostname and port MUST be specified.\n" +
+                    "Optionally, admin credentials can be specified \n" +
+                    "in the form username:password within the URI, e.g., \n" +
+                    "jdbc:mysql://username:password@host:port \n" +
+                    "(default: ${DEFAULT-VALUE})\n")
+    private String dbUri;
+
+    static class DhtArgs {
+        @Option(names = {"-D", "--dht"},
+                required = true,
+                description = "Enable DHT.\n")
+        boolean isDhtEnabled = false;
+
+        @Option(names = {"-w", "--websocketuri"},
+                required = false,
+                defaultValue = DEFAULT_DHT_ADDRESS,
+                description = "The URI of the websocket where the DHT process is listening.\n" +
+                        "(default: ${DEFAULT-VALUE})\n")
+        String dhtUri;
+    }
 
     @Option(names = {"-K", "--Kisspdp"},
             required = false,
@@ -192,6 +211,9 @@ static class Peer {
     @ArgGroup(exclusive = false, multiplicity = "0..*")
     List<AceAS.Args> args;
 
+    @ArgGroup(exclusive = false)
+    DhtArgs dhtArg;
+
     static OneKey myAsymmKey;
 
     private static CoapDBConnector db = null;
@@ -209,6 +231,8 @@ static class Peer {
     private static Timer timer;
 
     private static String attributeFilesPath = TestConfig.testFilePath + "attributes/";
+    private boolean isDhtEnabled;
+    private String dhtAddr;
 
     //--- MAIN
     public static void main(String[] args) {
@@ -228,7 +252,7 @@ static class Peer {
         parseNumAttributes();
         parseResources();
 
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(dbUri);
         db = DBHelper.getCoapDBConnector();
 
         setupPDP();
@@ -322,11 +346,25 @@ static class Peer {
             setupResourceServer(r);
         }
 
-        if (isDhtLoggingEnabled) {
+        // parse DHT arguments
+        try {
+            isDhtEnabled = this.dhtArg.isDhtEnabled;
+            if (isDhtEnabled) {
+                try {
+                    dhtAddr = this.dhtArg.dhtUri;
+                } catch (NullPointerException e) {
+                    dhtAddr = DEFAULT_DHT_ADDRESS;
+                }
+            }
+        } catch (NullPointerException e) {
+            isDhtEnabled = false;
+            dhtAddr = DEFAULT_DHT_ADDRESS;
+        }
+        if (isDhtEnabled) {
             // Possibly set up connection to the DHT for sending logging statements
             System.out.println("Connecting to the DHT for logging.");
             DhtLogger.setLogging(true);
-            DhtLogger.establishConnection();
+            DhtLogger.establishConnection(dhtAddr);
         }
 
     }
