@@ -126,7 +126,7 @@ public class TestAuthzInfoGroupOSCORE {
     	Security.insertProviderAt(PROVIDER, 2);
     	Security.insertProviderAt(EdDSA, 1);
 
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getSQLConnector();
 
     	final String groupName = "feedca570000";

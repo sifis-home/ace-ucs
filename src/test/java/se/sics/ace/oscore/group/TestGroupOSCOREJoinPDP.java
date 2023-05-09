@@ -91,7 +91,7 @@ public class TestGroupOSCOREJoinPDP {
     @BeforeClass
     public static void setUp() throws AceException, SQLException, IOException, CoseException {
 
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getSQLConnector();
 
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);

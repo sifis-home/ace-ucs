@@ -90,7 +90,7 @@ public class TestAuthzInfoAif {
         //Delete lingering old files
         new File(TestConfig.testFilePath + "tokens.json").delete();
         new File(TestConfig.testFilePath + "tokenhashes.json").delete();
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getSQLConnector();
 
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);

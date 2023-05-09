@@ -161,7 +161,7 @@ public class PlugtestAS {
                 cRPK.AsPublicKey()).getName();
         
         //Just to be sure no old test pollutes the DB
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getCoapDBConnector();
         
         //Setup common RS parameters

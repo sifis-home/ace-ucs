@@ -93,7 +93,7 @@ public class TestIntrospect {
      */
     @BeforeClass
     public static void setUp() throws AceException, SQLException, IOException, CoseException {
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getSQLConnector();
 
         privateKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));

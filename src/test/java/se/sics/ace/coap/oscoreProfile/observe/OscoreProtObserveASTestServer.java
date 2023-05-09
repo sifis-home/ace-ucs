@@ -119,7 +119,7 @@ public class OscoreProtObserveASTestServer
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getCoapDBConnector();
 
         //key 256 (to protect access tokens)

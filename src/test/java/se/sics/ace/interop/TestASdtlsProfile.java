@@ -138,7 +138,7 @@ public class TestASdtlsProfile
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        DBHelper.setUpDB();
+        DBHelper.setUpDB(null);
         db = DBHelper.getCoapDBConnector();
 
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {

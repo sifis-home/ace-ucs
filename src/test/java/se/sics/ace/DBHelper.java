@@ -1,36 +1,6 @@
-/*******************************************************************************
- * Copyright (c) 2019, RISE AB
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, 
- *    this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice, 
- *    this list of conditions and the following disclaimer in the documentation 
- *    and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
- * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *******************************************************************************/
 package se.sics.ace;
 
+import se.sics.ace.AceException;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.examples.MySQLDBAdapter;
 //import se.sics.ace.examples.PostgreSQLDBAdapter;
@@ -40,12 +10,14 @@ import se.sics.ace.examples.SQLDBAdapter;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 
 /**
  * Helper class to set up databases for tests.
  *
- * @author Sebastian Echeverria and Marco Tiloca
+ * @author Sebastian Echeverria and Marco Tiloca and Marco Rasori
  *
  */
 public class DBHelper
@@ -53,28 +25,61 @@ public class DBHelper
     /**
      * Easy place to change which DB adapter wants to be used for all tests.
      */
-    private static final SQLDBAdapter dbAdapter = new MySQLDBAdapter(); //PostgreSQLDBAdapter();
+    private static SQLDBAdapter dbAdapter = new MySQLDBAdapter(); //PostgreSQLDBAdapter();
 
-    private static final String testUsername = "testuser";
-    private static final String testPassword = "testpwd";
-    private static final String testDBName = "testdb";
+    private static String testUsername = "testuser";
+    private static String testPassword = "testpwd";
+    private static String testDBName = "testdb";
 
     private static String dbAdminUser = null;
     private static String dbAdminPwd = null;
+    private static String dbUrl = null;
+
+    protected static void restoreDefaultClassFields() {
+        dbAdapter = new MySQLDBAdapter();
+
+        testUsername = "testuser";
+        testPassword = "testpwd";
+        testDBName = "testdb";
+
+        dbAdminUser = null;
+        dbAdminPwd = null;
+        dbUrl = null;
+    }
 
     /**
      * Sets up the DB using the current default adapter.
-     * 
-     * @throws AceException 
-     * @throws IOException 
+     *
+     * @throws AceException if acting on the database fails
+     * @throws IOException if loading admin information fails
      */
-    public static void setUpDB() throws AceException, IOException
+    public static void setUpDB(String dbUrl) throws AceException, IOException
     {
         // First load the DB admin username and password from an external file.
-        loadAdminLoginInformation();
-        
+        try {
+            loadAdminLoginInformation();
+        } catch (IOException e) {
+            // if the dbUrl is not empty, later we try to load admin username and password from the URL
+            if (dbUrl == null) {
+                throw new IOException(e.getMessage());
+            }
+        }
+
+        // Parse the DB url.
+        // If the url includes db credentials, these will be used,
+        // and they possibly override those loaded from the db.pwd file
+        try {
+            parseDbUrl(dbUrl);
+        } catch (URISyntaxException e) {
+            throw new AceException(e.getMessage());
+        }
+
+        if (dbAdminUser == null || dbAdminPwd == null) {
+            throw new AceException("Cannot retrieve admin username and password for the database");
+        }
+
         // Set parameters for the DB.
-        dbAdapter.setParams(testUsername, testPassword, testDBName, null);
+        dbAdapter.setParams(testUsername, testPassword, testDBName, DBHelper.dbUrl);
 
         // In case database and/or user already existed.
         SQLConnector.wipeDatabase(dbAdapter, dbAdminUser, dbAdminPwd);
@@ -86,7 +91,7 @@ public class DBHelper
 
     /**
      * @return  the SQLConnector instance
-     * @throws SQLException
+     * @throws SQLException if an error occurs retrieving the database instance
      */
     public static SQLConnector getSQLConnector() throws SQLException
     {
@@ -96,7 +101,7 @@ public class DBHelper
 
     /**
      * @return the CoapDBConnector instance
-     * @throws SQLException
+     * @throws SQLException if an error occurs when retrieving the CoapDBConnector istance
      */
     public static CoapDBConnector getCoapDBConnector() throws SQLException
     {
@@ -106,7 +111,7 @@ public class DBHelper
 
     /**
      * Destroy the test DB with the default adapter.
-     * @throws AceException
+     * @throws AceException if an error occurs when wiping the database
      */
     public static void tearDownDB() throws AceException
     {
@@ -115,36 +120,109 @@ public class DBHelper
     }
 
     /**
-     * Loads the admin username nad password form an external file.
-     * @throws IOException
+     * Loads the admin username and password form an external file.
+     * @throws IOException if an error occurs when retrieving the file with the credentials for the database
      */
     private static void loadAdminLoginInformation() throws IOException
     {
-        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
-        int readLines = 0;
-        try
-        {
+        try (BufferedReader br = new BufferedReader(new FileReader("db.pwd"))) {
+            int readLines = 0;
             StringBuilder sb = new StringBuilder();
             String line = br.readLine();
-            while (line != null && readLines < 2)
-            {
-            	sb.delete(0, sb.length());
+            while (line != null && readLines < 2) {
+                sb.delete(0, sb.length());
                 sb.append(line);
                 sb.append(System.lineSeparator());
-                
+
                 if (readLines == 0) {
-                	dbAdminUser = sb.toString().replace(System.getProperty("line.separator"), "");
+                    dbAdminUser = sb.toString().replace(System.getProperty("line.separator"), "");
                 }
                 if (readLines == 1) {
-                	dbAdminPwd = sb.toString().replace(System.getProperty("line.separator"), "");
+                    dbAdminPwd = sb.toString().replace(System.getProperty("line.separator"), "");
                 }
                 readLines++;
                 line = br.readLine();
             }
         }
-        finally
-        {
-            br.close();
+    }
+
+    /**
+     * Parse the database url provided as input.
+     * This method returns null if the string passed as argument is null.
+     * This method accepts only urls that start with "jdbc:mysql://" and ignores
+     * the path of the url, if any.
+     * It returns a string in the form "jdbc:mysql://host:port". If the port is not
+     * specified in the provided url, it places the default port (3306) in the
+     * returned string
+     *
+     * @param url the url of the database
+     * @throws URISyntaxException If the given string violates RFC 2396
+     */
+    private static void parseDbUrl(String url) throws URISyntaxException, AceException {
+        if (url == null) {
+            // using default db Url
+            return;
         }
+        if (!url.startsWith("jdbc:mysql://")) {
+            throw new IllegalArgumentException("Wrong database URL. The URL must start with \"jdbc:mysql://\"");
+        }
+        //strip off the jdbc: part
+        url = url.substring(5);
+
+        URI uri = new URI(url);
+        String host = uri.getHost();
+        int port = uri.getPort();
+
+        if (host == null) {
+            throw new AceException("Wrong database URL. The host cannot be parsed");
+        }
+
+        // if the port is not defined, use the default port (3306)
+        if (port != -1) {
+            dbUrl = "jdbc:mysql://" + host + ":" + port;
+        }
+        else {
+            dbUrl = "jdbc:mysql://" + host + ":3306";
+        }
+
+        overrideCredentials(uri);
+    }
+
+    /**
+     * Set admin username and password, if provided.
+     * This method possibly overrides the admin credentials provided within the db.pwd file.
+     *
+     * @param uri the URI
+     * @throws AceException if some error occurs during parsing of the URI
+     */
+    private static void overrideCredentials(URI uri) throws AceException {
+
+        String credentials = uri.getUserInfo();
+        if (credentials == null) {
+            return;
+        }
+        String[] splitCredentials = credentials.split(":");
+        if (splitCredentials.length > 2) {
+            throw new AceException("Wrong database URL. User info cannot be parsed. Too many colons");
+        }
+
+        if (splitCredentials[0].equals("")) {
+            throw new AceException("Wrong database URL. Username cannot be empty");
+        }
+        dbAdminUser = splitCredentials[0];
+
+        // if password is present
+        if (splitCredentials.length == 2) {
+            dbAdminPwd = splitCredentials[1];
+        }
+        else {
+            dbAdminPwd = "";
+        }
+        if (dbAdminPwd.equals("")) {
+            System.out.println("Warning: no password for user " + dbAdminUser + " was specified. " +
+                    "Using an empty password..." );
+        }
+
+        System.out.println("Credentials loaded from the provided database URI");
     }
 }
