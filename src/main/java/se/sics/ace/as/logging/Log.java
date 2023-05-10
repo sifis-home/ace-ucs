@@ -31,14 +31,14 @@
  *******************************************************************************/
 package se.sics.ace.as.logging;
 
-public class Logs {
+public class Log {
 
 	private String type;
 	private String priority;
 	private String category;
 	private String message;
 
-	public Logs() {
+	public Log() {
 
 	}
 

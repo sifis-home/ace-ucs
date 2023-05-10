@@ -61,8 +61,8 @@ public class DhtLogger {
 	private static Session session = null;
 	private static boolean loggingEnabled = false;
 
-	private static String LOG_TOPIC_NAME = "SIFIS:Logs";
-	private static String LOG_TOPIC_UUID = "Logs";
+	private static String LOG_TOPIC_NAME = "SIFIS:Log";
+	private static String LOG_TOPIC_UUID = "Log";
 
 	private static String websocketUri = "ws://localhost:3000/ws";
 
@@ -104,20 +104,20 @@ public class DhtLogger {
 
 		RequestPostTopicUUID requestVal = new RequestPostTopicUUID();
 		OutValue valueVal = new OutValue();
-		Logs logsVal = new Logs();
+		Log logVal = new Log();
 
 		requestVal.setTopicName(LOG_TOPIC_NAME);
 		requestVal.setTopicUuid(LOG_TOPIC_UUID);
 
-		logsVal.setType(type);
-		logsVal.setPriority(priority);
-		logsVal.setCategory(category);
+		logVal.setType(type);
+		logVal.setPriority(priority);
+		logVal.setCategory(category);
 
 		message = device + ": " + message;
 		int maxLen = Math.min(message.length(), LOG_MAX_LEN);
-		logsVal.setMessage(message.substring(0, maxLen));
+		logVal.setMessage(message.substring(0, maxLen));
 
-		valueVal.setLogs(logsVal);
+		valueVal.setLog(logVal);
 		requestVal.setValue(valueVal);
 		outgoing.setPayload(requestVal);
 

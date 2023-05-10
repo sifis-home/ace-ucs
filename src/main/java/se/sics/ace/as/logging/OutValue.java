@@ -33,17 +33,17 @@ package se.sics.ace.as.logging;
 
 public class OutValue {
 
-	private Logs logs;
+	private Log log;
 
 	public OutValue() {
 
 	}
 
-	public void setLogs(Logs logs) {
-		this.logs = logs;
+	public void setLog(Log log) {
+		this.log = log;
 	}
 
-	public Logs getLogs() {
-		return logs;
+	public Log getLog() {
+		return log;
 	}
 }
