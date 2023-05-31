@@ -180,9 +180,9 @@
 			<type>jar</type>
 		</dependency>
 		<dependency>
-			<groupId>com.github.Daven00</groupId>
-			<artifactId>ace-java-dht-logging</artifactId>
-			<version>0.0.2</version>
+			<groupId>com.github.sifis-home</groupId>
+			<artifactId>ace-dht-logging</artifactId>
+			<version>0.0.1</version>
 		</dependency>
 	</dependencies>
 	<build>
