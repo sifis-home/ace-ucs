@@ -95,6 +95,18 @@ public class TestOscorepRSGroupOSCORE {
 	// For non-monitor members, separator between the two components of the node name
 	private final static String nodeNameSeparator = "-";
 	
+	// Uncomment to set ECDSA with curve P-256 for countersignatures
+    // private static int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
+    
+    // Uncomment to set EDDSA with curve Ed25519 for countersignatures
+	private static int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+    
+    // Uncomment to set curve P-256 for pairwise key derivation
+    // private static int ecdhKeyCurve = KeyKeys.EC2_P256.AsInt32();
+    
+    // Uncomment to set curve X25519 for pairwise key derivation
+	private static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
+	
 	private static Set<Integer> validRoleCombinations = new HashSet<Integer>();
 	
 	private static Map<String, GroupInfo> activeGroups = new HashMap<>();
@@ -213,18 +225,6 @@ public class TestOscorepRSGroupOSCORE {
         		                  (1 << Constants.GROUP_OSCORE_RESPONDER)); // Requester+Responder (6)
     	
     	final String groupName = "feedca570000";
-    	
-    	// Uncomment to set ECDSA with curve P-256 for countersignatures
-        // int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
-        
-        // Uncomment to set EDDSA with curve Ed25519 for countersignatures
-        int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
-        
-  	    // Uncomment to set curve P-256 for pairwise key derivation
-  	    // int ecdhKeyCurve = KeyKeys.EC2_P256.AsInt32();
-  	    
-  	    // Uncomment to set curve X25519 for pairwise key derivation
-  	    int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
  
         // Set up token repository
         Set<Short> actions = new HashSet<>();
@@ -380,7 +380,7 @@ public class TestOscorepRSGroupOSCORE {
   	    join.add(nodesSubResource);
       
   	    
-        //Create the OSCORE Group(s)
+        // Create the OSCORE Group(s)
         if (!OSCOREGroupCreation(groupName, signKeyCurve, ecdhKeyCurve))
         	return;
   	    
@@ -546,7 +546,7 @@ public class TestOscorepRSGroupOSCORE {
             		// This is still fine, as long as at least one Access Token allows
             		// the requesting client to have any role with respect to the group
             		
-            		if (getRolesFromToken(subject, groupName) == null) {
+            		if (Util.getGroupOSCORERolesFromToken(subject, groupName) == null) {
             	    	// No Access Token allows the requesting client node to have
             	    	// to have any role with respect to the group
             			
@@ -982,7 +982,7 @@ public class TestOscorepRSGroupOSCORE {
         
         	// Check that the indicated roles for this group are actually allowed by the Access Token 
         	boolean allowed = false;
-        	int[] roleSetToken = getRolesFromToken(subject, groupName);
+        	int[] roleSetToken = Util.getGroupOSCORERolesFromToken(subject, groupName);
         	if (roleSetToken == null) {
         		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
         						 "Error when retrieving allowed roles from Access Tokens");
@@ -1608,7 +1608,7 @@ public class TestOscorepRSGroupOSCORE {
             	
         		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
         		boolean allowed = false;
-            	int[] roleSetToken = getRolesFromToken(subject, groupName);
+            	int[] roleSetToken = Util.getGroupOSCORERolesFromToken(subject, groupName);
             	if (roleSetToken == null) {
             		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
             						 "Error when retrieving allowed roles from Access Tokens");
@@ -1728,7 +1728,7 @@ public class TestOscorepRSGroupOSCORE {
             	
         		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
         		boolean allowed = false;
-            	int[] roleSetToken = getRolesFromToken(subject, groupName);
+            	int[] roleSetToken = Util.getGroupOSCORERolesFromToken(subject, groupName);
             	if (roleSetToken == null) {
             		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
             						 "Error when retrieving allowed roles from Access Tokens");
@@ -2054,7 +2054,7 @@ public class TestOscorepRSGroupOSCORE {
             	
         		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
         		boolean allowed = false;
-            	int[] roleSetToken = getRolesFromToken(subject, groupName);
+            	int[] roleSetToken = Util.getGroupOSCORERolesFromToken(subject, groupName);
             	if (roleSetToken == null) {
             		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
             						 "Error when retrieving allowed roles from Access Tokens");
@@ -2200,7 +2200,7 @@ public class TestOscorepRSGroupOSCORE {
         		// allows (also) the Verifier role for this group
             	
         		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
-            	int[] roleSetToken = getRolesFromToken(subject, groupName);
+            	int[] roleSetToken = Util.getGroupOSCORERolesFromToken(subject, groupName);
             	if (roleSetToken == null) {
             		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
             						 "Error when retrieving allowed roles from Access Tokens");
@@ -3237,58 +3237,6 @@ public class TestOscorepRSGroupOSCORE {
         }
         
     }
-    
-    
-    /**
-     * @param str  the hex string
-     * @return  the byte array
-     * 
-     * Return the byte array representation of the original string
-     */
-    public static byte[] hexStringToByteArray(final String str) {
-        int len = str.length();
-        byte[] data = new byte[len / 2];
-        
-    	// Big-endian
-        for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(str.charAt(i), 16) << 4) +
-                                   Character.digit(str.charAt(i+1), 16));
-            data[i / 2] = (byte) (data[i / 2] & 0xFF);
-        }
-        
-    	// Little-endian
-        /*
-        for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(str.charAt(len - 2 - i), 16) << 4) +
-                                   Character.digit(str.charAt(len - 1 - i), 16));
-            data[i / 2] = (byte) (data[i / 2] & 0xFF);
-        }
-        */
-        
-        return data;
-        
-    }
-    
-    /**
-     * @param byteArray  the byte array
-     * @return  the hex string
-     * 
-     * Return the printable hexadecimal string corresponding to a byte array
-     */
-    public static String byteArrayToHexString(final byte[] byteArray) {
-    	
-    	if (byteArray == null) {
-    		return new String("");
-    	}
-    	else {
-    		String str = new String("");
-	    	for (byte byteToConvert: byteArray) {
-	            str += String.format("%02X", byteToConvert);
-	        }
-	    	return str;
-    	}
-    	
-    }
 
     private static boolean OSCOREGroupCreation(String groupName, int signKeyCurve, int ecdhKeyCurve)
     			throws CoseException, Exception
@@ -3316,6 +3264,26 @@ public class TestOscorepRSGroupOSCORE {
         CBORObject ecdhAlgCapabilities = null;
         CBORObject ecdhKeyCapabilities = null;
         CBORObject ecdhParams = null;
+        
+    	// Generate a pair of asymmetric keys and print them in base 64 (whole version, then public only)
+        /*
+        OneKey testKey = null;
+ 		
+ 		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
+ 			testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+    	
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		testKey = OneKey.generateKey(AlgorithmID.EDDSA);
+        
+    	byte[] testKeyBytes = testKey.EncodeToBytes();
+    	String testKeyBytesBase64 = Base64.getEncoder().encodeToString(testKeyBytes);
+    	System.out.println(testKeyBytesBase64);
+    	
+    	OneKey testPublicKey = testKey.PublicKey();
+    	byte[] testPublicKeyBytes = testPublicKey.EncodeToBytes();
+    	String testPublicKeyBytesBase64 = Base64.getEncoder().encodeToString(testPublicKeyBytes);
+    	System.out.println(testPublicKeyBytesBase64);
+    	*/
         
         if (signKeyCurve == 0 && ecdhKeyCurve == 0) {
         	System.out.println("Both the signature key curve and the ECDH key curve are unspecified");
@@ -3669,126 +3637,6 @@ public class TestOscorepRSGroupOSCORE {
     	activeGroups.put(groupName, myGroup);
     	
     	return true;
-    	
-    }
-
-    /**
-     * Return the role sets allowed to a subject in a group, based on all the Access Tokens for that subject
-     * 
-     * @param subject   Subject identity of the node
-     * @param groupName   Group name of the OSCORE group
-     * @return The sets of allowed roles for the subject in the specified group using the AIF data model,
-     *         or null in case of no results
-     */
-    public static int[] getRolesFromToken(String subject, String groupName) {
-
-    	Set<Integer> roleSets = new HashSet<Integer>();
-    	
-    	String kid = TokenRepository.getInstance().getKid(subject);
-    	Set<String> ctis = TokenRepository.getInstance().getCtis(kid);
-    	
-    	// This should never happen at this point, since a valid Access Token
-    	// has just made this request pass through 
-    	if (ctis == null)
-    		return null;
-    	
-    	for (String cti : ctis) { //All tokens linked to that pop key
-    		
-	        //Check if we have the claims for that cti
-	        //Get the claims
-            Map<Short, CBORObject> claims = TokenRepository.getInstance().getClaims(cti);
-            if (claims == null || claims.isEmpty()) {
-                //No claims found
-        		// Move to the next Access Token for this 'kid'
-                continue;
-            }
-            
-	        //Check the scope
-            CBORObject scope = claims.get(Constants.SCOPE);
-            
-        	// This should never happen, since a valid Access Token
-            // has just reached a handler at the Group Manager
-            if (scope == null) {
-        		// Move to the next Access Token for this 'kid'
-            	continue;
-            }
-            
-            if (!scope.getType().equals(CBORType.ByteString)) {
-        		// Move to the next Access Token for this 'kid'
-            	continue;
-            }
-            
-            byte[] rawScope = scope.GetByteString();
-        	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
-        	
-        	if (!cborScope.getType().equals(CBORType.Array)) {
-        		// Move to the next Access Token for this 'kid'
-                continue;
-            }
-
-        	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++) {
-            	
-        		CBORObject scopeEntry = cborScope.get(entryIndex);
-        		
-        		if (!scopeEntry.getType().equals(CBORType.Array) || scopeEntry.size() != 2) {
-        			// Move to the next Access Token for this 'kid'
-                    break;
-                }
-	        	
-	        	// Retrieve the Group ID of the OSCORE group
-	        	String scopeStr;
-	      	  	CBORObject scopeElement = scopeEntry.get(0);
-	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-	      	  		scopeStr = scopeElement.AsString();
-	      	  		if (!scopeStr.equals(groupName)) {
-	      	  		    // Move to the next scope entry
-	      	  			continue;
-	      	  		}
-	      	  	}
-	      	  	else {
-	    			// Move to the next Access Token for this 'kid'
-	                break;
-	      	  	}
-	      	  	
-	      	  	// Retrieve the role or list of roles
-	      	  	scopeElement = scopeEntry.get(1);
-	      	  	
-	        	if (!scopeElement.getType().equals(CBORType.Integer)) {
-      	  		    // Move to the next scope entry
-      	  			continue;
-	        	}
-	        	
-        		int roleSetToken = scopeElement.AsInt32();
-        		
-        		// According to the AIF-OSCORE-GROUPCOMM data model, a valid combination 
-        		// of roles has to be a positive integer of even value (i.e., with last bit 0)
-        		if (roleSetToken <= 0 || (roleSetToken % 2 == 1)) {
-      	  		    // Move to the next scope entry
-      	  			continue;
-        		}
-
-        		roleSets.add(roleSetToken);
-        			        	
-        	}
-        	
-    	}
-    	    	
-    	// No Access Token allows this node to have any role
-    	// with respect to the specified group
-    	if (roleSets.size() == 0) {
-    		return null;
-    	}
-    	else {
-    		int[] ret = new int[roleSets.size()];
-    		
-    		int index = 0;
-    		for (Integer i : roleSets) {
-    			ret[index] = i.intValue();
-    			index++;
-    		}
-    		
-    		return ret;
-    	}
     	
     }
 

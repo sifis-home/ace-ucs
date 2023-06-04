@@ -8,14 +8,17 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
+import se.sics.ace.rs.TokenRepository;
 
 public class Util {
 
@@ -334,25 +337,143 @@ public class Util {
       * @return  The set of role identifiers specified in the role set
       * @throws AceException  if the reserved role is requested (identifier 1, hence 'roleSet' has an odd value)
      */
-    
-    
     public static Set<Integer> getGroupOSCORERoles (int roleSet) throws AceException {
    	 
-   	 if ((roleSet % 2) == 1) throw new AceException("Invalid identifier of Group OSCORE role");
+	   	 if ((roleSet % 2) == 1) throw new AceException("Invalid identifier of Group OSCORE role");
+	   	 
+	   	 Set<Integer> mySet = new HashSet<Integer>();
+	   	 int roleIdentifier = 0;
+	   	 
+	   	 while (roleSet != 0) {
+	   		 roleSet = roleSet >>> 1;
+	   	 	 roleIdentifier++;
+	   	 	 if ((roleSet & 1) != 0) {
+	   	 		 mySet.add(Integer.valueOf(roleIdentifier));
+	   	 	 }
+	   	 }
+	   	 
+	   	 return mySet;
    	 
-   	 Set<Integer> mySet = new HashSet<Integer>();
-   	 int roleIdentifier = 0;
-   	 
-   	 while (roleSet != 0) {
-   		 roleSet = roleSet >>> 1;
-   	 	 roleIdentifier++;
-   	 	 if ((roleSet & 1) != 0) {
-   	 		 mySet.add(Integer.valueOf(roleIdentifier));
-   	 	 }
-   	 }
-   	 
-   	 return mySet;
-   	 
+    }
+    
+    /**
+     * Return the role sets allowed to a subject in a group, based on all the Access Tokens for that subject
+     * 
+     * @param subject   Subject identity of the node
+     * @param groupName   Group name of the OSCORE group
+     * @return The sets of allowed roles for the subject in the specified group using the AIF data model,
+     *         or null in case of no results
+     */
+    public static int[] getGroupOSCORERolesFromToken(String subject, String groupName) {
+
+    	Set<Integer> roleSets = new HashSet<Integer>();
+    	
+    	String kid = TokenRepository.getInstance().getKid(subject);
+    	Set<String> ctis = TokenRepository.getInstance().getCtis(kid);
+    	
+    	// This should never happen at this point, since a valid Access Token
+    	// has just made this request pass through 
+    	if (ctis == null)
+    		return null;
+    	
+    	for (String cti : ctis) { //All tokens linked to that pop key
+    		
+	        //Check if we have the claims for that cti
+	        //Get the claims
+            Map<Short, CBORObject> claims = TokenRepository.getInstance().getClaims(cti);
+            if (claims == null || claims.isEmpty()) {
+                //No claims found
+        		// Move to the next Access Token for this 'kid'
+                continue;
+            }
+            
+	        //Check the scope
+            CBORObject scope = claims.get(Constants.SCOPE);
+            
+        	// This should never happen, since a valid Access Token
+            // has just reached a handler at the Group Manager
+            if (scope == null) {
+        		// Move to the next Access Token for this 'kid'
+            	continue;
+            }
+            
+            if (!scope.getType().equals(CBORType.ByteString)) {
+        		// Move to the next Access Token for this 'kid'
+            	continue;
+            }
+            
+            byte[] rawScope = scope.GetByteString();
+        	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
+        	
+        	if (!cborScope.getType().equals(CBORType.Array)) {
+        		// Move to the next Access Token for this 'kid'
+                continue;
+            }
+
+        	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++) {
+            	
+        		CBORObject scopeEntry = cborScope.get(entryIndex);
+        		
+        		if (!scopeEntry.getType().equals(CBORType.Array) || scopeEntry.size() != 2) {
+        			// Move to the next Access Token for this 'kid'
+                    break;
+                }
+	        	
+	        	// Retrieve the Group ID of the OSCORE group
+	        	String scopeStr;
+	      	  	CBORObject scopeElement = scopeEntry.get(0);
+	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  		scopeStr = scopeElement.AsString();
+	      	  		if (!scopeStr.equals(groupName)) {
+	      	  		    // Move to the next scope entry
+	      	  			continue;
+	      	  		}
+	      	  	}
+	      	  	else {
+	    			// Move to the next Access Token for this 'kid'
+	                break;
+	      	  	}
+	      	  	
+	      	  	// Retrieve the role or list of roles
+	      	  	scopeElement = scopeEntry.get(1);
+	      	  	
+	        	if (!scopeElement.getType().equals(CBORType.Integer)) {
+      	  		    // Move to the next scope entry
+      	  			continue;
+	        	}
+	        	
+        		int roleSetToken = scopeElement.AsInt32();
+        		
+        		// According to the AIF-OSCORE-GROUPCOMM data model, a valid combination 
+        		// of roles has to be a positive integer of even value (i.e., with last bit 0)
+        		if (roleSetToken <= 0 || (roleSetToken % 2 == 1)) {
+      	  		    // Move to the next scope entry
+      	  			continue;
+        		}
+
+        		roleSets.add(roleSetToken);
+        			        	
+        	}
+        	
+    	}
+    	    	
+    	// No Access Token allows this node to have any role
+    	// with respect to the specified group
+    	if (roleSets.size() == 0) {
+    		return null;
+    	}
+    	else {
+    		int[] ret = new int[roleSets.size()];
+    		
+    		int index = 0;
+    		for (Integer i : roleSets) {
+    			ret[index] = i.intValue();
+    			index++;
+    		}
+    		
+    		return ret;
+    	}
+    	
     }
     
     /**
@@ -442,6 +563,27 @@ public class Util {
         return pubKey;
 		
 	}
+	
+    /**
+     * @param byteArray  the byte array
+     * @return  the hex string
+     * 
+     * Return the printable hexadecimal string corresponding to a byte array
+     */
+    public static String byteArrayToHexString(final byte[] byteArray) {
+    	
+    	if (byteArray == null) {
+    		return new String("");
+    	}
+    	else {
+    		String str = new String("");
+	    	for (byte byteToConvert: byteArray) {
+	            str += String.format("%02X", byteToConvert);
+	        }
+	    	return str;
+    	}
+    	
+    }
 	
     /**
      * Read a hex string and transform to bytes
