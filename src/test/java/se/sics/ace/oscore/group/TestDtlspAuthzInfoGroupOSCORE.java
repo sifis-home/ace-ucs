@@ -175,7 +175,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
-        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
+        valid.setGroupMembershipResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
         
         // Create the OSCORE group

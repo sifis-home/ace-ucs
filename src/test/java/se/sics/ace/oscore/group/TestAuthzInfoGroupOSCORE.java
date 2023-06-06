@@ -211,7 +211,7 @@ public class TestAuthzInfoGroupOSCORE {
         
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
-        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
+        valid.setGroupMembershipResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
         // Create the OSCORE group
         final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,

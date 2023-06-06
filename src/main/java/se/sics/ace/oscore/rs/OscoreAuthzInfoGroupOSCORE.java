@@ -383,7 +383,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     	if (scope.getType().equals(CBORType.ByteString)) {
     		
     		Set<String> myGMAudiences = this.audience.getAllGMAudiences();
-    		Set<String> myJoinResources = this.audience.getAllJoinResources();
+    		Set<String> myGroupMembershipResources = this.audience.getAllGroupMembershipResources();
     		
     		CBORObject audCbor = claims.get(Constants.AUD);
     		String aud = audCbor.AsString();
@@ -404,7 +404,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     		// Check that all the group names in scope refer to group-membership resources
     		if (error == false) {
     			for (String groupName : groupNames) {
-    				if (myJoinResources.contains(rootGroupMembershipResource + "/" + groupName) == false) {
+    				if (myGroupMembershipResources.contains(rootGroupMembershipResource + "/" + groupName) == false) {
     					error = true;
     					break;
     				}

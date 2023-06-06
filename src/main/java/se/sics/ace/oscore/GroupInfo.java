@@ -1290,6 +1290,17 @@ public class GroupInfo {
     	return this.senderIdSize;
     	
     }
+    
+    /**
+     *  Return the separator used between the two components of a node name of a non-monitor member
+	 *
+	 *  @return  a string with the separator used between the two components of a node name of a non-monitor member
+     */
+    synchronized public String getNodeNameSeparator() {
+    	
+    	return this.nodeNameSeparator;
+    	
+    }
 
     /**
      *  Get the key length (in bytes) for the Signature Encryption Algorithm used in the group

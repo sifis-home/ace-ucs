@@ -165,7 +165,7 @@ public class TestTokenRepositoryGroupOSCORE {
         
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
-        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
+        valid.setGroupMembershipResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
     	rolesToInt.put("requester", Constants.GROUP_OSCORE_REQUESTER);
     	rolesToInt.put("responder", Constants.GROUP_OSCORE_RESPONDER);

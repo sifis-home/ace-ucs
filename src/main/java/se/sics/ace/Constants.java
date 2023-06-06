@@ -33,7 +33,9 @@ package se.sics.ace;
 
 import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -922,6 +924,26 @@ public class Constants {
      * Roles as strings
      */
     public static final String[] GROUP_OSCORE_ROLES = {"reserved", "requester", "responder", "monitor", "verifier"};
+    
+    /**
+     * Return a set of integers including the valid Group OSCORE role combinations
+	 *
+     * @return  the set of valid Group OSCORE combinations
+     */
+    public static Set<Integer> getValidGroupOSCORERoleCombinations() {
+
+    	Set<Integer> validRoleCombinations = new HashSet<Integer>();
+    	
+        // Set the valid combinations of roles in a Joining Request
+        // Combinations are expressed with the AIF specific data model AIF-OSCORE-GROUPCOMM
+        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_REQUESTER);   // Requester (2)
+        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_RESPONDER);   // Responder (4)
+        validRoleCombinations.add((1 << Constants.GROUP_OSCORE_REQUESTER) +
+        		                  (1 << Constants.GROUP_OSCORE_RESPONDER)); // Requester+Responder (6)
+        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_MONITOR);     // Monitor (8)
+    	
+    	return validRoleCombinations;
+    }
     
      /**
       * Value for the label "get_creds" in the Join Request message

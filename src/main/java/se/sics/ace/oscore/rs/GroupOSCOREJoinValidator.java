@@ -76,7 +76,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
      * Each entry of the list contains the full path to a group-membership resource and the last
      * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
      */
-	private Set<String> myJoinResources;
+	private Set<String> myGroupMembershipResources;
 	
 	private String rootGroupMembershipResource;
 	
@@ -91,14 +91,14 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * 
 	 * @param myAudiences  the audiences that this validator should accept
 	 * @param myScopes  the scopes that this validator should accept
-	 * @param rootGroupMemberResource  the path of the root Group Membership Resource, i.e., "ace-group"
+	 * @param rootGroupMembershipResource  the path of the root Group Membership Resource, i.e., "ace-group"
 	 */
 	public GroupOSCOREJoinValidator(Set<String> myAudiences,
 	        Map<String, Map<String, Set<Short>>> myScopes,
-	        String rootGroupMemberResource) {
+	        String rootGroupMembershipResource) {
 		this.myAudiences = new HashSet<>();
 		this.myGMAudiences = new HashSet<>();
-		this.myJoinResources = new HashSet<>();
+		this.myGroupMembershipResources = new HashSet<>();
 		this.myScopes = new HashMap<>();
 		if (myAudiences != null) {
 		    this.myAudiences.addAll(myAudiences);
@@ -110,7 +110,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		} else {
 		    this.myScopes = Collections.emptyMap();
 		}
-    	this.rootGroupMembershipResource = rootGroupMemberResource;
+    	this.rootGroupMembershipResource = rootGroupMembershipResource;
 	}
 	
 	/**
@@ -187,9 +187,9 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * 
 	 * @return the resources that this validator considers as group-membership resources to access an OSCORE group
 	 */
-	public synchronized Set<String> getAllJoinResources() {
-		if (this.myJoinResources != null) {
-			return this.myJoinResources;
+	public synchronized Set<String> getAllGroupMembershipResources() {
+		if (this.myGroupMembershipResources != null) {
+			return this.myGroupMembershipResources;
 		}
         return Collections.emptySet();
 	}
@@ -200,41 +200,41 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * Each entry of the list contains the full path to a group-membership resource, and the last
      * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
      * 
-	 * @param myJoinResources  the resources that this validator considers as group-membership resources to access an OSCORE group
+	 * @param myGroupMembershipResources  the resources that this validator considers as group-membership resources to access an OSCORE group
 	 * .
 	 * @throws AceException FIXME: when thrown?
 	 */
-	public synchronized void setJoinResources(Set<String> myJoinResources) throws AceException {
-		if (myJoinResources != null) {
-			for (String foo : myJoinResources)
-				this.myJoinResources.add(foo);
+	public synchronized void setGroupMembershipResources(Set<String> myGroupMembershipResources) throws AceException {
+		if (myGroupMembershipResources != null) {
+			for (String foo : myGroupMembershipResources)
+				this.myGroupMembershipResources.add(foo);
 		} else {
-		    this.myJoinResources = Collections.emptySet();
+		    this.myGroupMembershipResources = Collections.emptySet();
 		}
 	}
 	
 	/**
-	 * Remove a group-membership resource to access an OSCORE group from "myJoinResources".
+	 * Remove a group-membership resource to access an OSCORE group from "myGroupMembershipResources".
 	 * 
 	 * The group-membership resource to remove is specified by its full path, where the last
      * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
 	 * 
-	 * @param joinResource  the group-membership resource to remove.
+	 * @param groupMembershipResource  the group-membership resource to remove.
 	 * 
 	 * @return true if the specified resource was included and has been removed, false otherwise.
 	 */
-	public synchronized boolean removeJoinResource(String joinResource){
-		if (joinResource != null)
-			return this.myJoinResources.remove(joinResource);
+	public synchronized boolean removeGroupMembershipResource(String groupMembershipResource){
+		if (groupMembershipResource != null)
+			return this.myGroupMembershipResources.remove(groupMembershipResource);
 		return false;
 	}
 	
 	/**
-	 * Remove all the group-membership resources to access an OSCORE group from "myJoinResources".
+	 * Remove all the group-membership resources to access an OSCORE group from "myGroupMembershipResources".
 	 * 
 	 */
-	public synchronized void removeAllJoinResources(){
-		this.myJoinResources.clear();
+	public synchronized void removeAllGroupMembershipResources(){
+		this.myGroupMembershipResources.clear();
 	}
 	
 	@Override
@@ -251,13 +251,13 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         }
         
         String scopeStr;
-        boolean isJoinResource = false;
+        boolean isGroupMembershipResource = false;
     	boolean scopeMustBeBinary = false;
     	
-    	if (this.myJoinResources.contains(resourceId))
-    		isJoinResource = true;
+    	if (this.myGroupMembershipResources.contains(resourceId))
+    		isGroupMembershipResource = true;
     	
-    	scopeMustBeBinary = isJoinResource;
+    	scopeMustBeBinary = isGroupMembershipResource;
         
     	if (scope.getType().equals(CBORType.TextString)) {
         	if (scopeMustBeBinary)
@@ -278,7 +278,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
             return false;
     	}
     	
-    	else if (scope.getType().equals(CBORType.ByteString) && isJoinResource) {
+    	else if (scope.getType().equals(CBORType.ByteString) && isGroupMembershipResource) {
     		
         	byte[] rawScope = scope.GetByteString();
         	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
@@ -358,13 +358,13 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         }
         
         String scopeStr;
-        boolean isJoinResource = false;
+        boolean isGroupMembershipResource = false;
     	boolean scopeMustBeBinary = false;
     	
-    	if (this.myJoinResources.contains(resourceId))
-    		isJoinResource = true;
+    	if (this.myGroupMembershipResources.contains(resourceId))
+    		isGroupMembershipResource = true;
     	
-    	scopeMustBeBinary = isJoinResource;
+    	scopeMustBeBinary = isGroupMembershipResource;
     	
     	if (scope.getType().equals(CBORType.TextString)) {
         	if (scopeMustBeBinary)
@@ -384,7 +384,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         	
     	}
     	
-    	else if (scope.getType().equals(CBORType.ByteString) && isJoinResource) {
+    	else if (scope.getType().equals(CBORType.ByteString) && isGroupMembershipResource) {
     		
         	byte[] rawScope = scope.GetByteString();
         	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
