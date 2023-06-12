@@ -162,11 +162,11 @@ public class GroupOSCORESubResourceKdcCred extends CoapResource {
 		// Authentication Credential of the Group Manager together with proof-of-possession evidence
     	byte[] kdcNonce = new byte[8];
     	new SecureRandom().nextBytes(kdcNonce);
-    	myResponse.Add(Constants.KDC_NONCE, kdcNonce);
+    	myResponse.Add(GroupcommParameters.KDC_NONCE, kdcNonce);
     	
     	CBORObject authCred = CBORObject.FromObject(targetedGroup.getGmAuthCred());
     	
-    	myResponse.Add(Constants.KDC_CRED, authCred);
+    	myResponse.Add(GroupcommParameters.KDC_CRED, authCred);
     	
     	PrivateKey gmPrivKey;
 		try {
@@ -188,7 +188,7 @@ public class GroupOSCORESubResourceKdcCred extends CoapResource {
     	byte[] gmSignature = Util.computeSignature(signKeyCurve, gmPrivKey, kdcNonce);
 
     	if (gmSignature != null) {
-    		myResponse.Add(Constants.KDC_CRED_VERIFY, gmSignature);
+    		myResponse.Add(GroupcommParameters.KDC_CRED_VERIFY, gmSignature);
     	}
     	else {
 			exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,

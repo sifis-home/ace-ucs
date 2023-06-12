@@ -35,7 +35,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Constants for use with ACE Groupcomm.
+ * Constants for use with ACE Groupcomm
  * 
  * @author Marco Tiloca
  *
@@ -108,4 +108,142 @@ public class GroupcommParameters {
     	return validRoleCombinations;
     }
 	
+    /**
+     * Value for the application profile "coap_group_oscore_app"
+     */
+    public static final short COAP_GROUP_OSCORE_APP = 1;
+    
+    
+    /**
+     * Value for the group key type "Group_OSCORE_Input_Material object"
+     */
+    public static final short GROUP_OSCORE_INPUT_MATERIAL_OBJECT = 1;
+        
+    
+    /**
+	 * CBOR abbreviations for the CoAP Content-Format application/ace-groupcomm+cbor =================================
+	 */
+    
+    // Defined in draft-ietf-ace-key-groupcomm
+    
+    public static final short ERROR = 0;
+    
+    public static final short ERROR_DECRIPTION = 1;
+    
+    public static final short GID = 2;
+    
+    public static final short GNAME = 3;
+    
+    public static final short GURI = 4;
+    
+    public static final short SCOPE = 5;
+    
+    public static final short GET_CREDS = 6;
+    
+    public static final short CLIENT_CRED = 7;
+    
+    public static final short CNONCE = 8;
+    
+    public static final short CLIENT_CRED_VERIFY = 9;
+    
+    public static final short CREDS_REPO = 10;
+    
+    public static final short CONTROL_URI = 11;
+    
+    public static final short GKTY = 12;
+    
+    public static final short KEY = 13;
+    
+    public static final short NUM = 14;
+    
+    public static final short ACE_GROUPCOMM_PROFILE = 15;
+    
+    public static final short EXP = 16;
+    
+    public static final short CREDS = 17;
+    
+    public static final short PEER_ROLES = 18;
+    
+    public static final short PEER_IDENTIFIERS = 19;
+    
+    public static final short GROUP_POLICIES = 20;
+    
+    public static final short KDC_CRED = 21;
+    
+    public static final short KDC_NONCE = 22;
+    
+    public static final short KDC_CRED_VERIFY = 23;
+    
+    public static final short REKEYING_SCHEME = 24;
+    
+    public static final short MGT_KEY_MATERIAL = 25;
+    
+    public static final short CONTROL_GROUP_URI = 26;
+    
+    public static final short SIGN_INFO = 27;
+    
+    public static final short KDCCHALLENGE = 28;
+
+    
+    // Defined in draft-ietf-ace-key-groupcomm-oscore
+    
+    public static final short GROUP_SENDER_ID = 29;
+    
+    public static final short ECDH_INFO = 30;
+    
+    public static final short KDC_DH_CREDS = 31;
+    
+    public static final short GROUP_ENC_KEY = 32;
+    
+    public static final short STALE_NODE_IDS = 33;
+    
+   
+    // Defined in draft-ietf-ace-oscore-gm-admin
+    
+    public static final short HKDF = 34;
+    
+    public static final short CRED_FMT = 35;
+    
+    public static final short GROUP_MODE = 36;
+    
+    public static final short SIGN_ENC_ALG = 37;
+    
+    public static final short SIGN_ALG = 38;
+    
+    public static final short SIGN_PARAMS = 39;
+    
+    public static final short PAIRWISE_MODE = 40;
+    
+    public static final short ALG = 41;
+    
+    public static final short ECDH_ALG = 42;
+    
+    public static final short ECDH_PARAMS = 43;
+    
+    public static final short DET_REQ = 44;
+    
+    public static final short DET_HASH_ALG = 45;
+    
+    public static final short RT = 46;
+    
+    public static final short ACTIVE = 47;
+    
+    public static final short GROUP_NAME = 48;
+    
+    public static final short GROUP_TITLE = 49;
+    
+    public static final short MAX_STALE_SETS = 50;
+    
+    public static final short GID_REUSE = 51;
+    
+    public static final short APP_GROUPS = 52;
+    
+    public static final short JOINING_URI = 53;
+    
+    public static final short AS_URI = 54;
+    
+    public static final short CONF_FILTER = 55;
+    
+    public static final short APP_GROUP_DIFF = 56;
+    
 }

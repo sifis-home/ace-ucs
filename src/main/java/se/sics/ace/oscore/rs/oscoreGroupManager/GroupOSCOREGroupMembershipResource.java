@@ -160,7 +160,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	CBORObject myResponse = CBORObject.NewMap();
     	
     	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
-    	myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
+    	myResponse.Add(GroupcommParameters.GKTY, CBORObject.FromObject(GroupcommParameters.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
     	
     	// This map is filled as the Group_OSCORE_Input_Material object
     	CBORObject myMap = CBORObject.NewMap();
@@ -186,17 +186,17 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
         	if (targetedGroup.getEcdhParams().size() != 0)
         		myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_params, targetedGroup.getEcdhParams());
     	}
-    	myResponse.Add(Constants.KEY, myMap);
+    	myResponse.Add(GroupcommParameters.KEY, myMap);
     	
     	// The current version of the symmetric keying material
-    	myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+    	myResponse.Add(GroupcommParameters.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
     	
     	// CBOR Value assigned to the coap_group_oscore profile.
-    	myResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(Constants.COAP_GROUP_OSCORE_APP));
+    	myResponse.Add(GroupcommParameters.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(GroupcommParameters.COAP_GROUP_OSCORE_APP));
     	
     	// Expiration time in seconds, after which the OSCORE Security Context
     	// derived from the 'k' parameter is not valid anymore.
-    	myResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
+    	myResponse.Add(GroupcommParameters.EXP, CBORObject.FromObject(1000000));
 
     	byte[] responsePayload = myResponse.EncodeToBytes();
     	
@@ -240,7 +240,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	    CBORObject responseMap = CBORObject.NewMap();
             byte[] rsnonce = new byte[8];
             new SecureRandom().nextBytes(rsnonce);
-            responseMap.Add(Constants.KDCCHALLENGE, rsnonce);
+            responseMap.Add(GroupcommParameters.KDCCHALLENGE, rsnonce);
             TokenRepository.getInstance().setRsnonce(subject, Base64.getEncoder().encodeToString(rsnonce));
             byte[] responsePayload = responseMap.EncodeToBytes();
         	exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
@@ -307,7 +307,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
 	    	// 'cred_fmt' element
 	    	signInfoEntry.Add(targetedGroup.getAuthCredFormat());
 		    signInfo.Add(signInfoEntry);
-		    errorResponseMap.Add(Constants.SIGN_INFO, signInfo);
+		    errorResponseMap.Add(GroupcommParameters.SIGN_INFO, signInfo);
     	}
     	
     	// The pairwise mode is used
@@ -333,7 +333,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
 	    	// 'cred_fmt' element
 	    	ecdhInfoEntry.Add(targetedGroup.getAuthCredFormat());
 		    ecdhInfo.Add(ecdhInfoEntry);
-		    errorResponseMap.Add(Constants.ECDH_INFO, ecdhInfo);
+		    errorResponseMap.Add(GroupcommParameters.ECDH_INFO, ecdhInfo);
     	}
 	    
 	    
@@ -357,7 +357,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	// of the GroupOSCOREJoinValidator used as Scope/Audience Validator.
     	
     	// Retrieve scope
-    	CBORObject scope = joinRequest.get(CBORObject.FromObject(Constants.SCOPE));
+    	CBORObject scope = joinRequest.get(CBORObject.FromObject(GroupcommParameters.SCOPE));
     	
     	// Scope must be included for joining OSCORE groups
     	if (scope == null) {
@@ -493,7 +493,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	
     	// Retrieve 'get_creds'
     	// If present, this parameter must be a CBOR array or the CBOR simple value Null
-    	CBORObject getCreds = joinRequest.get(CBORObject.FromObject((Constants.GET_CREDS)));
+    	CBORObject getCreds = joinRequest.get(CBORObject.FromObject((GroupcommParameters.GET_CREDS)));
     	if (getCreds != null) {
     		
     		// Invalid format of 'get_creds'
@@ -564,7 +564,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	}
 
     	// Retrieve 'client_cred'
-    	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
+    	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(GroupcommParameters.CLIENT_CRED));
     	
     	if (clientCred == null && (roleSet != (1 << GroupcommParameters.GROUP_OSCORE_MONITOR))) {
     		
@@ -680,7 +680,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     		}
     		
     		// Retrieve the proof-of-possession nonce and evidence from the Client
-    		CBORObject cnonce = joinRequest.get(CBORObject.FromObject(Constants.CNONCE));
+    		CBORObject cnonce = joinRequest.get(CBORObject.FromObject(GroupcommParameters.CNONCE));
         	
     		// A client nonce must be included for proof-of-possession for joining OSCORE groups
         	if (cnonce == null) {
@@ -701,7 +701,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     		// Check the proof-of-possession evidence over
         	// (scope | rsnonce | cnonce), using the Client's public key
         	CBORObject clientPopEvidence = joinRequest.
-        				get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+        				get(CBORObject.FromObject(GroupcommParameters.CLIENT_CRED_VERIFY));
         	
         	// A client PoP evidence must be included
         	if (clientPopEvidence == null) {
@@ -859,7 +859,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	CBORObject joinResponse = CBORObject.NewMap();
     	
     	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
-    	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
+    	joinResponse.Add(GroupcommParameters.GKTY, CBORObject.FromObject(GroupcommParameters.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
     	
     	// This map is filled as the Group_OSCORE_Input_Material object
     	CBORObject myMap = CBORObject.NewMap();
@@ -888,7 +888,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	    if (targetedGroup.getEcdhParams().size() != 0)
     	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_params, targetedGroup.getEcdhParams());
     	}
-    	joinResponse.Add(Constants.KEY, myMap);
+    	joinResponse.Add(GroupcommParameters.KEY, myMap);
     	
     	// If backward security has to be preserved:
     	//
@@ -898,14 +898,14 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	// 2) The OSCORE group should be rekeyed
 
     	// The current version of the symmetric keying material
-    	joinResponse.Add(Constants.NUM, CBORObject.FromObject(myGroup.getVersion()));
+    	joinResponse.Add(GroupcommParameters.NUM, CBORObject.FromObject(myGroup.getVersion()));
     	
     	// CBOR Value assigned to the coap_group_oscore profile.
-    	joinResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(Constants.COAP_GROUP_OSCORE_APP));
+    	joinResponse.Add(GroupcommParameters.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(GroupcommParameters.COAP_GROUP_OSCORE_APP));
     	
     	// Expiration time in seconds, after which the OSCORE Security Context
     	// derived from the 'k' parameter is not valid anymore.
-    	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
+    	joinResponse.Add(GroupcommParameters.EXP, CBORObject.FromObject(1000000));
 
     	if (provideAuthCreds) {
 
@@ -956,9 +956,9 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
 
     		}
     		    			
-    		joinResponse.Add(Constants.CREDS, authCredsArray);
-			joinResponse.Add(Constants.PEER_ROLES, peerRoles);
-			joinResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
+    		joinResponse.Add(GroupcommParameters.CREDS, authCredsArray);
+			joinResponse.Add(GroupcommParameters.PEER_ROLES, peerRoles);
+			joinResponse.Add(GroupcommParameters.PEER_IDENTIFIERS, peerIdentifiers);
     			
     		
     		// Debug:
@@ -976,17 +976,17 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	}
     	
     	// Group Policies
-    	joinResponse.Add(Constants.GROUP_POLICIES, myGroup.getGroupPolicies());
+    	joinResponse.Add(GroupcommParameters.GROUP_POLICIES, myGroup.getGroupPolicies());
     	
     	
     	// Authentication Credential of the Group Manager together with proof-of-possession evidence
     	byte[] kdcNonce = new byte[8];
     	new SecureRandom().nextBytes(kdcNonce);
-    	joinResponse.Add(Constants.KDC_NONCE, kdcNonce);
+    	joinResponse.Add(GroupcommParameters.KDC_NONCE, kdcNonce);
     	
     	CBORObject authCred = CBORObject.FromObject(targetedGroup.getGmAuthCred());
     	
-    	joinResponse.Add(Constants.KDC_CRED, authCred);
+    	joinResponse.Add(GroupcommParameters.KDC_CRED, authCred);
     	
     	PrivateKey gmPrivKey;
 		try {
@@ -1000,7 +1000,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	byte[] gmSignature = Util.computeSignature(signKeyCurve,gmPrivKey, kdcNonce);
 
     	if (gmSignature != null) {
-    	    joinResponse.Add(Constants.KDC_CRED_VERIFY, gmSignature);
+    	    joinResponse.Add(GroupcommParameters.KDC_CRED_VERIFY, gmSignature);
     	}
     	else {
 			exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,

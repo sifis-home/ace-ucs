@@ -47,8 +47,8 @@ import COSE.AlgorithmID;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.Util;
-import se.sics.ace.Constants;
 import se.sics.ace.GroupcommParameters;
+import se.sics.ace.GroupcommPolicies;
 import se.sics.ace.Hkdf;
 
 /**
@@ -240,8 +240,8 @@ public class GroupInfo {
     	if (groupPolicies == null) {
     		// Set default policy values
         	CBORObject defaultGroupPolicies = CBORObject.NewMap();
-        	defaultGroupPolicies.Add(Constants.POLICY_KEY_CHECK_INTERVAL, CBORObject.FromObject(3600));
-        	defaultGroupPolicies.Add(Constants.POLICY_EXP_DELTA, CBORObject.FromObject(0));
+        	defaultGroupPolicies.Add(GroupcommPolicies.KEY_CHECK_INTERVAL, CBORObject.FromObject(3600));
+        	defaultGroupPolicies.Add(GroupcommPolicies.EXP_DELTA, CBORObject.FromObject(0));
         	this.groupPolicies = defaultGroupPolicies;
     	}
     	

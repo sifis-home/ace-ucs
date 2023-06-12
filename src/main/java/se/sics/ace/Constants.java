@@ -610,17 +610,6 @@ public class Constants {
      */
     public static final String[] GRANT_TYPES = {"password", 
             "authorization_code", "client_credentials", "refresh_token"};
-
-    
-    /**
-     * The abbreviation code for the DTLS profile
-     */
-    public static final short COAP_DTLS = 1;
-    
-    /**
-     * The abbreviation code for the OSCORE profile
-     */
-    public static final short COAP_OSCORE = 2;
     
     /**
      * Value for the label "nonce1" in the Token POST request for the OSCORE profile
@@ -641,6 +630,38 @@ public class Constants {
      * Value for the label "ace_server_recipientid" in the Token POST request for the OSCORE profile
      */
     public static final short ACE_SERVER_RECIPIENTID = 44;
+    
+    /**
+     * Value for the label "sign_info" in the Token POST request/response with Content-Format application/ace+cbor
+     */
+    public static final short SIGN_INFO = 90;
+
+    /**
+     * Value for the label "kdcchallenge" in the Token POST request/response with Content-Format application/ace+cbor
+     */
+    public static final short KDCCHALLENGE = 91;
+
+    /**
+     * Value for the label "ecdh_info" in the Token POST request/response with Content-Format application/ace+cbor
+     */
+    public static final short ECDH_INFO = 92;
+
+    /**
+     * Value for the label "kdc_dh_creds" in the Token POST request/response with Content-Format application/ace+cbor
+     */
+    public static final short KDC_DH_CREDS = 93;
+    
+    
+    
+    /**
+     * The abbreviation code for the DTLS profile, as value of the ace_profile parameter/claim
+     */
+    public static final short COAP_DTLS = 1;
+    
+    /**
+     * The abbreviation code for the OSCORE profile, as value of the ace_profile parameter/claim
+     */
+    public static final short COAP_OSCORE = 2;
     
     /**
      * Return the abbreviated profile id for the full profile name.
@@ -866,7 +887,6 @@ public class Constants {
     public static final short iPATCH = 7;
     
     
-
     /**
      * Content-Format ace+cbor
      */
@@ -877,158 +897,6 @@ public class Constants {
      */
     public static final int APPLICATION_ACE_GROUPCOMM_CBOR = 65001;
     
-    
-
-    
-     /**
-      * Value for the label "get_creds" in the Join Request message
-      */
-     public static final short GET_CREDS = 101;
-     
-     /**
-      * Value for the label "client_cred" in the Join Request message
-      */
-     public static final short CLIENT_CRED = 102;
-     
-     /**
-      * Value for the label "client_cred_verify" in the Join Request message
-      */
-     public static final short CLIENT_CRED_VERIFY = 103;
-     
-     /**
-      * Value for the label "gkty" in the Join Response message
-      */
-     public static final short GKTY = 1;
-     
-     /**
-      * Value for the label "key" in the Join Response message
-      */
-     public static final short KEY = 2;
-     
-     /**
-      * Value for the label "creds" in the Join Response message
-      */
-     public static final short CREDS = 3;
-     
-     /**
-      * Value for the label "ace-groupcomm-profile" in the Join Response message
-      */
-     public static final short ACE_GROUPCOMM_PROFILE = 38;
-     
-     /**
-      * Value for the label "sign_info" in the Token POST request/response and in the error response to the Join Request
-      */
-     public static final short SIGN_INFO = 203;
-     
-     /**
-      * Value for the label "ecdh_info" in the Token POST request/response and in the error response to the Join Request
-      */
-     public static final short ECDH_INFO = 204;
-     
-     /**
-      * Value for the label "kdc_dh_creds" in the Token POST request/response and in the error response to the Join Request
-      */
-     public static final short KDC_DH_CREDS = 205;
-     
-     /**
-      * Value for the label "kdcchallenge" in the Token POST response
-      */
-     public static final short KDCCHALLENGE = 206;
-     
-     /**
-      * Value for the label "num" in the Join Response message
-      */
-     public static final short NUM = 207;
-     
-     /**
-      * Value for the label "group_policies" in the Join Response message
-      */
-     public static final short GROUP_POLICIES = 208;
-     
-     /**
-      * Value for the label "peer_roles" in the Join Response message
-      */
-     public static final short PEER_ROLES = 209;
-     
-     /**
-      * Value for the label "peer_identifiers" in the Join Response message
-      */
-     public static final short PEER_IDENTIFIERS = 210;
-     
-     /**
-      * Value for the label "kdc_nonce" in the Join Response message
-      */
-     public static final short KDC_NONCE = 211;
-     
-     /**
-      * Value for the label "kdc_cred" in the Join Response message
-      */
-     public static final short KDC_CRED = 212;
-     
-     /**
-      * Value for the label "kdc_cred_verify" in the Join Response message
-      */
-     public static final short KDC_CRED_VERIFY = 213;
-     
-     /**
-      * Value for the label "group_senderId" in the Key Renewal Response message
-      */
-     public static final short GROUP_SENDER_ID = 214;
-     
-     /**
-      * Value for the label "gid" in the Group Name and URI Retrieval Request/Response message
-      */
-     public static final short GID = 215;
-     
-     /**
-      * Value for the label "gname" in the Group Name and URI Retrieval Response message
-      */
-     public static final short GNAME = 216;
-     
-     /**
-      * Value for the label "guri" in the Group Name and URI Retrieval Response message
-      */
-     public static final short GURI = 217;
-     
-     /**
-      * Value for the label "group_enc_key" in the Signature Verification Data Response message
-      */
-     public static final short GROUP_ENC_KEY = 218;
-     
-     
-     /**
-      * Value for the group key type "Group_OSCORE_Input_Material object"
-      */
-     public static final short GROUP_OSCORE_INPUT_MATERIAL_OBJECT = 1;
-     
-     /**
-      * Value for the application profile "coap_group_oscore_app"
-      */
-     public static final short COAP_GROUP_OSCORE_APP = 1;
-     
-     
-     /* Values for labels of group policies */
-     /**
-      * Value for the label of "Sequence Number Synchronization Method"
-      * 
-      * This policy is not used by this application profile
-      */
-     public static final short POLICY_SN_SYNCH = 1;
-     
-     /**
-      * Value for the label of "Key Update Check Interval"
-      * 
-      * Default: 3600 s
-      */
-     public static final short POLICY_KEY_CHECK_INTERVAL = 2;
-     
-     /**
-      * Value for the label of "Expiration delta"
-      * 
-      * Default: 0 s
-      */
-     public static final short POLICY_EXP_DELTA = 3;
-     
      
      /**
       * COSE Header Parameters

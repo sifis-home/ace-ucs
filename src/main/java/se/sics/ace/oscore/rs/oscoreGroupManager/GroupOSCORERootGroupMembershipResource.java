@@ -48,6 +48,7 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.oscore.GroupInfo;
@@ -114,23 +115,23 @@ public class GroupOSCORERootGroupMembershipResource extends CoapResource {
     	}
     	
     	// The CBOR Map must include exactly one element, i.e. 'gid'
-    	if ((requestCBOR.size() != 1) || (!requestCBOR.ContainsKey(Constants.GID))) {
+    	if ((requestCBOR.size() != 1) || (!requestCBOR.ContainsKey(GroupcommParameters.GID))) {
 			exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
 							 "Invalid payload format");
     		return;
     	}
     	
     	// The 'gid' element must be a CBOR array, with at least one element
-    	if (requestCBOR.get(Constants.GID).getType() != CBORType.Array ||
-    		requestCBOR.get(Constants.GID).size() == 0) {
+    	if (requestCBOR.get(GroupcommParameters.GID).getType() != CBORType.Array ||
+    		requestCBOR.get(GroupcommParameters.GID).size() == 0) {
 			exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
 							 "Invalid payload format");
     		return;
     	}
     	
     	// Each element of 'gid' element must be a CBOR byte string
-    	for (int i = 0 ; i < requestCBOR.get(Constants.GID).size(); i++) {
-        	if (requestCBOR.get(Constants.GID).get(i).getType() != CBORType.ByteString) {
+    	for (int i = 0 ; i < requestCBOR.get(GroupcommParameters.GID).size(); i++) {
+        	if (requestCBOR.get(GroupcommParameters.GID).get(i).getType() != CBORType.ByteString) {
 				exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
 								 "Invalid payload format");
 	    		return;
@@ -138,8 +139,8 @@ public class GroupOSCORERootGroupMembershipResource extends CoapResource {
     	}
     	    		
 		List<CBORObject> inputGroupIds = new ArrayList<CBORObject> ();
-		for (int i = 0; i < requestCBOR.get(Constants.GID).size(); i++) {
-			inputGroupIds.add(requestCBOR.get(Constants.GID).get(i));
+		for (int i = 0; i < requestCBOR.get(GroupcommParameters.GID).size(); i++) {
+			inputGroupIds.add(requestCBOR.get(GroupcommParameters.GID).get(i));
 		}
 		
 		List<String> preliminaryGroupNames = new ArrayList<String>();
@@ -227,9 +228,9 @@ public class GroupOSCORERootGroupMembershipResource extends CoapResource {
     			guriArray.Add(finalGroupURIs.get(i));
     		}
     		
-    		myResponse.Add(Constants.GID, gidArray);
-    		myResponse.Add(Constants.GNAME, gnameArray);
-    		myResponse.Add(Constants.GURI, guriArray);
+    		myResponse.Add(GroupcommParameters.GID, gidArray);
+    		myResponse.Add(GroupcommParameters.GNAME, gnameArray);
+    		myResponse.Add(GroupcommParameters.GURI, guriArray);
     		
     		responsePayload = myResponse.EncodeToBytes();
         	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);

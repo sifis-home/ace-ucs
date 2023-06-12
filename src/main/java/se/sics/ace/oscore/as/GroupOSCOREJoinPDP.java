@@ -47,7 +47,6 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.PDP;
-import se.sics.ace.Constants;
 import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.examples.SQLConnector;

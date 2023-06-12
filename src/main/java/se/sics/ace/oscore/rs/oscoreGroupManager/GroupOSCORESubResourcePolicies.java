@@ -44,6 +44,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.oscore.GroupInfo;
 
@@ -129,7 +130,7 @@ public class GroupOSCORESubResourcePolicies extends CoapResource {
     	}
     	else {
     		myResponse = CBORObject.NewMap();
-    		myResponse.Add(Constants.GROUP_POLICIES, groupPolicies);
+    		myResponse.Add(GroupcommParameters.GROUP_POLICIES, groupPolicies);
     	}
     	
     	byte[] responsePayload = myResponse.EncodeToBytes();

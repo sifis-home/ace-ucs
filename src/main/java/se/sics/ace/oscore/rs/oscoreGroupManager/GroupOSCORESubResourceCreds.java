@@ -181,11 +181,11 @@ public class GroupOSCORESubResourceCreds extends CoapResource {
 			
 		}
 		
-		myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+		myResponse.Add(GroupcommParameters.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
 
-		myResponse.Add(Constants.CREDS, authCredsArray);			
-		myResponse.Add(Constants.PEER_ROLES, peerRoles);
-		myResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
+		myResponse.Add(GroupcommParameters.CREDS, authCredsArray);			
+		myResponse.Add(GroupcommParameters.PEER_ROLES, peerRoles);
+		myResponse.Add(GroupcommParameters.PEER_IDENTIFIERS, peerIdentifiers);
 
     	byte[] responsePayload = myResponse.EncodeToBytes();
     	
@@ -293,7 +293,7 @@ public class GroupOSCORESubResourceCreds extends CoapResource {
     	}
 
     	// The CBOR Map must include exactly one element, i.e. 'get_creds'
-    	if ((requestCBOR.size() != 1) || (!requestCBOR.ContainsKey(Constants.GET_CREDS))) {
+    	if ((requestCBOR.size() != 1) || (!requestCBOR.ContainsKey(GroupcommParameters.GET_CREDS))) {
     		valid = false;
     		
     	}
@@ -306,7 +306,7 @@ public class GroupOSCORESubResourceCreds extends CoapResource {
 		
     	// Retrieve 'get_creds'
     	// This parameter must be a CBOR array or the CBOR simple value Null
-    	CBORObject getCreds = requestCBOR.get(CBORObject.FromObject((Constants.GET_CREDS)));
+    	CBORObject getCreds = requestCBOR.get(CBORObject.FromObject((GroupcommParameters.GET_CREDS)));
     	
 	    // Invalid format of 'get_creds'
 	    if (!getCreds.getType().equals(CBORType.Array) && !getCreds.equals(CBORObject.Null)) {
@@ -486,11 +486,11 @@ public class GroupOSCORESubResourceCreds extends CoapResource {
     		}
 		}
 		
-		myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+		myResponse.Add(GroupcommParameters.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
 		
-		myResponse.Add(Constants.CREDS, authCredsArray);
-		myResponse.Add(Constants.PEER_ROLES, peerRoles);
-		myResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
+		myResponse.Add(GroupcommParameters.CREDS, authCredsArray);
+		myResponse.Add(GroupcommParameters.PEER_ROLES, peerRoles);
+		myResponse.Add(GroupcommParameters.PEER_IDENTIFIERS, peerIdentifiers);
     	
     	byte[] responsePayload = myResponse.EncodeToBytes();
     	

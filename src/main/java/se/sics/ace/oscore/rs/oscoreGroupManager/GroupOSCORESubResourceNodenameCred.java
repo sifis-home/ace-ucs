@@ -164,26 +164,26 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
     	    return;
     	}
     	
-    	if (!AuthCredUpdateRequest.ContainsKey(Constants.CLIENT_CRED)) {
+    	if (!AuthCredUpdateRequest.ContainsKey(GroupcommParameters.CLIENT_CRED)) {
     	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
     	    				 "Missing parameter: 'client_cred'");
     	    return;
     	}
     	
-    	if (!AuthCredUpdateRequest.ContainsKey(Constants.CNONCE)) {
+    	if (!AuthCredUpdateRequest.ContainsKey(GroupcommParameters.CNONCE)) {
     	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
     	    				 "Missing parameter: 'cnonce'");
     	    return;
     	}
     	
-    	if (!AuthCredUpdateRequest.ContainsKey(Constants.CLIENT_CRED_VERIFY)) {
+    	if (!AuthCredUpdateRequest.ContainsKey(GroupcommParameters.CLIENT_CRED_VERIFY)) {
     	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
     	    				 "Missing parameter: 'client_cred_verify'");
     	    return;
     	}
     	
     	// Retrieve 'client_cred'
-    	CBORObject clientCred = AuthCredUpdateRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
+    	CBORObject clientCred = AuthCredUpdateRequest.get(CBORObject.FromObject(GroupcommParameters.CLIENT_CRED));
     	
 		// client_cred cannot be Null
 		if (clientCred == null) {
@@ -284,7 +284,7 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
 		}
     	
 		// Retrieve the proof-of-possession nonce from the Client
-		CBORObject cnonce = AuthCredUpdateRequest.get(CBORObject.FromObject(Constants.CNONCE));
+		CBORObject cnonce = AuthCredUpdateRequest.get(CBORObject.FromObject(GroupcommParameters.CNONCE));
 
 		// A client nonce must be included for proof-of-possession
 		if (cnonce == null) {
@@ -303,7 +303,7 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
 		
 		
 		// Check the PoP evidence over (scope | rsnonce | cnonce), using the Client's public key
-		CBORObject clientPopEvidence = AuthCredUpdateRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+		CBORObject clientPopEvidence = AuthCredUpdateRequest.get(CBORObject.FromObject(GroupcommParameters.CLIENT_CRED_VERIFY));
 
 		// A client PoP evidence must be included
 		if (clientPopEvidence == null) {
@@ -350,7 +350,7 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
     	    CBORObject responseMap = CBORObject.NewMap();
             byte[] rsnonce = new byte[8];
             new SecureRandom().nextBytes(rsnonce);
-            responseMap.Add(Constants.KDCCHALLENGE, rsnonce);
+            responseMap.Add(GroupcommParameters.KDCCHALLENGE, rsnonce);
             TokenRepository.getInstance().setRsnonce(subject, Base64.getEncoder().encodeToString(rsnonce));
             byte[] responsePayload = responseMap.EncodeToBytes();
         	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, responsePayload, Constants.APPLICATION_ACE_CBOR);

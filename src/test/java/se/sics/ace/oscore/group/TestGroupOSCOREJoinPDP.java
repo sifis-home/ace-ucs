@@ -53,7 +53,6 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;

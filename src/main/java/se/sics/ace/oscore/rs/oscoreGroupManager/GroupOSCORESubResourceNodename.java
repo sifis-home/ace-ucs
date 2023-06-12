@@ -135,7 +135,7 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	CBORObject myResponse = CBORObject.NewMap();
     	
     	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
-    	myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
+    	myResponse.Add(GroupcommParameters.GKTY, CBORObject.FromObject(GroupcommParameters.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
     	
     	// This map is filled as the Group_OSCORE_Input_Material object
     	CBORObject myMap = CBORObject.NewMap();
@@ -173,17 +173,17 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	    if (targetedGroup.getEcdhParams().size() != 0)
     	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_params, targetedGroup.getEcdhParams());
     	}
-    	myResponse.Add(Constants.KEY, myMap);
+    	myResponse.Add(GroupcommParameters.KEY, myMap);
     	
     	// The current version of the symmetric keying material
-    	myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+    	myResponse.Add(GroupcommParameters.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
     	
     	// CBOR Value assigned to the coap_group_oscore profile.
-    	myResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(Constants.COAP_GROUP_OSCORE_APP));
+    	myResponse.Add(GroupcommParameters.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(GroupcommParameters.COAP_GROUP_OSCORE_APP));
     	
     	// Expiration time in seconds, after which the OSCORE Security Context
     	// derived from the 'k' parameter is not valid anymore.
-    	myResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
+    	myResponse.Add(GroupcommParameters.EXP, CBORObject.FromObject(1000000));
     	
     	byte[] responsePayload = myResponse.EncodeToBytes();
     	
@@ -301,7 +301,7 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	CBORObject myResponse = CBORObject.NewMap();
     	
     	// The new Sender ID assigned to the group member
-    	myResponse.Add(Constants.GROUP_SENDER_ID, CBORObject.FromObject(senderId));
+    	myResponse.Add(GroupcommParameters.GROUP_SENDER_ID, CBORObject.FromObject(senderId));
     	        	
     	byte[] responsePayload = myResponse.EncodeToBytes();
     	
