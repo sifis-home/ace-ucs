@@ -65,6 +65,7 @@ import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
@@ -338,7 +339,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         cborArrayEntry.Add(groupName);
         
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
         cborArrayScope.Add(cborArrayEntry);
@@ -540,7 +541,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         cborArrayScope.Add(groupName);
 
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
                 
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -555,10 +556,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
             getCreds.Add(CBORObject.NewArray());
             // The following is required to retrieve the authentication credentials of both the already present group members 
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getCreds.get(1).Add(myRoles);
             
         	getCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -1071,8 +1072,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
         cborArrayEntry.Add(groupName);
         
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
         cborArrayScope.Add(cborArrayEntry);
@@ -1272,8 +1273,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
         cborArrayScope.Add(groupName);
         
     	myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
         
         byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1288,10 +1289,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
             getCreds.Add(CBORObject.NewArray());
             // The following is required to retrieve the authentication credentials of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getCreds.get(1).Add(myRoles);
             
         	getCreds.Add(CBORObject.NewArray()); // This must be empty

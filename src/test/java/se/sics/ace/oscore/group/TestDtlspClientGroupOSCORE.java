@@ -74,6 +74,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.TestConfig;
 import se.sics.ace.Util;
 import se.sics.ace.coap.client.DTLSProfileRequests;
@@ -306,7 +307,7 @@ public class TestDtlspClientGroupOSCORE {
         String nodeResourceLocationPath = "";
         
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	scopeEntry.Add(myRoles);
     	
         cborArrayScope.Add(scopeEntry);
@@ -569,7 +570,7 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(groupName);
         
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
     	
         byteStringScope = cborArrayScope.EncodeToBytes();
@@ -585,10 +586,10 @@ public class TestDtlspClientGroupOSCORE {
             
             // The following is required to retrieve the authentication credentials of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getCreds.get(1).Add(myRoles);
             
         	getCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -925,11 +926,11 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             int expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
             expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         	
         }
@@ -1400,12 +1401,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         int expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
         
@@ -1433,8 +1434,8 @@ public class TestDtlspClientGroupOSCORE {
         // This will have a neutral effect, by matching only the node with Sender ID = 0x77
         getCreds.Add(CBORObject.NewArray());
         myRoles = 0;
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         getCreds.get(1).Add(myRoles);
         
 
@@ -1599,12 +1600,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(2, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
 
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -2059,8 +2060,8 @@ public class TestDtlspClientGroupOSCORE {
     	String nodeResourceLocationPath = "";
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(myRoles);
     	
     	cborArrayScope.Add(scopeEntry);
@@ -2319,8 +2320,8 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(groupName);
         
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
     	
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -2336,10 +2337,10 @@ public class TestDtlspClientGroupOSCORE {
             
             // The following is required to retrieve the authentication credentials of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getCreds.get(1).Add(myRoles);
             
         	getCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -2667,12 +2668,12 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             int expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
             
             expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         	
         }
@@ -3139,12 +3140,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         int expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -3172,7 +3173,7 @@ public class TestDtlspClientGroupOSCORE {
         // as well as the authentication credential of the node with Sender ID 0x77 
         getCreds.Add(CBORObject.NewArray());
         myRoles = 0;
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         getCreds.get(1).Add(myRoles);
 
         // Ask for the authentication credentials of the other group members
@@ -3397,11 +3398,11 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -3966,7 +3967,7 @@ public class TestDtlspClientGroupOSCORE {
     	String nodeResourceLocationPath = "";
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	scopeEntry.Add(myRoles);
     	
     	cborArrayScope.Add(scopeEntry);
@@ -4222,7 +4223,7 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(groupName);
         
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
     	
         byteStringScope = cborArrayScope.EncodeToBytes();
@@ -4238,10 +4239,10 @@ public class TestDtlspClientGroupOSCORE {
             
             // The following is required to retrieve the authentication credentials of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getCreds.get(1).Add(myRoles);
             
         	getCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -4565,11 +4566,11 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             int expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
             expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         	
         }
@@ -5041,12 +5042,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         int expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
         
@@ -5074,8 +5075,8 @@ public class TestDtlspClientGroupOSCORE {
         // This will have a neutral effect, by matching only the node with Sender ID = 0x77
         getCreds.Add(CBORObject.NewArray());
         myRoles = 0;
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         getCreds.get(1).Add(myRoles);
         
 
@@ -5240,12 +5241,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(2, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
 
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -5710,8 +5711,8 @@ public class TestDtlspClientGroupOSCORE {
     	String nodeResourceLocationPath = "";
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(myRoles);
     	
     	cborArrayScope.Add(scopeEntry);
@@ -5966,8 +5967,8 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(groupName);
         
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
     	
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -5983,10 +5984,10 @@ public class TestDtlspClientGroupOSCORE {
             
             // The following is required to retrieve the authentication credentials of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getCreds.get(1).Add(myRoles);
             
         	getCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -6315,12 +6316,12 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             int expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
             
             expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         	
         }
@@ -6786,12 +6787,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         int expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -6820,7 +6821,7 @@ public class TestDtlspClientGroupOSCORE {
         // as well as the authentication credential of the node with Sender ID 0x77
         getCreds.Add(CBORObject.NewArray());
         myRoles = 0;
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         getCreds.get(1).Add(myRoles);
 
         // Ask for the public keys of the other group members
@@ -7045,11 +7046,11 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -7564,7 +7565,7 @@ public class TestDtlspClientGroupOSCORE {
         scopeEntry.Add(groupName);
         
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	scopeEntry.Add(myRoles);
         
         cborArrayScope.Add(scopeEntry);
@@ -7631,8 +7632,8 @@ public class TestDtlspClientGroupOSCORE {
     	scopeEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(myRoles);
     	
     	cborArrayScope.Add(scopeEntry);
@@ -7749,7 +7750,7 @@ public class TestDtlspClientGroupOSCORE {
         String nodeResourceLocationPath = "";
         
         int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	scopeEntry.Add(myRoles);
         
         cborArrayScope.Add(scopeEntry);
@@ -8010,7 +8011,7 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(groupName);
         
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
         
         byteStringScope = cborArrayScope.EncodeToBytes();
@@ -8027,10 +8028,10 @@ public class TestDtlspClientGroupOSCORE {
             // The following is required to retrieve the
             // authentication credentials of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getCreds.get(1).Add(myRoles);
             
         	getCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -8351,11 +8352,11 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             int expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
             expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         	
         }
@@ -8827,12 +8828,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         int expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
         
@@ -8860,8 +8861,8 @@ public class TestDtlspClientGroupOSCORE {
         // This will have a neutral effect, by matching only the node with Sender ID = 0x77
         getCreds.Add(CBORObject.NewArray());
         myRoles = 0;
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         getCreds.get(1).Add(myRoles);
         
 
@@ -9027,12 +9028,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(2, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
 
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -9476,8 +9477,8 @@ public class TestDtlspClientGroupOSCORE {
         nodeResourceLocationPath = "";
         
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER); // Allow this role too
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER); // Allow this role too
     	scopeEntry.Add(myRoles);
         
         cborArrayScope.Add(scopeEntry);
@@ -9615,8 +9616,8 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(groupName);
         
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER); // Now this role is also allowed
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER); // Now this role is also allowed
     	cborArrayScope.Add(myRoles);
         
         byteStringScope = cborArrayScope.EncodeToBytes();
@@ -9636,10 +9637,10 @@ public class TestDtlspClientGroupOSCORE {
             
             // The following is required to retrieve the authentication credentials of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getCreds.get(1).Add(myRoles);
             
         	getCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -9952,12 +9953,12 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
             
             expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         	
         }
@@ -10058,8 +10059,8 @@ public class TestDtlspClientGroupOSCORE {
         String nodeResourceLocationPath = "";
         
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(myRoles);
     	
     	cborArrayScope.Add(scopeEntry);
@@ -10317,8 +10318,8 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(groupName);
         
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
     	
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -10335,10 +10336,10 @@ public class TestDtlspClientGroupOSCORE {
             // The following is required to retrieve the
             // authentication credentials of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getCreds.get(1).Add(myRoles);
             
         	getCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -10666,12 +10667,12 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             int expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
             
             expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         	
         }
@@ -11146,12 +11147,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         int expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -11179,7 +11180,7 @@ public class TestDtlspClientGroupOSCORE {
         // the authentication credential of the node with Sender ID 0x77 
         getCreds.Add(CBORObject.NewArray());
         myRoles = 0;
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         getCreds.get(1).Add(myRoles);
 
         // Ask for the authentication credentials of the other group members
@@ -11404,11 +11405,11 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         

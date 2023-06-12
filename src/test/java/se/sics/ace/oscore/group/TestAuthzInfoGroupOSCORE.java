@@ -64,6 +64,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.TestConfig;
@@ -225,7 +226,7 @@ public class TestAuthzInfoGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HMAC_SHA_256;
         final int credFmt = Constants.COSE_HEADER_PARAM_CCS;
         
-        int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
+        int mode = GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY;
 
         final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
         AlgorithmID signAlg = null;
@@ -779,7 +780,7 @@ public class TestAuthzInfoGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -845,8 +846,8 @@ public class TestAuthzInfoGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     		
     	cborArrayScope.Add(cborArrayEntry);
@@ -914,7 +915,7 @@ public class TestAuthzInfoGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -965,8 +966,8 @@ public class TestAuthzInfoGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);

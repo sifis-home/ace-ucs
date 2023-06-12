@@ -33,9 +33,7 @@ package se.sics.ace;
 
 import java.nio.charset.Charset;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -880,70 +878,7 @@ public class Constants {
     public static final int APPLICATION_ACE_GROUPCOMM_CBOR = 65001;
     
     
-    /**
-	 * Group OSCORE abbreviations =================================
-	 */
 
-    /**
-     * The OSCORE group uses only the group mode
-     */
-    public static final short GROUP_OSCORE_GROUP_MODE_ONLY = 1;
-    
-    /**
-     * The OSCORE group uses both the group mode and the pairwise mode
-     */
-    public static final short GROUP_OSCORE_GROUP_PAIRWISE_MODE = 2;
-    
-    /**
-     * The OSCORE group uses only the pairwise mode
-     */
-    public static final short GROUP_OSCORE_PAIRWISE_MODE_ONLY = 3;
-    
-    
-    /**
-     * Requester role
-     */
-    public static final short GROUP_OSCORE_REQUESTER = 1;
-    
-    /**
-     * Responder role
-     */
-    public static final short GROUP_OSCORE_RESPONDER = 2;
-    
-    /**
-     * Monitor role
-     */
-    public static final short GROUP_OSCORE_MONITOR = 3;
-    
-    /**
-     * Verifier role
-     */
-    public static final short GROUP_OSCORE_VERIFIER = 4;
-    
-    /**
-     * Roles as strings
-     */
-    public static final String[] GROUP_OSCORE_ROLES = {"reserved", "requester", "responder", "monitor", "verifier"};
-    
-    /**
-     * Return a set of integers including the valid Group OSCORE role combinations
-	 *
-     * @return  the set of valid Group OSCORE combinations
-     */
-    public static Set<Integer> getValidGroupOSCORERoleCombinations() {
-
-    	Set<Integer> validRoleCombinations = new HashSet<Integer>();
-    	
-        // Set the valid combinations of roles in a Joining Request
-        // Combinations are expressed with the AIF specific data model AIF-OSCORE-GROUPCOMM
-        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_REQUESTER);   // Requester (2)
-        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_RESPONDER);   // Responder (4)
-        validRoleCombinations.add((1 << Constants.GROUP_OSCORE_REQUESTER) +
-        		                  (1 << Constants.GROUP_OSCORE_RESPONDER)); // Requester+Responder (6)
-        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_MONITOR);     // Monitor (8)
-    	
-    	return validRoleCombinations;
-    }
     
      /**
       * Value for the label "get_creds" in the Join Request message
@@ -1056,9 +991,9 @@ public class Constants {
      public static final short GURI = 217;
      
      /**
-      * Value for the label "group_key_enc" in the Signature Verification Data Response message
+      * Value for the label "group_enc_key" in the Signature Verification Data Response message
       */
-     public static final short GROUP_KEY_ENC = 218;
+     public static final short GROUP_ENC_KEY = 218;
      
      
      /**

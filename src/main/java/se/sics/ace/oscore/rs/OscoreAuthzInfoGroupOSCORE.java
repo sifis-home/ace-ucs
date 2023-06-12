@@ -50,6 +50,7 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.coap.CoapReq;
@@ -446,7 +447,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 		        	GroupInfo myGroup = this.activeGroups.get(groupName);
 					
 		        	// The group uses the group mode
-		        	if (provideSignInfo && myGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+		        	if (provideSignInfo && myGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 		        	
 						CBORObject signInfoEntry = CBORObject.NewArray();
 						
@@ -477,7 +478,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 		        	}
 		        	
 		        	// The group uses the pairwise mode
-		        	if (provideEcdhInfo && myGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+		        	if (provideEcdhInfo && myGroup.getMode() != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
 		        	
 						CBORObject ecdhEntry = CBORObject.NewArray();
 						

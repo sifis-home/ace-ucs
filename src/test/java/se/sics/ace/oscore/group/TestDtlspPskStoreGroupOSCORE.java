@@ -63,6 +63,7 @@ import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.TestConfig;
 import se.sics.ace.Util;
 import se.sics.ace.cwt.CWT;
@@ -158,7 +159,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HMAC_SHA_256;
         final int credFmt = Constants.COSE_HEADER_PARAM_CCS;
         
-        int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
+        int mode = GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY;
 
         final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
         AlgorithmID signAlg = null;
@@ -467,7 +468,7 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -516,8 +517,8 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -564,7 +565,7 @@ public class TestDtlspPskStoreGroupOSCORE {
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
-    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -607,8 +608,8 @@ public class TestDtlspPskStoreGroupOSCORE {
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayRoles.Add(GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(cborArrayRoles);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));

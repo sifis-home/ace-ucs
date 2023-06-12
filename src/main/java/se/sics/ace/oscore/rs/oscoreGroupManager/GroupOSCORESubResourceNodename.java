@@ -45,6 +45,7 @@ import com.upokecenter.cbor.CBORObject;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
@@ -143,7 +144,7 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
 		String myString = targetedGroup.getGroupMemberName(subject);
         
     	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) !=
-    		(1 << Constants.GROUP_OSCORE_MONITOR)) {
+    		(1 << GroupcommParameters.GROUP_OSCORE_MONITOR)) {
     		// The requester is not a monitor, hence it has a Sender ID
     		senderId = Utils.hexToBytes(myString.substring(myString.indexOf(targetedGroup.getNodeNameSeparator()) + 1));
     	}
@@ -158,14 +159,14 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
     	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
     	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cred_fmt, targetedGroup.getAuthCredFormat());
-    	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     	    // The group mode is used
     	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
     	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
     	    if (targetedGroup.getSignParams().size() != 0)
     	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
     	}
-    	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
     	    // The pairwise mode is used
     	    myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
     	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_alg, targetedGroup.getEcdhAlg().AsCBOR());
@@ -256,7 +257,7 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	}
     	
     	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) ==
-    		(1 << Constants.GROUP_OSCORE_MONITOR)) {
+    		(1 << GroupcommParameters.GROUP_OSCORE_MONITOR)) {
     		// The requester is a monitor, hence it is not supposed to have a Sender ID.
     		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
     						 "Operation not permitted to members that are only monitors");

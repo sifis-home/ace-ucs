@@ -48,6 +48,7 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.oscore.GroupInfo;
@@ -126,7 +127,7 @@ public class GroupOSCORESubResourceCreds extends CoapResource {
     		// Check that at least one of the Access Tokens for this node
     		// allows (also) the Verifier role for this group
         	
-    		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
+    		int role = 1 << GroupcommParameters.GROUP_OSCORE_VERIFIER;
     		boolean allowed = false;
         	int[] roleSetToken = Util.getGroupOSCORERolesFromToken(subject, groupName);
         	if (roleSetToken == null) {
@@ -246,7 +247,7 @@ public class GroupOSCORESubResourceCreds extends CoapResource {
     		// Check that at least one of the Access Tokens for this node
     		// allows (also) the Verifier role for this group
         	
-    		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
+    		int role = 1 << GroupcommParameters.GROUP_OSCORE_VERIFIER;
     		boolean allowed = false;
         	int[] roleSetToken = Util.getGroupOSCORERolesFromToken(subject, groupName);
         	if (roleSetToken == null) {
@@ -341,7 +342,7 @@ public class GroupOSCORESubResourceCreds extends CoapResource {
 					// Possible elements of the first array have to be all integers and
 					// express a valid combination of roles encoded in the AIF data model
 					if (!getCreds.get(1).get(i).getType().equals(CBORType.Integer) ||
-						!Constants.getValidGroupOSCORERoleCombinations().contains(getCreds.get(1).get(i).AsInt32())) {
+						!GroupcommParameters.getValidGroupOSCORERoleCombinations().contains(getCreds.get(1).get(i).AsInt32())) {
 							valid = false;
 							break;
 							

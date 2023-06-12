@@ -42,6 +42,7 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.ScopeValidator;
@@ -312,7 +313,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	        		
 	        		Set<Integer> roleIdSet = Util.getGroupOSCORERoles(roleSet);
 	        		for (Integer elem : roleIdSet) {
-	        			if (elem.intValue() < Constants.GROUP_OSCORE_ROLES.length)
+	        			if (elem.intValue() < GroupcommParameters.GROUP_OSCORE_ROLES.length)
 	        				continue;
 	        			else {
 	        				throw new AceException("Unrecognized role");
@@ -418,7 +419,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	        		
 	        		Set<Integer> roleIdSet = Util.getGroupOSCORERoles(roleSet);
 	        		for (Integer elem : roleIdSet) {
-	        			if (elem.intValue() < Constants.GROUP_OSCORE_ROLES.length)
+	        			if (elem.intValue() < GroupcommParameters.GROUP_OSCORE_ROLES.length)
 	        				continue;
 	        			else {
 	        				throw new AceException("Unrecognized role");
@@ -522,7 +523,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	        		
 	        	    Set<Integer> roleIdSet = Util.getGroupOSCORERoles(roleSet);
 	    	  	    for (Integer elem : roleIdSet) {
-	    	  		    if (elem.intValue() < Constants.GROUP_OSCORE_ROLES.length)
+	    	  		    if (elem.intValue() < GroupcommParameters.GROUP_OSCORE_ROLES.length)
 	    	  			    continue;
 	    	  		    else {
 	    				    throw new AceException("Unrecognized role");

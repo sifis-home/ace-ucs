@@ -72,6 +72,7 @@ import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
@@ -338,7 +339,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         cborArrayEntry.Add(groupName);
         
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
         
@@ -604,7 +605,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         cborArrayScope.Add(groupName);
 
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
         
         
@@ -621,10 +622,10 @@ public class TestOscorepClient2RSGroupOSCORE {
             // The following is required to retrieve the public keys
             // of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getAuthCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getAuthCreds.get(1).Add(myRoles);
             
             getAuthCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -972,11 +973,11 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             int expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
             expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
             
            
@@ -1463,12 +1464,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
 
@@ -1501,8 +1502,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         getAuthCreds.Add(CBORObject.NewArray());
         myRoles = 0;
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         getAuthCreds.get(1).Add(myRoles);
         
 
@@ -1667,12 +1668,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(2, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
 
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -2137,8 +2138,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         cborArrayEntry.Add(groupName);
         
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER); // Allow this role too
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER); // Allow this role too
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -2280,8 +2281,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         cborArrayScope.Add(groupName);
 
         myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER); // Now this role is also allowed
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER); // Now this role is also allowed
     	cborArrayScope.Add(myRoles);
 		
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -2297,11 +2298,11 @@ public class TestOscorepClient2RSGroupOSCORE {
             // The following is required to retrieve the public keys
             // of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getAuthCreds.get(1).Add(myRoles);
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getAuthCreds.get(1).Add(myRoles);
             
             getAuthCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -2640,12 +2641,12 @@ public class TestOscorepClient2RSGroupOSCORE {
                 Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
                 
                 expectedRoles = 0;
-                expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-                expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+                expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+                expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
                 Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
                 
                 expectedRoles = 0;
-                expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+                expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
                 Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
                 
             }
@@ -2742,8 +2743,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         cborArrayEntry.Add(groupName);
         
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
         
@@ -3003,8 +3004,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         cborArrayScope.Add(groupName);
         
     	myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
     	
         
@@ -3021,10 +3022,10 @@ public class TestOscorepClient2RSGroupOSCORE {
             // The following is required to retrieve the public keys
             // of both the already present group members
             myRoles = 0;
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             getAuthCreds.get(1).Add(myRoles);            
-            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         	getAuthCreds.get(1).Add(myRoles);
             
             getAuthCreds.Add(CBORObject.NewArray()); // This must be empty
@@ -3364,12 +3365,12 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             int expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
             
             expectedRoles = 0;
-            expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
            
         }
@@ -3856,12 +3857,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         int expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -3893,7 +3894,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         getAuthCreds.Add(CBORObject.NewArray());
         myRoles = 0;
-        myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         getAuthCreds.get(1).Add(myRoles);
 
         // Ask for the public keys of the other group members
@@ -4118,11 +4119,11 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         expectedRoles = 0;
-        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         

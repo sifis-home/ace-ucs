@@ -32,6 +32,7 @@ import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.TestConfig;
 import se.sics.ace.Util;
 import se.sics.ace.as.AccessTokenFactory;
@@ -459,14 +460,14 @@ public class TestOscorepRSGroupOSCORE {
         	System.out.println("Both the signature key curve and the ECDH key curve are unspecified");
         	return false;
         }
-        int mode = Constants.GROUP_OSCORE_GROUP_PAIRWISE_MODE;
+        int mode = GroupcommParameters.GROUP_OSCORE_GROUP_PAIRWISE_MODE;
         if (signKeyCurve != 0 && ecdhKeyCurve == 0)
-        	mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
+        	mode = GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY;
         else if (signKeyCurve == 0 && ecdhKeyCurve != 0)
-        	mode = Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY;
+        	mode = GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY;
         
         
-        if (mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+        if (mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
             signEncAlg = AlgorithmID.AES_CCM_16_64_128;
             signAlgCapabilities = CBORObject.NewArray();
             signKeyCapabilities = CBORObject.NewArray();
@@ -492,7 +493,7 @@ public class TestOscorepRSGroupOSCORE {
 	    	signParams.Add(signKeyCapabilities);
         }
     	
-        if (mode != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+        if (mode != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
 	        alg = AlgorithmID.AES_CCM_16_64_128;
         	ecdhAlg = AlgorithmID.ECDH_SS_HKDF_256;
 	        ecdhAlgCapabilities = CBORObject.NewArray();
@@ -651,7 +652,7 @@ public class TestOscorepRSGroupOSCORE {
     	mySubject = "clientX";
     	
     	int roles = 0;
-    	roles = Util.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+    	roles = Util.addGroupOSCORERole(roles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	
     	if (!myGroupInfo.addGroupMember(mySid, myName, roles, mySubject))
     		return false;
@@ -731,8 +732,8 @@ public class TestOscorepRSGroupOSCORE {
     	mySubject = "clientY";
     	
     	roles = 0;
-    	roles = Util.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
-    	roles = Util.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
+    	roles = Util.addGroupOSCORERole(roles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	roles = Util.addGroupOSCORERole(roles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	
     	if (!myGroupInfo.addGroupMember(mySid, myName, roles, mySubject))
     		return false;

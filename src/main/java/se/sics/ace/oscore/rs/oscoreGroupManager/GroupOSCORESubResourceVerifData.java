@@ -44,6 +44,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.oscore.GroupInfo;
@@ -122,7 +123,7 @@ public class GroupOSCORESubResourceVerifData extends CoapResource {
     		// Check that at least one of the Access Tokens for this node
     		// allows (also) the Verifier role for this group
         	
-    		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
+    		int role = 1 << GroupcommParameters.GROUP_OSCORE_VERIFIER;
         	int[] roleSetToken = Util.getGroupOSCORERolesFromToken(subject, groupName);
         	if (roleSetToken == null) {
         		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
@@ -162,14 +163,14 @@ public class GroupOSCORESubResourceVerifData extends CoapResource {
     	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
     	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
     	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cred_fmt, targetedGroup.getAuthCredFormat());
-    	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     		// The group mode is used
     		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
         	if (targetedGroup.getSignParams().size() != 0)
         		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
     	}
-    	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
     		// The pairwise mode is used
     		myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_alg, targetedGroup.getEcdhAlg().AsCBOR());
@@ -188,7 +189,7 @@ public class GroupOSCORESubResourceVerifData extends CoapResource {
     	// derived from the 'k' parameter is not valid anymore.
     	myResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
 
-    	myResponse.Add(Constants.GROUP_KEY_ENC, targetedGroup.getGroupEncryptionKey());
+    	myResponse.Add(Constants.GROUP_ENC_KEY, targetedGroup.getGroupEncryptionKey());
     	
 
     	byte[] responsePayload = myResponse.EncodeToBytes();

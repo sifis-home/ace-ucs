@@ -54,6 +54,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.oscore.GroupInfo;
@@ -139,7 +140,7 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
     	}
     	
     	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) ==
-    		(1 << Constants.GROUP_OSCORE_MONITOR)) {
+    		(1 << GroupcommParameters.GROUP_OSCORE_MONITOR)) {
     		// The requester is a monitor, hence it is not supposed to have a Sender ID.
     		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
     						 "Operation not permitted to members that are only monitors");
@@ -372,7 +373,7 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
 		System.arraycopy(serializedCNonceCBOR, 0, popInput, offset, serializedCNonceCBOR.length);
 		
 		// The group mode is used. The PoP evidence is a signature
-		if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+		if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 			int signKeyCurve = 0;
 
 			if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))

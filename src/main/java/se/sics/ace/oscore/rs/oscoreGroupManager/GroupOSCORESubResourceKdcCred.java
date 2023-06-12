@@ -49,6 +49,7 @@ import COSE.KeyKeys;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.oscore.GroupInfo;
@@ -127,7 +128,7 @@ public class GroupOSCORESubResourceKdcCred extends CoapResource {
     		// Check that at least one of the Access Tokens for this node
     		// allows (also) the Verifier role for this group
         	
-    		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
+    		int role = 1 << GroupcommParameters.GROUP_OSCORE_VERIFIER;
     		boolean allowed = false;
         	int[] roleSetToken = Util.getGroupOSCORERolesFromToken(subject, groupName);
         	if (roleSetToken == null) {

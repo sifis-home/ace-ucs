@@ -60,6 +60,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.oscore.GroupInfo;
@@ -171,14 +172,14 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
     	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
     	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cred_fmt, targetedGroup.getAuthCredFormat());
-    	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     		// The group mode is used
     		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
         	if (targetedGroup.getSignParams().size() != 0)
         		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
     	}
-    	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
     		// The pairwise mode is used
     		myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_alg, targetedGroup.getEcdhAlg().AsCBOR());
@@ -284,7 +285,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	}
     	
     	// The group mode is used
-    	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 			CBORObject signInfoEntry = CBORObject.NewArray();
 			signInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
 			signInfoEntry.Add(targetedGroup.getSignAlg().AsCBOR()); // 'sign_alg' element
@@ -310,7 +311,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	}
     	
     	// The pairwise mode is used
-    	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
 			CBORObject ecdhInfoEntry = CBORObject.NewArray();
 			ecdhInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
 			ecdhInfoEntry.Add(targetedGroup.getEcdhAlg().AsCBOR()); // 'ecdh_alg' element
@@ -429,7 +430,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
         		return;
     		}
  	  		// Invalid combination of roles
-    		if(!Constants.getValidGroupOSCORERoleCombinations().contains(roleSet)) {
+    		if(!GroupcommParameters.getValidGroupOSCORERoleCombinations().contains(roleSet)) {
         		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
 					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
 									 Constants.APPLICATION_ACE_CBOR);
@@ -449,8 +450,8 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     		for (int i=0; i<roleIdArray.length; i++) {
     			short roleIdentifier = roleIdArray[i];
     			// Silently ignore unrecognized roles
-    			if (roleIdentifier < Constants.GROUP_OSCORE_ROLES.length)
-    				roles.add(Constants.GROUP_OSCORE_ROLES[roleIdentifier]);
+    			if (roleIdentifier < GroupcommParameters.GROUP_OSCORE_ROLES.length)
+    				roles.add(GroupcommParameters.GROUP_OSCORE_ROLES[roleIdentifier]);
     		}
     		  
     	}
@@ -526,7 +527,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     				// Possible elements of the first array have to be all integers and
     				// express a valid combination of roles encoded in the AIF data model
     				if (!getCreds.get(1).get(i).getType().equals(CBORType.Integer) ||
-    					!Constants.getValidGroupOSCORERoleCombinations().contains(getCreds.get(1).get(i).AsInt32())) {
+    					!GroupcommParameters.getValidGroupOSCORERoleCombinations().contains(getCreds.get(1).get(i).AsInt32())) {
                 		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
             			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
             							 Constants.APPLICATION_ACE_CBOR);
@@ -548,7 +549,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
         int signKeyCurve = 0;
 
     	// Assign a Sender ID to the joining node, unless it is a monitor
-    	if (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR)) {
+    	if (roleSet != (1 << GroupcommParameters.GROUP_OSCORE_MONITOR)) {
         	// For the sake of testing, a particular Sender ID is used as known to be available.
             senderId = new byte[] { (byte) 0x25 };
             
@@ -565,19 +566,19 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	// Retrieve 'client_cred'
     	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
     	
-    	if (clientCred == null && (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR))) {
+    	if (clientCred == null && (roleSet != (1 << GroupcommParameters.GROUP_OSCORE_MONITOR))) {
     		
     		// TODO: check if the Group Manager already owns this client's public key
     		
     	}
-    	if (clientCred == null && (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR))) {
+    	if (clientCred == null && (roleSet != (1 << GroupcommParameters.GROUP_OSCORE_MONITOR))) {
     		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
     						 "A public key was neither provided nor found as already stored");
     		return;
     	}
     	
     	// Process the public key of the joining node
-    	else if (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR)) {
+    	else if (roleSet != (1 << GroupcommParameters.GROUP_OSCORE_MONITOR)) {
     		
     		OneKey publicKey = null;
     		boolean valid = false;
@@ -751,7 +752,7 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
 
 
             // The group mode is used. The PoP evidence is a signature
-            if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+            if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
                 
                 if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
                     signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
@@ -873,14 +874,14 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
     	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
     	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cred_fmt, targetedGroup.getAuthCredFormat());
-    	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     	    // The group mode is used
     	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
     	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
     	    if (targetedGroup.getSignParams().size() != 0)
     	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
     	}
-    	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
     	    // The pairwise mode is used
     	    myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
     	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_alg, targetedGroup.getEcdhAlg().AsCBOR());

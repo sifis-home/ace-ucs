@@ -48,6 +48,7 @@ import COSE.OneKey;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.Util;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Hkdf;
 
 /**
@@ -202,7 +203,7 @@ public class GroupInfo {
     	this.nodeNameSeparator = nodeNameSeparator;
     	
     	// The group mode is used
-    	if (mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    	if (mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     		setSignEncAlg(signEncAlg);
 	    	setSignAlg(signAlg);
 	    	setSignParams(signParams);
@@ -210,7 +211,7 @@ public class GroupInfo {
     	}
     	
     	// The pairwise mode is used
-    	if (mode != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+    	if (mode != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
     		setAlg(alg);
 	    	setEcdhAlg(ecdhAlg);
 	    	setEcdhParams(ecdhParams);
@@ -395,7 +396,7 @@ public class GroupInfo {
      */
     synchronized public final byte[] getGroupEncryptionKey() {
     	
-    	if (this.groupEncryptionKey == null || this.mode == Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY)
+    	if (this.groupEncryptionKey == null || this.mode == GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY)
     		return null;
     	
     	byte[] myArray = new byte[this.groupEncryptionKey.length];
@@ -972,12 +973,12 @@ public class GroupInfo {
 
     	// The node is a monitor
     	if (sid == null) {
-    		if (roles != (1 << Constants.GROUP_OSCORE_MONITOR))
+    		if (roles != (1 << GroupcommParameters.GROUP_OSCORE_MONITOR))
     			return false;
     	}
     	// The node is not a monitor
     	else {
-    		if (roles == (1 << Constants.GROUP_OSCORE_MONITOR))
+    		if (roles == (1 << GroupcommParameters.GROUP_OSCORE_MONITOR))
     			return false;
     		setGroupMemberRoles(sid, roles);
 	    	setSenderIdToIdentity(subject, sid);
@@ -1087,7 +1088,7 @@ public class GroupInfo {
     	if (nodeName.length() > (prefixMonitorNames.length()) &&
     		nodeName.substring(0, prefixSize).equals(prefixMonitorNames)) {
     		
-    		return 1 << Constants.GROUP_OSCORE_MONITOR;
+    		return 1 << GroupcommParameters.GROUP_OSCORE_MONITOR;
     		
     	}
 
@@ -1142,7 +1143,7 @@ public class GroupInfo {
     	if (!this.identities2nodeNames.containsKey(subject))
         		return false;
     	
-    	if (getGroupMemberRoles((getGroupMemberName(subject))) != (1 << Constants.GROUP_OSCORE_MONITOR)) {
+    	if (getGroupMemberRoles((getGroupMemberName(subject))) != (1 << GroupcommParameters.GROUP_OSCORE_MONITOR)) {
     	
 	    	byte[] sid = getGroupMemberSenderId(subject).GetByteString();
 	    	
@@ -1310,7 +1311,7 @@ public class GroupInfo {
 
 		int keyLength = 0;
 	    
-		if (this.signEncAlg != null && this.mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+		if (this.signEncAlg != null && this.mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 		
 			if (this.signEncAlg == AlgorithmID.AES_CCM_16_64_128 || this.signEncAlg == AlgorithmID.AES_CCM_16_128_128 ||
 				this.signEncAlg == AlgorithmID.AES_CCM_64_64_128 || this.signEncAlg == AlgorithmID.AES_CCM_64_128_128 )
