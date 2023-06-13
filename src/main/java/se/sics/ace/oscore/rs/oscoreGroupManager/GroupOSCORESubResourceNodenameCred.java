@@ -54,6 +54,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommErrors;
 import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.coap.CoapReq;
@@ -100,14 +101,25 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
         	return;
     	}
     	
+    	if (targetedGroup.getStatus() == false) {
+    		// The group is currently not active
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.GROUP_NOT_ACTIVE);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
+    		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+    		return;
+    	}
+    	
     	String groupName = targetedGroup.getGroupName();
     	
     	// This should never happen if active groups are maintained properly
-	  		if (!groupName.equals(this.getParent().getParent().getParent().getName())) {
-        	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
-        					 "Error when retrieving material for the OSCORE group");
-				return;
-			}
+  		if (!groupName.equals(this.getParent().getParent().getParent().getName())) {
+    	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+    					 "Error when retrieving material for the OSCORE group");
+			return;
+		}
     	
     	String subject = null;
     	Request request = exchange.advanced().getCurrentRequest();
@@ -127,8 +139,12 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
     	
     	if (!targetedGroup.isGroupMember(subject)) {
     		// The requester is not a current group member.
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.ONLY_FOR_GROUP_MEMBERS);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
     		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
-    						 "Operation permitted only to group members");
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
     		return;
     	}
     	
@@ -142,8 +158,12 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
     	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) ==
     		(1 << GroupcommParameters.GROUP_OSCORE_MONITOR)) {
     		// The requester is a monitor, hence it is not supposed to have a Sender ID.
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.INCONSISTENCY_WITH_ROLES);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
     		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
-    						 "Operation not permitted to members that are only monitors");
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
     		return;
     	}
     	
@@ -256,8 +276,12 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
 			    	equals(targetedGroup.getSignParams().get(1).get(1)))   // key capability: curve
 			{ 
 			        
-			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
-			    				 "Invalid public key for the algorithm and parameters used in the OSCORE group");
+				CBORObject errorResponseMap = CBORObject.NewMap(); 
+    			errorResponseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.INCOMPATIBLE_CRED);
+        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+        						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+				
 			    return;
 			            
 			}
@@ -275,8 +299,12 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
 			    	equals(targetedGroup.getSignParams().get(1).get(1)))   // key capability: curve
 			{
 			            
-			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
-			    				 "Invalid public key for the algorithm and parameters used in the OSCORE group");
+				CBORObject errorResponseMap = CBORObject.NewMap(); 
+    			errorResponseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.INCOMPATIBLE_CRED);
+        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+        						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+
 			    return;
 			        
 			}
@@ -353,7 +381,10 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
             responseMap.Add(GroupcommParameters.KDCCHALLENGE, rsnonce);
             TokenRepository.getInstance().setRsnonce(subject, Base64.getEncoder().encodeToString(rsnonce));
             byte[] responsePayload = responseMap.EncodeToBytes();
-        	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, responsePayload, Constants.APPLICATION_ACE_CBOR);
+        	exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        			 		 responsePayload,
+        			 		 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        	
         	return;
         }
 		byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
@@ -390,7 +421,13 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
 
 			// Invalid Client's PoP signature
 			if (!Util.verifySignature(signKeyCurve, pubKey, popInput, rawClientPopEvidence)) {
-				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid PoP Signature");
+				CBORObject errorResponseMap = CBORObject.NewMap();
+            	errorResponseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.INVALID_POP_EVIDENCE);
+            	byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+            	exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+            					 errorResponsePayload,
+            					 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+				
         		return;
 			}
 		}

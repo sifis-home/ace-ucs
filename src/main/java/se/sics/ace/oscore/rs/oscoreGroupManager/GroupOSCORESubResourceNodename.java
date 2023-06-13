@@ -45,6 +45,7 @@ import com.upokecenter.cbor.CBORObject;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommErrors;
 import se.sics.ace.GroupcommParameters;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.oscore.GroupInfo;
@@ -118,8 +119,12 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	
     	if (!targetedGroup.isGroupMember(subject)) {
     		// The requester is not a current group member.
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.ONLY_FOR_GROUP_MEMBERS);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
     		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
-    						 "Operation permitted only to group members");
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
     		return;
     	}
     		
@@ -244,8 +249,12 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	
     	if (!targetedGroup.isGroupMember(subject)) {
     		// The requester is not a current group member.
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.ONLY_FOR_GROUP_MEMBERS);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
     		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
-    						 "Operation permitted only to group members");
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
     		return;
     	}
     	
@@ -259,8 +268,23 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) ==
     		(1 << GroupcommParameters.GROUP_OSCORE_MONITOR)) {
     		// The requester is a monitor, hence it is not supposed to have a Sender ID.
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.INCONSISTENCY_WITH_ROLES);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
     		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
-    						 "Operation not permitted to members that are only monitors");
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+    		return;
+    	}
+    	
+    	if (targetedGroup.getStatus() == false) {
+    		// The group is currently not active
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.GROUP_NOT_ACTIVE);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
+    		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
     		return;
     	}
     	
@@ -275,8 +299,12 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	
     	if (senderId == null) {
     		// All possible values are already in use for this OSCORE group
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.UNAVAILABLE_NODE_IDS);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
     		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
-    						 "No available Sender IDs in this OSCORE group");
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
     		return;
     	}
     	
@@ -332,11 +360,11 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	String groupName = targetedGroup.getGroupName();
     	
     	// This should never happen if active groups are maintained properly
-	  		if (!groupName.equals(this.getParent().getParent().getName())) {
-        	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
-        					 "Error when retrieving material for the OSCORE group");
-				return;
-			}
+  		if (!groupName.equals(this.getParent().getParent().getName())) {
+    	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+    					 "Error when retrieving material for the OSCORE group");
+			return;
+		}
     	
     	String subject = null;
     	Request request = exchange.advanced().getCurrentRequest();
@@ -356,8 +384,12 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
         
     	if (!targetedGroup.isGroupMember(subject)) {
     		// The requester is not a current group member.
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.ONLY_FOR_GROUP_MEMBERS);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
     		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
-    						 "Operation permitted only to group members");
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
     		return;
     	}
     	

@@ -110,7 +110,8 @@ public class GroupOSCORERootGroupMembershipResource extends CoapResource {
 		
     	// The payload of the request must be a CBOR Map
     	if (!requestCBOR.getType().equals(CBORType.Map)) {
-			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid payload format");
+			exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+							 "Invalid payload format");
     		return;
     	}
     	

@@ -44,6 +44,8 @@ import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommErrors;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.oscore.GroupInfo;
 
@@ -112,8 +114,12 @@ public class GroupOSCORESubResourceActive extends CoapResource {
     	
     	if (!targetedGroup.isGroupMember(subject)) {	
     		// The requester is not a current group member.
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.ONLY_FOR_GROUP_MEMBERS);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
     		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
-    						 "Operation permitted only to group members");
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
     		return;
     	}
         	

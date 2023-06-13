@@ -49,6 +49,7 @@ import COSE.KeyKeys;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.GroupcommErrors;
 import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.coap.CoapReq;
@@ -148,11 +149,27 @@ public class GroupOSCORESubResourceKdcCred extends CoapResource {
         	}
         	
         	if (!allowed) {
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
-        						 "Operation not permitted to a non-member which is not a Verifier");
+        		// The requester is a group member or is not a signature verifier
+        		CBORObject responseMap = CBORObject.NewMap();
+        		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.ONLY_FOR_SIGNATURE_VERIFIERS);
+        		byte[] responsePayload = responseMap.EncodeToBytes();
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
+        						 responsePayload,
+        						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         		return;
         	}
         	
+    	}
+    	
+    	if (targetedGroup.getMode() == GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    		// The group uses only the pairwise mode
+    		CBORObject responseMap = CBORObject.NewMap();
+    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.SIGNATURES_NOT_USED);
+    		byte[] responsePayload = responseMap.EncodeToBytes();
+    		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+    		return;
     	}
         
     	// Respond to the KDC Authentication Credential Request
