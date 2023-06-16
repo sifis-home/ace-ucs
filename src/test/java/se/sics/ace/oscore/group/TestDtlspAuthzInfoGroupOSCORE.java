@@ -119,6 +119,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     // For non-monitor members, separator between the two components of the node name
 	private final static String nodeNameSeparator = "-";
     
+	// The maximum number of sets of stale Sender IDs for the group
+	// This value must be strictly greater than 1
+	private final static int maxStaleIdsSets = 3;
+	
     private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
 	private static final String rootGroupMembershipResource = "ace-group";
@@ -316,7 +320,8 @@ public class TestDtlspAuthzInfoGroupOSCORE {
 						                  null,
     			                          null,
     			                          gmKeyPair,
-    			                          gmAuthenticationCredential);
+    			                          gmAuthenticationCredential,
+    			                          maxStaleIdsSets);
         
     	// Add this OSCORE group to the set of active OSCORE groups
     	activeGroups.put(groupName, myGroup);

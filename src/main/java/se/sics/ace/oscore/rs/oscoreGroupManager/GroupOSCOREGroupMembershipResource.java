@@ -838,13 +838,16 @@ public class GroupOSCOREGroupMembershipResource extends CoapResource {
     		this.getChild("nodes").getChild(oldNodeName).delete(staleResource);
     		
     		myGroup.removeGroupMemberBySubject(subject);
-    		
+
     	}
     	
     	if (!myGroup.addGroupMember(senderId, nodeName, roleSet, subject)) {
     		// The joining node is not a monitor; its node name is its Sender ID encoded as a String
 			if (senderId != null) {
-				myGroup.deallocateSenderId(senderId);    				
+				myGroup.deallocateSenderId(senderId);
+				
+				// Add the old Sender ID to the set of stale Sender IDs for this version of the symmetric keying material
+	    		myGroup.addStaleSenderId(senderId);
 			}
 			// The joining node is a monitor; it got a node name but not a Sender ID
 			else {

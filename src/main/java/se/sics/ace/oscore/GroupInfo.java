@@ -103,6 +103,14 @@ public class GroupInfo {
 	// The map (key) label is the node name of the group member.
 	private Map<String, CBORObject> birthGIDs = new HashMap<String, CBORObject>();
 	
+	// The maximum number of sets of stale Sender IDs for the group
+	// This value must be strictly greater than 1
+	private int maxStaleIdsSets;
+	
+	// The value of each map entry is a set of stale Sender IDs.
+	// The map (key) label is the version number of the symmetric keying material in use where the Sender ID was marked stale
+	private Map<Integer, Set<CBORObject>> staleSenderIds = new HashMap<Integer, Set<CBORObject>>();	
+	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
 	
@@ -161,6 +169,7 @@ public class GroupInfo {
 	 * @param groupPolicies		  the map of group policies, or Null for building one with default values
 	 * @param gmKeyPair           the asymmetric key pair of the Group Manager
 	 * @param gmAuthCred		  the serialization of the authentication credential of the Group Manager, in the format used in the group
+	 * @param maxStaleIdsSets     the maximum number of sets of stale Sender IDs for the group
 	 */
     public GroupInfo(final String groupName,
     				 final byte[] masterSecret,
@@ -182,7 +191,8 @@ public class GroupInfo {
     		         final CBORObject ecdhParams,
     		         final CBORObject groupPolicies,
     		         final OneKey gmKeyPair,
-    		         final byte[] gmAuthCred) {
+    		         final byte[] gmAuthCred,
+    		         final int maxStaleIdsSets) {
     	
     	this.version = 0;
     	this.status = false;
@@ -219,6 +229,9 @@ public class GroupInfo {
     	
     	this.senderIdSize = 1;
     	this.maxSenderIdValue = 255;
+    	
+    	this.maxStaleIdsSets = maxStaleIdsSets;
+    	staleSenderIds.put(Integer.valueOf(version), new HashSet<CBORObject>());
     	
     	for (int i = 0; i < 4; i++) {
         	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
@@ -1154,6 +1167,8 @@ public class GroupInfo {
 	    	
 	    	deleteAuthCred(sid);
 	    	
+	    	addStaleSenderId(sid);
+	    	
     	}
     	
     	String nodeName = getGroupMemberName(subject);
@@ -1303,6 +1318,68 @@ public class GroupInfo {
     	
     }
 
+    /**
+     *  Add a Sender ID as stale to the set associated with the current version of the symmetric keying material
+     *  
+     *  @return  True if the addition was successful, or false otherwise
+     */
+    synchronized public boolean addStaleSenderId(byte[] senderId) {
+    	
+    	if (senderId == null) {
+    		return false;
+    	}
+    	
+    	if (!this.staleSenderIds.containsKey(Integer.valueOf(version))) {
+    		// This should never happen
+    		return false;
+    	}
+    	
+    	this.staleSenderIds.get(Integer.valueOf(version)).add(CBORObject.FromObject(senderId));
+    	return true;
+    	
+    }
+    
+    /**
+     *  Add a new empty set of stale Senders IDs associated with the current version of the symmetric keying material
+     *  
+     *  @return  True if the addition was successful, or false otherwise
+     */
+    synchronized public boolean addStaleSenderIdSet() {
+    	
+    	if (this.staleSenderIds.size() == this.maxStaleIdsSets) {
+    		// This should never happen. In case the collection of set reaches its maximum size,
+    		// the oldest set has to be deleted before rekeying the group, and a new empty set is added
+    		return false;
+    	}
+    	
+    	if (this.staleSenderIds.put(Integer.valueOf(version), new HashSet<CBORObject>()) == null)
+    		return true;
+    	
+    	return false;
+
+    }
+    
+    /**
+     *  Remove the oldest set of stale Senders IDs, where the collection of set has reached its maximum size
+     *  
+     *  @return  True if the removal was successful, or false otherwise
+     */
+    synchronized public boolean removeStaleSenderIdOldestSet() {
+
+    	if (this.staleSenderIds.size() != this.maxStaleIdsSets) {
+    		// This should never happen. This method should be called only when
+    		// the current size of the collection of sets has reached its maximum size
+    		return false;
+    	}
+    	
+    	int index = this.version - this.maxStaleIdsSets + 1;
+    	if (this.staleSenderIds.remove(Integer.valueOf(index)) != null)
+    		return true;
+    	
+    	return false;
+    	
+    }
+    
     /**
      *  Get the key length (in bytes) for the Signature Encryption Algorithm used in the group
      * @return  the key length (in bytes) for the Signature Encryption Algorithm

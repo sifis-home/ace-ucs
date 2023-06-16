@@ -323,6 +323,9 @@ public class GroupOSCORESubResourceNodename extends CoapResource {
     	// Delete this client's authentication credential under the old Sender ID
     	targetedGroup.deleteAuthCred(oldSenderId);
     	
+    	// Add the old Sender ID to the set of stale Sender IDs for this version of the symmetric keying material
+    	targetedGroup.addStaleSenderId(oldSenderId);
+    	
     	
     	// Respond to the Key Renewal Request
     	

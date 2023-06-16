@@ -121,6 +121,13 @@ public class TestDtlspRSGroupOSCORE {
 	// Initial part of the node name for monitors, since they do not have a Sender ID
 	private final static String prefixMonitorNames = "M";
 	
+	// For non-monitor members, separator between the two components of the node name
+	private final static String nodeNameSeparator = "-";
+	
+	// The maximum number of sets of stale Sender IDs for the group
+	// This value must be strictly greater than 1
+	private final static int maxStaleIdsSets = 3;
+	
 	// Uncomment to set ECDSA with curve P-256 for countersignatures
     // private static int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
     
@@ -132,10 +139,7 @@ public class TestDtlspRSGroupOSCORE {
     
     // Uncomment to set curve X25519 for pairwise key derivation
 	private static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
-	
-	// For non-monitor members, separator between the two components of the node name
-	private final static String nodeNameSeparator = "-";
-	
+		
 	private static Map<String, GroupInfo> existingGroupInfo = new HashMap<>();
 	
 	private static Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
@@ -652,7 +656,8 @@ public class TestDtlspRSGroupOSCORE {
 										      ecdhParams,
 										      null,
 										      gmKeyPair,
-										      gmAuthCred);
+										      gmAuthCred,
+										      maxStaleIdsSets);
 	    
 		myGroupInfo.setStatus(true);
 		

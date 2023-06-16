@@ -135,6 +135,10 @@ public class PlugtestRSGroupOSCORE {
 	
 	// For non-monitor members, separator between the two components of the node name
 	private final static String nodeNameSeparator = "-";
+
+	// The maximum number of sets of stale Sender IDs for the group
+	// This value must be strictly greater than 1
+	private final static int maxStaleIdsSets = 3;
 	
 	// Uncomment to set ECDSA with curve P-256 for countersignatures
     // private static int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
@@ -685,7 +689,8 @@ public class PlugtestRSGroupOSCORE {
 				                              ecdhParams,
 				                              null,
 				                              gmKeyPair,
-				                              gmAuthCred);
+				                              gmAuthCred,
+				                              maxStaleIdsSets);
 	    
 		myGroupInfo.setStatus(true);
 		
