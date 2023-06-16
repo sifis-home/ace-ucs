@@ -101,6 +101,7 @@ import se.sics.ace.oscore.rs.oscoreGroupManager.GroupOSCORESubResourceKdcCred;
 import se.sics.ace.oscore.rs.oscoreGroupManager.GroupOSCORESubResourceNodes;
 import se.sics.ace.oscore.rs.oscoreGroupManager.GroupOSCORESubResourceNum;
 import se.sics.ace.oscore.rs.oscoreGroupManager.GroupOSCORESubResourcePolicies;
+import se.sics.ace.oscore.rs.oscoreGroupManager.GroupOSCORESubResourceStaleSids;
 import se.sics.ace.oscore.rs.oscoreGroupManager.GroupOSCORESubResourceVerifData;
 import se.sics.ace.rs.AsRequestCreationHints;
 
@@ -319,6 +320,7 @@ public class PlugtestRSGroupOSCORE {
         valid.setGroupMembershipResources(Collections.singleton(rootGroupMembershipResourcePath + "/" + groupName + "/num"));
         valid.setGroupMembershipResources(Collections.singleton(rootGroupMembershipResourcePath + "/" + groupName + "/active"));
         valid.setGroupMembershipResources(Collections.singleton(rootGroupMembershipResourcePath + "/" + groupName + "/policies"));
+        valid.setGroupMembershipResources(Collections.singleton(rootGroupMembershipResourcePath + "/" + groupName + "/stale-sids"));
         
     	
     	String tokenFile = TestConfig.testFilePath + "tokens.json";
@@ -408,6 +410,10 @@ public class PlugtestRSGroupOSCORE {
 		// Add the /policies sub-resource
 		Resource policiesSubResource = new GroupOSCORESubResourcePolicies("policies", existingGroupInfo);
 		groupMembershipResource.add(policiesSubResource);
+		
+		// Add the /stale-sids sub-resource
+		Resource staleSidsSubResource = new GroupOSCORESubResourceStaleSids("stale-sids", existingGroupInfo);
+		groupMembershipResource.add(staleSidsSubResource);
 		
 		// Add the /nodes sub-resource, as root to actually accessible per-node sub-resources
 		Resource nodesSubResource = new GroupOSCORESubResourceNodes("nodes");

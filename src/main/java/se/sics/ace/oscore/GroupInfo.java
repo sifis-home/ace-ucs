@@ -1319,8 +1319,51 @@ public class GroupInfo {
     }
 
     /**
+     *  Return the current amount of sets of stale Sender IDs
+     *  
+     *  @return  The current amount of sets of stale Sender IDs 
+     */
+    synchronized public int getNumberOfStaleSenderIdsSet() {
+    	
+    	return this.staleSenderIds.size();
+    	
+    }
+    
+    /**
+     *  Return one aggregated set including the Sender IDs that have become stale starting from
+     *  the version of the symmetric keying material specified as argument  
+     *  
+     *  @param   The version of the symmetric keying material starting from which stale Sender IDs have to be considered
+     *  @return  The aggregated set of stale Sender IDs, or null in case of error
+     */
+    synchronized public Set<CBORObject> getStaleSenderIds(final int baselineVersion) {
+    	
+    	if (baselineVersion < 0 || baselineVersion > this.version)
+    		return null;
+    	
+    	Set<CBORObject> ret = new HashSet<CBORObject>();
+    	
+    	for (Integer i : this.staleSenderIds.keySet()) {
+    		
+    		if (i.intValue() < baselineVersion) {
+    			// Skip this set of stale Sender IDs
+    			continue;
+    		}
+    		
+    		for (CBORObject obj : this.staleSenderIds.get(i)) {
+    			ret.add(obj);
+    		}
+    	}
+    	
+    	return ret;
+    	
+    }
+    
+        
+    /**
      *  Add a Sender ID as stale to the set associated with the current version of the symmetric keying material
      *  
+     *  @param senderId   The Sender ID to add to the set associated with the current version of the symmetric keying material
      *  @return  True if the addition was successful, or false otherwise
      */
     synchronized public boolean addStaleSenderId(byte[] senderId) {

@@ -91,11 +91,11 @@ public class GroupOSCORESubResourcePolicies extends CoapResource {
     	String groupName = targetedGroup.getGroupName();
     	
     	// This should never happen if active groups are maintained properly
-	  		if (!groupName.equals(this.getParent().getName())) {
-        	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
-        					 "Error when retrieving material for the OSCORE group");
-				return;
-			}
+  		if (!groupName.equals(this.getParent().getName())) {
+    	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+    					 "Error when retrieving material for the OSCORE group");
+			return;
+		}
     	
     	String subject = null;
     	Request request = exchange.advanced().getCurrentRequest();

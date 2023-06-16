@@ -1988,44 +1988,74 @@ public class TestDtlspClientGroupOSCORE {
     	Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
         
         
+		/////////////////
+		//
+		// Part 13
+		//
+		/////////////////
+		
+		//Send a Stale Sender IDs Request
+		
+		System.out.println("\nPerforming a Stale Sender IDs FETCH Request using OSCORE to GM at " +
+		                   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		c.setURI("coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		requestPayload = CBORObject.FromObject(0);
+		
+		Request StaleSenderIdsReq = new Request(Code.FETCH, Type.CON);
+		StaleSenderIdsReq.getOptions().setOscore(new byte[0]);
+		StaleSenderIdsReq.setPayload(requestPayload.EncodeToBytes());
+		CoapResponse r14 = c.advanced(StaleSenderIdsReq);
+		
+		System.out.println("");
+		System.out.println("Sent Stale Sender IDs FETCH request to GM");
+		
+		System.out.println("Received Stale Sender IDs FETCH request from the GM: " +
+		                new String(r14.getPayload()));
+		
+		Assert.assertEquals("BAD_REQUEST", r14.getCode().name());
+		Assert.assertEquals("Invalid payload format", new String(r14.getPayload()));
+    	
+    	
         /////////////////
         //
-        // Part 13
+        // Part 14
         //
         /////////////////
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        System.out.println("\nPerforming a Leaving Group Request using DTLS to GM at coap://localhost/" +
         				   nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r14 = c.advanced(LeavingGroupReq);
+        CoapResponse r15 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r14.getCode().name());
+        Assert.assertEquals("DELETED", r15.getCode().name());
         
-        responsePayload = r14.getPayload();
+        responsePayload = r15.getPayload();
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " +
+        System.out.println("\nPerforming a Version Request using DTLS to GM at " +
         				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r15 = c.advanced(VersionReq);
+        CoapResponse r16 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("FORBIDDEN", r15.getCode().name());
+        Assert.assertEquals("FORBIDDEN", r16.getCode().name());
         
     }
     
@@ -3775,45 +3805,75 @@ public class TestDtlspClientGroupOSCORE {
     	
     	Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));        
         
-        
+    	
+		/////////////////
+		//
+		// Part 13
+		//
+		/////////////////
+		
+		//Send a Stale Sender IDs Request
+		
+		System.out.println("\nPerforming a Stale Sender IDs FETCH Request using OSCORE to GM at " +
+		                   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		c.setURI("coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		requestPayload = CBORObject.FromObject(0);
+		
+		Request StaleSenderIdsReq = new Request(Code.FETCH, Type.CON);
+		StaleSenderIdsReq.getOptions().setOscore(new byte[0]);
+		StaleSenderIdsReq.setPayload(requestPayload.EncodeToBytes());
+		CoapResponse r14 = c.advanced(StaleSenderIdsReq);
+		
+		System.out.println("");
+		System.out.println("Sent Stale Sender IDs FETCH request to GM");
+		
+		System.out.println("Received Stale Sender IDs FETCH request from the GM: " +
+		                new String(r14.getPayload()));
+		
+		Assert.assertEquals("BAD_REQUEST", r14.getCode().name());
+		Assert.assertEquals("Invalid payload format", new String(r14.getPayload()));
+    	
+    	
         /////////////////
         //
-        // Part 13
+        // Part 14
         //
         /////////////////
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        System.out.println("\nPerforming a Leaving Group Request using DTLS to GM at coap://localhost/" +
         				   nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r14 = c.advanced(LeavingGroupReq);
+        CoapResponse r15 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r14.getCode().name());
+        Assert.assertEquals("DELETED", r15.getCode().name());
         
-        responsePayload = r14.getPayload();
+        responsePayload = r15.getPayload();
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " +
+        System.out.println("\nPerforming a Version Request using DTLS to GM at " +
         				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r15 = c.advanced(VersionReq);
+        CoapResponse r16 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("FORBIDDEN", r15.getCode().name());
+        Assert.assertEquals("FORBIDDEN", r16.getCode().name());
         
     }
     
@@ -5621,45 +5681,75 @@ public class TestDtlspClientGroupOSCORE {
 		
 		Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
         
+		
+		/////////////////
+		//
+		// Part 13
+		//
+		/////////////////
+		
+		//Send a Stale Sender IDs Request
+		
+		System.out.println("\nPerforming a Stale Sender IDs FETCH Request using OSCORE to GM at " +
+		                   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		c.setURI("coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		requestPayload = CBORObject.FromObject(0);
+		
+		Request StaleSenderIdsReq = new Request(Code.FETCH, Type.CON);
+		StaleSenderIdsReq.getOptions().setOscore(new byte[0]);
+		StaleSenderIdsReq.setPayload(requestPayload.EncodeToBytes());
+		CoapResponse r14 = c.advanced(StaleSenderIdsReq);
+		
+		System.out.println("");
+		System.out.println("Sent Stale Sender IDs FETCH request to GM");
+		
+		System.out.println("Received Stale Sender IDs FETCH request from the GM: " +
+		                new String(r14.getPayload()));
+		
+		Assert.assertEquals("BAD_REQUEST", r14.getCode().name());
+		Assert.assertEquals("Invalid payload format", new String(r14.getPayload()));
+		
         
         /////////////////
         //
-        // Part 13
+        // Part 14
         //
         /////////////////
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        System.out.println("\nPerforming a Leaving Group Request using DTLS to GM at coap://localhost/" +
         				   nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r14 = c.advanced(LeavingGroupReq);
+        CoapResponse r15 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r14.getCode().name());
+        Assert.assertEquals("DELETED", r15.getCode().name());
         
-        responsePayload = r14.getPayload();
+        responsePayload = r15.getPayload();
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " +
+        System.out.println("\nPerforming a Version Request using DTLS to GM at " +
         				   "coap://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r15 = c.advanced(VersionReq);
+        CoapResponse r16 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("FORBIDDEN", r15.getCode().name());
+        Assert.assertEquals("FORBIDDEN", r16.getCode().name());
         
     }
     
@@ -7420,44 +7510,74 @@ public class TestDtlspClientGroupOSCORE {
 		Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
         
         
+		/////////////////
+		//
+		// Part 13
+		//
+		/////////////////
+		
+		//Send a Stale Sender IDs Request
+		
+		System.out.println("\nPerforming a Stale Sender IDs FETCH Request using OSCORE to GM at " +
+		                   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		c.setURI("coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		requestPayload = CBORObject.FromObject(0);
+		
+		Request StaleSenderIdsReq = new Request(Code.FETCH, Type.CON);
+		StaleSenderIdsReq.getOptions().setOscore(new byte[0]);
+		StaleSenderIdsReq.setPayload(requestPayload.EncodeToBytes());
+		CoapResponse r14 = c.advanced(StaleSenderIdsReq);
+		
+		System.out.println("");
+		System.out.println("Sent Stale Sender IDs FETCH request to GM");
+		
+		System.out.println("Received Stale Sender IDs FETCH request from the GM: " +
+		                new String(r14.getPayload()));
+		
+		Assert.assertEquals("BAD_REQUEST", r14.getCode().name());
+		Assert.assertEquals("Invalid payload format", new String(r14.getPayload()));
+		
+		
         /////////////////
         //
-        // Part 13
+        // Part 14
         //
         /////////////////
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        System.out.println("\nPerforming a Leaving Group Request using DTLS to GM at coap://localhost/" +
         				   nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r14 = c.advanced(LeavingGroupReq);
+        CoapResponse r15 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r14.getCode().name());
+        Assert.assertEquals("DELETED", r15.getCode().name());
         
-        responsePayload = r14.getPayload();
+        responsePayload = r15.getPayload();
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " +
+        System.out.println("\nPerforming a Version Request using DTLS to GM at " +
         				   "coap://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r15 = c.advanced(VersionReq);
+        CoapResponse r16 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("FORBIDDEN", r15.getCode().name());
+        Assert.assertEquals("FORBIDDEN", r16.getCode().name());
         
     }
     
@@ -9405,7 +9525,7 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        System.out.println("\nPerforming a Leaving Group Request using DTLS to GM at coap://localhost/" +
         				   nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
@@ -9423,7 +9543,7 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " +
+        System.out.println("\nPerforming a Version Request using DTLS to GM at " +
         				   "coap://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
@@ -9995,7 +10115,37 @@ public class TestDtlspClientGroupOSCORE {
     	gmPublicKey = gmPublicKeyRetrieved.AsPublicKey();
     	
     	Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
-        
+     
+    	
+		/////////////////
+		//
+		// Part 16
+		//
+		/////////////////
+		
+		//Send a Stale Sender IDs Request
+		
+		System.out.println("\nPerforming a Stale Sender IDs FETCH Request using OSCORE to GM at " +
+		                   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		c.setURI("coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		requestPayload = CBORObject.FromObject(0);
+		
+		Request StaleSenderIdsReq = new Request(Code.FETCH, Type.CON);
+		StaleSenderIdsReq.getOptions().setOscore(new byte[0]);
+		StaleSenderIdsReq.setPayload(requestPayload.EncodeToBytes());
+		CoapResponse r16 = c.advanced(StaleSenderIdsReq);
+		
+		System.out.println("");
+		System.out.println("Sent Stale Sender IDs FETCH request to GM");
+		
+		System.out.println("Received Stale Sender IDs FETCH request from the GM: " +
+		                new String(r16.getPayload()));
+		
+		Assert.assertEquals("BAD_REQUEST", r16.getCode().name());
+		Assert.assertEquals("Invalid payload format", new String(r16.getPayload()));
+    	
     }
     
 
@@ -11766,44 +11916,74 @@ public class TestDtlspClientGroupOSCORE {
 		
 		Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
         
+		
+		/////////////////
+		//
+		// Part 13
+		//
+		/////////////////
+		
+		//Send a Stale Sender IDs Request
+		
+		System.out.println("\nPerforming a Stale Sender IDs FETCH Request using OSCORE to GM at " +
+		                   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		c.setURI("coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/stale-sids");
+		
+		requestPayload = CBORObject.FromObject(0);
+		
+		Request StaleSenderIdsReq = new Request(Code.FETCH, Type.CON);
+		StaleSenderIdsReq.getOptions().setOscore(new byte[0]);
+		StaleSenderIdsReq.setPayload(requestPayload.EncodeToBytes());
+		CoapResponse r14 = c.advanced(StaleSenderIdsReq);
+		
+		System.out.println("");
+		System.out.println("Sent Stale Sender IDs FETCH request to GM");
+		
+		System.out.println("Received Stale Sender IDs FETCH request from the GM: " +
+		                new String(r14.getPayload()));
+		
+		Assert.assertEquals("BAD_REQUEST", r14.getCode().name());
+		Assert.assertEquals("Invalid payload format", new String(r14.getPayload()));
+		
         
         /////////////////
         //
-        // Part 13
+        // Part 14
         //
         /////////////////
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request " +
-        				   "using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("\nPerforming a Leaving Group Request " +
+        				   "using DTLS to GM at coap://localhost/" + nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r14 = c.advanced(LeavingGroupReq);
+        CoapResponse r15 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r14.getCode().name());
+        Assert.assertEquals("DELETED", r15.getCode().name());
         
-        responsePayload = r14.getPayload();
+        responsePayload = r15.getPayload();
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        System.out.println("\nPerforming a Version Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r15 = c.advanced(VersionReq);
+        CoapResponse r16 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("FORBIDDEN", r15.getCode().name());
+        Assert.assertEquals("FORBIDDEN", r16.getCode().name());
         
 }   
     
