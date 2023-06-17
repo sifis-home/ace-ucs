@@ -267,6 +267,9 @@ public class PlugtestRSOSCOREGroupOSCORE {
         myResource3.put(rootGroupMembershipResourcePath + "/" + groupName + "/num", actions3);
         myResource3.put(rootGroupMembershipResourcePath + "/" + groupName + "/active", actions3);
         myResource3.put(rootGroupMembershipResourcePath + "/" + groupName + "/policies", actions3);
+        actions3 = new HashSet<>();
+        actions3.add(Constants.FETCH);
+        myResource3.put(rootGroupMembershipResourcePath + "/" + groupName + "/stale-sids", actions3);
         myScopes.put(rootGroupMembershipResourcePath + "/" + groupName, myResource3);
 
         // Adding another group-membership resource, with group name "fBBBca570000".
