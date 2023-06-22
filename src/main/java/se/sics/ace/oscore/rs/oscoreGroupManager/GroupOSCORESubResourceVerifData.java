@@ -182,7 +182,7 @@ public class GroupOSCORESubResourceVerifData extends CoapResource {
     	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cred_fmt, targetedGroup.getAuthCredFormat());
     	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     		// The group mode is used
-    		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
+    		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getGpEncAlg().AsCBOR());
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
         	if (targetedGroup.getSignParams().size() != 0)
         		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
@@ -206,7 +206,7 @@ public class GroupOSCORESubResourceVerifData extends CoapResource {
     	// derived from the 'k' parameter is not valid anymore.
     	myResponse.Add(GroupcommParameters.EXP, CBORObject.FromObject(1000000));
 
-    	myResponse.Add(GroupcommParameters.GROUP_ENC_KEY, targetedGroup.getGroupEncryptionKey());
+    	myResponse.Add(GroupcommParameters.GROUP_ENC_KEY, targetedGroup.getSignatureEncryptionKey());
     	
 
     	byte[] responsePayload = myResponse.EncodeToBytes();

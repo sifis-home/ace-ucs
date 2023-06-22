@@ -67,7 +67,7 @@ public class GroupInfo {
 	
 	private byte[] masterSecret;
 	private byte[] masterSalt;
-	private byte[] groupEncryptionKey = null;
+	private byte[] signatureEncryptionKey = null;
 	private AlgorithmID hkdf = null;
 	private int authCredFormat; // the format of authentication credentials used in the group
 	
@@ -128,7 +128,7 @@ public class GroupInfo {
 	private int mode; // The mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
 	
 	// Specific to the group mode
-	private AlgorithmID signEncAlg = null;
+	private AlgorithmID gpEncAlg = null;
 	private AlgorithmID signAlg = null;
 	private CBORObject signParams = null;
 
@@ -160,7 +160,7 @@ public class GroupInfo {
 	 * @param hkdf                the HKDF Algorithm.
 	 * @param credFmt             the format of the authentication credentials used in the OSCORE group.
 	 * @param mode			      the mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
-	 * @param signEncAlg          the Signature Encryption Algorithm if the group mode is used, or null otherwise
+	 * @param gpEncAlg            the Group Encryption Algorithm if the group mode is used, or null otherwise
 	 * @param signAlg             the Signature Algorithm if the group mode is used, or null otherwise
 	 * @param signParams          the parameters of the Signature Algorithm if the group mode is used, or null otherwise
 	 * @param alg                 the AEAD algorithm if the pairwise mode is used, or null otherwise
@@ -183,7 +183,7 @@ public class GroupInfo {
     		         final AlgorithmID hkdf,
     		         final int authCredFormat,
     		         final int mode,
-    		         final AlgorithmID signEncAlg,
+    		         final AlgorithmID gpEncAlg,
     		         final AlgorithmID signAlg,
     		         final CBORObject signParams,
     		         final AlgorithmID alg,
@@ -214,10 +214,10 @@ public class GroupInfo {
     	
     	// The group mode is used
     	if (mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
-    		setSignEncAlg(signEncAlg);
+    		setGpEncAlg(gpEncAlg);
 	    	setSignAlg(signAlg);
 	    	setSignParams(signParams);
-	    	setGroupEncryptionKey();
+	    	setSignatureEncryptionKey();
     	}
     	
     	// The pairwise mode is used
@@ -404,25 +404,25 @@ public class GroupInfo {
     }
     
     /**
-     *  Retrieve the OSCORE Group Encryption Key
-     * @return  the Group Encryption Key, or null in case of error
+     *  Retrieve the OSCORE Signature Encryption Key
+     * @return  the Signature Encryption Key, or null in case of error
      */
-    synchronized public final byte[] getGroupEncryptionKey() {
+    synchronized public final byte[] getSignatureEncryptionKey() {
     	
-    	if (this.groupEncryptionKey == null || this.mode == GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY)
+    	if (this.signatureEncryptionKey == null || this.mode == GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY)
     		return null;
     	
-    	byte[] myArray = new byte[this.groupEncryptionKey.length];
-    	System.arraycopy(this.groupEncryptionKey, 0, myArray, 0, this.groupEncryptionKey.length);
+    	byte[] myArray = new byte[this.signatureEncryptionKey.length];
+    	System.arraycopy(this.signatureEncryptionKey, 0, myArray, 0, this.signatureEncryptionKey.length);
     	return myArray;
     	
     }
     
     /**
-     * Set the OSCORE Group Encryption Key
+     * Set the OSCORE Signature Encryption Key
      * 
      */
-    synchronized public void setGroupEncryptionKey() {
+    synchronized public void setSignatureEncryptionKey() {
     	
     	CBORObject info = CBORObject.NewArray();
     	
@@ -434,24 +434,24 @@ public class GroupInfo {
     	info.Add(getGroupId());
     	
     	// 'alg_aead'
-    	if (this.getSignEncAlg().AsCBOR().getType() == CBORType.Integer)
-        	info.Add(this.getSignEncAlg().AsCBOR().AsInt32());
-    	if (this.getSignEncAlg().AsCBOR().getType() == CBORType.TextString)
-        	info.Add(this.getSignEncAlg().AsCBOR().AsString());
+    	if (this.getGpEncAlg().AsCBOR().getType() == CBORType.Integer)
+        	info.Add(this.getGpEncAlg().AsCBOR().AsInt32());
+    	if (this.getGpEncAlg().AsCBOR().getType() == CBORType.TextString)
+        	info.Add(this.getGpEncAlg().AsCBOR().AsString());
     	
     	// 'type'
-    	info.Add("Group Encryption Key");
+    	info.Add("SEKey");
     	
     	// 'L'
-    	int L = getKeyLengthSignatureEncryptionAlgorithm();
+    	int L = getKeyLengthGroupEncryptionAlgorithm();
     	info.Add(L);
     	
     	try {
-			this.groupEncryptionKey = Hkdf.extractExpand(getMasterSalt(), getMasterSecret(), info.EncodeToBytes(), L);
+			this.signatureEncryptionKey = Hkdf.extractExpand(getMasterSalt(), getMasterSecret(), info.EncodeToBytes(), L);
 		} catch (InvalidKeyException e) {
-			System.err.println("Error when deriving the Group Encryption Key: " + e.getMessage());
+			System.err.println("Error when deriving the Signature Encryption Key: " + e.getMessage());
 		} catch (NoSuchAlgorithmException e) {
-			System.err.println("Error when deriving the Group Encryption Key: " + e.getMessage());
+			System.err.println("Error when deriving the Signature Encryption Key: " + e.getMessage());
 		}
     	
     }
@@ -601,24 +601,24 @@ public class GroupInfo {
     }
     
     /**
-     * @return the Signature Encryption Algorithm used in the group for the group mode
+     * @return the Group Encryption Algorithm used in the group for the group mode
      */
-    synchronized public final AlgorithmID getSignEncAlg() {
+    synchronized public final AlgorithmID getGpEncAlg() {
     	
-    	return this.signEncAlg;
+    	return this.gpEncAlg;
     	
     }
     
     /**
-     *  Set the Signature Encryption Algorithm used in the group for the group mode
-     * @param signEncAlg
+     *  Set the Group Encryption Algorithm used in the group for the group mode
+     * @param gpEncAlg
      */
-    synchronized public void setSignEncAlg(final AlgorithmID signEncAlg) {
+    synchronized public void setGpEncAlg(final AlgorithmID gpEncAlg) {
     	
-    	if (signEncAlg == null)
-			this.signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+    	if (gpEncAlg == null)
+			this.gpEncAlg = AlgorithmID.AES_CCM_16_64_128;
     	else
-    		this.signEncAlg = signEncAlg;
+    		this.gpEncAlg = gpEncAlg;
     	
     }
     
@@ -1424,21 +1424,21 @@ public class GroupInfo {
     }
     
     /**
-     *  Get the key length (in bytes) for the Signature Encryption Algorithm used in the group
-     * @return  the key length (in bytes) for the Signature Encryption Algorithm
+     *  Get the key length (in bytes) for the Group Encryption Algorithm used in the group
+     * @return  the key length (in bytes) for the Group Encryption Algorithm
      */
-	private int getKeyLengthSignatureEncryptionAlgorithm() {
+	private int getKeyLengthGroupEncryptionAlgorithm() {
 
 		int keyLength = 0;
 	    
-		if (this.signEncAlg != null && this.mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+		if (this.gpEncAlg != null && this.mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 		
-			if (this.signEncAlg == AlgorithmID.AES_CCM_16_64_128 || this.signEncAlg == AlgorithmID.AES_CCM_16_128_128 ||
-				this.signEncAlg == AlgorithmID.AES_CCM_64_64_128 || this.signEncAlg == AlgorithmID.AES_CCM_64_128_128 )
+			if (this.gpEncAlg == AlgorithmID.AES_CCM_16_64_128 || this.gpEncAlg == AlgorithmID.AES_CCM_16_128_128 ||
+				this.gpEncAlg == AlgorithmID.AES_CCM_64_64_128 || this.gpEncAlg == AlgorithmID.AES_CCM_64_128_128 )
 				keyLength = 16;
 			
-			if (this.signEncAlg == AlgorithmID.AES_CCM_16_64_256 || this.signEncAlg == AlgorithmID.AES_CCM_16_128_256 ||
-				this.signEncAlg == AlgorithmID.AES_CCM_64_64_256 || this.signEncAlg == AlgorithmID.AES_CCM_64_128_256 )
+			if (this.gpEncAlg == AlgorithmID.AES_CCM_16_64_256 || this.gpEncAlg == AlgorithmID.AES_CCM_16_128_256 ||
+				this.gpEncAlg == AlgorithmID.AES_CCM_64_64_256 || this.gpEncAlg == AlgorithmID.AES_CCM_64_128_256 )
 					keyLength = 32;
 		
 		}

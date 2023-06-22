@@ -206,7 +206,7 @@ public class GroupcommParameters {
     
     public static final short GROUP_MODE = 36;
     
-    public static final short SIGN_ENC_ALG = 37;
+    public static final short GP_ENC_ALG = 37;
     
     public static final short SIGN_ALG = 38;
     

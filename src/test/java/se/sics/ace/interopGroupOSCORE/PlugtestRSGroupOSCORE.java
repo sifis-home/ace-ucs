@@ -502,7 +502,7 @@ public class PlugtestRSGroupOSCORE {
 	    final AlgorithmID hkdf = AlgorithmID.HMAC_SHA_256;
 	    final int credFmt = Constants.COSE_HEADER_PARAM_CCS;
 	    
-	    AlgorithmID signEncAlg = null;
+	    AlgorithmID gpEncAlg = null;
 	    AlgorithmID signAlg = null;
 	    CBORObject signAlgCapabilities = null;
 	    CBORObject signKeyCapabilities = null;
@@ -546,7 +546,7 @@ public class PlugtestRSGroupOSCORE {
 	    
 	    
 	    if (mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
-	        signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+	    	gpEncAlg = AlgorithmID.AES_CCM_16_64_128;
 	        signAlgCapabilities = CBORObject.NewArray();
 	        signKeyCapabilities = CBORObject.NewArray();
 	        signParams = CBORObject.NewArray();
@@ -690,7 +690,7 @@ public class PlugtestRSGroupOSCORE {
 				                              hkdf,
 				                              credFmt,
 				                              mode,
-				                              signEncAlg,
+				                              gpEncAlg,
 				                              signAlg,
 				                              signParams,
 				                              alg,

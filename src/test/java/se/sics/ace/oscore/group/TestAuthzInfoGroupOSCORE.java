@@ -232,7 +232,7 @@ public class TestAuthzInfoGroupOSCORE {
         
         int mode = GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY;
 
-        final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+        final AlgorithmID gpEncAlg = AlgorithmID.AES_CCM_16_64_128;
         AlgorithmID signAlg = null;
         CBORObject algCapabilities = CBORObject.NewArray();
         CBORObject keyCapabilities = CBORObject.NewArray();
@@ -347,7 +347,7 @@ public class TestAuthzInfoGroupOSCORE {
 						                  hkdf,
 						                  credFmt,
 						                  mode,
-						                  signEncAlg,
+						                  gpEncAlg,
 						                  signAlg,
 						                  signParams,
 						                  null,

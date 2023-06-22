@@ -55,8 +55,9 @@ package se.sics.ace.oscore;
 		public static final short cred_fmt = 8; // Major type 0 (unsigned integer) or 1 (negative integer)
 		
 		/**
-		 *  'sign_enc_alg' - Group OSCORE Signature Encryption Algorithm value 
+		 *  'sign_enc_alg' - Group OSCORE Group Encryption Algorithm value 
 		 */
+		// TODO: rename 'sign_enc_alg' to 'gp_enc_alg', after the renaming has been done in draft-ietf-ace-key-groupcomm-oscore
 		public static final short sign_enc_alg = 9; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
 		
 		/**
