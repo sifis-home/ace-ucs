@@ -42,7 +42,6 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -231,7 +230,9 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
 		            valid = true;
 		        }
 		        else {
-		            Assert.fail("Invalid format of authentication credential");
+				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+		                     "Invalid format of authentication credential");
+				    return;
 		        }
 		        break;
 		    case Constants.COSE_HEADER_PARAM_CWT:
@@ -241,7 +242,9 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
 		            // TODO
 		        }
 		        else {
-		            Assert.fail("Invalid format of authentication credential");
+				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+		                     "Invalid format of authentication credential");
+				    return;
 		        }
 		        break;
 		    case Constants.COSE_HEADER_PARAM_X5CHAIN:
@@ -250,11 +253,15 @@ public class GroupOSCORESubResourceNodenameCred extends CoapResource {
 		            // TODO
 		        }
 		        else {
-		            Assert.fail("Invalid format of authentication credential");
+				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+		                     "Invalid format of authentication credential");
+				    return;
 		        }
 		        break;
 		    default:
-		        Assert.fail("Invalid format of authentication credential");
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+	                     "Invalid format of authentication credential");
+			    return;
 		}
 		if (publicKey == null ||  valid == false) {
     	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
