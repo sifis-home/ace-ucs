@@ -60,7 +60,12 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
-import se.sics.ace.*;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
+import se.sics.ace.TestConfig;
+import se.sics.ace.Util;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -91,6 +96,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     
 	private final static String nodeNameSeparator = "-"; // For non-monitor members, separator between the two components of the node name
 	
+	// The maximum number of sets of stale Sender IDs for the group
+	// This value must be strictly greater than 1
+	private final static int maxStaleIdsSets = 3;
+
     private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
 	private static final String rootGroupMembershipResource = "ace-group";
@@ -139,7 +148,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
-        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
+        valid.setGroupMembershipResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
         
         // Create the OSCORE group
@@ -154,9 +163,9 @@ public class TestDtlspPskStoreGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HMAC_SHA_256;
         final int credFmt = Constants.COSE_HEADER_PARAM_CCS;
         
-        int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
+        int mode = GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY;
 
-        final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+        final AlgorithmID gpEncAlg = AlgorithmID.AES_CCM_16_64_128;
         AlgorithmID signAlg = null;
         CBORObject algCapabilities = CBORObject.NewArray();
         CBORObject keyCapabilities = CBORObject.NewArray();
@@ -278,7 +287,7 @@ public class TestDtlspPskStoreGroupOSCORE {
 						                  hkdf,
 						                  credFmt,
 						                  mode,
-						                  signEncAlg,
+						                  gpEncAlg,
 						                  signAlg,
 						                  signParams,
 						                  null,
@@ -286,7 +295,8 @@ public class TestDtlspPskStoreGroupOSCORE {
 						                  null,
     			                          null,
     			                          gmKeyPair,
-    			                          gmAuthenticationCredential);
+    			                          gmAuthenticationCredential,
+    			                          maxStaleIdsSets);
         
     	// Add this OSCORE group to the set of active groups
 
@@ -304,7 +314,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         //Delete lingering old files
         new File(tokenFile).delete();
         new File(tokenHashesFile).delete();
-        
+
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, null, 0,
                 tokenFile, tokenHashesFile, valid, false, 86400000L);
@@ -325,7 +335,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
         new File(TestConfig.testFilePath + "tokenhashes.json").delete();
-    }  
+    }
     
     
     /**
@@ -466,7 +476,7 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -515,8 +525,8 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -563,7 +573,7 @@ public class TestDtlspPskStoreGroupOSCORE {
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
-    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -606,8 +616,8 @@ public class TestDtlspPskStoreGroupOSCORE {
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayRoles.Add(GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(cborArrayRoles);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));

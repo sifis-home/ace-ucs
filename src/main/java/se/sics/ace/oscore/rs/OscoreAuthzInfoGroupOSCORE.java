@@ -44,7 +44,11 @@ import org.eclipse.californium.oscore.OSException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import se.sics.ace.*;
+import se.sics.ace.AceException;
+import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
+import se.sics.ace.Message;
+import se.sics.ace.TimeProvider;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
@@ -95,7 +99,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	
 	/**
 	 * Constructor.
-	 * 
+	 *
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
@@ -104,7 +108,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @param ctx  the crypto context to use with the As
 	 * @param tokenFile  the file where to save tokens when persisting
 	 * @param tokenHashesFile  the file where to save token hashes for the trl
-     * @param scopeValidator  the application specific scope validator 
+     * @param scopeValidator  the application specific scope validator
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
 	 * @throws IOException 
 	 * @throws AceException 
@@ -317,12 +321,13 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 							// A Security Context with this ID Context and Recipient ID exists!
 							install = false;
 						}
+
 	    			}
 	        		catch(RuntimeException e) {
 	    				// Multiple Security Contexts with this Recipient ID exist!
 	    				install = false;
 	        		}
-
+	            	
 	    			if (install)
 	    				db.addContext(ctx);
 	    			else {
@@ -376,7 +381,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     	if (scope.getType().equals(CBORType.ByteString)) {
     		
     		Set<String> myGMAudiences = this.audience.getAllGMAudiences();
-    		Set<String> myJoinResources = this.audience.getAllJoinResources();
+    		Set<String> myGroupMembershipResources = this.audience.getAllGroupMembershipResources();
     		
     		CBORObject audCbor = claims.get(Constants.AUD);
     		String aud = audCbor.AsString();
@@ -397,7 +402,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     		// Check that all the group names in scope refer to group-membership resources
     		if (error == false) {
     			for (String groupName : groupNames) {
-    				if (myJoinResources.contains(rootGroupMembershipResource + "/" + groupName) == false) {
+    				if (myGroupMembershipResources.contains(rootGroupMembershipResource + "/" + groupName) == false) {
     					error = true;
     					break;
     				}
@@ -439,7 +444,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 		        	GroupInfo myGroup = this.activeGroups.get(groupName);
 					
 		        	// The group uses the group mode
-		        	if (provideSignInfo && myGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+		        	if (provideSignInfo && myGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 		        	
 						CBORObject signInfoEntry = CBORObject.NewArray();
 						
@@ -470,7 +475,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 		        	}
 		        	
 		        	// The group uses the pairwise mode
-		        	if (provideEcdhInfo && myGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+		        	if (provideEcdhInfo && myGroup.getMode() != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
 		        	
 						CBORObject ecdhEntry = CBORObject.NewArray();
 						

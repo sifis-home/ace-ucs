@@ -44,7 +44,11 @@ import java.util.logging.Logger;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import se.sics.ace.*;
+import se.sics.ace.AceException;
+import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
+import se.sics.ace.Message;
+import se.sics.ace.TimeProvider;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.rs.AudienceValidator;
@@ -102,7 +106,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @param derivedKeySize  the size in bytes of symmetric keys derived with the key derivation key
 	 * @param tokenFile  the file where to save tokens when persisting
 	 * @param tokenHashesFile  the file where to save token hashes for the trl
-	 * @param scopeValidator  the application specific scope validator 
+	 * @param scopeValidator  the application specific scope validator
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
 	 *
 	 * @throws AceException  if the token repository is not initialized
@@ -223,7 +227,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	if (scope.getType().equals(CBORType.ByteString)) {
     		
     		Set<String> myGMAudiences = this.audience.getAllGMAudiences();
-    		Set<String> myJoinResources = this.audience.getAllJoinResources();
+    		Set<String> myGroupMembershipResources = this.audience.getAllGroupMembershipResources();
     		
     		CBORObject audCbor = claims.get(Constants.AUD);
     		String aud = audCbor.AsString();
@@ -243,7 +247,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     		// Check that all the group names in scope refer to group-membership resources
     		if (error == false) {
     			for (String groupName : groupNames) {
-    				if (myJoinResources.contains(rootGroupMembershipResource + "/" + groupName) == false) {
+    				if (myGroupMembershipResources.contains(rootGroupMembershipResource + "/" + groupName) == false) {
     					error = true;
     					break;
     				}
@@ -286,7 +290,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	            GroupInfo myGroup = this.activeGroups.get(groupName);
     	            
     	            // The group uses the group mode
-    	            if (provideSignInfo && myGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    	            if (provideSignInfo && myGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     	            
     	                CBORObject signInfoEntry = CBORObject.NewArray();
     	                
@@ -317,7 +321,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	            }
 
     	            // The group uses the pairwise mode
-		        	if (provideEcdhInfo && myGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+		        	if (provideEcdhInfo && myGroup.getMode() != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
 		        		
 						CBORObject ecdhEntry = CBORObject.NewArray();
 						

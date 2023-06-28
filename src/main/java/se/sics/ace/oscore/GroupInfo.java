@@ -47,7 +47,8 @@ import COSE.AlgorithmID;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.Util;
-import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
+import se.sics.ace.GroupcommPolicies;
 import se.sics.ace.Hkdf;
 
 /**
@@ -66,7 +67,7 @@ public class GroupInfo {
 	
 	private byte[] masterSecret;
 	private byte[] masterSalt;
-	private byte[] groupEncryptionKey = null;
+	private byte[] signatureEncryptionKey = null;
 	private AlgorithmID hkdf = null;
 	private int authCredFormat; // the format of authentication credentials used in the group
 	
@@ -102,6 +103,14 @@ public class GroupInfo {
 	// The map (key) label is the node name of the group member.
 	private Map<String, CBORObject> birthGIDs = new HashMap<String, CBORObject>();
 	
+	// The maximum number of sets of stale Sender IDs for the group
+	// This value must be strictly greater than 1
+	private int maxStaleIdsSets;
+	
+	// The value of each map entry is a set of stale Sender IDs.
+	// The map (key) label is the version number of the symmetric keying material in use where the Sender ID was marked stale
+	private Map<Integer, Set<CBORObject>> staleSenderIds = new HashMap<Integer, Set<CBORObject>>();	
+	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
 	
@@ -119,7 +128,7 @@ public class GroupInfo {
 	private int mode; // The mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
 	
 	// Specific to the group mode
-	private AlgorithmID signEncAlg = null;
+	private AlgorithmID gpEncAlg = null;
 	private AlgorithmID signAlg = null;
 	private CBORObject signParams = null;
 
@@ -151,7 +160,7 @@ public class GroupInfo {
 	 * @param hkdf                the HKDF Algorithm.
 	 * @param credFmt             the format of the authentication credentials used in the OSCORE group.
 	 * @param mode			      the mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
-	 * @param signEncAlg          the Signature Encryption Algorithm if the group mode is used, or null otherwise
+	 * @param gpEncAlg            the Group Encryption Algorithm if the group mode is used, or null otherwise
 	 * @param signAlg             the Signature Algorithm if the group mode is used, or null otherwise
 	 * @param signParams          the parameters of the Signature Algorithm if the group mode is used, or null otherwise
 	 * @param alg                 the AEAD algorithm if the pairwise mode is used, or null otherwise
@@ -160,6 +169,7 @@ public class GroupInfo {
 	 * @param groupPolicies		  the map of group policies, or Null for building one with default values
 	 * @param gmKeyPair           the asymmetric key pair of the Group Manager
 	 * @param gmAuthCred		  the serialization of the authentication credential of the Group Manager, in the format used in the group
+	 * @param maxStaleIdsSets     the maximum number of sets of stale Sender IDs for the group
 	 */
     public GroupInfo(final String groupName,
     				 final byte[] masterSecret,
@@ -173,7 +183,7 @@ public class GroupInfo {
     		         final AlgorithmID hkdf,
     		         final int authCredFormat,
     		         final int mode,
-    		         final AlgorithmID signEncAlg,
+    		         final AlgorithmID gpEncAlg,
     		         final AlgorithmID signAlg,
     		         final CBORObject signParams,
     		         final AlgorithmID alg,
@@ -181,7 +191,8 @@ public class GroupInfo {
     		         final CBORObject ecdhParams,
     		         final CBORObject groupPolicies,
     		         final OneKey gmKeyPair,
-    		         final byte[] gmAuthCred) {
+    		         final byte[] gmAuthCred,
+    		         final int maxStaleIdsSets) {
     	
     	this.version = 0;
     	this.status = false;
@@ -202,15 +213,15 @@ public class GroupInfo {
     	this.nodeNameSeparator = nodeNameSeparator;
     	
     	// The group mode is used
-    	if (mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
-    		setSignEncAlg(signEncAlg);
+    	if (mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    		setGpEncAlg(gpEncAlg);
 	    	setSignAlg(signAlg);
 	    	setSignParams(signParams);
-	    	setGroupEncryptionKey();
+	    	setSignatureEncryptionKey();
     	}
     	
     	// The pairwise mode is used
-    	if (mode != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+    	if (mode != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
     		setAlg(alg);
 	    	setEcdhAlg(ecdhAlg);
 	    	setEcdhParams(ecdhParams);
@@ -218,6 +229,9 @@ public class GroupInfo {
     	
     	this.senderIdSize = 1;
     	this.maxSenderIdValue = 255;
+    	
+    	this.maxStaleIdsSets = maxStaleIdsSets;
+    	staleSenderIds.put(Integer.valueOf(version), new HashSet<CBORObject>());
     	
     	for (int i = 0; i < 4; i++) {
         	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
@@ -239,8 +253,8 @@ public class GroupInfo {
     	if (groupPolicies == null) {
     		// Set default policy values
         	CBORObject defaultGroupPolicies = CBORObject.NewMap();
-        	defaultGroupPolicies.Add(Constants.POLICY_KEY_CHECK_INTERVAL, CBORObject.FromObject(3600));
-        	defaultGroupPolicies.Add(Constants.POLICY_EXP_DELTA, CBORObject.FromObject(0));
+        	defaultGroupPolicies.Add(GroupcommPolicies.KEY_CHECK_INTERVAL, CBORObject.FromObject(3600));
+        	defaultGroupPolicies.Add(GroupcommPolicies.EXP_DELTA, CBORObject.FromObject(0));
         	this.groupPolicies = defaultGroupPolicies;
     	}
     	
@@ -390,25 +404,25 @@ public class GroupInfo {
     }
     
     /**
-     *  Retrieve the OSCORE Group Encryption Key
-     * @return  the Group Encryption Key, or null in case of error
+     *  Retrieve the OSCORE Signature Encryption Key
+     * @return  the Signature Encryption Key, or null in case of error
      */
-    synchronized public final byte[] getGroupEncryptionKey() {
+    synchronized public final byte[] getSignatureEncryptionKey() {
     	
-    	if (this.groupEncryptionKey == null || this.mode == Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY)
+    	if (this.signatureEncryptionKey == null || this.mode == GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY)
     		return null;
     	
-    	byte[] myArray = new byte[this.groupEncryptionKey.length];
-    	System.arraycopy(this.groupEncryptionKey, 0, myArray, 0, this.groupEncryptionKey.length);
+    	byte[] myArray = new byte[this.signatureEncryptionKey.length];
+    	System.arraycopy(this.signatureEncryptionKey, 0, myArray, 0, this.signatureEncryptionKey.length);
     	return myArray;
     	
     }
     
     /**
-     * Set the OSCORE Group Encryption Key
+     * Set the OSCORE Signature Encryption Key
      * 
      */
-    synchronized public void setGroupEncryptionKey() {
+    synchronized public void setSignatureEncryptionKey() {
     	
     	CBORObject info = CBORObject.NewArray();
     	
@@ -420,24 +434,24 @@ public class GroupInfo {
     	info.Add(getGroupId());
     	
     	// 'alg_aead'
-    	if (this.getSignEncAlg().AsCBOR().getType() == CBORType.Integer)
-        	info.Add(this.getSignEncAlg().AsCBOR().AsInt32());
-    	if (this.getSignEncAlg().AsCBOR().getType() == CBORType.TextString)
-        	info.Add(this.getSignEncAlg().AsCBOR().AsString());
+    	if (this.getGpEncAlg().AsCBOR().getType() == CBORType.Integer)
+        	info.Add(this.getGpEncAlg().AsCBOR().AsInt32());
+    	if (this.getGpEncAlg().AsCBOR().getType() == CBORType.TextString)
+        	info.Add(this.getGpEncAlg().AsCBOR().AsString());
     	
     	// 'type'
-    	info.Add("Group Encryption Key");
+    	info.Add("SEKey");
     	
     	// 'L'
-    	int L = getKeyLengthSignatureEncryptionAlgorithm();
+    	int L = getKeyLengthGroupEncryptionAlgorithm();
     	info.Add(L);
     	
     	try {
-			this.groupEncryptionKey = Hkdf.extractExpand(getMasterSalt(), getMasterSecret(), info.EncodeToBytes(), L);
+			this.signatureEncryptionKey = Hkdf.extractExpand(getMasterSalt(), getMasterSecret(), info.EncodeToBytes(), L);
 		} catch (InvalidKeyException e) {
-			System.err.println("Error when deriving the Group Encryption Key: " + e.getMessage());
+			System.err.println("Error when deriving the Signature Encryption Key: " + e.getMessage());
 		} catch (NoSuchAlgorithmException e) {
-			System.err.println("Error when deriving the Group Encryption Key: " + e.getMessage());
+			System.err.println("Error when deriving the Signature Encryption Key: " + e.getMessage());
 		}
     	
     }
@@ -587,24 +601,24 @@ public class GroupInfo {
     }
     
     /**
-     * @return the Signature Encryption Algorithm used in the group for the group mode
+     * @return the Group Encryption Algorithm used in the group for the group mode
      */
-    synchronized public final AlgorithmID getSignEncAlg() {
+    synchronized public final AlgorithmID getGpEncAlg() {
     	
-    	return this.signEncAlg;
+    	return this.gpEncAlg;
     	
     }
     
     /**
-     *  Set the Signature Encryption Algorithm used in the group for the group mode
-     * @param signEncAlg
+     *  Set the Group Encryption Algorithm used in the group for the group mode
+     * @param gpEncAlg
      */
-    synchronized public void setSignEncAlg(final AlgorithmID signEncAlg) {
+    synchronized public void setGpEncAlg(final AlgorithmID gpEncAlg) {
     	
-    	if (signEncAlg == null)
-			this.signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+    	if (gpEncAlg == null)
+			this.gpEncAlg = AlgorithmID.AES_CCM_16_64_128;
     	else
-    		this.signEncAlg = signEncAlg;
+    		this.gpEncAlg = gpEncAlg;
     	
     }
     
@@ -972,12 +986,12 @@ public class GroupInfo {
 
     	// The node is a monitor
     	if (sid == null) {
-    		if (roles != (1 << Constants.GROUP_OSCORE_MONITOR))
+    		if (roles != (1 << GroupcommParameters.GROUP_OSCORE_MONITOR))
     			return false;
     	}
     	// The node is not a monitor
     	else {
-    		if (roles == (1 << Constants.GROUP_OSCORE_MONITOR))
+    		if (roles == (1 << GroupcommParameters.GROUP_OSCORE_MONITOR))
     			return false;
     		setGroupMemberRoles(sid, roles);
 	    	setSenderIdToIdentity(subject, sid);
@@ -1087,7 +1101,7 @@ public class GroupInfo {
     	if (nodeName.length() > (prefixMonitorNames.length()) &&
     		nodeName.substring(0, prefixSize).equals(prefixMonitorNames)) {
     		
-    		return 1 << Constants.GROUP_OSCORE_MONITOR;
+    		return 1 << GroupcommParameters.GROUP_OSCORE_MONITOR;
     		
     	}
 
@@ -1142,7 +1156,7 @@ public class GroupInfo {
     	if (!this.identities2nodeNames.containsKey(subject))
         		return false;
     	
-    	if (getGroupMemberRoles((getGroupMemberName(subject))) != (1 << Constants.GROUP_OSCORE_MONITOR)) {
+    	if (getGroupMemberRoles((getGroupMemberName(subject))) != (1 << GroupcommParameters.GROUP_OSCORE_MONITOR)) {
     	
 	    	byte[] sid = getGroupMemberSenderId(subject).GetByteString();
 	    	
@@ -1152,6 +1166,8 @@ public class GroupInfo {
 	    	this.nodeRoles.get(sid.length - 1).remove(Util.bytesToInt(sid));
 	    	
 	    	deleteAuthCred(sid);
+	    	
+	    	addStaleSenderId(sid);
 	    	
     	}
     	
@@ -1290,23 +1306,139 @@ public class GroupInfo {
     	return this.senderIdSize;
     	
     }
+    
+    /**
+     *  Return the separator used between the two components of a node name of a non-monitor member
+	 *
+	 *  @return  a string with the separator used between the two components of a node name of a non-monitor member
+     */
+    synchronized public String getNodeNameSeparator() {
+    	
+    	return this.nodeNameSeparator;
+    	
+    }
 
     /**
-     *  Get the key length (in bytes) for the Signature Encryption Algorithm used in the group
-     * @return  the key length (in bytes) for the Signature Encryption Algorithm
+     *  Return the current amount of sets of stale Sender IDs
+     *  
+     *  @return  The current amount of sets of stale Sender IDs 
      */
-	private int getKeyLengthSignatureEncryptionAlgorithm() {
+    synchronized public int getNumberOfStaleSenderIdsSet() {
+    	
+    	return this.staleSenderIds.size();
+    	
+    }
+    
+    /**
+     *  Return one aggregated set including the Sender IDs that have become stale starting from
+     *  the version of the symmetric keying material specified as argument  
+     *  
+     *  @param   The version of the symmetric keying material starting from which stale Sender IDs have to be considered
+     *  @return  The aggregated set of stale Sender IDs, or null in case of error
+     */
+    synchronized public Set<CBORObject> getStaleSenderIds(final int baselineVersion) {
+    	
+    	if (baselineVersion < 0 || baselineVersion > this.version)
+    		return null;
+    	
+    	Set<CBORObject> ret = new HashSet<CBORObject>();
+    	
+    	for (Integer i : this.staleSenderIds.keySet()) {
+    		
+    		if (i.intValue() < baselineVersion) {
+    			// Skip this set of stale Sender IDs
+    			continue;
+    		}
+    		
+    		for (CBORObject obj : this.staleSenderIds.get(i)) {
+    			ret.add(obj);
+    		}
+    	}
+    	
+    	return ret;
+    	
+    }
+    
+        
+    /**
+     *  Add a Sender ID as stale to the set associated with the current version of the symmetric keying material
+     *  
+     *  @param senderId   The Sender ID to add to the set associated with the current version of the symmetric keying material
+     *  @return  True if the addition was successful, or false otherwise
+     */
+    synchronized public boolean addStaleSenderId(byte[] senderId) {
+    	
+    	if (senderId == null) {
+    		return false;
+    	}
+    	
+    	if (!this.staleSenderIds.containsKey(Integer.valueOf(version))) {
+    		// This should never happen
+    		return false;
+    	}
+    	
+    	this.staleSenderIds.get(Integer.valueOf(version)).add(CBORObject.FromObject(senderId));
+    	return true;
+    	
+    }
+    
+    /**
+     *  Add a new empty set of stale Senders IDs associated with the current version of the symmetric keying material
+     *  
+     *  @return  True if the addition was successful, or false otherwise
+     */
+    synchronized public boolean addStaleSenderIdSet() {
+    	
+    	if (this.staleSenderIds.size() == this.maxStaleIdsSets) {
+    		// This should never happen. In case the collection of set reaches its maximum size,
+    		// the oldest set has to be deleted before rekeying the group, and a new empty set is added
+    		return false;
+    	}
+    	
+    	if (this.staleSenderIds.put(Integer.valueOf(version), new HashSet<CBORObject>()) == null)
+    		return true;
+    	
+    	return false;
+
+    }
+    
+    /**
+     *  Remove the oldest set of stale Senders IDs, where the collection of set has reached its maximum size
+     *  
+     *  @return  True if the removal was successful, or false otherwise
+     */
+    synchronized public boolean removeStaleSenderIdOldestSet() {
+
+    	if (this.staleSenderIds.size() != this.maxStaleIdsSets) {
+    		// This should never happen. This method should be called only when
+    		// the current size of the collection of sets has reached its maximum size
+    		return false;
+    	}
+    	
+    	int index = this.version - this.maxStaleIdsSets + 1;
+    	if (this.staleSenderIds.remove(Integer.valueOf(index)) != null)
+    		return true;
+    	
+    	return false;
+    	
+    }
+    
+    /**
+     *  Get the key length (in bytes) for the Group Encryption Algorithm used in the group
+     * @return  the key length (in bytes) for the Group Encryption Algorithm
+     */
+	private int getKeyLengthGroupEncryptionAlgorithm() {
 
 		int keyLength = 0;
 	    
-		if (this.signEncAlg != null && this.mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+		if (this.gpEncAlg != null && this.mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 		
-			if (this.signEncAlg == AlgorithmID.AES_CCM_16_64_128 || this.signEncAlg == AlgorithmID.AES_CCM_16_128_128 ||
-				this.signEncAlg == AlgorithmID.AES_CCM_64_64_128 || this.signEncAlg == AlgorithmID.AES_CCM_64_128_128 )
+			if (this.gpEncAlg == AlgorithmID.AES_CCM_16_64_128 || this.gpEncAlg == AlgorithmID.AES_CCM_16_128_128 ||
+				this.gpEncAlg == AlgorithmID.AES_CCM_64_64_128 || this.gpEncAlg == AlgorithmID.AES_CCM_64_128_128 )
 				keyLength = 16;
 			
-			if (this.signEncAlg == AlgorithmID.AES_CCM_16_64_256 || this.signEncAlg == AlgorithmID.AES_CCM_16_128_256 ||
-				this.signEncAlg == AlgorithmID.AES_CCM_64_64_256 || this.signEncAlg == AlgorithmID.AES_CCM_64_128_256 )
+			if (this.gpEncAlg == AlgorithmID.AES_CCM_16_64_256 || this.gpEncAlg == AlgorithmID.AES_CCM_16_128_256 ||
+				this.gpEncAlg == AlgorithmID.AES_CCM_64_64_256 || this.gpEncAlg == AlgorithmID.AES_CCM_64_128_256 )
 					keyLength = 32;
 		
 		}

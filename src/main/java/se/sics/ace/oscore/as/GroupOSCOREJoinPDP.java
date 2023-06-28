@@ -47,7 +47,7 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.PDP;
-import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
 import se.sics.ace.Util;
 import se.sics.ace.as.RevocationHandler;
 import se.sics.ace.as.Token;
@@ -245,10 +245,10 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                         + DBConnector.rsIdColumn + "=? ORDER BY " 
 		                + DBConnector.audColumn +";"));
         
-        rolesToInt.put("requester", Constants.GROUP_OSCORE_REQUESTER);
-        rolesToInt.put("responder", Constants.GROUP_OSCORE_RESPONDER);
-        rolesToInt.put("monitor", Constants.GROUP_OSCORE_MONITOR);
-        rolesToInt.put("verifier", Constants.GROUP_OSCORE_VERIFIER);
+        rolesToInt.put("requester", GroupcommParameters.GROUP_OSCORE_REQUESTER);
+        rolesToInt.put("responder", GroupcommParameters.GROUP_OSCORE_RESPONDER);
+        rolesToInt.put("monitor", GroupcommParameters.GROUP_OSCORE_MONITOR);
+        rolesToInt.put("verifier", GroupcommParameters.GROUP_OSCORE_VERIFIER);
 	}
 	
 	@Override
@@ -494,8 +494,8 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        		  for (int i=0; i<roleIdArray.length; i++) {
 		        			  short roleIdentifier = roleIdArray[i];
 		        			  // Silently ignore unrecognized roles
-		        			  if (roleIdentifier < Constants.GROUP_OSCORE_ROLES.length)
-			        			  roles.add(Constants.GROUP_OSCORE_ROLES[roleIdentifier]);
+		        			  if (roleIdentifier < GroupcommParameters.GROUP_OSCORE_ROLES.length)
+			        			  roles.add(GroupcommParameters.GROUP_OSCORE_ROLES[roleIdentifier]);
 		        		  }
 		        		  
 		        	  }
