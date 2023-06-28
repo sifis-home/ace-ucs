@@ -62,7 +62,12 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 
-import se.sics.ace.*;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
+import se.sics.ace.GroupcommParameters;
+import se.sics.ace.TestConfig;
+import se.sics.ace.Util;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
@@ -161,11 +166,11 @@ public class TestTokenRepositoryGroupOSCORE {
         
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
-        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
+        valid.setGroupMembershipResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
-    	rolesToInt.put("requester", Constants.GROUP_OSCORE_REQUESTER);
-    	rolesToInt.put("responder", Constants.GROUP_OSCORE_RESPONDER);
-    	rolesToInt.put("monitor", Constants.GROUP_OSCORE_MONITOR);
+    	rolesToInt.put("requester", GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	rolesToInt.put("responder", GroupcommParameters.GROUP_OSCORE_RESPONDER);
+    	rolesToInt.put("monitor", GroupcommParameters.GROUP_OSCORE_MONITOR);
         
         createTR(valid);
         tr = TokenRepository.getInstance();
@@ -206,7 +211,7 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
                 new File(TestConfig.testFilePath + "tokenhashes.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
+                TokenRepository.create(valid, TestConfig.testFilePath
                         + "tokens.json", TestConfig.testFilePath
                         + "tokenhashes.json", null, null, 0, new KissTime(), rsId);
             } catch (AceException e2) {
@@ -500,7 +505,7 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	    	
     	cborArrayScope.Add(cborArrayEntry);
@@ -555,8 +560,8 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -651,7 +656,7 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -705,8 +710,8 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -808,7 +813,7 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -863,8 +868,8 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);

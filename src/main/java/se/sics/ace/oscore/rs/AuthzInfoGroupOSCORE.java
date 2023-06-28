@@ -223,7 +223,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	if (scope.getType().equals(CBORType.ByteString)) {
     		
     		Set<String> myGMAudiences = this.audience.getAllGMAudiences();
-    		Set<String> myJoinResources = this.audience.getAllJoinResources();
+    		Set<String> myGroupMembershipResources = this.audience.getAllGroupMembershipResources();
     		
     		CBORObject audCbor = claims.get(Constants.AUD);
     		String aud = audCbor.AsString();
@@ -243,7 +243,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     		// Check that all the group names in scope refer to group-membership resources
     		if (error == false) {
     			for (String groupName : groupNames) {
-    				if (myJoinResources.contains(rootGroupMembershipResource + "/" + groupName) == false) {
+    				if (myGroupMembershipResources.contains(rootGroupMembershipResource + "/" + groupName) == false) {
     					error = true;
     					break;
     				}
@@ -286,7 +286,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	            GroupInfo myGroup = this.activeGroups.get(groupName);
     	            
     	            // The group uses the group mode
-    	            if (provideSignInfo && myGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    	            if (provideSignInfo && myGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     	            
     	                CBORObject signInfoEntry = CBORObject.NewArray();
     	                
@@ -317,7 +317,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	            }
 
     	            // The group uses the pairwise mode
-		        	if (provideEcdhInfo && myGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+		        	if (provideEcdhInfo && myGroup.getMode() != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {
 		        		
 						CBORObject ecdhEntry = CBORObject.NewArray();
 						

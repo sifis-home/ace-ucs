@@ -48,7 +48,9 @@ import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 
+import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import COSE.CoseException;
 
@@ -127,9 +129,19 @@ public class OscoreIntrospection implements IntrospectionHandler {
                 throw new IntrospectionException(response.getCode().value, "");
             }
             //Client error
-            throw new IntrospectionException(response.getCode().value, 
-                    CBORObject.DecodeFromBytes(
-                            response.getPayload()).toString());
+            String errorMessage = new String();
+            byte[] payload = response.getPayload();
+            CBORObject payloadObj = null;
+            try {
+            	payloadObj = CBORObject.DecodeFromBytes(payload);
+            }
+            catch (CBORException e) {
+            	errorMessage = new String("Invalid payload received from the introspection endpoint");
+            };
+            if (payloadObj != null && payloadObj.getType() == CBORType.TextString) {
+            	errorMessage = new String(payloadObj.AsString());
+            }
+            throw new IntrospectionException(response.getCode().value, errorMessage);
         }
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);

@@ -60,7 +60,15 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
-import se.sics.ace.*;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
+import se.sics.ace.DBHelper;
+import se.sics.ace.GroupcommParameters;
+import se.sics.ace.Message;
+import se.sics.ace.ReferenceToken;
+import se.sics.ace.TestConfig;
+import se.sics.ace.Util;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.cwt.CWT;
@@ -107,6 +115,10 @@ public class TestAuthzInfoGroupOSCORE {
     // For non-monitor members, separator between the two components of the node name
 	private final static String nodeNameSeparator = "-";
     
+	// The maximum number of sets of stale Sender IDs for the group
+	// This value must be strictly greater than 1
+	private final static int maxStaleIdsSets = 3;
+
     private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
 	private static final String rootGroupMembershipResource = "ace-group";
@@ -204,7 +216,7 @@ public class TestAuthzInfoGroupOSCORE {
         
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
-        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
+        valid.setGroupMembershipResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
         // Create the OSCORE group
         final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
@@ -218,9 +230,9 @@ public class TestAuthzInfoGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HMAC_SHA_256;
         final int credFmt = Constants.COSE_HEADER_PARAM_CCS;
         
-        int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
+        int mode = GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY;
 
-        final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+        final AlgorithmID gpEncAlg = AlgorithmID.AES_CCM_16_64_128;
         AlgorithmID signAlg = null;
         CBORObject algCapabilities = CBORObject.NewArray();
         CBORObject keyCapabilities = CBORObject.NewArray();
@@ -335,7 +347,7 @@ public class TestAuthzInfoGroupOSCORE {
 						                  hkdf,
 						                  credFmt,
 						                  mode,
-						                  signEncAlg,
+						                  gpEncAlg,
 						                  signAlg,
 						                  signParams,
 						                  null,
@@ -343,7 +355,8 @@ public class TestAuthzInfoGroupOSCORE {
 						                  null,
     			                          null,
     			                          gmKeyPair,
-    			                          gmPublicKey);
+    			                          gmPublicKey,
+    			                          maxStaleIdsSets);
         
     	// Add this OSCORE group to the set of active groups
     	activeGroups.put(groupName, myGroup);
@@ -354,7 +367,7 @@ public class TestAuthzInfoGroupOSCORE {
         //Delete lingering old files
         new File(tokenFile).delete();
         new File(tokenHashesFile).delete();
-        
+
         coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
@@ -778,7 +791,7 @@ public class TestAuthzInfoGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -844,8 +857,8 @@ public class TestAuthzInfoGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     		
     	cborArrayScope.Add(cborArrayEntry);
@@ -913,7 +926,7 @@ public class TestAuthzInfoGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	int myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -964,8 +977,8 @@ public class TestAuthzInfoGroupOSCORE {
     	cborArrayEntry.Add(groupName);
     	
     	myRoles = 0;
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, GroupcommParameters.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
