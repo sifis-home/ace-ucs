@@ -2,9 +2,11 @@ package se.sics.ace.as;
 
 import com.upokecenter.cbor.CBORObject;
 import org.junit.*;
-import org.junit.rules.ExpectedException;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the DiffSet class
@@ -113,10 +115,6 @@ public class TestDiffSet {
         }
     }
 
-
-    @Rule
-    public ExpectedException exceptionRule = ExpectedException.none();
-
     /**
      * Try to get the latest 3 diff entries from an empty diffSet
      * Check the exception
@@ -124,12 +122,17 @@ public class TestDiffSet {
      */
     @Test
     public void TestFailGetLatestDiffEntriesWhenSizeIsLowerThanTheRequestedNumberOfEntries() throws AceException {
-        exceptionRule.expect(AceException.class);
-        exceptionRule.expectMessage("getDiffEntries() requires the input parameter 'position' " +
-                "to be in the range [1,diffSet.size]");
-
         diff = new DiffSet(5);
-        diff.getLatestDiffEntries(3);
+        AceException exception = assertThrows(AceException.class,
+                () -> diff.getLatestDiffEntries(3));
+        assertTrue(exception.getMessage().contains("getDiffEntries() requires the input parameter 'position' " +
+                "to be in the range [1,diffSet.size]"));
+//        exceptionRule.expect(AceException.class);
+//        exceptionRule.expectMessage("getDiffEntries() requires the input parameter 'position' " +
+//                "to be in the range [1,diffSet.size]");
+//
+//
+//        diff.getLatestDiffEntries(3);
     }
 
     /**
@@ -152,10 +155,11 @@ public class TestDiffSet {
         diffEntries = diff.getLatestDiffEntries(1);
         assert(diffEntries.size() == 1);
 
-        exceptionRule.expect(AceException.class);
         // cannot obtain 2 diff entries. The diffSet array has size 1.
-        diffEntries = diff.getLatestDiffEntries(2);
-
+        AceException exception = assertThrows(AceException.class,
+                () -> diff.getLatestDiffEntries(2));
+        assertTrue(exception.getMessage().contains("getDiffEntries() requires the input parameter 'u' to be " +
+                "lower than or equal to 'position'."));
     }
 
     /**
