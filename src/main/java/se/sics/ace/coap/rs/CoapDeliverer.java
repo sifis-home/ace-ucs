@@ -126,7 +126,7 @@ public class CoapDeliverer implements MessageDeliverer {
         if (TokenRepository.getInstance() == null) {
             throw new AceException("Must initialize TokenRepository");
         }
-        this.d = new ServerMessageDeliverer(root);
+        this.d = new ServerMessageDeliverer(root, null);
         this.asRCH = asRCHM;
         
         if (cep == null) {
