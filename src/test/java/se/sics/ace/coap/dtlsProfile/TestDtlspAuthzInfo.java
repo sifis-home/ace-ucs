@@ -209,7 +209,7 @@ public class TestDtlspAuthzInfo {
         cep.start();
         Exchange iex = new Exchange(req, null, Origin.REMOTE, new TestSynchroneExecutor());
         iex.setEndpoint(cep);
-        CoapExchange ex = new CoapExchange(iex, dai);      
+        CoapExchange ex = new CoapExchange(iex);
         dai.handlePOST(ex);
       
         byte[] kidBytes = new byte[]{0x01, 0x02};
@@ -258,7 +258,7 @@ public class TestDtlspAuthzInfo {
         cep.start();
         Exchange iex = new Exchange(req, null, Origin.REMOTE, new TestSynchroneExecutor());
         iex.setEndpoint(cep);
-        CoapExchange ex = new CoapExchange(iex, dai);      
+        CoapExchange ex = new CoapExchange(iex);
         dai.handlePOST(ex);
       
         byte[] kidBytes = new byte[]{0x01, 0x02};
