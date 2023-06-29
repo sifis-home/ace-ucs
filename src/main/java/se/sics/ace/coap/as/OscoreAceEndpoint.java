@@ -118,9 +118,7 @@ public class OscoreAceEndpoint extends OSCoreResource implements AutoCloseable {
         if (m instanceof CoapRes) {
             CoapRes res = (CoapRes)m;
             LOGGER.log(Level.FINEST, "Produced response: " + res.toString());
-            //XXX: Should the profile set the content format here?
-            exchange.respond(res.getCode(), res.getRawPayload(), 
-                    Constants.APPLICATION_ACE_CBOR);
+            exchange.respond(res.getCode(), res.getRawPayload(), Constants.APPLICATION_ACE_CBOR);
             return;
         }
         if (m == null) {//Wasn't a CoAP message

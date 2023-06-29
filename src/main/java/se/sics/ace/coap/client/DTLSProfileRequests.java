@@ -156,9 +156,7 @@ public class DTLSProfileRequests {
             throw new AceException(e.getMessage());
         }
         try {
-            return client.post(
-                    payload.EncodeToBytes(), 
-                    Constants.APPLICATION_ACE_CBOR);
+            return client.post(payload.EncodeToBytes(), Constants.APPLICATION_ACE_CBOR);
         } catch (ConnectorException | IOException e) {
             LOGGER.severe("DTLSConnector error: " + e.getMessage());
             throw new AceException(e.getMessage());
@@ -180,6 +178,25 @@ public class DTLSProfileRequests {
      * @throws AceException 
      */
     public static CoapResponse postToken(String rsAddr, CBORObject payload, OneKey key) throws AceException {
+    	return postToken(rsAddr, payload, Constants.APPLICATION_CWT, key);
+    }
+    
+    /**
+     * Sends a POST request to the /authz-info endpoint of the RS to submit an
+     * access token.
+     * 
+     * @param rsAddr  the full address of the /authz-info endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param contentFormat  the CoAP content format to use for this message
+     * @param payload  the token received from the getToken() method
+     * @param key  an asymmetric key-pair to use with DTLS in a raw-public 
+     *  key handshake
+     * 
+     * @return  the response 
+     *
+     * @throws AceException 
+     */
+    public static CoapResponse postToken(String rsAddr, CBORObject payload, int contentFormat, OneKey key) throws AceException {
         if (payload == null) {
             throw new AceException(
                     "Payload cannot be null when POSTing to authz-info");
@@ -226,9 +243,7 @@ public class DTLSProfileRequests {
                LOGGER.finest("Sending request payload: " + payload);
         CoapResponse r = null;
         try {
-            r = client.post(
-                    payload.EncodeToBytes(), 
-                    Constants.APPLICATION_ACE_CBOR);
+            r = client.post(payload.EncodeToBytes(), contentFormat);
         } catch (ConnectorException | IOException ex) {
             LOGGER.severe("DTLSConnector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());
@@ -252,6 +267,25 @@ public class DTLSProfileRequests {
      * @throws AceException 
      */
     public static CoapResponse postTokenUpdate(String rsAddr, CBORObject payload, CoapClient c) throws AceException {
+    	return postTokenUpdate(rsAddr, payload, Constants.APPLICATION_CWT, c);
+    }
+    
+    /**
+     * Sends a POST request to the /authz-info endpoint of the RS to submit an
+     * access token for updating access rights.
+     * 
+     * @param rsAddr  the full address of the /authz-info endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param payload  the token received from the getToken() method
+     * @param contentFormat  the CoAP content format to use for this message
+     * @param key  an asymmetric key-pair to use with DTLS in a raw-public 
+     *  key handshake
+     * 
+     * @return  the response 
+     *
+     * @throws AceException 
+     */
+    public static CoapResponse postTokenUpdate(String rsAddr, CBORObject payload, int contentFormat, CoapClient c) throws AceException {
         if (payload == null) {
             throw new AceException(
                     "Payload cannot be null when POSTing to authz-info");
@@ -261,7 +295,7 @@ public class DTLSProfileRequests {
         c.setURI(rsAddr);
         CoapResponse tokenPostResp = null;
         try {
-        	tokenPostResp = c.post(payload.EncodeToBytes(), Constants.APPLICATION_ACE_CBOR);
+        	tokenPostResp = c.post(payload.EncodeToBytes(), contentFormat);
         } catch (ConnectorException | IOException ex) {
             LOGGER.severe("DTLSConnector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());

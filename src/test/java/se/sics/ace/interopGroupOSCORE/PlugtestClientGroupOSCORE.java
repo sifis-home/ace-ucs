@@ -1029,7 +1029,7 @@ public class PlugtestClientGroupOSCORE {
         
         rsAuthzInfo =  "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info";
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAuthzInfo, payload, null);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAuthzInfo, payload, Constants.APPLICATION_ACE_CBOR, null);
         
         printResponseFromRS(r);
         
@@ -1039,9 +1039,6 @@ public class PlugtestClientGroupOSCORE {
         // DEBUG: START SET OF ASSERTIONS
         /*
         Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostRPKGOSR".getBytes(Constants.charset), cti.GetByteString());
-        
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         */
@@ -1750,7 +1747,7 @@ public class PlugtestClientGroupOSCORE {
         
         rsAuthzInfo =  "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info";
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAuthzInfo, payload, null);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAuthzInfo, payload, Constants.APPLICATION_ACE_CBOR, null);
         printResponseFromRS(r);
         
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
@@ -1759,9 +1756,6 @@ public class PlugtestClientGroupOSCORE {
         // DEBUG: START SET OF ASSERTIONS
         /*
         Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostRPKGOMR".getBytes(Constants.charset), cti.GetByteString());
-        
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         */
@@ -2468,7 +2462,7 @@ public class PlugtestClientGroupOSCORE {
         
         rsAuthzInfo =  "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info";
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAuthzInfo, payload, null);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAuthzInfo, payload, Constants.APPLICATION_ACE_CBOR, null);
         printResponseFromRS(r);
         
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
@@ -2476,12 +2470,7 @@ public class PlugtestClientGroupOSCORE {
         
         // DEBUG: START SET OF ASSERTIONS
         /*
-        Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        
-        Assert.assertArrayEquals("tokenPostPSKGOSR".getBytes(Constants.charset), 
-                cti.GetByteString());
-        
+        Assert.assertNotNull(cbor);        
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         */
@@ -3186,7 +3175,7 @@ public class PlugtestClientGroupOSCORE {
         
         rsAuthzInfo =  "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info";
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAuthzInfo, payload, null);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAuthzInfo, payload, Constants.APPLICATION_ACE_CBOR, null);
         
         printResponseFromRS(r);
         
@@ -3195,11 +3184,7 @@ public class PlugtestClientGroupOSCORE {
         
         // DEBUG: START SET OF ASSERTIONS
         /*
-        Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostPSKGOMR".getBytes(Constants.charset), 
-                cti.GetByteString());
-        
+        Assert.assertNotNull(cbor);       
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         */

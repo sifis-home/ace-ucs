@@ -47,6 +47,7 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -200,10 +201,8 @@ public class TestDtlspClient2RS {
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx); 
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
-        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPAI".getBytes(Constants.charset), cti.GetByteString());
+        Assert.assertEquals(CoAP.ResponseCode.CREATED, r.getCode());
+        Assert.assertArrayEquals(Bytes.EMPTY, r.getPayload());
     }
     
     /**

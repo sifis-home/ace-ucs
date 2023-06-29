@@ -56,6 +56,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -244,7 +245,7 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cbor = CBORObject.True;
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         CoapResponse r = DTLSProfileRequests.postToken(
-                "coaps://localhost/authz-info/test", cbor, key);
+                "coaps://localhost/authz-info/test", cbor, Constants.APPLICATION_ACE_CBOR, key);
         Assert.assertEquals("UNAUTHORIZED", r.getCode().name());
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertEquals("{1: \"coaps://blah/authz-info/\"}", rPayload.toString());    
@@ -274,11 +275,9 @@ public class TestDtlspClientGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx); 
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
-        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPAI".getBytes(Constants.charset), cti.GetByteString());
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, Constants.APPLICATION_ACE_CBOR, key);
+        Assert.assertEquals(CoAP.ResponseCode.CREATED, r.getCode());
+        Assert.assertArrayEquals(Bytes.EMPTY, r.getPayload());
     }
     
     
@@ -335,13 +334,10 @@ public class TestDtlspClientGroupOSCORE {
         if (askForEcdhInfo)
         	payload.Add(Constants.ECDH_INFO, CBORObject.Null);
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
-        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPAIGOSR".getBytes(Constants.charset), 
-                				 cti.GetByteString());
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, Constants.APPLICATION_ACE_CBOR, key);
+        Assert.assertEquals(CoAP.ResponseCode.CREATED, r.getCode());
         
+        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
@@ -2114,12 +2110,9 @@ public class TestDtlspClientGroupOSCORE {
         if (askForEcdhInfo)
         	payload.Add(Constants.ECDH_INFO, CBORObject.Null);
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
-        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPAIGOMR".getBytes(Constants.charset), cti.GetByteString());
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, Constants.APPLICATION_ACE_CBOR, key);
         
+        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
@@ -3976,7 +3969,7 @@ public class TestDtlspClientGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, Constants.APPLICATION_ACE_CBOR, null);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
               
@@ -4042,13 +4035,10 @@ public class TestDtlspClientGroupOSCORE {
         if (askForEcdhInfo)
         	payload.Add(Constants.ECDH_INFO, CBORObject.Null);
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
-        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostRPKGOSR".getBytes(Constants.charset), 
-                				 cti.GetByteString());
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, Constants.APPLICATION_ACE_CBOR, null);
+        Assert.assertEquals(CoAP.ResponseCode.CREATED, r.getCode());
         
+        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
@@ -5811,12 +5801,10 @@ public class TestDtlspClientGroupOSCORE {
         if (askForEcdhInfo)
         	payload.Add(Constants.ECDH_INFO, CBORObject.Null);
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
-        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostRPKGOMR".getBytes(Constants.charset), cti.GetByteString());
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, Constants.APPLICATION_ACE_CBOR, null);
+        Assert.assertEquals(CoAP.ResponseCode.CREATED, r.getCode());
         
+        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
@@ -7613,7 +7601,7 @@ public class TestDtlspClientGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = CBORObject.FromObject(token.encode(ctx).EncodeToBytes());    
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, Constants.APPLICATION_ACE_CBOR, key);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
              
@@ -7680,7 +7668,7 @@ public class TestDtlspClientGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = CBORObject.FromObject(token.encode(ctx).EncodeToBytes());    
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, Constants.APPLICATION_ACE_CBOR, key);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
              
@@ -7748,7 +7736,7 @@ public class TestDtlspClientGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = CBORObject.FromObject(token.encode(ctx).EncodeToBytes());    
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, Constants.APPLICATION_ACE_CBOR, key);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
              
@@ -7802,7 +7790,7 @@ public class TestDtlspClientGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, Constants.APPLICATION_ACE_CBOR, null);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
         
@@ -7874,12 +7862,10 @@ public class TestDtlspClientGroupOSCORE {
         if (askForEcdhInfo)
         	payload.Add(Constants.ECDH_INFO, CBORObject.Null);
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
-        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostPSKGOSR".getBytes(Constants.charset), cti.GetByteString());
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, Constants.APPLICATION_ACE_CBOR, null);
+        Assert.assertEquals(CoAP.ResponseCode.CREATED, r.getCode());
         
+        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
@@ -9605,12 +9591,12 @@ public class TestDtlspClientGroupOSCORE {
         // 
         // Normally, a client understands that the Token is indeed for updating access rights,
         // since the response from the AS does not include the 'cnf' parameter.
-        r = DTLSProfileRequests.postTokenUpdate(rsAddrCS, payload, c);
-        cbor = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertNotNull(cbor);
-        cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostPSKGOSRUpdateAccessRights".getBytes(Constants.charset), cti.GetByteString());
+        r = DTLSProfileRequests.postTokenUpdate(rsAddrCS, payload, Constants.APPLICATION_ACE_CBOR, c);
+        Assert.assertEquals(CoAP.ResponseCode.CREATED, r.getCode());
         
+        cbor = CBORObject.DecodeFromBytes(r.getPayload());
+
+
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
@@ -10208,12 +10194,10 @@ public class TestDtlspClientGroupOSCORE {
         if (askForEcdhInfo)
         	payload.Add(Constants.ECDH_INFO, CBORObject.Null);
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
-        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertNotNull(cbor);
-        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostPSKGOMR".getBytes(Constants.charset), cti.GetByteString());
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, Constants.APPLICATION_ACE_CBOR, null);
+        Assert.assertEquals(CoAP.ResponseCode.CREATED, r.getCode());
         
+        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         

@@ -40,6 +40,10 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
 
+import com.upokecenter.cbor.CBORException;
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
@@ -102,8 +106,22 @@ public class CoapAuthzInfo extends CoapResource {
             Message reply = this.ai.processMessage(msg);
             //Safe to cast, since CoapReq only ever renders a CoapRes
             CoapRes response = (CoapRes)reply;
-            exchange.respond(response.getCode(), response.getRawPayload(),
-            		Constants.APPLICATION_ACE_CBOR);
+            
+            if (response.getRawPayload().length != 0) {
+            	CBORObject obj = null;
+            	try {
+            		obj = CBORObject.DecodeFromBytes(response.getRawPayload());
+            		if (obj.getType() == CBORType.Map) {
+            			// The payload is a CBOR map, including parameters consistent with the CoAP content format application/ace+cbor
+            			exchange.respond(response.getCode(), response.getRawPayload(), Constants.APPLICATION_ACE_CBOR);
+            		}
+            	}
+            	catch (CBORException e) {}
+            }
+            // The payload is empty or it has an unspecified CoAP Content-Format 
+            exchange.respond(response.getCode(), response.getRawPayload());
+            
+            
         } catch (AceException e) {
             LOGGER.severe("Error while handling incoming POST: " 
                     + e.getMessage());
