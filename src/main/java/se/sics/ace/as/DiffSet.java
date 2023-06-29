@@ -103,7 +103,7 @@ public class DiffSet {
         }
         if (position < u) {
             //trying to select more entries than the number of entries in the array
-            throw new AceException("getDiffEntries() requires the input parameter 'u' to be" +
+            throw new AceException("getDiffEntries() requires the input parameter 'u' to be " +
                     "lower than or equal to 'position'.");
         }
         int n = position - u + l; // n is the n-th element in the diffSet array, not its index

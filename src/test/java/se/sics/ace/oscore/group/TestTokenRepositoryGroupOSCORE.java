@@ -47,9 +47,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -73,6 +71,9 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.TokenRepository;
+
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the TokenRepository class.
@@ -101,12 +102,7 @@ public class TestTokenRepositoryGroupOSCORE {
      * Converter for generating byte arrays from int
      */
     private static ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-    
-    /**
-     * Expected exception
-     */
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
+
     
     /**
      * Set up tests.
@@ -243,9 +239,10 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        this.thrown.expect(AceException.class);
-        this.thrown.expectMessage("Token has no scope");
-        tr.addToken(null, params, ctx, null, -1);
+
+        AceException exception = assertThrows(AceException.class,
+                () -> tr.addToken(null, params, ctx, null, -1));
+        assertTrue(exception.getMessage().contains("Token has no scope"));
     }
     
     /**
@@ -280,9 +277,10 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CTI, CBORObject.FromObject("token1"));
-        this.thrown.expect(AceException.class);
-        this.thrown.expectMessage("Cti has invalid format");
-        tr.addToken(null, params, ctx, null, -1);
+
+        AceException exception = assertThrows(AceException.class,
+                () -> tr.addToken(null, params, ctx, null, -1));
+        assertTrue(exception.getMessage().contains("Cti has invalid format"));
     }
     
     /**
@@ -292,9 +290,7 @@ public class TestTokenRepositoryGroupOSCORE {
      */
     @Test
     public void testTokenDuplicateCti() throws AceException {
-        this.thrown.expect(AceException.class);
-        this.thrown.expectMessage("Duplicate cti");
-        Map<Short, CBORObject> params = new HashMap<>(); 
+        Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -308,7 +304,10 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(null, params, ctx, null, -1);
+
+        AceException exception = assertThrows(AceException.class,
+                () -> tr.addToken(null, params, ctx, null, -1));
+        assertTrue(exception.getMessage().contains("Duplicate cti"));
     }
     
     /**
@@ -318,14 +317,15 @@ public class TestTokenRepositoryGroupOSCORE {
      */
     @Test
     public void testTokenNoCnf() throws AceException {
-        this.thrown.expect(AceException.class);
-        this.thrown.expectMessage("Token has no cnf");
-        Map<Short, CBORObject> params = new HashMap<>(); 
+        Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
-        tr.addToken(null, params, ctx, null, -1);
+
+        AceException exception = assertThrows(AceException.class,
+                () -> tr.addToken(null, params, ctx, null, -1));
+        assertTrue(exception.getMessage().contains("Token has no cnf"));
     }
     
     /**
@@ -335,9 +335,7 @@ public class TestTokenRepositoryGroupOSCORE {
      */
     @Test
     public void testTokenUnknownKid() throws AceException {
-        this.thrown.expect(AceException.class);
-        this.thrown.expectMessage("Token refers to unknown kid");
-        Map<Short, CBORObject> params = new HashMap<>(); 
+        Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -345,7 +343,10 @@ public class TestTokenRepositoryGroupOSCORE {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null, -1);
+
+        AceException exception = assertThrows(AceException.class,
+                () -> tr.addToken(null, params, ctx, null, -1));
+        assertTrue(exception.getMessage().contains("Token refers to unknown kid"));
     }
     
     /**
@@ -355,9 +356,7 @@ public class TestTokenRepositoryGroupOSCORE {
      */
     @Test
     public void testTokenInvalidCnf() throws AceException {
-        this.thrown.expect(AceException.class);
-        this.thrown.expectMessage("Malformed cnf claim in token");
-        Map<Short, CBORObject> params = new HashMap<>(); 
+        Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -366,7 +365,10 @@ public class TestTokenRepositoryGroupOSCORE {
         cnf.Add("blah", "blah".getBytes(Constants.charset));
         cnf.Add("blubb", CBORObject.FromObject("blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null, -1);
+
+        AceException exception = assertThrows(AceException.class,
+                () -> tr.addToken(null, params, ctx, null, -1));
+        assertTrue(exception.getMessage().contains("Malformed cnf claim in token"));
     }
     
     /**
@@ -380,9 +382,7 @@ public class TestTokenRepositoryGroupOSCORE {
     @Test
     public void testTokenCnfInvalidEncrypt0() throws AceException, CoseException,
             IllegalStateException, InvalidCipherTextException {
-        this.thrown.expect(AceException.class);
-        this.thrown.expectMessage("Error while decrypting a cnf claim");
-        Map<Short, CBORObject> params = new HashMap<>(); 
+        Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -396,7 +396,10 @@ public class TestTokenRepositoryGroupOSCORE {
         cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null, -1);
+
+        AceException exception = assertThrows(AceException.class,
+                () -> tr.addToken(null, params, ctx, null, -1));
+        assertTrue(exception.getMessage().contains("Error while decrypting a cnf claim"));
     }
     
     
@@ -407,9 +410,7 @@ public class TestTokenRepositoryGroupOSCORE {
      */
     @Test
     public void testTokenNoKid() throws AceException {
-        this.thrown.expect(AceException.class);
-        this.thrown.expectMessage("Malformed cnf claim in token");
-        Map<Short, CBORObject> params = new HashMap<>(); 
+        Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -418,7 +419,10 @@ public class TestTokenRepositoryGroupOSCORE {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add("blubb", CBORObject.FromObject("blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null, -1);
+
+        AceException exception = assertThrows(AceException.class,
+                () -> tr.addToken(null, params, ctx, null, -1));
+        assertTrue(exception.getMessage().contains("Malformed cnf claim in token"));
     }
     
     
@@ -429,9 +433,7 @@ public class TestTokenRepositoryGroupOSCORE {
      */
     @Test
     public void testTokenInvalidKid() throws AceException {
-        this.thrown.expect(AceException.class);
-        this.thrown.expectMessage("cnf contains invalid kid");
-        Map<Short, CBORObject> params = new HashMap<>(); 
+        Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -440,7 +442,10 @@ public class TestTokenRepositoryGroupOSCORE {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("blah"));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null, -1);
+
+        AceException exception = assertThrows(AceException.class,
+                () -> tr.addToken(null, params, ctx, null, -1));
+        assertTrue(exception.getMessage().contains("cnf contains invalid kid"));
     }
     
     
