@@ -259,8 +259,7 @@ public class DTLSProfileRequests {
      * @param rsAddr  the full address of the /authz-info endpoint
      *  (including scheme and hostname, and port if not default)
      * @param payload  the token received from the getToken() method
-     * @param key  an asymmetric key-pair to use with DTLS in a raw-public 
-     *  key handshake
+     * @param c  the CoAP client posting the access token
      * 
      * @return  the response 
      *
@@ -278,8 +277,7 @@ public class DTLSProfileRequests {
      *  (including scheme and hostname, and port if not default)
      * @param payload  the token received from the getToken() method
      * @param contentFormat  the CoAP content format to use for this message
-     * @param key  an asymmetric key-pair to use with DTLS in a raw-public 
-     *  key handshake
+     * @param c  the CoAP client posting the access token
      * 
      * @return  the response 
      *
