@@ -52,7 +52,7 @@
 		<dependency>
 			<groupId>com.github.peteroupc</groupId>
 			<artifactId>numbers</artifactId>
-			<version>1.4.3</version>
+			<version>1.8.2</version>
 		</dependency>
 		<dependency>
 			<groupId>org.wso2.balana</groupId>
