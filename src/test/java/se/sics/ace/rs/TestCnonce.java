@@ -58,7 +58,11 @@ import COSE.OneKey;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
-import se.sics.ace.*;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
+import se.sics.ace.Message;
+import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -79,7 +83,7 @@ public class TestCnonce {
     private static OneKey symmetricKey;
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static AuthzInfo ai;
-    
+
     /**
      * Set up tests.
      * @throws IOException 
@@ -104,7 +108,7 @@ public class TestCnonce {
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
         
         String rsId = "rs1";
-
+        
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         String tokenHashesFile = TestConfig.testFilePath + "tokenhashes.json";
         //Delete lingering old files
@@ -136,7 +140,7 @@ public class TestCnonce {
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
         new File(TestConfig.testFilePath + "tokenhashes.json").delete();
-    }   
+    }
 
     /**
      * Test a successful round-trip with cnonce
