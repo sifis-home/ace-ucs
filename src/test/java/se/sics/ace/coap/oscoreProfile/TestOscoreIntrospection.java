@@ -42,6 +42,7 @@ import org.junit.Test;
 import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.Constants;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreIntrospection;
 
 /**
@@ -98,6 +99,10 @@ public class TestOscoreIntrospection {
      */
     @BeforeClass
     public static void setUp() {
+
+        // clean the ctx database before running the test
+        OscoreCtxDbSingleton.getInstance().purge();
+
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
     	
         srv = new RunTestServer();
