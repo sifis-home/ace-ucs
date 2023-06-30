@@ -1,0 +1,27 @@
+name: Maven Tests
+on:
+  push:
+    branches:
+      - sifis-home
+
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          java-version: '8.0.x'
+          distribution: 'zulu'
+
+      - name: Install MySql for tests
+        run: |
+          echo "mysql-server mysql-server/root_password password root" | sudo debconf-set-selections
+          echo "mysql-server mysql-server/root_password_again password root" | sudo debconf-set-selections
+          sudo apt-get -y install mysql-server
+          sudo systemctl start mysql.service
+          echo "root" > db.pwd # Root username
+          echo "root" >> db.pwd # Root pw
+
+      - name: Run the tests
+        run: mvn --batch-mode test
