@@ -26,7 +26,7 @@ jobs:
           echo "root" >> db.pwd # Root pw
           
       - name: Create the (jar) package
-        run: mvn --batch-mode package -DskipTests=true
+        run: mvn --batch-mode package
 
       - name: Get version
         id: tagName
