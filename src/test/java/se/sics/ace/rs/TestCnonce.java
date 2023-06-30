@@ -79,7 +79,7 @@ public class TestCnonce {
     private static OneKey symmetricKey;
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static AuthzInfo ai;
-    
+
     /**
      * Set up tests.
      * @throws IOException 
@@ -136,7 +136,7 @@ public class TestCnonce {
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
         new File(TestConfig.testFilePath + "tokenhashes.json").delete();
-    }   
+    }
 
     /**
      * Test a successful round-trip with cnonce

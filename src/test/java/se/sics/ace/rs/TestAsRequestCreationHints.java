@@ -31,6 +31,9 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
@@ -42,9 +45,6 @@ import com.upokecenter.cbor.CBORObject;
 import org.junit.Assert;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
-
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Tests the AsRequestCreationHints  class.
@@ -59,12 +59,11 @@ public class TestAsRequestCreationHints {
      */
     @Test
     public void testNullUri() {
-
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> new AsRequestCreationHints(null, null, false, false));
+                										  () -> new AsRequestCreationHints(null, null, false, false));
         assertTrue(exception.getMessage().contains("Cannot create an AsRequestCreationHints object with null or empty asUri field"));
     }
-
+    
     /**
      * Test creating an AS info with empty AS uri.
      */

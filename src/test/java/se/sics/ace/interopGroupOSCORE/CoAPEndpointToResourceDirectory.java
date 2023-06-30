@@ -93,8 +93,6 @@ public class CoAPEndpointToResourceDirectory {
 	 * 
 	 */
 	public static void main(String args[]) {
-		String defaultUri = "coap://coap.me";
-
 		String path = "";
 		String query = "";
 		byte[] requestPayload = null;
@@ -107,6 +105,7 @@ public class CoAPEndpointToResourceDirectory {
 		
 		// Interact with the test server at coap://coap.me
 		/*
+		String defaultUri = "coap://coap.me";
 		// input URI from command line arguments
 		try {
 			if (args.length == 0) {
