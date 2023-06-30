@@ -479,7 +479,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         CoapEndpoint cep = new Builder().build();
         cep.start();
         iex.setEndpoint(cep);
-        CoapExchange ex = new CoapExchange(iex, dai);      
+        CoapExchange ex = new CoapExchange(iex);
         dai.handlePOST(ex);
       
         byte[] kidBytes = new byte[]{0x01, 0x02};
@@ -527,7 +527,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         CoapEndpoint cep = new Builder().build();
         cep.start();
         iex.setEndpoint(cep);
-        CoapExchange ex = new CoapExchange(iex, dai);      
+        CoapExchange ex = new CoapExchange(iex);
         dai.handlePOST(ex);
       
         byte[] kidBytes = new byte[]{0x01, 0x02};
@@ -614,7 +614,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         CoapEndpoint cep = new Builder().build();
         cep.start();
         iex.setEndpoint(cep);
-        CoapExchange ex = new CoapExchange(iex, dai2);      
+        CoapExchange ex = new CoapExchange(iex);
         dai2.handlePOST(ex);
       
         byte[] kidBytes = new byte[]{0x03, 0x04};
@@ -662,7 +662,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         CoapEndpoint cep = new Builder().build();
         cep.start();
         iex.setEndpoint(cep);
-        CoapExchange ex = new CoapExchange(iex, dai2);      
+        CoapExchange ex = new CoapExchange(iex);
         dai2.handlePOST(ex);
       
         byte[] kidBytes = new byte[]{0x05, 0x06};
