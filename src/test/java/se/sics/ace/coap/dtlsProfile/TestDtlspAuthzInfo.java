@@ -93,7 +93,7 @@ public class TestDtlspAuthzInfo {
     private static CoapAuthzInfo dai;
     private static CBORObject payload;
     private static CBORObject payload2;
-
+    
     /**
      * Set up the necessary objects.
      * 
