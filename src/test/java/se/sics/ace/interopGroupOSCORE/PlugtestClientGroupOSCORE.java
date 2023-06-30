@@ -1113,10 +1113,10 @@ public class PlugtestClientGroupOSCORE {
         // DEBUG: START SET OF ASSERTIONS
         /*
         if (askForSignInfo) {
-        	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(GroupcommParameters.SIGN_INFO)));
-            Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(GroupcommParameters.SIGN_INFO)).getType());
+        	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
+            Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
-        	signInfo = cbor.get(CBORObject.FromObject(GroupcommParameters.SIGN_INFO));
+        	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
         	
 	    	CBORObject signInfoExpected = CBORObject.NewArray();
 	    	CBORObject signInfoEntry = CBORObject.NewArray();
@@ -1149,13 +1149,13 @@ public class PlugtestClientGroupOSCORE {
         }
         
         if (askForEcdhInfo) {
-		    Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(GroupcommParameters.ECDH_INFO)));
+		    Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
 		    
-		    if (cbor.ContainsKey(CBORObject.FromObject(GroupcommParameters.ECDH_INFO))) {
+		    if (cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
 		    
-		        Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(GroupcommParameters.ECDH_INFO)).getType());
+		        Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.ECDH_INFO)).getType());
 		        ecdhInfo = CBORObject.NewArray();
-		        ecdhInfo = cbor.get(CBORObject.FromObject(GroupcommParameters.ECDH_INFO));
+		        ecdhInfo = cbor.get(CBORObject.FromObject(Constants.ECDH_INFO));
 		        
 		        CBORObject ecdhInfoExpected = CBORObject.NewArray();
 		        CBORObject ecdhInfoEntry = CBORObject.NewArray();
