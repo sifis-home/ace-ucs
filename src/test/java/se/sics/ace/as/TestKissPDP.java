@@ -42,9 +42,7 @@ import java.util.Set;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -266,12 +264,6 @@ public class TestKissPDP {
         DBHelper.tearDownDB();
         pdp.close();
     }
-    
-    /**
-     * 
-     */
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
 
     /**
      * Test the basic example configuration with different access queries
