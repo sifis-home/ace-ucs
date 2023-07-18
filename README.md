@@ -1,3 +1,5 @@
+[![coverage](https://raw.githubusercontent.com/sifis-home/ace-ucs/gh-pages/reports/jacoco.svg 'Code Coverage')](https://sifis-home.github.io/ace-ucs/reports/index.html)
+
 # README #
 
 This is a mavenized Java 1.8 project. You should be able to compile and run these classes by using Maven.
