@@ -1,0 +1,1099 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UcsHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.ucs</a> &gt; <span class="el_source">UcsHelper.java</span></div><h1>UcsHelper.java</h1><pre class="source lang-java linenums">package se.sics.ace.ucs;
+
+import com.att.research.xacml.api.Request;
+import it.cnr.iit.ucs.message.endaccess.EndAccessResponseMessage;
+import it.cnr.iit.ucs.message.startaccess.StartAccessResponseMessage;
+import it.cnr.iit.ucs.message.tryaccess.TryAccessResponseMessage;
+import it.cnr.iit.ucs.properties.components.PapProperties;
+import it.cnr.iit.ucs.properties.components.PipProperties;
+import se.sics.ace.AceException;
+import se.sics.ace.as.*;
+import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.ucs.xacml.AdditionalAttribute;
+import se.sics.ace.ucs.xacml.CATEGORY;
+import se.sics.ace.ucs.xacml.RequestGenerator;
+import se.sics.ace.ucs.xacml.RequestSerializationFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.sql.*;
+import java.util.*;
+import java.util.Date;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ *
+ * @author Simone Facchini and Marco Rasori
+ *
+ */
+public class UcsHelper implements PDP, AutoCloseable {
+
+	//TODO add the deleteAccess method.
+	// This method is used to revoke the access of client cid to the audience rs with scope scope
+	// &lt;cid,rs,scope&gt;
+	// should:
+	// 		1) terminate the session, if present
+	// 		2) get the token identifier and revoke the access token
+	// 		3) delete the policy file
+
+	//TODO add the deleteAllAccess method.
+	// This method is used to revoke the access of client cid to everything
+	// &lt;cid,*,*&gt;
+	// should:
+	// 		1) terminate all the sessions that have subject-id==cid, if present
+	// 		2) get the token identifiers and revoke the access tokens
+	// 		3) delete the policy files
+
+	//TODO add the deleteAllRsAccess method.
+	// This method is used to revoke the access of client cid to everything concerning a given resource server rs
+	// &lt;cid,rs,*&gt;
+	// should:
+	// 		1) terminate all the sessions that have subject-id==cid and resource-server==rs, if present
+	// 		2) get the token identifiers and revoke the access tokens
+	// 		3) delete the policy files
+	// .
+	// To implement these methods, we need to understand how to retrieve the policies that match
+	// exactly the cid, the cid and the rs, or the cid, the rs, and the scope.
+
+<span class="fc" id="L60">	private static final Logger LOGGER = Logger.getLogger(UcsHelper.class.getName());</span>
+
+	private final UcsClient ucs;
+
+	private int policyIdCounter;
+
+<span class="fc" id="L66">	private SQLConnector db = null;</span>
+
+<span class="fc" id="L68">	public static String tokenTable 			= &quot;PdpToken&quot;;</span>
+<span class="fc" id="L69">	public static String introspectTable 		= &quot;PdpIntrospect&quot;;</span>
+<span class="fc" id="L70">	public static String sessionTable 			= &quot;PdpSessions&quot;;</span>
+<span class="fc" id="L71">	public static String introspectClaimsColumn = &quot;claimsAccess&quot;;</span>
+
+	private PreparedStatement canToken;
+	private PreparedStatement canIntrospect;
+
+	private PreparedStatement addTokenAccess;
+	private PreparedStatement addIntrospectAccess;
+
+	private PreparedStatement insertSession;
+	private PreparedStatement deleteSessions4Cti;
+	private PreparedStatement updateCti;
+
+	private PreparedStatement deleteTokenAccess;
+	private PreparedStatement deleteIntrospectAccess;
+
+	private PreparedStatement selectCti4Session;
+	private PreparedStatement selectSessions4Cti;
+
+	private PreparedStatement selectSession;
+
+	private PreparedStatement selectAllSessions;
+	private PreparedStatement deleteSession;
+//	private PreparedStatement deleteAccess;
+//	private PreparedStatement deleteAllAccess;
+//	private PreparedStatement deleteAllRsAccess;
+
+//	private PreparedStatement getAllAccess;
+
+	private final Map&lt;Integer, List&lt;String&gt;&gt; pendingSessions;
+
+<span class="fc" id="L101">	private RevocationHandler rh = null;</span>
+
+<span class="fc" id="L103">	private Token t = null;</span>
+
+	private final String basicPolicy;
+
+	// for test purposes. Counts the number of times the canAccess method has been invoked
+<span class="fc" id="L108">	private int iterCounter = 0;</span>
+
+	public UcsHelper(SQLConnector connection,
+					 List&lt;PipProperties&gt; pipPropertiesList,
+<span class="fc" id="L112">					 PapProperties papProperties, String policyTemplate) throws AceException {</span>
+
+<span class="fc" id="L114">		this.basicPolicy = policyTemplate;</span>
+//		readFileAsString(
+//				new File(Objects.requireNonNull(
+//						getClass().getClassLoader().getResource(&quot;policy-templates/policy_template&quot;),
+//						&quot;[ERROR] policy template file not found.&quot;).getFile()));
+
+<span class="fc" id="L120">		LOGGER.setLevel(Level.SEVERE);</span>
+
+<span class="fc" id="L122">		initDatabase(connection);</span>
+
+<span class="fc" id="L124">		ucs = new UcsClient(pipPropertiesList, papProperties);</span>
+<span class="fc" id="L125">		ucs.setUcsHelperForPeps(this);</span>
+
+<span class="fc" id="L127">		this.pendingSessions = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L128">	}</span>
+
+	/**
+	 * Revoke a specific access right from a client by deleting the related policy.
+	 * If a session is present with the provided parameters, delete it from the
+	 * session table and revoke the related access token.
+	 * Also, delete the other sessions related to the same access token from the
+	 * session table.
+	 *
+	 * @param cid  the client identifier
+	 * @param rid  the resource server identifier
+	 * @param scope  the scope to be revoked
+	 *
+	 * @throws AceException if any parameter is null
+	 */
+	public void revokeAccess(String cid, String rid, String scope)
+			throws AceException {
+<span class="pc bpc" id="L145" title="3 of 6 branches missed.">		if (cid == null || rid == null || scope == null) {</span>
+<span class="nc" id="L146">			throw new AceException(</span>
+					&quot;revokeAccess() requires non-null parameters&quot;);
+		}
+
+<span class="fc" id="L150">		String request = getRequest(cid, rid, scope);</span>
+<span class="fc" id="L151">		String policyId = ucs.findPolicy(request);</span>
+<span class="fc" id="L152">		LOGGER.info(&quot;revokeAccess: found policy to delete. Policy ID = &quot; + policyId);</span>
+
+		try {
+<span class="fc" id="L155">			deletePolicyFile(policyId + &quot;.xml&quot;);</span>
+<span class="nc" id="L156">		} catch(IOException e) {</span>
+<span class="nc" id="L157">			LOGGER.severe(&quot;Error deleting policy file: &quot; + policyId + &quot;.xml&quot;);</span>
+<span class="fc" id="L158">		}</span>
+
+<span class="fc" id="L160">		String sessionId = getSession(cid, rid, scope);</span>
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">		if (sessionId != null) {</span>
+<span class="nc" id="L162">			revoke(sessionId);</span>
+		}
+<span class="fc" id="L164">	}</span>
+
+	/**
+	 * Delete a policy file from the folder containing the policies.
+	 * The folder path is that of the policy administration point.
+	 *
+	 * @param fileName  name (with extension) of the file to be deleted
+	 *
+	 * @throws IOException if the deletion fails
+	 */
+	public void deletePolicyFile(String fileName) throws IOException {
+<span class="fc" id="L175">		String policyFile = ucs.getPapPath() + fileName;</span>
+
+		//Delete policy file
+<span class="fc" id="L178">		File pFile = new File(policyFile);</span>
+<span class="pc bpc" id="L179" title="3 of 4 branches missed.">		if (!pFile.delete() &amp;&amp; pFile.exists()) {</span>
+<span class="nc" id="L180">			throw new IOException(&quot;Failed to delete &quot; + pFile);</span>
+		}
+<span class="fc" id="L182">	}</span>
+
+	/**
+	 * Get the session associated with the provided client identifier,
+	 * resource server identifier, and scope
+	 *
+	 * @param cid  the client identifier
+	 * @param rid  the resource server identifier
+	 * @param scope  the scope
+	 *
+	 * @return the list of sessions associated with the token identifier
+	 * @throws AceException throw AceException
+	 */
+	public synchronized String getSession(String cid, String rid, String scope) throws AceException {
+<span class="pc bpc" id="L196" title="3 of 6 branches missed.">		if (cid == null || rid == null || scope == null) {</span>
+<span class="nc" id="L197">			throw new AceException(</span>
+					&quot;selectSession() requires non-null parameters&quot;);
+		}
+		try {
+<span class="fc" id="L201">			this.selectSession.setString(1, cid);</span>
+<span class="fc" id="L202">			this.selectSession.setString(2, rid);</span>
+<span class="fc" id="L203">			this.selectSession.setString(3, scope);</span>
+<span class="fc" id="L204">			ResultSet result = this.selectSession.executeQuery();</span>
+<span class="fc" id="L205">			this.selectSession.clearParameters();</span>
+<span class="pc bpc" id="L206" title="1 of 2 branches missed.">			if (result.next()) {</span>
+<span class="nc" id="L207">				String session = result.getString(DBConnector.sessionIdColumn);</span>
+<span class="nc" id="L208">				result.close();</span>
+<span class="nc" id="L209">				return session;</span>
+			}
+<span class="fc" id="L211">			result.close();</span>
+<span class="nc" id="L212">		} catch (SQLException e) {</span>
+<span class="nc" id="L213">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L214">		}</span>
+<span class="fc" id="L215">		return null;</span>
+	}
+
+	public synchronized List&lt;String&gt; getAllSessions() throws AceException {
+<span class="fc" id="L219">		List&lt;String&gt; sessions = new ArrayList&lt;&gt;();</span>
+		try {
+<span class="fc" id="L221">			ResultSet result = this.selectAllSessions.executeQuery();</span>
+<span class="fc" id="L222">			this.selectAllSessions.clearParameters();</span>
+<span class="fc bfc" id="L223" title="All 2 branches covered.">			while (result.next()) {</span>
+<span class="fc" id="L224">				sessions.add(result.getString(DBConnector.sessionIdColumn));</span>
+			}
+<span class="fc" id="L226">			result.close();</span>
+<span class="nc" id="L227">		} catch (SQLException e) {</span>
+<span class="nc" id="L228">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L229">		}</span>
+<span class="fc" id="L230">		return sessions;</span>
+	}
+
+	/**
+	 * Check if the client cid is allowed to access the audience aud with the scopes passed as argument.
+	 * The method splits the scopes and create a xml request for each scope.
+	 * Then, for each scope, it executes the UCS methods tryAccess and startAccess.
+	 * If both methods return permit, a session is created by the UCS session manager and an entry containing
+	 * the session identifier is added to the database.
+	 * The entry has fields: &lt; sessionId, cid, rid, scope, cti &gt;.
+	 * cti is set to null and will be updated later with the method updateSessionsWithCti.
+	 *
+	 * @param cid  the identifier of the client to be allowed access
+	 * @param aud  		the audience
+	 * @param scopes  	the identifier of the scope for which access is allowed
+	 *
+	 * @throws AceException throws ace exception
+	 */
+	@Override
+	public String canAccess(String cid, Set&lt;String&gt; aud, Object scopes, int evaluationId) throws AceException {
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">		if (evaluationId &lt; 0)</span>
+<span class="nc" id="L251">			throw new AceException(&quot;evaluationId cannot be negative &quot; +</span>
+					&quot;for a PDP supporting revocation&quot;);
+
+<span class="pc bpc" id="L254" title="3 of 6 branches missed.">		if (cid == null || aud == null || scopes == null) {</span>
+<span class="nc" id="L255">			throw new AceException(</span>
+					&quot;canAccess() requires non-null parameters&quot;);
+		}
+
+<span class="fc" id="L259">		iterCounter++;</span>
+
+		String scopeStr;
+<span class="pc bpc" id="L262" title="1 of 2 branches missed.">		if (scopes instanceof String) {</span>
+<span class="fc" id="L263">			scopeStr = (String) scopes;</span>
+		} else {
+<span class="nc" id="L265">			throw new AceException(&quot;non-String scopes are not supported&quot;);</span>
+		}
+
+<span class="fc" id="L268">		String[] scopeArray = scopeStr.split(&quot; &quot;);</span>
+<span class="pc bpc" id="L269" title="1 of 2 branches missed.">		if (scopeArray.length &lt;= 0) {</span>
+<span class="nc" id="L270">			return null;</span>
+		}
+
+<span class="fc" id="L273">		Set&lt;String&gt; rss = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L274" title="All 2 branches covered.">		for (String audE : aud) {</span>
+<span class="fc" id="L275">			rss.addAll(this.db.getRSS(audE));</span>
+<span class="fc" id="L276">		}</span>
+<span class="fc bfc" id="L277" title="All 2 branches covered.">		if (rss.isEmpty()) {</span>
+<span class="fc" id="L278">			return null;</span>
+		}
+<span class="fc bfc" id="L280" title="All 2 branches covered.">		if (rss.size() &gt; 1) {</span>
+<span class="fc" id="L281">			LOGGER.severe(&quot;Audience multi server not implemented. \n&quot;</span>
+					+ &quot;    Taking one of the resource servers at random...&quot;);
+		}
+
+		// if we have more than one rs, we choose just one at random because
+		// audience multi server is not implemented
+<span class="fc" id="L287">		String rid = null;</span>
+<span class="fc bfc" id="L288" title="All 2 branches covered.">		for (String str : rss) rid = str;</span>
+
+<span class="fc" id="L290">		List&lt;String&gt; xacmlRequests = getRequestsListPerScope(cid, rid, scopeArray);</span>
+<span class="fc" id="L291">		StringBuilder allowedScopes = new StringBuilder();</span>
+<span class="fc" id="L292">		int count = 0;</span>
+<span class="fc" id="L293">		List&lt;String&gt; allowedSessions = new ArrayList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L295" title="All 2 branches covered.">		for (String req : xacmlRequests) {</span>
+			// if both tryAccess and startAccess return PERMIT, add the entry to the database.
+			// The entry contains &lt;sessionId, clientId, rsId, scope, cti&gt;
+			// cti is set to null as it will be created later by the token endpoint.
+
+<span class="fc" id="L300">			LOGGER.finest(&quot;performing tryAccess, request = &quot; + req);</span>
+<span class="fc" id="L301">			TryAccessResponseMessage tryResponse = ucs.tryAccess(req);</span>
+
+<span class="pc bpc" id="L303" title="1 of 4 branches missed.">			if (tryResponse.getEvaluation() != null &amp;&amp; tryResponse.getEvaluation().getResult().equalsIgnoreCase(&quot;permit&quot;)) {</span>
+<span class="fc" id="L304">				LOGGER.info(&quot;tryAccess complete with &quot; +</span>
+<span class="fc" id="L305">						tryResponse.getEvaluation().getResult() +</span>
+						&quot; for subscope '&quot; + scopeArray[count] + &quot;'\n&quot; );
+<span class="fc" id="L307">				LOGGER.finest(&quot;tryAccess response = &quot; + tryResponse.getEvaluation().getResponse());</span>
+
+<span class="fc" id="L309">				String sessionId = tryResponse.getSessionId();</span>
+<span class="fc" id="L310">				StartAccessResponseMessage startResponse = ucs.startAccess(sessionId);</span>
+<span class="fc" id="L311">				LOGGER.finest(&quot;startAccess response = &quot; + startResponse.getEvaluation().getResponse());</span>
+
+<span class="pc bpc" id="L313" title="1 of 2 branches missed.">				if (startResponse.getEvaluation().getResult().equalsIgnoreCase(&quot;permit&quot;)) {</span>
+<span class="fc" id="L314">					LOGGER.info(&quot;startAccess complete with &quot; +</span>
+<span class="fc" id="L315">							startResponse.getEvaluation().getResult() +</span>
+									&quot; for subscope '&quot; + scopeArray[count] + &quot;'\n&quot; );
+
+<span class="fc" id="L318">					allowedScopes.append(scopeArray[count]).append(&quot; &quot;);</span>
+<span class="fc" id="L319">					allowedSessions.add(sessionId);</span>
+
+					// add the session to the sessions table
+<span class="fc" id="L322">					addSession(sessionId, cid, rid, scopeArray[count], null);</span>
+				}
+				else {
+<span class="nc" id="L325">					LOGGER.severe(&quot;startAccess complete with &quot; +</span>
+<span class="nc" id="L326">							startResponse.getEvaluation().getResult() +</span>
+							&quot; for subscope '&quot; + scopeArray[count] + &quot;'\n&quot; );
+				}
+<span class="fc" id="L329">			}</span>
+			else {
+<span class="fc" id="L331">				LOGGER.severe(&quot;tryAccess complete with &quot; +</span>
+<span class="fc" id="L332">						tryResponse.getEvaluation().getResult() +</span>
+						&quot; for subscope '&quot; + scopeArray[count] + &quot;'\n&quot; );
+			}
+<span class="fc" id="L335">			count++;</span>
+<span class="fc" id="L336">		}</span>
+
+<span class="pc bpc" id="L338" title="1 of 2 branches missed.">		if (allowedScopes.toString().equals(&quot;&quot;)){</span>
+<span class="nc" id="L339">			LOGGER.info(&quot;canAccess results: No scopes allowed&quot;);</span>
+<span class="nc" id="L340">			return null;</span>
+		}
+
+<span class="fc" id="L343">		allowedScopes.deleteCharAt(allowedScopes.toString().length()-1);</span>
+<span class="fc" id="L344">		LOGGER.severe(&quot;canAccess results: allowed scopes = &quot; + allowedScopes);</span>
+<span class="fc" id="L345">		this.pendingSessions.put(evaluationId, allowedSessions);</span>
+
+<span class="fc" id="L347">		return allowedScopes.toString();</span>
+	}
+
+	/**
+	 * Check allowance to ask access tokens to the token endpoint.
+	 *
+	 * @param id the identifier of the entity to be allowed access
+	 *
+	 * @throws AceException	throws ace exception
+	 */
+	@Override
+	public boolean canAccessToken(String id) throws AceException {
+<span class="pc bpc" id="L359" title="1 of 2 branches missed.">		if (id == null) {</span>
+<span class="nc" id="L360">			throw new AceException(&quot;canAccessToken() requires non-null identifier&quot;);</span>
+		}
+		try {
+<span class="fc" id="L363">			this.canToken.setString(1, id);</span>
+<span class="fc" id="L364">			ResultSet result = this.canToken.executeQuery();</span>
+<span class="fc" id="L365">			this.canToken.clearParameters();</span>
+<span class="fc bfc" id="L366" title="All 2 branches covered.">			if (result.next()) {</span>
+<span class="fc" id="L367">				result.close();</span>
+<span class="fc" id="L368">				return true;</span>
+			}
+<span class="fc" id="L370">			result.close();</span>
+<span class="nc" id="L371">		} catch (SQLException e) {</span>
+<span class="nc" id="L372">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L373">		}</span>
+<span class="fc" id="L374">		return false;</span>
+	}
+
+	/**
+	 * Add access permission for the token endpoint
+	 *
+	 * @param id the identifier of the entity to be allowed access
+	 *
+	 * @throws AceException	throws ace exception
+	 */
+	public void addTokenAccess(String id) throws AceException {
+<span class="pc bpc" id="L385" title="1 of 2 branches missed.">		if (id == null) {</span>
+<span class="nc" id="L386">			throw new AceException(&quot;addTokenAccess() requires non-null identifier&quot;);</span>
+		}
+		try {
+<span class="fc" id="L389">			this.addTokenAccess.setString(1, id);</span>
+<span class="fc" id="L390">			this.addTokenAccess.execute();</span>
+<span class="fc" id="L391">			this.addTokenAccess.clearParameters();</span>
+<span class="nc" id="L392">		} catch (SQLException e) {</span>
+<span class="nc" id="L393">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L394">		}</span>
+<span class="fc" id="L395">	}</span>
+
+	/**
+	 * Add access permission for the introspect endpoint, defaulting to access to activeness and claims.
+	 *
+	 * @param id the identifier of the entity to be allowed access
+	 *
+	 * @throws AceException	throws ace exception
+	 */
+	public void addIntrospectAccess(String id) throws AceException {
+<span class="nc" id="L405">		addIntrospectAccess(id, IntrospectAccessLevel.ACTIVE_AND_CLAIMS);</span>
+<span class="nc" id="L406">	}</span>
+
+
+	/**
+	 * Add access permission for the introspect endpoint
+	 *
+	 * @param id          the identifier of the entity to be allowed access
+	 * @param accessLevel the level of access to give when introspecting
+	 *
+	 * @throws AceException	throws ace exception
+	 */
+	public void addIntrospectAccess(String id, IntrospectAccessLevel accessLevel) throws AceException {
+<span class="nc bnc" id="L418" title="All 2 branches missed.">		if (id == null) {</span>
+<span class="nc" id="L419">			throw new AceException(</span>
+					&quot;addIntrospectAccess() requires non-null identifier&quot;);
+		}
+<span class="nc bnc" id="L422" title="All 2 branches missed.">		if (accessLevel.equals(IntrospectAccessLevel.NONE)) {</span>
+<span class="nc" id="L423">			throw new AceException(</span>
+					&quot;addIntrospectAccess() requires non-NONE access level&quot;);
+		}
+		try {
+<span class="nc" id="L427">			boolean hasClaimsAccess = accessLevel.equals(IntrospectAccessLevel.ACTIVE_AND_CLAIMS);</span>
+<span class="nc" id="L428">			this.addIntrospectAccess.setString(1, id);</span>
+<span class="nc" id="L429">			this.addIntrospectAccess.setBoolean(2, hasClaimsAccess);</span>
+<span class="nc" id="L430">			this.addIntrospectAccess.execute();</span>
+<span class="nc" id="L431">			this.addIntrospectAccess.clearParameters();</span>
+<span class="nc" id="L432">		} catch (SQLException e) {</span>
+<span class="nc" id="L433">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L434">		}</span>
+<span class="nc" id="L435">	}</span>
+
+
+	@Override
+	public IntrospectAccessLevel getIntrospectAccessLevel(String rid) throws AceException {
+<span class="nc bnc" id="L440" title="All 2 branches missed.">		if (rid == null) {</span>
+<span class="nc" id="L441">			throw new AceException(</span>
+					&quot;getIntrospectAccessLevel() requires non-null identifier&quot;);
+		}
+		try {
+<span class="nc" id="L445">			this.canIntrospect.setString(1, rid);</span>
+<span class="nc" id="L446">			ResultSet result = this.canIntrospect.executeQuery();</span>
+<span class="nc" id="L447">			this.canIntrospect.clearParameters();</span>
+<span class="nc bnc" id="L448" title="All 2 branches missed.">			if (result.next()) {</span>
+<span class="nc" id="L449">				boolean canAccessClaims = result.getBoolean(introspectClaimsColumn);</span>
+<span class="nc" id="L450">				result.close();</span>
+<span class="nc bnc" id="L451" title="All 2 branches missed.">				if (canAccessClaims) {</span>
+<span class="nc" id="L452">					return IntrospectAccessLevel.ACTIVE_AND_CLAIMS;</span>
+				}
+<span class="nc" id="L454">				return IntrospectAccessLevel.ACTIVE_ONLY;</span>
+			}
+<span class="nc" id="L456">			result.close();</span>
+<span class="nc" id="L457">		} catch (SQLException e) {</span>
+<span class="nc" id="L458">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L459">		}</span>
+<span class="nc" id="L460">		return IntrospectAccessLevel.NONE;</span>
+	}
+
+
+	/**
+	 * Add access permission for a client:
+	 * Creates a xml file containing a XACML policy from a template.
+	 * It substitutes placeholder fields with those passed as arguments to this method
+	 *
+	 * @param cid   client identifier
+	 * @param rid   resource server identifier
+	 * @param scope scopes requested, e.g., &quot;r_light&quot;, &quot;co2&quot;
+	 *
+	 * @throws AceException ace exception
+	 */
+	public void addAccess(String cid, String rid, String scope) throws AceException {
+
+<span class="fc" id="L477">		String policy = new String(this.basicPolicy);</span>
+
+<span class="fc" id="L479">		policy = policy.replaceAll(&quot;SUBJECT_HERE&quot;, cid)</span>
+<span class="fc" id="L480">					   .replaceAll(&quot;RESOURCE_HERE&quot;, scope)</span>
+<span class="fc" id="L481">				       .replaceAll(&quot;RESOURCESERVER_HERE&quot;, rid)</span>
+<span class="fc" id="L482">				       .replaceAll(&quot;POLICYID_HERE&quot;, (&quot;policy_&quot; + policyIdCounter));</span>
+<span class="fc" id="L483">		ucs.addPolicy(policy);</span>
+
+<span class="fc" id="L485">		policyIdCounter++;</span>
+<span class="fc" id="L486">	}</span>
+
+
+	/**
+	 * Add access permission for a client:
+	 * Creates a xml file containing a XACML policy from a template.
+	 * It substitutes placeholder fields with those passed as arguments to this method
+	 *
+	 * @param cid   client identifier
+	 * @param rid   resource server identifier
+	 * @param scope scopes requested, e.g., &quot;r_light&quot;, &quot;co2&quot;
+	 * @param policyTemplate  the file to be used as a template for creating the access policy
+	 *
+	 * @throws AceException ace exception
+	 */
+	public void addAccess(String cid, String rid, String scope, String policyTemplate) throws AceException {
+
+<span class="nc" id="L503">		policyTemplate = policyTemplate.replaceAll(&quot;SUBJECT_HERE&quot;, cid)</span>
+<span class="nc" id="L504">				.replaceAll(&quot;RESOURCE_HERE&quot;, scope)</span>
+<span class="nc" id="L505">				.replaceAll(&quot;RESOURCESERVER_HERE&quot;, rid)</span>
+<span class="nc" id="L506">				.replaceAll(&quot;POLICYID_HERE&quot;, (&quot;policy_&quot; + policyIdCounter));</span>
+<span class="nc" id="L507">		ucs.addPolicy(policyTemplate);</span>
+
+<span class="nc" id="L509">		policyIdCounter++;</span>
+<span class="nc" id="L510">	}</span>
+
+
+	/**
+	 * Add access permission for a client given an XACML policy
+	 *
+	 */
+	public void addAccessFromFile(String policy) {
+<span class="nc" id="L518">		ucs.addPolicy(policy);</span>
+<span class="nc" id="L519">	}</span>
+
+	/**
+	 * Obtain a list of XACML requests, one for each scope
+	 *
+	 * @param scopeArray  String array of requested scopes
+	 * @param cid  the identifier of the entity that requests access
+	 * @param rid  the identifier of the RS to which the request is addressed
+	 */
+	private List&lt;String&gt; getRequestsListPerScope(String cid, String rid, String[] scopeArray) {
+<span class="fc" id="L529">		List&lt;String&gt; requests = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L530" title="All 2 branches covered.">		for (String scope : scopeArray) {</span>
+<span class="fc" id="L531">			String xacmlRequest = getRequest(cid, rid, scope);</span>
+<span class="fc" id="L532">			requests.add(xacmlRequest);</span>
+		}
+<span class="fc" id="L534">		return requests;</span>
+	}
+
+	/**
+	 * Obtain an XACML request, built on the provided client identifier,
+	 * resource server identifier, and scope
+	 *
+	 * @param cid  the identifier of the entity that requests access
+	 * @param rid  the identifier of the RS to which the request is addressed
+	 * @param scope  the requested scope
+	 *
+	 * @return a string containing the xacml request
+	 */
+	public String getRequest(String cid, String rid, String scope) {
+<span class="fc" id="L548">		AdditionalAttribute rsAttr = new AdditionalAttribute(CATEGORY.RESOURCE,</span>
+				&quot;urn:oasis:names:tc:xacml:1.0:resource:resource-server&quot;, rid,
+				&quot;http://www.w3.org/2001/XMLSchema#string&quot;);
+
+<span class="fc" id="L552">		Request request = new RequestGenerator().createXACMLV3Request(</span>
+				cid, scope, &quot;read&quot;, true, rsAttr);
+
+		// return xacml request
+<span class="fc" id="L556">		return RequestSerializationFactory.newInstance().serialize(request,</span>
+				RequestSerializationFactory.SERIALIZATION_FORMAT.XML);
+	}
+
+	/**
+	 * Put the content of a file into a string
+	 *
+	 * @param file the file to use
+	 *
+	 * @return the string with the file content
+	 */
+	private String readFileAsString(File file) {
+<span class="nc" id="L568">		String res = null;</span>
+		try {
+<span class="nc" id="L570">			res = new String(Files.readAllBytes(file.toPath()));</span>
+<span class="nc" id="L571">		} catch (IOException e) {</span>
+<span class="nc" id="L572">			e.printStackTrace();</span>
+<span class="nc" id="L573">		}</span>
+<span class="nc" id="L574">		return res;</span>
+	}
+
+	/**
+	 * Revoke an access right to the Token endpoint
+	 *
+	 * @param id  the identifier if the entity for which access is revoked
+	 *
+	 * @throws AceException throws ace exception
+	 */
+	public void revokeTokenAccess(String id) throws AceException {
+<span class="nc bnc" id="L585" title="All 2 branches missed.">		if (id == null) {</span>
+<span class="nc" id="L586">			throw new AceException(</span>
+					&quot;revokeTokenAccess() requires non-null identifier&quot;);
+		}
+		try {
+<span class="nc" id="L590">			this.deleteTokenAccess.setString(1, id);</span>
+<span class="nc" id="L591">			this.deleteTokenAccess.execute();</span>
+<span class="nc" id="L592">			this.deleteTokenAccess.clearParameters();</span>
+<span class="nc" id="L593">		} catch (SQLException e) {</span>
+<span class="nc" id="L594">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L595">		}</span>
+<span class="nc" id="L596">	}</span>
+
+	/**
+	 * Revoke an access right to the Introspect endpoint.
+	 *
+	 * @param id  the identifier of the entity for which access is revoked
+	 *
+	 * @throws AceException throws ace exception
+	 */
+	public void revokeIntrospectAccess(String id) throws AceException {
+<span class="nc bnc" id="L606" title="All 2 branches missed.">		if (id == null) {</span>
+<span class="nc" id="L607">			throw new AceException(</span>
+					&quot;revokeIntrospectAccess() requires non-null id&quot;);
+		}
+		try {
+<span class="nc" id="L611">			this.deleteIntrospectAccess.setString(1, id);</span>
+<span class="nc" id="L612">			this.deleteIntrospectAccess.execute();</span>
+<span class="nc" id="L613">			this.deleteIntrospectAccess.clearParameters();</span>
+<span class="nc" id="L614">		} catch (SQLException e) {</span>
+<span class="nc" id="L615">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L616">		}</span>
+<span class="nc" id="L617">	}</span>
+
+
+	/**
+	 *  Associate the pending sessions (identified by evaluationId) with the token identifier
+	 *
+	 * @param cti the token identifier
+	 * @param evaluationId value that links the pending sessions to the token identifier
+	 *
+	 * @throws AceException throw AceException
+	 */
+	@Override
+	public void updateSessionsWithCti(String cti, int evaluationId) throws AceException{
+<span class="pc bpc" id="L630" title="1 of 2 branches missed.">		if (evaluationId &lt; 0)</span>
+<span class="nc" id="L631">			throw new AceException(&quot;evaluationId cannot be negative &quot; +</span>
+					&quot;for a PDP supporting revocation&quot;);
+
+		// use the evaluationId within the map to retrieve the sessions.
+		// add the token identifier to the matching sessions in the table
+<span class="fc" id="L636">		List&lt;String&gt; sessionsList = this.pendingSessions.get(evaluationId);</span>
+
+<span class="fc bfc" id="L638" title="All 2 branches covered.">		for (String sessionId : sessionsList) {</span>
+			try {
+<span class="fc" id="L640">				this.updateCti.setString(1, cti);</span>
+<span class="fc" id="L641">				this.updateCti.setString(2, sessionId);</span>
+<span class="fc" id="L642">				this.updateCti.execute();</span>
+<span class="fc" id="L643">				this.updateCti.clearParameters();</span>
+
+<span class="nc" id="L645">			} catch (SQLException e) {</span>
+<span class="nc" id="L646">				throw new AceException(e.getMessage());</span>
+<span class="fc" id="L647">			}</span>
+<span class="fc" id="L648">		}</span>
+<span class="fc" id="L649">		this.pendingSessions.remove(evaluationId);</span>
+<span class="fc" id="L650">	}</span>
+
+	/**
+	 * Delete sessions from both the pending sessions and the UCS session manager
+	 * Rollback method called by the /token when it cannot finalize issuing
+	 * of an access token, but the canAccess method was already executed
+	 *
+	 * @param evaluationId identifier to retrieve the sessions
+	 *
+	 * @throws AceException throw AceException
+	 */
+	@Override
+	public void terminatePendingSessions(int evaluationId) throws AceException {
+<span class="pc bpc" id="L663" title="1 of 2 branches missed.">		if (evaluationId &lt; 0) {</span>
+<span class="nc" id="L664">			throw new AceException(&quot;Unable to remove pending sessions: &quot; +</span>
+					&quot;evaluationId cannot be negative for a PDP supporting revocation&quot;);
+		}
+
+<span class="fc" id="L668">		List&lt;String&gt; sessionsList = this.pendingSessions.get(evaluationId);</span>
+		// call the endAccess on all the sessions in sessionsList
+<span class="fc" id="L670">		terminateSessions(sessionsList);</span>
+
+<span class="fc" id="L672">		this.purgeSessions(sessionsList);</span>
+
+<span class="fc" id="L674">		this.pendingSessions.remove(evaluationId);</span>
+<span class="fc" id="L675">	}</span>
+
+	/**
+	 * Terminate with endAccess() all on the sessions passed as input
+	 *
+	 * @param sessionsList list of session identifiers of the sessions to terminate
+	 */
+	public void terminateSessions(List&lt;String&gt; sessionsList) {
+<span class="fc bfc" id="L683" title="All 2 branches covered.">		for (String sessionId : sessionsList) {</span>
+<span class="fc" id="L684">			EndAccessResponseMessage endResponse = ucs.endAccess(sessionId);</span>
+<span class="fc" id="L685">			LOGGER.finest(&quot;endAccess response = &quot; + endResponse.getEvaluation().getResponse());</span>
+<span class="pc bpc" id="L686" title="1 of 2 branches missed.">			if (endResponse.getEvaluation().getResult().equalsIgnoreCase(&quot;permit&quot;)) {</span>
+<span class="fc" id="L687">				LOGGER.info(&quot;endAccess complete with PERMIT&quot;);</span>
+			}
+			else {
+<span class="nc" id="L690">				LOGGER.severe(&quot;endAccess complete with DENY&quot;);</span>
+			}
+<span class="fc" id="L692">		}</span>
+<span class="fc" id="L693">	}</span>
+
+	/**
+	 * Delete a specific session from the session table
+	 *
+	 * @param sessionId the session identifier
+	 *
+	 * @throws AceException throw AceException
+	 */
+	public synchronized void purgeSession(String sessionId) throws AceException {
+<span class="pc bpc" id="L703" title="1 of 2 branches missed.">		if (sessionId == null) {</span>
+<span class="nc" id="L704">			throw new AceException(&quot;purgeSession() requires non-null sessionId&quot;);</span>
+		}
+		try {
+<span class="fc" id="L707">			this.deleteSession.setString(1, sessionId);</span>
+<span class="fc" id="L708">			this.deleteSession.execute();</span>
+<span class="fc" id="L709">			this.deleteSession.clearParameters();</span>
+<span class="nc" id="L710">		} catch (SQLException e) {</span>
+<span class="nc" id="L711">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L712">		}</span>
+<span class="fc" id="L713">	}</span>
+
+	/**
+	 * Delete sessions from the session table
+	 *
+	 * @param sessions the list of session identifiers
+	 *
+	 * @throws AceException throw AceException
+	 */
+	public void purgeSessions(List&lt;String&gt; sessions) throws AceException{
+		try {
+<span class="fc bfc" id="L724" title="All 2 branches covered.">			for (String sessionId : sessions) {</span>
+<span class="fc" id="L725">				purgeSession(sessionId);</span>
+<span class="fc" id="L726">			}</span>
+<span class="nc" id="L727">		} catch (AceException e) {</span>
+<span class="nc" id="L728">			LOGGER.severe(&quot;Unable to delete session from sessionTable&quot;);</span>
+<span class="nc" id="L729">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L730">		}</span>
+<span class="fc" id="L731">	}</span>
+
+	/**
+	 * Get the token identifier associated with the session.
+	 *
+	 * @param sessionId the session identifier
+	 * @return the token identifier
+	 * @throws AceException throw AceException
+	 */
+	public synchronized String getCti4Session(String sessionId) throws AceException {
+<span class="nc bnc" id="L741" title="All 4 branches missed.">		if (sessionId == null || sessionId.isEmpty()) {</span>
+<span class="nc" id="L742">			throw new AceException(</span>
+					&quot;getCti4Session() requires non-null, non-empty sessionId&quot;);
+		}
+		try {
+<span class="nc" id="L746">			this.selectCti4Session.setString(1, sessionId);</span>
+<span class="nc" id="L747">			ResultSet result = this.selectCti4Session.executeQuery();</span>
+<span class="nc" id="L748">			this.selectCti4Session.clearParameters();</span>
+<span class="nc bnc" id="L749" title="All 2 branches missed.">			if (result.next()) {</span>
+<span class="nc" id="L750">				String cti = result.getString(DBConnector.ctiColumn);</span>
+<span class="nc" id="L751">				result.close();</span>
+<span class="nc" id="L752">				return cti;</span>
+			}
+<span class="nc" id="L754">			result.close();</span>
+<span class="nc" id="L755">		} catch (SQLException e) {</span>
+<span class="nc" id="L756">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L757">		}</span>
+<span class="nc" id="L758">		return null;</span>
+	}
+
+	/**
+	 * Delete from the session table the entries that match
+	 * the given token identifier
+	 *
+	 * @param cti the token identifier
+	 *
+	 * @throws AceException throw AceException
+	 */
+	public synchronized void purgeSessions4Cti(String cti) throws AceException {
+<span class="nc bnc" id="L770" title="All 2 branches missed.">		if (cti == null) {</span>
+<span class="nc" id="L771">			throw new AceException(&quot;purgeSessions4Cti() requires non-null cti&quot;);</span>
+		}
+		try {
+<span class="nc" id="L774">			this.deleteSessions4Cti.setString(1, cti);</span>
+<span class="nc" id="L775">			this.deleteSessions4Cti.execute();</span>
+<span class="nc" id="L776">			this.deleteSessions4Cti.clearParameters();</span>
+<span class="nc" id="L777">		} catch (SQLException e) {</span>
+<span class="nc" id="L778">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L779">		}</span>
+<span class="nc" id="L780">	}</span>
+
+	/**
+	 * Get the token identifier associated with the provided
+	 * session identifier and revoke the token using the
+	 * token identifier
+	 *
+	 * @param sessionId the session identifier
+	 *
+	 * @throws AceException throw AceException
+	 */
+	public void revoke(String sessionId) throws AceException {
+
+		// get cti for the given sessionId
+<span class="nc" id="L794">		String cti = getCti4Session(sessionId);</span>
+
+		// revoke the token
+<span class="nc" id="L797">		revokeToken(cti);</span>
+
+		// remove the token from the database and the related
+		// quantities from the token endpoint
+<span class="nc" id="L801">		t.removeToken(cti);</span>
+
+		// terminate all the sessions associated with cti and
+		// purge them from the session table
+<span class="nc" id="L805">		removeSessions4Cti(cti);</span>
+<span class="nc" id="L806">	}</span>
+
+	/**
+	 * Terminate with endAccess() all the sessions associated
+	 * with the given token identifier.
+	 * Also, delete the matching entries from the session table.
+	 *
+	 * @param cti the token identifier
+	 *
+	 * @throws AceException throw AceException
+	 */
+	@Override
+	public void removeSessions4Cti(String cti) throws AceException {
+		// call the endAccess on all the sessions associated with cti
+<span class="nc" id="L820">		terminateSessions4Cti(cti);</span>
+
+		// remove entries from session table
+<span class="nc" id="L823">		purgeSessions4Cti(cti);</span>
+<span class="nc" id="L824">	}</span>
+
+	/**
+	 * Revoke a token
+	 *
+	 * @param cti the token identifier
+	 *
+	 * @throws AceException throw AceException
+	 */
+	@Override
+	public void revokeToken(String cti) throws AceException {
+<span class="nc bnc" id="L835" title="All 2 branches missed.">		if (this.rh != null) {</span>
+<span class="nc" id="L836">			this.rh.revoke(cti);</span>
+		}
+		else {
+<span class="nc" id="L839">			LOGGER.info(&quot;RevocationHandler not initialized: &quot; +</span>
+					&quot;Token will not be placed in the trlTable, &quot; +
+					&quot;and trl-related procedures will be not executed.&quot;);
+		}
+<span class="nc" id="L843">	}</span>
+
+	/**
+	 * Get all the sessions associated with the token identifier
+	 * and terminate them through endAccess
+	 *
+	 * @param cti the token identifier
+	 *
+	 * @throws AceException throw AceException
+	 */
+	public void terminateSessions4Cti(String cti) throws AceException {
+		// get the sessions associated with the provided
+		// token identifier from the session table, and call
+		// the endAccess(sessionId) on each.
+
+<span class="nc" id="L858">		List&lt;String&gt; sessions = getSessions4Cti(cti);</span>
+<span class="nc" id="L859">		terminateSessions(sessions);</span>
+<span class="nc" id="L860">	}</span>
+
+	/**
+	 * Get the list of sessions associated with the token identifier
+	 *
+	 * @param cti the token identifier
+	 * @return the list of sessions associated with the token identifier
+	 * @throws AceException throw AceException
+	 */
+	public synchronized List&lt;String&gt; getSessions4Cti(String cti) throws AceException {
+<span class="nc bnc" id="L870" title="All 4 branches missed.">		if (cti == null || cti.isEmpty()) {</span>
+<span class="nc" id="L871">			throw new AceException(</span>
+					&quot;getSessions4Cti() requires non-null, non-empty cti&quot;);
+		}
+<span class="nc" id="L874">		List&lt;String&gt; sessions = new ArrayList&lt;&gt;();</span>
+		try {
+<span class="nc" id="L876">			this.selectSessions4Cti.setString(1, cti);</span>
+<span class="nc" id="L877">			ResultSet result = this.selectSessions4Cti.executeQuery();</span>
+<span class="nc" id="L878">			this.selectSessions4Cti.clearParameters();</span>
+<span class="nc bnc" id="L879" title="All 2 branches missed.">			while (result.next()) {</span>
+<span class="nc" id="L880">				sessions.add(result.getString(DBConnector.sessionIdColumn));</span>
+			}
+<span class="nc" id="L882">			result.close();</span>
+<span class="nc" id="L883">		} catch (SQLException e) {</span>
+<span class="nc" id="L884">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L885">		}</span>
+<span class="nc" id="L886">		return sessions;</span>
+	}
+
+	/**
+	 * Insert an entry in the session table
+	 *
+	 * @param sessionId the session identifier
+	 * @param clientId the client identifier
+	 * @param rs the resource server identifier
+	 * @param scope the scope
+	 * @param cti the token identifier
+	 *
+	 * @throws AceException throw AceException
+	 */
+	public synchronized void addSession(String sessionId, String clientId,
+			String rs, String scope, String cti)
+				throws AceException {
+<span class="pc bpc" id="L903" title="2 of 4 branches missed.">		if (sessionId == null || sessionId.isEmpty()) {</span>
+<span class="nc" id="L904">			throw new AceException(</span>
+					&quot;addSession() requires non-null, non-empty sessionId&quot;);
+		}
+<span class="pc bpc" id="L907" title="2 of 4 branches missed.">		if (clientId == null || clientId.isEmpty()) {</span>
+<span class="nc" id="L908">			throw new AceException(</span>
+					&quot;addSession() requires non-null, non-empty clientId&quot;);
+		}
+<span class="pc bpc" id="L911" title="2 of 4 branches missed.">		if (rs == null || rs.isEmpty()) {</span>
+<span class="nc" id="L912">			throw new AceException(</span>
+					&quot;addSession() requires non-null, non-empty rs&quot;);
+		}
+<span class="pc bpc" id="L915" title="2 of 4 branches missed.">		if (scope == null || scope.isEmpty()) {</span>
+<span class="nc" id="L916">			throw new AceException(</span>
+					&quot;addSession() requires non-null, non-empty scope&quot;);
+		}
+
+		try {
+<span class="fc" id="L921">			this.insertSession.setString(1, sessionId);</span>
+<span class="fc" id="L922">			this.insertSession.setString(2, clientId);</span>
+<span class="fc" id="L923">			this.insertSession.setString(3, rs);</span>
+<span class="fc" id="L924">			this.insertSession.setString(4, scope);</span>
+<span class="fc" id="L925">			this.insertSession.setString(5, cti);</span>
+<span class="fc" id="L926">			this.insertSession.execute();</span>
+<span class="fc" id="L927">			this.insertSession.clearParameters();</span>
+<span class="nc" id="L928">		} catch (SQLException e) {</span>
+<span class="nc" id="L929">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L930">		}</span>
+<span class="fc" id="L931">	}</span>
+
+	/**
+	 * Initialize the database. Create the tables and define
+	 * prepared statements to query the database.
+	 *
+	 * @param connection the database connector
+	 *
+	 * @throws AceException throws ace exception
+	 */
+	private void initDatabase(SQLConnector connection) throws AceException {
+<span class="fc" id="L942">		this.db = connection;</span>
+
+<span class="fc" id="L944">		String createTokenTable = this.db.getAdapter()</span>
+<span class="fc" id="L945">				.updateEngineSpecificSQL(&quot;CREATE TABLE IF NOT EXISTS &quot;</span>
+						+ tokenTable+ &quot;(&quot;
+						+ DBConnector.idColumn + &quot; varchar(255) NOT NULL);&quot;);
+
+<span class="fc" id="L949">		String createIntrospectTable = this.db.getAdapter()</span>
+<span class="fc" id="L950">				.updateEngineSpecificSQL(&quot;CREATE TABLE IF NOT EXISTS &quot;</span>
+						+ introspectTable + &quot;(&quot;
+						+ DBConnector.idColumn + &quot; varchar(255) NOT NULL,&quot;
+						+ introspectClaimsColumn + &quot; boolean NOT NULL);&quot;);
+
+<span class="fc" id="L955">		String createSessionTable = this.db.getAdapter()</span>
+<span class="fc" id="L956">				.updateEngineSpecificSQL(&quot;CREATE TABLE IF NOT EXISTS &quot;</span>
+						+ sessionTable + &quot;(&quot;
+						+ DBConnector.sessionIdColumn + &quot; varchar(255) NOT NULL,&quot;
+						+ DBConnector.clientIdColumn + &quot; varchar(255) NOT NULL,&quot;
+						+ DBConnector.rsIdColumn + &quot; varchar(255) NOT NULL,&quot;
+						+ DBConnector.scopeColumn + &quot; varchar(255) NOT NULL,&quot;
+						+ DBConnector.ctiColumn + &quot; varchar(255));&quot;);
+
+<span class="fc" id="L964">		try (Connection conn = this.db.getAdapter().getDBConnection(); Statement stmt = conn.createStatement()) {</span>
+<span class="fc" id="L965">			stmt.execute(createTokenTable);</span>
+<span class="fc" id="L966">			stmt.execute(createIntrospectTable);</span>
+<span class="fc" id="L967">			stmt.execute(createSessionTable);</span>
+<span class="nc" id="L968">		} catch (SQLException e) {</span>
+<span class="nc" id="L969">			e.printStackTrace();</span>
+<span class="nc" id="L970">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L971">		}</span>
+
+<span class="fc" id="L973">		this.canToken = this.db.prepareStatement(</span>
+<span class="fc" id="L974">				this.db.getAdapter().updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+						+ tokenTable
+						+ &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L978">		this.canIntrospect = this.db.prepareStatement(</span>
+<span class="fc" id="L979">				this.db.getAdapter().updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+						+ introspectTable +
+						&quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L983">		this.addTokenAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L984">				this.db.getAdapter().updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+						+ tokenTable + &quot; VALUES (?);&quot;));
+
+<span class="fc" id="L987">		this.addIntrospectAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L988">				this.db.getAdapter().updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+						+ introspectTable + &quot; VALUES (?,?);&quot;));
+
+<span class="fc" id="L991">		this.insertSession = this.db.prepareStatement(</span>
+<span class="fc" id="L992">				this.db.getAdapter().updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+						+ sessionTable + &quot; VALUES (?,?,?,?,?);&quot;));
+
+<span class="fc" id="L995">		this.deleteSessions4Cti = this.db.prepareStatement(</span>
+<span class="fc" id="L996">				this.db.getAdapter().updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+						+ sessionTable
+						+ &quot; WHERE &quot; + DBConnector.ctiColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L1000">		this.updateCti = this.db.prepareStatement(</span>
+<span class="fc" id="L1001">				this.db.getAdapter().updateEngineSpecificSQL(&quot;UPDATE &quot;</span>
+						+ sessionTable
+						+ &quot; SET &quot; + DBConnector.ctiColumn + &quot; = ?&quot;
+						+ &quot; WHERE &quot; + DBConnector.sessionIdColumn + &quot; = ?;&quot;));
+
+<span class="fc" id="L1006">		this.deleteTokenAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L1007">				this.db.getAdapter().updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+						+ tokenTable
+						+ &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L1011">		this.deleteIntrospectAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L1012">				this.db.getAdapter().updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+						+ introspectTable
+						+ &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L1016">		this.selectCti4Session = this.db.prepareStatement(</span>
+<span class="fc" id="L1017">				this.db.getAdapter().updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+						+ DBConnector.ctiColumn + &quot; FROM &quot;
+						+ sessionTable
+						+ &quot; WHERE &quot; + DBConnector.sessionIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L1022">		this.selectSessions4Cti = this.db.prepareStatement(</span>
+<span class="fc" id="L1023">				this.db.getAdapter().updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+						+ DBConnector.sessionIdColumn + &quot; FROM &quot;
+						+ sessionTable
+						+ &quot; WHERE &quot; + DBConnector.ctiColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L1028">		this.selectSession = this.db.prepareStatement(</span>
+<span class="fc" id="L1029">				this.db.getAdapter().updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+						+ DBConnector.sessionIdColumn + &quot; FROM &quot;
+						+ sessionTable
+						+ &quot; WHERE (&quot; + DBConnector.clientIdColumn + &quot;=?)&quot;
+						+ &quot; AND (&quot; + DBConnector.rsIdColumn + &quot;=?)&quot;
+						+ &quot; AND (&quot; + DBConnector.scopeColumn + &quot;=?);&quot;));
+
+<span class="fc" id="L1036">		this.selectAllSessions = this.db.prepareStatement(</span>
+<span class="fc" id="L1037">				this.db.getAdapter().updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+						+ DBConnector.sessionIdColumn + &quot; FROM &quot;
+						+ sessionTable
+						+ &quot;;&quot;));
+
+<span class="fc" id="L1042">		this.deleteSession = this.db.prepareStatement(</span>
+<span class="fc" id="L1043">				this.db.getAdapter().updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+						+ sessionTable
+						+ &quot; WHERE &quot; + DBConnector.sessionIdColumn + &quot;=?;&quot;));
+
+
+/*		this.deleteAccess = this.db.prepareStatement(this.db.getAdapter()
+				.updateEngineSpecificSQL(&quot;DELETE FROM &quot; + accessTable + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?&quot;
+						+ &quot; AND &quot; + DBConnector.rsIdColumn + &quot;=?&quot; + &quot; AND &quot; + DBConnector.scopeColumn + &quot;=?;&quot;));
+
+		this.deleteAllAccess = this.db.prepareStatement(this.db.getAdapter()
+				.updateEngineSpecificSQL(&quot;DELETE FROM &quot; + accessTable + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+
+		this.deleteAllRsAccess = this.db.prepareStatement(this.db.getAdapter().updateEngineSpecificSQL(&quot;DELETE FROM &quot;
+				+ accessTable + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?&quot; + &quot; AND &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+
+		this.getAllAccess = this.db.prepareStatement(this.db.getAdapter()
+				.updateEngineSpecificSQL(&quot;SELECT * FROM &quot; + accessTable + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+*/
+<span class="fc" id="L1061">	}</span>
+
+	/**
+	 * Close the connection with the database and delete all the
+	 * policy files
+	 *
+	 * @throws Exception throws exception
+	 */
+	@Override
+	public void close() throws Exception {
+
+<span class="fc" id="L1072">		terminateSessions(getAllSessions());</span>
+
+<span class="fc" id="L1074">		this.db.close();</span>
+
+		// delete all files in the policy folder
+<span class="fc bfc" id="L1077" title="All 2 branches covered.">		for(File file: Objects.requireNonNull(new File(ucs.getPapPath()).listFiles()))</span>
+<span class="pc bpc" id="L1078" title="1 of 4 branches missed.">			if (!file.isDirectory() &amp;&amp; file.getName().endsWith(&quot;.xml&quot;))</span>
+<span class="fc" id="L1079">				deletePolicyFile(file.getName());</span>
+<span class="fc" id="L1080">	}</span>
+
+	/**
+	 * Set the RevocationHandler
+	 */
+	@Override
+	public void setRevocationHandler(RevocationHandler rh) {
+<span class="fc" id="L1087">		this.rh = rh;</span>
+<span class="fc" id="L1088">	}</span>
+
+	/**
+	 * Set the token endpoint
+	 */
+	@Override
+	public void setTokenEndpoint(Token t) {
+<span class="fc" id="L1095">		this.t = t;</span>
+<span class="fc" id="L1096">	}</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

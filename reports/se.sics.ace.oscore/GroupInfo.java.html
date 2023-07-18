@@ -1,0 +1,1451 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GroupInfo.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.oscore</a> &gt; <span class="el_source">GroupInfo.java</span></div><h1>GroupInfo.java</h1><pre class="source lang-java linenums">/*******************************************************************************
+ * Copyright (c) 2019, RISE AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
+package se.sics.ace.oscore;
+
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+
+import COSE.AlgorithmID;
+import COSE.OneKey;
+import net.i2p.crypto.eddsa.Utils;
+import se.sics.ace.Util;
+import se.sics.ace.GroupcommParameters;
+import se.sics.ace.GroupcommPolicies;
+import se.sics.ace.Hkdf;
+
+/**
+ * A class implementing the status of an OSCORE Group at its Group ManagerOSCORE
+ *  
+ * @author Marco Tiloca
+ *
+ */
+public class GroupInfo {
+
+	/**
+	 * Information element for the OSCORE group
+	 */
+	
+	private String groupName;
+	
+	private byte[] masterSecret;
+	private byte[] masterSalt;
+<span class="fc" id="L70">	private byte[] signatureEncryptionKey = null;</span>
+<span class="fc" id="L71">	private AlgorithmID hkdf = null;</span>
+	private int authCredFormat; // the format of authentication credentials used in the group
+	
+	// Each set of the list refers to a different size of Sender IDs.
+	// The element with index 0 includes as elements Sender IDs with size 1 byte.
+<span class="fc" id="L76">	private List&lt;Set&lt;Integer&gt;&gt; usedSenderIds = new ArrayList&lt;Set&lt;Integer&gt;&gt;();</span>
+	
+	private int senderIdSize; // Size in bytes of the byte array representation of Sender IDs 
+	private int maxSenderIdValue;
+	
+	// Each set of the list refers to a different size of Sender IDs.
+	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
+	// Each map has as values CBOR byte strings, with value the serialization of the
+	// authentication credentials of the group members, according to the format used in the group.
+	// The map key (label) is a CBOR byte string with value the Sender ID of the group member.
+<span class="fc" id="L86">	private List&lt;Map&lt;CBORObject, CBORObject&gt;&gt; authCredRepo = new ArrayList&lt;Map&lt;CBORObject, CBORObject&gt;&gt;();</span>
+	
+	// Each set of the list refers to a different size of Sender IDs.
+	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
+	// Each map has as value the AIF-based role(s) of group members.
+	// The map key (label) is the integer representation of the Sender ID of the group member.
+<span class="fc" id="L92">	private List&lt;Map&lt;Integer, Integer&gt;&gt; nodeRoles = new ArrayList&lt;Map&lt;Integer, Integer&gt;&gt;();</span>
+	
+	// The value of each map entry is the node name of a group member with a certain identity.
+	// The map (key) label is the identity of each group member, as per its secure association with the Group Manager.
+<span class="fc" id="L96">	private Map&lt;String, String&gt; identities2nodeNames = new HashMap&lt;String, String&gt;();</span>
+
+	// The value of each map entry is the current Sender ID (CBOR byte string) of a group member with a certain identity.
+	// The map (key) label is the identity of each group member, as per its secure association with the Group Manager.
+<span class="fc" id="L100">	private Map&lt;String, CBORObject&gt; identities2senderIDs = new HashMap&lt;String, CBORObject&gt;();</span>
+	
+	// The value of each map entry is the &quot;Birth GID&quot; (CBOR byte string) of that group member.
+	// The map (key) label is the node name of the group member.
+<span class="fc" id="L104">	private Map&lt;String, CBORObject&gt; birthGIDs = new HashMap&lt;String, CBORObject&gt;();</span>
+	
+	// The maximum number of sets of stale Sender IDs for the group
+	// This value must be strictly greater than 1
+	private int maxStaleIdsSets;
+	
+	// The value of each map entry is a set of stale Sender IDs.
+	// The map (key) label is the version number of the symmetric keying material in use where the Sender ID was marked stale
+<span class="fc" id="L112">	private Map&lt;Integer, Set&lt;CBORObject&gt;&gt; staleSenderIds = new HashMap&lt;Integer, Set&lt;CBORObject&gt;&gt;();	</span>
+	
+	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
+	private byte[] groupIdPrefix;
+	
+	private final String prefixMonitorNames; // Initial part of the node name for monitors, since they do not have a Sender ID
+	
+	private final String nodeNameSeparator; // For non-monitor members, separator between the two components of the node name
+	
+	// Each element of the set is an allocated variable part of the node name for monitors, since they do not have a Sender ID
+<span class="fc" id="L122">	private Set&lt;Integer&gt; suffixMonitorNames = new HashSet&lt;Integer&gt;();</span>
+	
+	private int groupIdEpochSize; // Epoch size (bytes) in the {Prefix ; Epoch} Group ID
+	private int maxGroupIdEpochValue;
+	private int groupIdEpoch;
+	
+	private int mode; // The mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
+	
+	// Specific to the group mode
+<span class="fc" id="L131">	private AlgorithmID gpEncAlg = null;</span>
+<span class="fc" id="L132">	private AlgorithmID signAlg = null;</span>
+<span class="fc" id="L133">	private CBORObject signParams = null;</span>
+
+	// Specific to the pairwise mode
+<span class="fc" id="L136">	private AlgorithmID alg = null;</span>
+<span class="fc" id="L137">	private AlgorithmID ecdhAlg = null;</span>
+<span class="fc" id="L138">	private CBORObject ecdhParams = null;</span>
+	
+<span class="fc" id="L140">	private CBORObject groupPolicies = null;</span>
+	
+	private int version; // Version of the current symmetric keying material
+	private boolean status; // True if the group is currently active, false otherwise
+	
+	private OneKey gmKeyPair;   // The asymmetric key pair of the Group Manager, as a OneKey object
+	private byte[] gmAuthCred;  // The serialization of the authentication credential of the Group Manager, in the format used in the group
+	
+	/**
+	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
+	 * 
+	 * @param groupName           the invariant name of the OSCORE group.
+	 * @param masterSecret        the OSCORE Master Secret.
+	 * @param masterSalt          the OSCORE Master Salt.
+	 * @param groupIdPrefixSize   the size in bytes of the Prefix part of the OSCORE Group ID. Up to 4 bytes.
+	 * @param groupIdPrefix       the Prefix part of the OSCORE Group ID.
+	 * @param groupIdEpochSize    the size in bytes of the byte array representation of the Epoch part of the OSCORE Group ID. Up to 4 bytes.
+	 * @param groupIdEpoch        the current value of the Epoch part of the OSCORE Group ID as a positive integer.
+	 * @param prefixMonitorNames  the prefix string used to build the name of a group member acting as monitor.
+	 * @param nodeNameSeparator   the string separator used to build the name of a group member non acting as monitor.
+	 * @param hkdf                the HKDF Algorithm.
+	 * @param credFmt             the format of the authentication credentials used in the OSCORE group.
+	 * @param mode			      the mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
+	 * @param gpEncAlg            the Group Encryption Algorithm if the group mode is used, or null otherwise
+	 * @param signAlg             the Signature Algorithm if the group mode is used, or null otherwise
+	 * @param signParams          the parameters of the Signature Algorithm if the group mode is used, or null otherwise
+	 * @param alg                 the AEAD algorithm if the pairwise mode is used, or null otherwise
+	 * @param ecdhAlg             the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
+	 * @param ecdhParams          the parameters of the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
+	 * @param groupPolicies		  the map of group policies, or Null for building one with default values
+	 * @param gmKeyPair           the asymmetric key pair of the Group Manager
+	 * @param gmAuthCred		  the serialization of the authentication credential of the Group Manager, in the format used in the group
+	 * @param maxStaleIdsSets     the maximum number of sets of stale Sender IDs for the group
+	 */
+    public GroupInfo(final String groupName,
+    				 final byte[] masterSecret,
+    				 final byte[] masterSalt,
+    				 final int groupIdPrefixSize,
+    		         final byte[] groupIdPrefix,
+    		         final int groupIdEpochSize,
+    		         final int groupIdEpoch,
+    		         final String prefixMonitorNames,
+    		         final String nodeNameSeparator,
+    		         final AlgorithmID hkdf,
+    		         final int authCredFormat,
+    		         final int mode,
+    		         final AlgorithmID gpEncAlg,
+    		         final AlgorithmID signAlg,
+    		         final CBORObject signParams,
+    		         final AlgorithmID alg,
+    		         final AlgorithmID ecdhAlg,
+    		         final CBORObject ecdhParams,
+    		         final CBORObject groupPolicies,
+    		         final OneKey gmKeyPair,
+    		         final byte[] gmAuthCred,
+<span class="fc" id="L195">    		         final int maxStaleIdsSets) {</span>
+    	
+<span class="fc" id="L197">    	this.version = 0;</span>
+<span class="fc" id="L198">    	this.status = false;</span>
+    	
+<span class="fc" id="L200">    	setGroupName(groupName);</span>
+    	
+<span class="fc" id="L202">    	setHkdf(hkdf);</span>
+<span class="fc" id="L203">    	setMasterSecret(masterSecret);</span>
+<span class="fc" id="L204">    	setMasterSalt(masterSalt);</span>
+    	
+<span class="fc" id="L206">    	this.groupIdPrefixSize = groupIdPrefixSize;</span>
+<span class="fc" id="L207">    	setGroupIdPrefix(groupIdPrefix);</span>
+<span class="fc" id="L208">    	setGroupIdEpoch(groupIdEpochSize, groupIdEpoch);</span>
+    	
+<span class="fc" id="L210">    	this.mode = mode;</span>
+<span class="fc" id="L211">    	this.authCredFormat = authCredFormat;</span>
+<span class="fc" id="L212">    	this.prefixMonitorNames = prefixMonitorNames;</span>
+<span class="fc" id="L213">    	this.nodeNameSeparator = nodeNameSeparator;</span>
+    	
+    	// The group mode is used
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">    	if (mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {</span>
+<span class="fc" id="L217">    		setGpEncAlg(gpEncAlg);</span>
+<span class="fc" id="L218">	    	setSignAlg(signAlg);</span>
+<span class="fc" id="L219">	    	setSignParams(signParams);</span>
+<span class="fc" id="L220">	    	setSignatureEncryptionKey();</span>
+    	}
+    	
+    	// The pairwise mode is used
+<span class="fc bfc" id="L224" title="All 2 branches covered.">    	if (mode != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {</span>
+<span class="fc" id="L225">    		setAlg(alg);</span>
+<span class="fc" id="L226">	    	setEcdhAlg(ecdhAlg);</span>
+<span class="fc" id="L227">	    	setEcdhParams(ecdhParams);</span>
+    	}
+    	
+<span class="fc" id="L230">    	this.senderIdSize = 1;</span>
+<span class="fc" id="L231">    	this.maxSenderIdValue = 255;</span>
+    	
+<span class="fc" id="L233">    	this.maxStaleIdsSets = maxStaleIdsSets;</span>
+<span class="fc" id="L234">    	staleSenderIds.put(Integer.valueOf(version), new HashSet&lt;CBORObject&gt;());</span>
+    	
+<span class="fc bfc" id="L236" title="All 2 branches covered.">    	for (int i = 0; i &lt; 4; i++) {</span>
+        	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+<span class="fc" id="L239">    		usedSenderIds.add(new HashSet&lt;Integer&gt;());</span>
+    		
+        	// Empty sets of stored authentication credentials; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+<span class="fc" id="L243">    		authCredRepo.add(new HashMap&lt;CBORObject, CBORObject&gt;());</span>
+    		
+        	// Empty sets of roles; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+<span class="fc" id="L247">    		nodeRoles.add(new HashMap&lt;Integer, Integer&gt;());</span>
+    		
+    	}
+    	
+<span class="fc" id="L251">    	this.groupPolicies = groupPolicies;</span>
+    	
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">    	if (groupPolicies == null) {</span>
+    		// Set default policy values
+<span class="fc" id="L255">        	CBORObject defaultGroupPolicies = CBORObject.NewMap();</span>
+<span class="fc" id="L256">        	defaultGroupPolicies.Add(GroupcommPolicies.KEY_CHECK_INTERVAL, CBORObject.FromObject(3600));</span>
+<span class="fc" id="L257">        	defaultGroupPolicies.Add(GroupcommPolicies.EXP_DELTA, CBORObject.FromObject(0));</span>
+<span class="fc" id="L258">        	this.groupPolicies = defaultGroupPolicies;</span>
+    	}
+    	
+<span class="fc" id="L261">    	this.gmKeyPair = gmKeyPair;</span>
+<span class="fc" id="L262">    	this.gmAuthCred = gmAuthCred;</span>
+    	
+<span class="fc" id="L264">    }</span>
+    
+    /** Retrieve the mode(s) of operation used in the group
+     * 
+     * @return  The mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
+     */
+    synchronized public final int getMode() {
+    	
+<span class="fc" id="L272">    	return this.mode;</span>
+    	
+    }
+    
+    /** Retrieve the current status of the group
+     * 
+     * @return  True if the group is currently active, false otherwise
+     */
+    synchronized public final boolean getStatus() {
+    	
+<span class="fc" id="L282">    	return this.status;</span>
+    	
+    }
+    
+    /** 
+     * Set the status of the group
+     * @param The new status to set for the group, i.e. true for active, false for inactive
+     */
+    synchronized public void setStatus(final boolean status) {
+    	
+<span class="fc" id="L292">    	this.status = status;</span>
+    	
+<span class="fc" id="L294">    }</span>
+    
+    /** Retrieve the asymmetric key pair of the Group Manager
+     * 
+     * @return  The asymmetric key pair of the Group Manager
+     */
+    synchronized public final OneKey getGmKeyPair() {
+    	
+<span class="fc" id="L302">    	return this.gmKeyPair;</span>
+    	
+    }
+    
+    /** 
+     * Set the asymmetric key pair of the Group Manager
+     * @param The new asymmetric key pair of the Group Manager
+     */
+    synchronized public void setGmKeyPair(OneKey gmKeyPair) {
+    	
+<span class="nc" id="L312">    	this.gmKeyPair = gmKeyPair;</span>
+    	
+<span class="nc" id="L314">    }</span>
+    
+    /** Retrieve the authentication credential of the Group Manager, according to the format used in the group
+     * 
+     * @return  The authentication credential of the Group Manager
+     */
+    synchronized public final byte[] getGmAuthCred() {
+    	
+<span class="fc" id="L322">    	return this.gmAuthCred;</span>
+    	
+    }
+    
+    /** 
+     * Set the authentication credential of the Group Manager, according to the format used in the group
+     * @param The new authentication credential of the Group Manager
+     */
+    synchronized public void setGmAuthCred(byte[] gmAuthCred) {
+    	
+<span class="nc" id="L332">    	this.gmAuthCred = gmAuthCred;</span>
+    	
+<span class="nc" id="L334">    }</span>
+    
+    /** Retrieve the OSCORE Master Secret value
+     * 
+     * @return  the master secret
+     */
+    synchronized public final byte[] getMasterSecret() {
+    	
+<span class="fc" id="L342">    	byte[] myArray = new byte[this.masterSecret.length];</span>
+<span class="fc" id="L343">    	System.arraycopy(this.masterSecret, 0, myArray, 0, this.masterSecret.length);</span>
+<span class="fc" id="L344">    	return myArray;</span>
+    	
+    }
+    
+    /** 
+     * Set the OSCORE Master Secret value
+     * @param masterSecret
+     */
+    synchronized public void setMasterSecret(final byte[] masterSecret) {
+    	
+<span class="fc" id="L354">    	this.masterSecret = new byte[masterSecret.length];</span>
+<span class="fc" id="L355">    	System.arraycopy(masterSecret, 0, this.masterSecret, 0, masterSecret.length);</span>
+    	
+<span class="fc" id="L357">    }</span>
+    
+    /** Retrieve the name of the OSCORE group
+     * @return  the name of the OSCORE group
+     */
+    synchronized public final String getGroupName() {
+    	
+<span class="fc" id="L364">    	return new String(this.groupName); </span>
+    	
+    }
+    
+    /** 
+     * Set the name of the OSCORE group
+     * @param groupName
+     */
+    synchronized public void setGroupName(final String groupName) {
+    	
+<span class="fc" id="L374">    	this.groupName = new String(groupName);</span>
+    	
+<span class="fc" id="L376">    }</span>
+    
+    /**
+     *  Retrieve the OSCORE Master Salt value
+     * @return  the master salt
+     */
+    synchronized public final byte[] getMasterSalt() {
+    	
+<span class="fc" id="L384">    	byte[] myArray = new byte[this.masterSalt.length];</span>
+<span class="fc" id="L385">    	System.arraycopy(this.masterSalt, 0, myArray, 0, this.masterSalt.length);</span>
+<span class="fc" id="L386">    	return myArray;</span>
+    	
+    }
+    
+    /**
+     * Set the OSCORE Master Salt value
+     * @param masterSalt
+     */
+    synchronized public void setMasterSalt(final byte[] masterSalt) {
+    	
+<span class="pc bpc" id="L396" title="1 of 2 branches missed.">    	if (masterSalt == null) {</span>
+<span class="nc" id="L397">			this.masterSalt = new byte[0];</span>
+    	}
+    	else {
+<span class="fc" id="L400">    		this.masterSalt = new byte[masterSalt.length];</span>
+<span class="fc" id="L401">    		System.arraycopy(masterSalt, 0, this.masterSalt, 0, masterSalt.length);</span>
+    	}
+    	
+<span class="fc" id="L404">    }</span>
+    
+    /**
+     *  Retrieve the OSCORE Signature Encryption Key
+     * @return  the Signature Encryption Key, or null in case of error
+     */
+    synchronized public final byte[] getSignatureEncryptionKey() {
+    	
+<span class="nc bnc" id="L412" title="All 4 branches missed.">    	if (this.signatureEncryptionKey == null || this.mode == GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY)</span>
+<span class="nc" id="L413">    		return null;</span>
+    	
+<span class="nc" id="L415">    	byte[] myArray = new byte[this.signatureEncryptionKey.length];</span>
+<span class="nc" id="L416">    	System.arraycopy(this.signatureEncryptionKey, 0, myArray, 0, this.signatureEncryptionKey.length);</span>
+<span class="nc" id="L417">    	return myArray;</span>
+    	
+    }
+    
+    /**
+     * Set the OSCORE Signature Encryption Key
+     * 
+     */
+    synchronized public void setSignatureEncryptionKey() {
+    	
+<span class="fc" id="L427">    	CBORObject info = CBORObject.NewArray();</span>
+    	
+    	 // 'id'
+<span class="fc" id="L430">    	byte[] emptyArray = new byte[0];</span>
+<span class="fc" id="L431">    	info.Add(emptyArray);</span>
+    	
+    	// 'id_context'
+<span class="fc" id="L434">    	info.Add(getGroupId());</span>
+    	
+    	// 'alg_aead'
+<span class="pc bpc" id="L437" title="1 of 2 branches missed.">    	if (this.getGpEncAlg().AsCBOR().getType() == CBORType.Integer)</span>
+<span class="fc" id="L438">        	info.Add(this.getGpEncAlg().AsCBOR().AsInt32());</span>
+<span class="pc bpc" id="L439" title="1 of 2 branches missed.">    	if (this.getGpEncAlg().AsCBOR().getType() == CBORType.TextString)</span>
+<span class="nc" id="L440">        	info.Add(this.getGpEncAlg().AsCBOR().AsString());</span>
+    	
+    	// 'type'
+<span class="fc" id="L443">    	info.Add(&quot;SEKey&quot;);</span>
+    	
+    	// 'L'
+<span class="fc" id="L446">    	int L = getKeyLengthGroupEncryptionAlgorithm();</span>
+<span class="fc" id="L447">    	info.Add(L);</span>
+    	
+    	try {
+<span class="fc" id="L450">			this.signatureEncryptionKey = Hkdf.extractExpand(getMasterSalt(), getMasterSecret(), info.EncodeToBytes(), L);</span>
+<span class="nc" id="L451">		} catch (InvalidKeyException e) {</span>
+<span class="nc" id="L452">			System.err.println(&quot;Error when deriving the Signature Encryption Key: &quot; + e.getMessage());</span>
+<span class="nc" id="L453">		} catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L454">			System.err.println(&quot;Error when deriving the Signature Encryption Key: &quot; + e.getMessage());</span>
+<span class="pc" id="L455">		}</span>
+    	
+<span class="fc" id="L457">    }</span>
+    
+    /**
+     *  Get the Group ID Prefix as byte array
+     * @return  the Group ID Prefix
+     */
+    synchronized public final byte[] getGroupIdPrefix() {
+    	
+<span class="nc" id="L465">    	byte[] myArray = new byte[this.groupIdPrefix.length];</span>
+<span class="nc" id="L466">    	System.arraycopy(this.groupIdPrefix, 0, myArray, 0, this.groupIdPrefix.length);</span>
+<span class="nc" id="L467">    	return myArray;</span>
+    	
+    }
+    
+    /**
+     *  Set the Group ID Prefix.
+     * @param groupIdPrefix
+     * @return false in case of error, or true otherwise.
+     */
+    synchronized public boolean setGroupIdPrefix(final byte[] groupIdPrefix) {
+    	
+<span class="pc bpc" id="L478" title="1 of 2 branches missed.">    	if (groupIdPrefix.length != this.groupIdPrefixSize)</span>
+<span class="nc" id="L479">    		return false;</span>
+    	
+<span class="fc" id="L481">    	this.groupIdPrefix = new byte[groupIdPrefix.length];</span>
+<span class="fc" id="L482">    	System.arraycopy(groupIdPrefix, 0, this.groupIdPrefix, 0, groupIdPrefix.length);</span>
+<span class="fc" id="L483">    	return true;</span>
+    	
+    }
+    
+    /**
+     *  Retrieve the Group ID Epoch value as an integer
+     * @return  the Group ID Epoch
+     */
+    synchronized public final int getGroupIdEpoch() {
+    	
+<span class="nc" id="L493">    	return this.groupIdEpoch;</span>
+    	
+    }
+    
+    // Set the size and initial value of the Group ID Epoch.
+    // This method is only internally invoked by this class' constructor.
+    //
+    // Return false in case of invalid input parameters, or true otherwise.
+    synchronized private boolean setGroupIdEpoch(final int groupIdEpochSize, final int groupIdEpoch) {
+    	
+<span class="pc bpc" id="L503" title="1 of 2 branches missed.">    	if (groupIdEpochSize &lt; 1)</span>
+<span class="nc" id="L504">    		return false;</span>
+<span class="pc bpc" id="L505" title="1 of 2 branches missed.">    	else if (groupIdEpochSize &gt; 4)</span>
+<span class="nc" id="L506">    		return false;</span>
+
+<span class="fc" id="L508">    	this.groupIdEpochSize = groupIdEpochSize;</span>
+<span class="fc" id="L509">    	this.groupIdEpoch = groupIdEpoch;</span>
+    	
+<span class="pc bpc" id="L511" title="1 of 2 branches missed.">    	if (groupIdEpochSize == 4)</span>
+<span class="nc" id="L512">    		this.maxGroupIdEpochValue = (1 &lt;&lt; 31) - 1;</span>
+    	else
+<span class="fc" id="L514">    		this.maxGroupIdEpochValue = (1 &lt;&lt; (groupIdEpochSize * 8)) - 1;</span>
+    	
+<span class="fc" id="L516">    	return true;</span>
+    }
+
+    /**
+     *  Set an arbitrary new value of the Group ID Epoch.
+     * @param groupIdEpoch
+     * @return  false in case of invalid input parameters, or true otherwise.
+     */
+    synchronized public boolean setGroupIdEpoch(final int groupIdEpoch) {
+
+        // The Group ID Epoch can only grow
+<span class="nc bnc" id="L527" title="All 2 branches missed.">        if (groupIdEpoch &lt;= this.groupIdEpoch)</span>
+<span class="nc" id="L528">            return false;</span>
+
+<span class="nc bnc" id="L530" title="All 2 branches missed.">        if (groupIdEpoch &gt; this.maxGroupIdEpochValue)</span>
+<span class="nc" id="L531">            return false;</span>
+
+<span class="nc" id="L533">        this.groupIdEpoch = groupIdEpoch;</span>
+<span class="nc" id="L534">        return true;</span>
+
+    }
+
+    /**
+     *  Increment the value of the Group ID Epoch.
+     * @return  false if the maximum value is passed, or true otherwise.
+     */
+    synchronized public boolean incrementGroupIdEpoch() {
+
+<span class="nc" id="L544">        boolean ret = false;</span>
+
+        // This should trigger a group rekeying
+<span class="nc bnc" id="L547" title="All 2 branches missed.">        if (this.groupIdEpoch == this.maxGroupIdEpochValue)</span>
+<span class="nc" id="L548">            this.groupIdEpoch = 0;</span>
+
+        else {
+<span class="nc" id="L551">            this.groupIdEpoch++;</span>
+<span class="nc" id="L552">            ret = true;</span>
+        }
+    	
+<span class="nc" id="L555">    	return ret;</span>
+    	
+    }
+    
+    /**
+     * @return  the full {Prefix + Epoch} Group ID as a Byte Array
+     */
+    synchronized public final byte[] getGroupId() {
+    	
+<span class="fc" id="L564">    	byte[] myArray = new byte[this.groupIdPrefix.length + this.groupIdEpochSize];</span>
+<span class="fc bfc" id="L565" title="All 2 branches covered.">    	for (int i = 0; i &lt; myArray.length; i++)</span>
+<span class="fc" id="L566">    		myArray[i] = (byte) 0x00;</span>
+    	
+<span class="fc" id="L568">    	System.arraycopy(this.groupIdPrefix, 0, myArray, 0, this.groupIdPrefix.length);</span>
+    	
+<span class="fc" id="L570">    	byte[] groupIdEpochArray = Util.intToBytes(this.groupIdEpoch, this.groupIdEpochSize);</span>
+    	
+<span class="pc bpc" id="L572" title="2 of 4 branches missed.">    	if (groupIdEpochArray.length == 0 || groupIdEpochArray.length != this.groupIdEpochSize)</span>
+<span class="nc" id="L573">    		return null;</span>
+    	
+<span class="fc" id="L575">    	System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length, groupIdEpochArray.length);</span>
+    	     
+<span class="fc" id="L577">    	return myArray;</span>
+    	
+    }
+    
+    /**
+     * @return the KDF used in the group
+     */
+    synchronized public final AlgorithmID getHkdf() {
+    	
+<span class="fc" id="L586">    	return this.hkdf;</span>
+    	
+    }
+    
+    /**
+     *  Set the KDF used in the group
+     * @param hkdf
+     */
+    synchronized public void setHkdf(final AlgorithmID hkdf) {
+    	
+<span class="pc bpc" id="L596" title="1 of 2 branches missed.">    	if (hkdf == null)</span>
+<span class="nc" id="L597">    		this.hkdf = AlgorithmID.HMAC_SHA_256;</span>
+    	else
+<span class="fc" id="L599">    		this.hkdf = hkdf;</span>
+    	
+<span class="fc" id="L601">    }</span>
+    
+    /**
+     * @return the Group Encryption Algorithm used in the group for the group mode
+     */
+    synchronized public final AlgorithmID getGpEncAlg() {
+    	
+<span class="fc" id="L608">    	return this.gpEncAlg;</span>
+    	
+    }
+    
+    /**
+     *  Set the Group Encryption Algorithm used in the group for the group mode
+     * @param gpEncAlg
+     */
+    synchronized public void setGpEncAlg(final AlgorithmID gpEncAlg) {
+    	
+<span class="pc bpc" id="L618" title="1 of 2 branches missed.">    	if (gpEncAlg == null)</span>
+<span class="nc" id="L619">			this.gpEncAlg = AlgorithmID.AES_CCM_16_64_128;</span>
+    	else
+<span class="fc" id="L621">    		this.gpEncAlg = gpEncAlg;</span>
+    	
+<span class="fc" id="L623">    }</span>
+    
+    /**
+     * @return  the Signature Algorithm used in the group for the group mode
+     */
+    synchronized public final AlgorithmID getSignAlg() {
+    	
+<span class="fc" id="L630">    	return this.signAlg;</span>
+    	
+    }
+    
+    /**
+     *  Set the Signature Algorithm used in the group for the group mode
+     * @param signAlg
+     */
+    synchronized public void setSignAlg(final AlgorithmID signAlg) {
+    	
+<span class="pc bpc" id="L640" title="1 of 2 branches missed.">    	if (signAlg == null)</span>
+<span class="nc" id="L641">    		this.signAlg = AlgorithmID.EDDSA;</span>
+    	else
+<span class="fc" id="L643">    		this.signAlg = signAlg;</span>
+    	
+<span class="fc" id="L645">    }    </span>
+    
+    /**
+     * @return  the parameters of the Signature Algorithm used in the group for the group mode
+     */
+    synchronized public final CBORObject getSignParams() {
+    	
+<span class="fc" id="L652">    	return this.signParams;</span>
+    	
+    }
+
+    /**
+     * Set the parameters of the Signature Algorithm used in the group for the group mode
+     * @param signParams
+     * 
+     * @return true of the parameters were successfully set, false otherwise
+     */
+    synchronized public boolean setSignParams(final CBORObject signParams) {
+
+<span class="pc bpc" id="L664" title="1 of 2 branches missed.">    	if (signParams.getType() != CBORType.Array)</span>
+<span class="nc" id="L665">    		return false;</span>
+    	
+<span class="fc" id="L667">    	this.signParams = signParams;</span>
+    	
+<span class="fc" id="L669">    	return true;</span>
+    	
+    }
+    
+    /**
+     * @return the AEAD Algorithm used in the group for the pairwise mode
+     */
+    synchronized public final AlgorithmID getAlg() {
+    	
+<span class="fc" id="L678">    	return this.alg;</span>
+    	
+    }
+    
+    /**
+     *  Set the AEAD Algorithm used in the group for the pairwise mode
+     * @param alg
+     */
+    synchronized public void setAlg(final AlgorithmID alg) {
+    	
+<span class="pc bpc" id="L688" title="1 of 2 branches missed.">    	if (alg == null)</span>
+<span class="nc" id="L689">			this.alg = AlgorithmID.AES_CCM_16_64_128;</span>
+    	else
+<span class="fc" id="L691">    		this.alg = alg;</span>
+    	
+<span class="fc" id="L693">    }</span>
+    
+    /**
+     * @return the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     */
+    synchronized public final AlgorithmID getEcdhAlg() {
+    	
+<span class="fc" id="L700">    	return this.ecdhAlg;</span>
+    	
+    }
+    
+    /**
+     *  Set the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     * @param ecdhAlg
+     */
+    synchronized public void setEcdhAlg(final AlgorithmID ecdhAlg) {
+    	
+<span class="pc bpc" id="L710" title="1 of 2 branches missed.">    	if (ecdhAlg == null)</span>
+<span class="nc" id="L711">			this.ecdhAlg = AlgorithmID.ECDH_SS_HKDF_256;</span>
+    	else
+<span class="fc" id="L713">    		this.ecdhAlg = ecdhAlg;</span>
+    	
+<span class="fc" id="L715">    }</span>
+    
+    /**
+     * @return  the parameters of the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     */
+    synchronized public final CBORObject getEcdhParams() {
+    	
+<span class="fc" id="L722">    	return this.ecdhParams;</span>
+    	
+    }
+
+    /**
+     * Set the parameters of the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     * @param ecdhParams
+     * 
+     * @return true of the parameters were successfully set, false otherwise
+     */
+    synchronized public boolean setEcdhParams(final CBORObject ecdhParams) {
+
+<span class="pc bpc" id="L734" title="1 of 2 branches missed.">    	if (ecdhParams.getType() != CBORType.Array)</span>
+<span class="nc" id="L735">    		return false;</span>
+    	
+<span class="fc" id="L737">    	this.ecdhParams = ecdhParams;</span>
+    	
+<span class="fc" id="L739">    	return true;</span>
+    	
+    }
+    
+    /**
+     * @return format of the authentication credentials used in the group
+     */
+    synchronized public final int getAuthCredFormat() {
+    	
+<span class="fc" id="L748">    	return this.authCredFormat;</span>
+    	
+    }
+
+    /**
+     *  Return the whole collection of Sender IDs assigned so far.
+     *  Note that this includes also Sender IDs of members that have left the group.
+     *  On top of uniqueness, there is not re-cycling of previously assigned Sender IDs.
+     * @return   The whole collection of assigned Sender IDs.
+     */
+    synchronized public List&lt;Set&lt;Integer&gt;&gt; getUsedSenderIds() {
+    	
+<span class="nc" id="L760">    	return this.usedSenderIds;</span>
+    	
+    }
+    
+    /**
+     * Find the first available Sender ID value and allocate it.
+     * @return  the allocated Sender ID value as a byte array, or null if all values are used.
+     */
+    synchronized public byte[] allocateSenderId() {
+    	
+    	// All the possible values for the Sender IDs with this size have been allocated.
+    	// Switch to the next size, up to 4 bytes, and update the maximum Sender ID value.
+<span class="pc bpc" id="L772" title="1 of 2 branches missed.">    	if (this.usedSenderIds.get(this.senderIdSize - 1).size() == (this.maxSenderIdValue + 1)) {</span>
+<span class="nc" id="L773">	    		this.senderIdSize++;</span>
+	    
+        	// All Sender IDs with all possible sizes have been assigned already
+<span class="nc bnc" id="L776" title="All 2 branches missed.">        	if (this.senderIdSize &gt; 4)</span>
+<span class="nc" id="L777">        		return null;</span>
+        	
+<span class="nc bnc" id="L779" title="All 2 branches missed.">        	if (this.senderIdSize == 4)</span>
+<span class="nc" id="L780">        		this.maxSenderIdValue = (1 &lt;&lt; 31) - 1;</span>
+        	else
+<span class="nc" id="L782">        		this.maxSenderIdValue = (1 &lt;&lt; (this.senderIdSize * 8)) - 1;</span>
+    	}
+    	
+<span class="fc" id="L785">    	byte[] senderIdByteArray = null;</span>
+<span class="pc bpc" id="L786" title="1 of 2 branches missed.">    	for (int i = 0; i &lt;= this.maxSenderIdValue; i++) {</span>
+<span class="fc bfc" id="L787" title="All 2 branches covered.">    		if (!this.usedSenderIds.get(this.senderIdSize - 1).contains(i)) {</span>
+<span class="fc" id="L788">    			this.usedSenderIds.get(this.senderIdSize - 1).add(i);</span>
+    			
+<span class="fc" id="L790">    			senderIdByteArray = new byte[this.senderIdSize];</span>
+<span class="fc" id="L791">    			senderIdByteArray = Util.intToBytes(i, this.senderIdSize);</span>
+<span class="fc" id="L792">    			break;</span>
+    		}
+    	}
+    	
+<span class="fc" id="L796">    	return senderIdByteArray;</span>
+    	
+    }
+    
+    /**
+     *  If never assigned before, assign a particular Sender ID value provided as byte array.
+     * @param id   The requested Sender ID to allocate
+     * @return   True is the Sender ID could be allocated, false otherwise.
+     */
+    synchronized public boolean allocateSenderId(byte[] id) {
+    	
+<span class="pc bpc" id="L807" title="1 of 2 branches missed.">    	if (id.length != this.senderIdSize)</span>
+<span class="nc" id="L808">    		return false;</span>
+    	
+    	// All the possible values for the Sender IDs with this size have been assigned already
+<span class="pc bpc" id="L811" title="1 of 2 branches missed.">    	if (this.usedSenderIds.get(this.senderIdSize - 1).size() == (this.maxSenderIdValue + 1))</span>
+<span class="nc" id="L812">    		return false;</span>
+    	
+    	// The specified Sender ID has been already assigned - And no recycling is admitted
+<span class="fc bfc" id="L815" title="All 2 branches covered.">    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(Util.bytesToInt(id)))</span>
+<span class="fc" id="L816">    		return false;</span>
+    	
+    	// In case the input array is 4 bytes in size and encoding a negative integer, this will return false
+<span class="fc" id="L819">    	return allocateSenderId(Util.bytesToInt(id));</span>
+    	
+    }
+    
+    /**
+     *  Check if a particular Sender ID value provided as an integer is available.
+     * @param id
+     * @return  if available allocate it and return true. Otherwise, return false.
+     */
+    synchronized private boolean allocateSenderId(final int id) {
+    	
+<span class="pc bpc" id="L830" title="2 of 4 branches missed.">    	if (id &lt; 0 || id &gt; this.maxSenderIdValue)</span>
+<span class="nc" id="L831">    		return false;</span>
+    	
+<span class="pc bpc" id="L833" title="1 of 2 branches missed.">    	if (!this.usedSenderIds.get(senderIdSize - 1).contains(id)) {</span>
+<span class="fc" id="L834">    		this.usedSenderIds.get(senderIdSize - 1).add(id);</span>
+<span class="fc" id="L835">    		return true;</span>
+    	}
+    	
+<span class="nc" id="L838">    	return false;</span>
+    	
+    }
+    
+    /**
+     * Release a particular Sender ID value provided as a byte array.
+     * 
+     * This method is intended only to rollback from errors during the joining process.
+     * 
+     * @param idByteArray   The Sender ID as byte array
+     * @return  false in case of failure, true otherwise.
+     */
+    synchronized public boolean deallocateSenderId(final byte[] idByteArray) {
+    	
+<span class="nc bnc" id="L852" title="All 2 branches missed.">    	if (idByteArray.length != this.senderIdSize)</span>
+<span class="nc" id="L853">    		return false;</span>
+    	
+<span class="nc" id="L855">    	int id = Util.bytesToInt(idByteArray);</span>
+    	
+    	// In case the input array is 4 byte in size and encoding a negative integer, this will return false
+<span class="nc" id="L858">    	return deallocateSenderId(id, idByteArray.length);</span>
+    	
+    }
+    
+    /**
+     * Release a particular Sender ID value provided as an integer.
+     * 
+     * This method is intended only to rollback from errors during the joining process.
+     *  
+     * @param id   the Sender ID converted to integer
+     * @param size   the size in bytes of the original Sender ID as byte array
+     * @return  false in case of failure, or true otherwise.
+     */
+    synchronized private boolean deallocateSenderId(final int id, final int size) {
+
+<span class="nc bnc" id="L873" title="All 4 branches missed.">    	if (size &lt; 0 || size &gt; 4)</span>
+<span class="nc" id="L874">    		return false;</span>
+    	
+    	int maxValue;
+    	
+<span class="nc bnc" id="L878" title="All 2 branches missed.">    	if (size == 4)</span>
+<span class="nc" id="L879">    		maxValue = (1 &lt;&lt; 31) - 1;</span>
+    	else
+<span class="nc" id="L881">    		maxValue = (1 &lt;&lt; (senderIdSize * 8)) - 1;</span>
+    	
+<span class="nc bnc" id="L883" title="All 4 branches missed.">    	if (id &lt; 0 || id &gt; maxValue)</span>
+<span class="nc" id="L884">    		return false;</span>
+    	
+<span class="nc bnc" id="L886" title="All 2 branches missed.">    	if (this.usedSenderIds.get(size - 1).contains(id)) {</span>
+<span class="nc" id="L887">    		this.usedSenderIds.get(size - 1).remove(id);</span>
+<span class="nc" id="L888">			return true;</span>
+    	}
+    	
+<span class="nc" id="L891">    	return false;</span>
+    	
+    }
+    
+    /**
+     * Assign a node name to group member. If applicable, the group member must have already received a Sender ID.
+     * 
+     * @param id   The Sender ID already assigned to the node. It is Null if the node is a monitor.
+     * @return   The name assigned to the group member, or Null if there was a problem.
+     */
+    synchronized public String allocateNodeName(byte[] id) {
+    	
+<span class="fc" id="L903">    	String nodeName = null;</span>
+    	
+    	// The group member is a monitor and gets a node name following a monitor-name schema
+<span class="pc bpc" id="L906" title="1 of 2 branches missed.">    	if (id == null) {</span>
+<span class="nc" id="L907">        	int maxSuffixValue = (1 &lt;&lt; 31) - 1;</span>
+<span class="nc bnc" id="L908" title="All 2 branches missed.">    		for (int i = 0; i &lt;= maxSuffixValue; i++) {</span>
+    			// This suffix value has been already assigned - No recycling is admitted
+<span class="nc bnc" id="L910" title="All 2 branches missed.">    			if (suffixMonitorNames.contains(Integer.valueOf(i))) {</span>
+<span class="nc" id="L911">    				continue;</span>
+    			}
+    			else {
+    				// Mark the suffix value as assigned
+<span class="nc" id="L915">    				suffixMonitorNames.add(Integer.valueOf(i));</span>
+<span class="nc" id="L916">    				nodeName = new String(prefixMonitorNames + String.valueOf(i));</span>
+<span class="nc" id="L917">    				break;</span>
+    			}
+    		}
+<span class="nc" id="L920">    	}</span>
+    	// The group member is not a monitor and has already been assigned a Sender ID
+    	else {
+	    	// Double-check that the specified Sender ID has been in fact allocated
+<span class="pc bpc" id="L924" title="1 of 2 branches missed.">	    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(Util.bytesToInt(id)))</span>
+<span class="fc" id="L925">	    		nodeName = new String(Utils.bytesToHex(this.groupIdPrefix) +</span>
+<span class="fc" id="L926">	    				              Utils.bytesToHex(Util.intToBytes(this.groupIdEpoch, this.groupIdEpochSize)) +</span>
+	    				              this.nodeNameSeparator +
+<span class="fc" id="L928">	    				              Utils.bytesToHex(id));</span>
+    	}
+    	
+<span class="fc" id="L931">    	return nodeName;</span>
+    	
+    }
+    
+    /**
+     * Release a particular node name previously assigned to a node joining the group as monitor.
+     * 
+     * This method is intended only to rollback from errors during the joining process,
+     * and only for candidate members attempting to join the group as monitor.
+     * 
+     * @param nodeName   The node name as a string
+     */
+    synchronized public void deallocateNodeName(final String nodeName) {
+    	
+    	// Double-check that the node name is consistent with the naming schema for monitor group members
+    
+<span class="nc" id="L947">    	int prefixSize = prefixMonitorNames.length();</span>
+<span class="nc bnc" id="L948" title="All 2 branches missed.">    	if (nodeName.length() &lt; (prefixMonitorNames.length() + 1))</span>
+<span class="nc" id="L949">    		return;</span>
+<span class="nc bnc" id="L950" title="All 2 branches missed.">    	if(!nodeName.substring(0, prefixSize).equals(prefixMonitorNames))</span>
+<span class="nc" id="L951">    		return;</span>
+<span class="nc bnc" id="L952" title="All 2 branches missed.">    	for (int i = prefixSize; i &lt; nodeName.length(); i++) {</span>
+<span class="nc bnc" id="L953" title="All 2 branches missed.">    		if (!Character.isDigit(nodeName.charAt(i)))</span>
+<span class="nc" id="L954">    			return;</span>
+    	}
+    	
+<span class="nc" id="L957">    	String valueStr = nodeName.substring(prefixSize, nodeName.length());</span>
+<span class="nc" id="L958">    	int value = Integer.parseInt(valueStr);</span>
+    	
+<span class="nc" id="L960">    	suffixMonitorNames.remove(Integer.valueOf(value));</span>
+    	
+<span class="nc" id="L962">    }</span>
+    
+    /**
+     * Check if a certain node is a current group member
+     * 
+     * @param subject   The identity of the node, as per its secure association with the Group Manager
+     * @return   True if the node is a current member of the group, false otherwise
+     */
+    synchronized public boolean isGroupMember(final String subject) {
+
+<span class="fc" id="L972">    	return this.identities2nodeNames.containsKey(subject);</span>
+    		
+    }
+    
+    /**
+     * Add a new group member - Note that the authentication credential has to be added separately
+     * 
+     * @param sid   The Sender ID of the new node. It is Null if the node is a monitor.
+     * @param name   The node name of the new node.
+     * @param roles   The role(s) of the new node, encoded in the AIF data model
+     * @param subject   The node's identity based on the secure association with the GM
+     * @return   True if the node is successfully added to the group, false otherwise
+     */
+    synchronized public boolean addGroupMember(final byte[] sid, final String name, final int roles, final String subject) {
+
+    	// The node is a monitor
+<span class="pc bpc" id="L988" title="1 of 2 branches missed.">    	if (sid == null) {</span>
+<span class="nc bnc" id="L989" title="All 2 branches missed.">    		if (roles != (1 &lt;&lt; GroupcommParameters.GROUP_OSCORE_MONITOR))</span>
+<span class="nc" id="L990">    			return false;</span>
+    	}
+    	// The node is not a monitor
+    	else {
+<span class="pc bpc" id="L994" title="1 of 2 branches missed.">    		if (roles == (1 &lt;&lt; GroupcommParameters.GROUP_OSCORE_MONITOR))</span>
+<span class="nc" id="L995">    			return false;</span>
+<span class="fc" id="L996">    		setGroupMemberRoles(sid, roles);</span>
+<span class="fc" id="L997">	    	setSenderIdToIdentity(subject, sid);</span>
+	    	
+    	}
+    	
+<span class="fc" id="L1001">    	this.identities2nodeNames.put(subject, name);</span>
+    	
+<span class="fc" id="L1003">    	CBORObject gidCbor = CBORObject.FromObject(getGroupId());</span>
+<span class="fc" id="L1004">    	this.birthGIDs.put(name, gidCbor);</span>
+    	
+<span class="fc" id="L1006">    	return true;</span>
+    	
+    }
+    
+    /**
+     * Return the node name of the group member identified by the specified identity
+     * 
+     * @param subject   The identity of the node, as per its secure association with the Group Manager
+     * 
+     * @return The node name of the group member, of null if no member is found with the specified identity
+     */
+    synchronized public String getGroupMemberName(final String subject) {
+    	
+<span class="pc bpc" id="L1019" title="1 of 2 branches missed.">    	if (!this.identities2nodeNames.containsKey(subject))</span>
+<span class="nc" id="L1020">    		return null;</span>
+    	
+<span class="fc" id="L1022">    	return this.identities2nodeNames.get(subject);</span>
+    	
+    }
+    
+    /**
+     * Return the identity of the group member identified by the specified identity
+     * 
+     * @param subject   The identity of the node, as per its secure association with the Group Manager
+     * 
+     * @return The current Sender ID of the group member as a CBOR byte string, of null if no member is found with the specified identity
+     */
+    synchronized public CBORObject getGroupMemberSenderId(final String subject) {
+    	
+<span class="pc bpc" id="L1035" title="1 of 2 branches missed.">    	if (!this.identities2senderIDs.containsKey(subject))</span>
+<span class="nc" id="L1036">    		return null;</span>
+    	
+<span class="fc" id="L1038">    	return this.identities2senderIDs.get(subject);</span>
+    	
+    }
+    
+    /**
+     * 
+     * @param subject   Associate a Sender Id to the specified identity of a group member
+     *                  It has to be a valid and previously, consistently assigned Sender ID
+     * 
+     */
+    synchronized public void setSenderIdToIdentity(final String subject, final byte[] sid) {
+    	    	
+    	// This overwrites a possible existing entry, if the group member has received a new Sender ID value
+<span class="fc" id="L1051">    	this.identities2senderIDs.put(subject, CBORObject.FromObject(sid));</span>
+    	
+<span class="fc" id="L1053">    }    </span>
+    
+    /**
+     * Return the Birth GID of the group member identified by the specified node name
+     * 
+     * @param senderId   The node name of the group member
+     * 
+     * @return The Birth GID of the Group Member, or null in case of error
+     */
+    synchronized public byte[] getBirthGid(final String nodeName) {
+    
+<span class="nc" id="L1064">    	byte[] birthGid = null;</span>
+    	CBORObject birthGidCbor;
+    	
+<span class="nc" id="L1067">    	birthGidCbor = birthGIDs.get(nodeName);</span>
+    	
+<span class="nc bnc" id="L1069" title="All 2 branches missed.">    	if (birthGidCbor != null)</span>
+<span class="nc" id="L1070">    		birthGid = birthGidCbor.GetByteString();</span>
+    	
+<span class="nc" id="L1072">    	return birthGid;</span>
+    	
+    }
+    
+    /**
+     * Remove the Birth GID of the group member identified by the specified node name
+     * 
+     * @param nodeName   The node name of the group member
+     * 
+     */
+    synchronized public void deleteBirthGid(final String nodeName) {
+    	
+<span class="nc" id="L1084">    	birthGIDs.remove(nodeName);</span>
+    	
+<span class="nc" id="L1086">    }</span>
+    
+    
+    
+    /**
+     * Return the roles of the group member identified by the specified node name
+     * 
+     * @param nodeName   The node name of the group member
+     * 
+     * @return The roles of the group member encoded in the AIF data model
+     */
+    synchronized public short getGroupMemberRoles(final String nodeName) {
+    	
+    	// First, check if the node is a monitor, based on the naming-schema
+<span class="fc" id="L1100">    	int prefixSize = prefixMonitorNames.length();</span>
+<span class="pc bpc" id="L1101" title="1 of 2 branches missed.">    	if (nodeName.length() &gt; (prefixMonitorNames.length()) &amp;&amp;</span>
+<span class="pc bpc" id="L1102" title="1 of 2 branches missed.">    		nodeName.substring(0, prefixSize).equals(prefixMonitorNames)) {</span>
+    		
+<span class="nc" id="L1104">    		return 1 &lt;&lt; GroupcommParameters.GROUP_OSCORE_MONITOR;</span>
+    		
+    	}
+
+    	// The node is not a monitor and has a Sender ID
+<span class="fc" id="L1109">    	byte[] sid = Utils.hexToBytes(nodeName.substring(nodeName.indexOf(this.nodeNameSeparator) + 1));</span>
+    	
+<span class="fc" id="L1111">    	return getGroupMemberRoles(sid);</span>
+    	
+    }
+    
+    /**
+     * 
+     * @param sid   The Sender Id of a group member. It has to be a valid and previously, consistently assigned Sender ID                       
+     * @param roles   The role(s) of the new node, encoded in the AIF data model
+     */
+    synchronized public void setGroupMemberRoles(final byte[] sid, final int roles) {
+    	    	
+    	// This overwrites a possible existing entry, if the group member has received a new Sender ID value
+    	// Consider the inner map related to the size in bytes of the Sender ID
+<span class="fc" id="L1124">    	this.nodeRoles.get(sid.length - 1).put(Util.bytesToInt(sid), roles);</span>
+    	
+<span class="fc" id="L1126">    }   </span>
+    
+    /**
+     * Return the roles of the group member identified by the specified Sender ID
+     * 
+     * @param sid   The Sender ID of the group member
+     * 
+     * @return The roles of the group member, encoded in the AIF data model
+     */
+    synchronized public short getGroupMemberRoles(final byte[] sid) {
+    	
+<span class="fc" id="L1137">    	return this.nodeRoles.get(sid.length - 1).get(Util.bytesToInt(sid)).shortValue();</span>
+    	
+    }
+        
+    /**
+     * Remove the group member identified by the specified identity
+     * 
+     * Note that the Sender ID is not deallocated, to ensure non-reassignment to future group members under
+     * the same Group ID value. The relinquished Sender ID can be separately stored to be made available again
+     * when changing the Group ID value following a group rekeying.
+     * 
+     * Note that this method does not delete the sub-resource associated to the removed group member.
+     * The Group Manager has to separately do that _before_ invoking this method. 
+     * 
+     * @param subject   The node's identity based on the secure association with the GM 
+     * @return True if an entry for the group member was found and removed, false otherwise
+     */
+    synchronized public boolean removeGroupMemberBySubject(final String subject) {
+    	
+<span class="pc bpc" id="L1156" title="1 of 2 branches missed.">    	if (!this.identities2nodeNames.containsKey(subject))</span>
+<span class="nc" id="L1157">        		return false;</span>
+    	
+<span class="pc bpc" id="L1159" title="1 of 2 branches missed.">    	if (getGroupMemberRoles((getGroupMemberName(subject))) != (1 &lt;&lt; GroupcommParameters.GROUP_OSCORE_MONITOR)) {</span>
+    	
+<span class="fc" id="L1161">	    	byte[] sid = getGroupMemberSenderId(subject).GetByteString();</span>
+	    	
+<span class="pc bpc" id="L1163" title="1 of 2 branches missed.">	    	if (!this.nodeRoles.get(sid.length - 1).containsKey(Util.bytesToInt(sid)))</span>
+<span class="nc" id="L1164">	    		return false;</span>
+	    	
+<span class="fc" id="L1166">	    	this.nodeRoles.get(sid.length - 1).remove(Util.bytesToInt(sid));</span>
+	    	
+<span class="fc" id="L1168">	    	deleteAuthCred(sid);</span>
+	    	
+<span class="fc" id="L1170">	    	addStaleSenderId(sid);</span>
+	    	
+    	}
+    	
+<span class="fc" id="L1174">    	String nodeName = getGroupMemberName(subject);</span>
+<span class="fc" id="L1175">    	this.birthGIDs.remove(nodeName);</span>
+    	
+<span class="fc" id="L1177">    	this.identities2nodeNames.remove(subject);</span>
+<span class="fc" id="L1178">    	this.identities2senderIDs.remove(subject);</span>
+    	
+<span class="fc" id="L1180">    	return true;</span>
+    	
+    }
+    
+    /**
+     * Return the authentication credentials of the current group members
+     * 
+     * @return  The set of authentication credentials of the current group members. The authentication credentials
+     * 			are provided as CBOR byte strings, with value the serialization of the authentication credentials
+     * 			according to the format used in the group
+     */
+    synchronized public Map&lt;CBORObject, CBORObject&gt; getAuthCreds() {
+    	
+<span class="fc" id="L1193">    	Map&lt;CBORObject, CBORObject&gt; authCreds = new HashMap&lt;CBORObject, CBORObject&gt;();</span>
+    	
+    	// Go through each size of Sender ID, i.e. from 1 (i=0) to 4 (i=3) bytes
+<span class="fc bfc" id="L1196" title="All 2 branches covered.">    	for (int i = 0; i &lt; this.authCredRepo.size(); i++) {</span>
+    		
+    		// Retrieve each authentication credential
+<span class="fc bfc" id="L1199" title="All 2 branches covered.">    		for (Map.Entry&lt;CBORObject, CBORObject&gt; pair : authCredRepo.get(i).entrySet()) {</span>
+<span class="fc" id="L1200">    			authCreds.put(pair.getKey(), pair.getValue());</span>
+<span class="fc" id="L1201">    		}</span>
+    		
+    	}
+    	
+<span class="fc" id="L1205">    	return authCreds;</span>
+    	
+    }
+    
+    /**
+     * Return the authentication credential of the group member indicated by the provided Sender ID
+     * 
+     * @param sid   Sender ID of the group member associated to the authentication credential.
+     * @return  a CBOR byte string, with value the serialization of the authentication credential
+     * 			of the group member, according to the format used in the group
+     */
+    synchronized public CBORObject getAuthCred(final byte[] sid) {
+    	
+<span class="pc bpc" id="L1218" title="2 of 4 branches missed.">    	if (sid.length &lt; 1 || sid.length &gt; 4)</span>
+<span class="nc" id="L1219">    		return null;</span>
+    	
+<span class="fc" id="L1221">    	return this.authCredRepo.get(sid.length - 1).get(CBORObject.FromObject(sid));</span>
+    	
+    }
+    
+    /**
+     *  Add the authentication credential 'cred' of the group member with Sender ID 'sid' to the authentication credential repo.
+     * @param sid   Sender ID of the group member associated to the authentication credential.
+     * @param key   A CBOR byte string, with value the serialization of the authentication credential of the group member,
+     *              according to the format used in the group
+     * @return  true if it worked, false if it failed
+     */
+    synchronized public boolean storeAuthCred(final byte[] sid, final CBORObject cred) {
+    	
+<span class="pc bpc" id="L1234" title="2 of 4 branches missed.">    	if (sid.length &lt; 1 || sid.length &gt; 4)</span>
+<span class="nc" id="L1235">    		return false;</span>
+    	
+<span class="pc bpc" id="L1237" title="1 of 2 branches missed.">    	if (cred.getType() != CBORType.ByteString)</span>
+<span class="nc" id="L1238">    		return false;</span>
+    	
+<span class="fc" id="L1240">    	this.authCredRepo.get(sid.length - 1).put(CBORObject.FromObject(sid), cred);</span>
+    	
+<span class="fc" id="L1242">    	return true;</span>
+    	
+    }
+    
+
+    /**
+     *  Remove the authentication credential of the group member indicated by the provided Sender ID
+     *  
+     * @param sid   Sender ID of the group member associated to the authentication credential.
+     * @return  True if the authentication credential was found and removed, false otherwise
+     */
+    synchronized public boolean deleteAuthCred(final byte[] sid) {
+    	
+<span class="pc bpc" id="L1255" title="2 of 4 branches missed.">    	if (sid.length &lt; 1 || sid.length &gt; 4)</span>
+<span class="nc" id="L1256">    		return false;</span>
+    	
+<span class="pc bpc" id="L1258" title="1 of 2 branches missed.">    	if (!this.authCredRepo.get(sid.length - 1).containsKey(CBORObject.FromObject(sid)))</span>
+<span class="nc" id="L1259">    		return false;</span>
+    	
+<span class="fc" id="L1261">    	this.authCredRepo.get(sid.length - 1).remove(CBORObject.FromObject(sid));</span>
+    	
+<span class="fc" id="L1263">    	return true;</span>
+    	
+    }
+    
+    /**
+     *  Return the current version of the symmetric keying material
+	 *
+	 *  @return  an integer indicating the current version of the symmetric keying material
+     */
+    synchronized public int getVersion() {
+    	
+<span class="fc" id="L1274">    	return this.version;</span>
+    	
+    }
+    
+    /**
+     *  Increment the version of the symmetric keying material 
+	 *
+     */
+    synchronized public void incrementVersion() {
+    	
+<span class="nc" id="L1284">    	this.version++;</span>
+    	
+<span class="nc" id="L1286">    }</span>
+    
+    /**
+     *  Return the group policies
+	 *
+	 *  @return  a CBOR map including the group policies
+     */
+    synchronized public CBORObject getGroupPolicies() {
+    	
+<span class="fc" id="L1295">    	return this.groupPolicies;</span>
+    	
+    }
+    
+    /**
+     *  Return the current size of new Sender IDs to assign
+	 *
+	 *  @return  an integer with the current size of new Sender IDs to assign 
+     */
+    synchronized public int getSenderIdSize() {
+    	
+<span class="nc" id="L1306">    	return this.senderIdSize;</span>
+    	
+    }
+    
+    /**
+     *  Return the separator used between the two components of a node name of a non-monitor member
+	 *
+	 *  @return  a string with the separator used between the two components of a node name of a non-monitor member
+     */
+    synchronized public String getNodeNameSeparator() {
+    	
+<span class="fc" id="L1317">    	return this.nodeNameSeparator;</span>
+    	
+    }
+
+    /**
+     *  Return the current amount of sets of stale Sender IDs
+     *  
+     *  @return  The current amount of sets of stale Sender IDs 
+     */
+    synchronized public int getNumberOfStaleSenderIdsSet() {
+    	
+<span class="nc" id="L1328">    	return this.staleSenderIds.size();</span>
+    	
+    }
+    
+    /**
+     *  Return one aggregated set including the Sender IDs that have become stale starting from
+     *  the version of the symmetric keying material specified as argument  
+     *  
+     *  @param   The version of the symmetric keying material starting from which stale Sender IDs have to be considered
+     *  @return  The aggregated set of stale Sender IDs, or null in case of error
+     */
+    synchronized public Set&lt;CBORObject&gt; getStaleSenderIds(final int baselineVersion) {
+    	
+<span class="nc bnc" id="L1341" title="All 4 branches missed.">    	if (baselineVersion &lt; 0 || baselineVersion &gt; this.version)</span>
+<span class="nc" id="L1342">    		return null;</span>
+    	
+<span class="nc" id="L1344">    	Set&lt;CBORObject&gt; ret = new HashSet&lt;CBORObject&gt;();</span>
+    	
+<span class="nc bnc" id="L1346" title="All 2 branches missed.">    	for (Integer i : this.staleSenderIds.keySet()) {</span>
+    		
+<span class="nc bnc" id="L1348" title="All 2 branches missed.">    		if (i.intValue() &lt; baselineVersion) {</span>
+    			// Skip this set of stale Sender IDs
+<span class="nc" id="L1350">    			continue;</span>
+    		}
+    		
+<span class="nc bnc" id="L1353" title="All 2 branches missed.">    		for (CBORObject obj : this.staleSenderIds.get(i)) {</span>
+<span class="nc" id="L1354">    			ret.add(obj);</span>
+<span class="nc" id="L1355">    		}</span>
+<span class="nc" id="L1356">    	}</span>
+    	
+<span class="nc" id="L1358">    	return ret;</span>
+    	
+    }
+    
+        
+    /**
+     *  Add a Sender ID as stale to the set associated with the current version of the symmetric keying material
+     *  
+     *  @param senderId   The Sender ID to add to the set associated with the current version of the symmetric keying material
+     *  @return  True if the addition was successful, or false otherwise
+     */
+    synchronized public boolean addStaleSenderId(byte[] senderId) {
+    	
+<span class="pc bpc" id="L1371" title="1 of 2 branches missed.">    	if (senderId == null) {</span>
+<span class="nc" id="L1372">    		return false;</span>
+    	}
+    	
+<span class="pc bpc" id="L1375" title="1 of 2 branches missed.">    	if (!this.staleSenderIds.containsKey(Integer.valueOf(version))) {</span>
+    		// This should never happen
+<span class="nc" id="L1377">    		return false;</span>
+    	}
+    	
+<span class="fc" id="L1380">    	this.staleSenderIds.get(Integer.valueOf(version)).add(CBORObject.FromObject(senderId));</span>
+<span class="fc" id="L1381">    	return true;</span>
+    	
+    }
+    
+    /**
+     *  Add a new empty set of stale Senders IDs associated with the current version of the symmetric keying material
+     *  
+     *  @return  True if the addition was successful, or false otherwise
+     */
+    synchronized public boolean addStaleSenderIdSet() {
+    	
+<span class="nc bnc" id="L1392" title="All 2 branches missed.">    	if (this.staleSenderIds.size() == this.maxStaleIdsSets) {</span>
+    		// This should never happen. In case the collection of set reaches its maximum size,
+    		// the oldest set has to be deleted before rekeying the group, and a new empty set is added
+<span class="nc" id="L1395">    		return false;</span>
+    	}
+    	
+<span class="nc bnc" id="L1398" title="All 2 branches missed.">    	if (this.staleSenderIds.put(Integer.valueOf(version), new HashSet&lt;CBORObject&gt;()) == null)</span>
+<span class="nc" id="L1399">    		return true;</span>
+    	
+<span class="nc" id="L1401">    	return false;</span>
+
+    }
+    
+    /**
+     *  Remove the oldest set of stale Senders IDs, where the collection of set has reached its maximum size
+     *  
+     *  @return  True if the removal was successful, or false otherwise
+     */
+    synchronized public boolean removeStaleSenderIdOldestSet() {
+
+<span class="nc bnc" id="L1412" title="All 2 branches missed.">    	if (this.staleSenderIds.size() != this.maxStaleIdsSets) {</span>
+    		// This should never happen. This method should be called only when
+    		// the current size of the collection of sets has reached its maximum size
+<span class="nc" id="L1415">    		return false;</span>
+    	}
+    	
+<span class="nc" id="L1418">    	int index = this.version - this.maxStaleIdsSets + 1;</span>
+<span class="nc bnc" id="L1419" title="All 2 branches missed.">    	if (this.staleSenderIds.remove(Integer.valueOf(index)) != null)</span>
+<span class="nc" id="L1420">    		return true;</span>
+    	
+<span class="nc" id="L1422">    	return false;</span>
+    	
+    }
+    
+    /**
+     *  Get the key length (in bytes) for the Group Encryption Algorithm used in the group
+     * @return  the key length (in bytes) for the Group Encryption Algorithm
+     */
+	private int getKeyLengthGroupEncryptionAlgorithm() {
+
+<span class="fc" id="L1432">		int keyLength = 0;</span>
+	    
+<span class="pc bpc" id="L1434" title="2 of 4 branches missed.">		if (this.gpEncAlg != null &amp;&amp; this.mode != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {</span>
+		
+<span class="pc bpc" id="L1436" title="7 of 8 branches missed.">			if (this.gpEncAlg == AlgorithmID.AES_CCM_16_64_128 || this.gpEncAlg == AlgorithmID.AES_CCM_16_128_128 ||</span>
+				this.gpEncAlg == AlgorithmID.AES_CCM_64_64_128 || this.gpEncAlg == AlgorithmID.AES_CCM_64_128_128 )
+<span class="fc" id="L1438">				keyLength = 16;</span>
+			
+<span class="pc bpc" id="L1440" title="4 of 8 branches missed.">			if (this.gpEncAlg == AlgorithmID.AES_CCM_16_64_256 || this.gpEncAlg == AlgorithmID.AES_CCM_16_128_256 ||</span>
+				this.gpEncAlg == AlgorithmID.AES_CCM_64_64_256 || this.gpEncAlg == AlgorithmID.AES_CCM_64_128_256 )
+<span class="nc" id="L1442">					keyLength = 32;</span>
+		
+		}
+	    
+<span class="fc" id="L1446">	    return keyLength;</span>
+		
+	}
+    
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

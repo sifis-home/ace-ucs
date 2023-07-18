@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RequestXMLSerializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.ucs.xacml</a> &gt; <span class="el_source">RequestXMLSerializer.java</span></div><h1>RequestXMLSerializer.java</h1><pre class="source lang-java linenums">package se.sics.ace.ucs.xacml;
+
+import java.io.StringWriter;
+import java.util.logging.Logger;
+
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
+
+import com.att.research.xacml.api.Attribute;
+import com.att.research.xacml.api.AttributeValue;
+import com.att.research.xacml.api.Request;
+import com.att.research.xacml.api.RequestAttributes;
+import com.att.research.xacml.api.RequestDefaults;
+import com.att.research.xacml.std.dom.DOMRequest;
+import com.att.research.xacml.std.dom.DOMStructureException;
+
+import oasis.names.tc.xacml._3_0.core.schema.wd_17.AttributeType;
+import oasis.names.tc.xacml._3_0.core.schema.wd_17.AttributeValueType;
+import oasis.names.tc.xacml._3_0.core.schema.wd_17.AttributesType;
+import oasis.names.tc.xacml._3_0.core.schema.wd_17.ObjectFactory;
+import oasis.names.tc.xacml._3_0.core.schema.wd_17.RequestDefaultsType;
+import oasis.names.tc.xacml._3_0.core.schema.wd_17.RequestType;
+
+<span class="fc" id="L26">public class RequestXMLSerializer {</span>
+
+<span class="fc" id="L28">	private static final Logger LOGGER = Logger.getLogger(RequestXMLSerializer.class.getName());</span>
+
+	public String serialize(Request request) {
+<span class="fc" id="L31">		return toXML(toRequestType(request));</span>
+	}
+
+	public Request unserialize(String request) {
+		try {
+<span class="nc" id="L36">			return DOMRequest.load(request);</span>
+<span class="nc" id="L37">		} catch (DOMStructureException e) {</span>
+<span class="nc" id="L38">			LOGGER.severe(e.getClass().getSimpleName() + &quot; : &quot; + e.getMessage());</span>
+<span class="nc" id="L39">			return null;</span>
+		}
+	}
+
+	public RequestType toRequestType(Request xacmlReq) {
+<span class="fc" id="L44">		ObjectFactory objFact = new ObjectFactory();</span>
+<span class="fc" id="L45">		RequestType req = new RequestType();</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">		for (RequestAttributes attrs : xacmlReq.getRequestAttributes()) {</span>
+<span class="fc" id="L47">			AttributesType type = objFact.createAttributesType();</span>
+<span class="fc" id="L48">			type.setCategory(attrs.getCategory().stringValue());</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">			for (Attribute attr : attrs.getAttributes()) {</span>
+<span class="fc" id="L50">				AttributeType attrtype = objFact.createAttributeType();</span>
+<span class="fc" id="L51">				attrtype.setAttributeId(attr.getAttributeId().stringValue());</span>
+<span class="fc" id="L52">				attrtype.setIncludeInResult(attr.getIncludeInResults());</span>
+<span class="fc" id="L53">				attrtype.setIssuer(attr.getIssuer());</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">				for (AttributeValue&lt;?&gt; attributeValueType : attr.getValues()) {</span>
+<span class="fc" id="L55">					AttributeValueType atValType = objFact.createAttributeValueType();</span>
+<span class="fc" id="L56">					atValType.setDataType(attributeValueType.getDataTypeId().stringValue());</span>
+<span class="fc" id="L57">					atValType.getContent().add(attributeValueType.getValue());</span>
+<span class="fc" id="L58">					attrtype.getAttributeValue().add(atValType);</span>
+<span class="fc" id="L59">				}</span>
+<span class="fc" id="L60">				type.getAttribute().add(attrtype);</span>
+<span class="fc" id="L61">			}</span>
+<span class="fc" id="L62">			req.getAttributes().add(type);</span>
+<span class="fc" id="L63">		}</span>
+<span class="fc" id="L64">		req.setCombinedDecision(xacmlReq.getCombinedDecision());</span>
+<span class="fc" id="L65">		RequestDefaults reqDefs = xacmlReq.getRequestDefaults();</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">		if (reqDefs != null) {</span>
+<span class="nc" id="L67">			RequestDefaultsType reqDef = objFact.createRequestDefaultsType();</span>
+<span class="nc" id="L68">			reqDef.setXPathVersion(reqDefs.getXPathVersion().toString());</span>
+<span class="nc" id="L69">			req.setRequestDefaults(reqDef);</span>
+		}
+<span class="fc" id="L71">		req.setReturnPolicyIdList(xacmlReq.getReturnPolicyIdList());</span>
+<span class="fc" id="L72">		return req;</span>
+	}
+
+	public String toXML(RequestType req) {
+		try {
+<span class="fc" id="L77">			JAXBContext jaxbContext = JAXBContext.newInstance(new Class[] { RequestType.class });</span>
+<span class="fc" id="L78">			Marshaller marshaller = jaxbContext.createMarshaller();</span>
+<span class="fc" id="L79">			marshaller.setProperty(&quot;jaxb.formatted.output&quot;, false);</span>
+<span class="fc" id="L80">			JAXBElement&lt;RequestType&gt; element = new ObjectFactory().createRequest(req);</span>
+<span class="fc" id="L81">			element.setValue(req);</span>
+<span class="fc" id="L82">			StringWriter stw = new StringWriter();</span>
+<span class="fc" id="L83">			marshaller.marshal(element, stw);</span>
+<span class="fc" id="L84">			return stw.toString();</span>
+<span class="nc" id="L85">		} catch (JAXBException e) {</span>
+<span class="nc" id="L86">			LOGGER.severe(e.getClass().getSimpleName() + &quot; : &quot; + e.getMessage());</span>
+		}
+<span class="nc" id="L88">		return null;</span>
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

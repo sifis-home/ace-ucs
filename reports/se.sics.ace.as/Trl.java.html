@@ -1,0 +1,521 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Trl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.as</a> &gt; <span class="el_source">Trl.java</span></div><h1>Trl.java</h1><pre class="source lang-java linenums">package se.sics.ace.as;
+
+import com.upokecenter.cbor.CBORObject;
+import se.sics.ace.AceException;
+import se.sics.ace.Constants;
+import se.sics.ace.Endpoint;
+import se.sics.ace.Message;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ *
+ * @author Marco Rasori
+ *
+ */
+public class Trl implements Endpoint, AutoCloseable {
+
+    /**
+     * The logger
+     */
+<span class="fc" id="L26">    private static final Logger LOGGER</span>
+<span class="fc" id="L27">            = Logger.getLogger(Trl.class.getName() );</span>
+
+    /**
+     * The database connector for storing and retrieving stuff.
+     */
+    private DBConnector db;
+
+    /**
+     * Map between security identities of the peers and their names, used with OSCORE profile;
+     * it is null when DTLS profile is used.
+     */
+<span class="fc" id="L38">    private Map&lt;String, String&gt; peerIdentitiesToNames = null;</span>
+
+    /**
+     * The query parameters of the current request
+     */
+<span class="fc" id="L43">    private Map&lt;String,Integer&gt; queryParameters = new HashMap&lt;&gt;();</span>
+
+    /**
+     * true if the current request has the observe option set
+     */
+<span class="fc" id="L48">    private boolean hasObserve = false;</span>
+
+    /**
+     * Pre-defined positive integer. The maximum number of diff entries stored per peer.
+     * It determines the maximum size of the array 'diffSet' in a DiffSet object.
+     */
+    private int nMax;
+
+    /**
+     * Maximum number of diff entries that the AS can include in a diff query response
+     */
+    private int maxDiffBatch;
+
+    /**
+     * Map between peer ids and their DiffSets representing their portion of trl
+     */
+    private Map&lt;String, DiffSet&gt; DiffSetsMap;
+
+
+    /**
+     * Constructor.
+     *
+     * @param db  the database connector
+     * @param peerIdentitiesToNames  mapping between security identities
+     *                               of the peers and their names; it can be null
+     * @param nMax maximum number of diff entries stored per peer.
+     * @param maxDiffBatch maximum number of diff entries that the AS can include
+     *                     in a diff query response. It can be null, and, in that case,
+     *                     its value is set to the value of nMax
+     *
+     * @throws AceException if the db connector is null, nMax and maxDiffBatch
+     *                      are lower than or equal to zero.
+     */
+    public Trl(DBConnector db,
+               Map&lt;String, String&gt; peerIdentitiesToNames,
+               int nMax, Integer maxDiffBatch)
+<span class="fc" id="L84">            throws AceException {</span>
+
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (db == null) {</span>
+<span class="nc" id="L87">            LOGGER.severe(&quot;Trl endpoint's DBConnector was null&quot;);</span>
+<span class="nc" id="L88">            throw new AceException(</span>
+                    &quot;Trl endpoint's DBConnector must be non-null&quot;);
+        }
+
+<span class="pc bpc" id="L92" title="1 of 2 branches missed.">        if (nMax &lt;= 0) {</span>
+<span class="nc" id="L93">            LOGGER.severe(&quot;nMax value not allowed.&quot;);</span>
+<span class="nc" id="L94">            throw new AceException(&quot;nMax MUST be a positive integer&quot;);</span>
+        }
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">        if (maxDiffBatch == null) {</span>
+<span class="fc" id="L97">            this.maxDiffBatch = nMax;</span>
+        }
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        else if (maxDiffBatch &lt;= 0) {</span>
+<span class="nc" id="L100">            LOGGER.severe(&quot;maxDiffBatch value not allowed.&quot;);</span>
+<span class="nc" id="L101">            throw new AceException(&quot;maxDiffBatch MUST be a positive integer or null.&quot;);</span>
+        }
+
+<span class="fc" id="L104">        this.db = db;</span>
+<span class="fc" id="L105">        this.peerIdentitiesToNames = peerIdentitiesToNames;</span>
+<span class="fc" id="L106">        this.nMax = nMax;</span>
+
+        // Initialize a DiffSet structure for each known peer, i.e., for each registered device.
+<span class="fc" id="L109">        Set&lt;String&gt; knownRss = db.getRSS();</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">        if (knownRss == null)  knownRss = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L111">        Set&lt;String&gt; knownIds = db.getClients();</span>
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">        if (knownIds == null)  knownIds = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L113">        knownIds.addAll(knownRss);</span>
+
+<span class="fc" id="L115">        this.DiffSetsMap = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        for (String id : knownIds) {</span>
+<span class="fc" id="L117">            this.DiffSetsMap.put(id, new DiffSet(nMax));</span>
+<span class="fc" id="L118">        }</span>
+<span class="fc" id="L119">    }</span>
+
+
+    @Override
+    public synchronized Message processMessage(Message msg) {
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">        if (msg == null) {//This should not happen</span>
+<span class="nc" id="L125">            LOGGER.severe(&quot;Trl.processMessage() received null message&quot;);</span>
+<span class="nc" id="L126">            return null;</span>
+        }
+
+        // Check if this peer can make requests
+<span class="fc" id="L130">        String id = msg.getSenderId();</span>
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">        if (id == null) {</span>
+<span class="nc" id="L132">            CBORObject errorMap = errorUnauthorizedPeer(id);</span>
+<span class="nc" id="L133">            return msg.failReply(Message.FAIL_UNAUTHORIZED, errorMap);</span>
+        }
+
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">        if (peerIdentitiesToNames != null) {</span>
+<span class="fc" id="L137">            id = peerIdentitiesToNames.get(id);</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">            if (id == null) {</span>
+<span class="fc" id="L139">                CBORObject errorMap = errorUnauthorizedPeer(id);</span>
+<span class="fc" id="L140">                return msg.failReply(Message.FAIL_UNAUTHORIZED, errorMap);</span>
+            }
+        }
+
+        // Check the validity of query parameters
+<span class="fc" id="L145">        CBORObject errorMap = checkQueryParameters();</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">        if (errorMap != null) {</span>
+<span class="fc" id="L147">            return msg.failReply(Message.FAIL_BAD_REQUEST, errorMap);</span>
+        }
+
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">        if (queryParameters.containsKey(&quot;pmax&quot;)) {</span>
+            // set the time between this and the next response
+            // FIXME: cannot find &quot;pmax&quot; or &quot;maximum period&quot; in Californium code
+        }
+
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">        if (queryParameters.containsKey(&quot;diff&quot;)) {</span>
+            // Process a diff-query request
+
+            // Empty collection (Appendix B.4.1)
+<span class="nc bnc" id="L159" title="All 2 branches missed.">            if (DiffSetsMap.get(id).getMaxIndex() == 0) {</span>
+<span class="nc" id="L160">                return processDiffQueryEmptyCollection(msg);</span>
+            }
+
+<span class="nc bnc" id="L163" title="All 2 branches missed.">            if (queryParameters.containsKey(&quot;cursor&quot;)) {</span>
+                // Cursor Specified in the Diff Query Request (Appendix B.4.3)
+<span class="nc" id="L165">                return processDiffQueryWithCursor(msg, id);</span>
+            }
+            else {
+                // Cursor Not Specified in the Diff Query Request (Appendix B.4.2)
+<span class="nc" id="L169">                return processDiffQueryNoCursor(msg, id);</span>
+            }
+        }
+        else {
+            // Process a full-query request
+<span class="fc" id="L174">            return processFullQuery(msg, id);</span>
+        }
+    }
+
+
+    private Message processDiffQueryEmptyCollection(Message msg) {
+<span class="nc" id="L180">        CBORObject map = CBORObject.NewMap();</span>
+
+<span class="nc" id="L182">        map.Add(Constants.DIFF_SET, CBORObject.NewArray());</span>
+<span class="nc" id="L183">        map.Add(Constants.CURSOR, CBORObject.Null);</span>
+<span class="nc" id="L184">        map.Add(Constants.MORE, CBORObject.False);</span>
+
+<span class="nc" id="L186">        LOGGER.log(Level.FINEST, &quot;Returning diff query Empty Collection&quot;);</span>
+<span class="nc" id="L187">        return msg.successReply(Message.CONTENT, map);</span>
+    }
+
+
+    private Message processDiffQueryNoCursor(Message msg, String id) {
+
+        //1. Get the number of diff entries to return
+<span class="nc" id="L194">        int num = queryParameters.get(&quot;diff&quot;);</span>
+<span class="nc bnc" id="L195" title="All 4 branches missed.">        if (num == 0 || num &gt; this.nMax) {</span>
+<span class="nc" id="L196">            num = this.nMax;</span>
+        }
+
+<span class="nc" id="L199">        int size = DiffSetsMap.get(id).getSize(); // actual size of the diffSet array of the peer</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        int u = size &lt; num ? size : num;</span>
+        //min(size,num);
+
+<span class="nc bnc" id="L203" title="All 2 branches missed.">        int l = u &lt; maxDiffBatch ? u : maxDiffBatch;</span>
+        //min(u,maxDiffBatch);
+
+        //2. Create the CBOR array containing the diff entries
+        CBORObject diffSet;
+        try {
+<span class="nc bnc" id="L209" title="All 2 branches missed.">            if (u &lt;= maxDiffBatch) {</span>
+<span class="nc" id="L210">                diffSet = DiffSetsMap.get(id).getLatestDiffEntries(u);</span>
+            }
+            else {
+<span class="nc" id="L213">                diffSet = DiffSetsMap.get(id).getEldestDiffEntries(u, l);</span>
+            }
+<span class="nc" id="L215">        } catch (AceException e) {</span>
+<span class="nc" id="L216">            LOGGER.severe(&quot;Message processing aborted (getting diff entries): &quot;</span>
+<span class="nc" id="L217">                    + e.getMessage());</span>
+<span class="nc" id="L218">            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);</span>
+<span class="nc" id="L219">        }</span>
+
+        //3. Create the map containing the diff set, cursor value, and more value
+<span class="nc" id="L222">        CBORObject map = CBORObject.NewMap();</span>
+<span class="nc" id="L223">        map.Add(Constants.DIFF_SET, diffSet);</span>
+
+<span class="nc" id="L225">        int cursor = DiffSetsMap.get(id).getMaxIndex() + u - l;</span>
+<span class="nc" id="L226">        map.Add(Constants.CURSOR, cursor);</span>
+
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        if (u &lt;= maxDiffBatch) {</span>
+<span class="nc" id="L229">            map.Add(Constants.MORE, CBORObject.False);</span>
+        }
+        else {
+<span class="nc" id="L232">            map.Add(Constants.MORE, CBORObject.True);</span>
+        }
+
+<span class="nc" id="L235">        LOGGER.log(Level.FINEST, &quot;Returning diff set CBOR map&quot;);</span>
+<span class="nc" id="L236">        return msg.successReply(Message.CONTENT, map);</span>
+    }
+
+
+    private Message processDiffQueryWithCursor(Message msg, String id) {
+
+<span class="nc" id="L242">        int p = queryParameters.get(&quot;cursor&quot;);</span>
+<span class="nc" id="L243">        int lastIndex = DiffSetsMap.get(id).getMaxIndex();</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">        if (p &gt; lastIndex) {</span>
+            // the requester deliberately specified a wrong value of 'cursor'
+<span class="nc" id="L246">            CBORObject errorMap = errorOutOfBoundCursorValueMap(id);</span>
+<span class="nc" id="L247">            return msg.failReply(Message.FAIL_BAD_REQUEST, errorMap);</span>
+        }
+
+<span class="nc" id="L250">        int oldestIndex = DiffSetsMap.get(id).getOldestIndex();</span>
+        //if (p + 1 &gt;= oldestIndex &amp;&amp; p + 1 &lt;= lastIndex) { // oldestIndex &lt;= p + 1 &lt;= lastIndex
+        // if (p &lt; oldestIndex &amp;&amp; p + 1 &lt; oldestIndex) {
+<span class="nc bnc" id="L253" title="All 2 branches missed.">        if (p + 1 &lt; oldestIndex) {</span>
+            // the index the requester specified in 'cursor' is obsolete
+            // (too old and therefore removed from the diffSet array)
+<span class="nc" id="L256">            CBORObject map = CBORObject.NewMap();</span>
+<span class="nc" id="L257">            map.Add(Constants.DIFF_SET, CBORObject.NewArray());</span>
+<span class="nc" id="L258">            map.Add(Constants.CURSOR, CBORObject.Null);</span>
+<span class="nc" id="L259">            map.Add(Constants.MORE, CBORObject.True);</span>
+
+<span class="nc" id="L261">            LOGGER.log(Level.FINEST, &quot;Returning diff set CBOR map (specified cursor was obsolete)&quot;);</span>
+<span class="nc" id="L262">            return msg.successReply(Message.CONTENT, map);</span>
+        }
+
+        // if (p &gt;= oldestIndex - 1 &amp;&amp; p &lt;= lastIndex)
+        // is the condition for which we should continue processing, and this means
+        // that p is in the range [oldestIndex-1, lastIndex] and the request is legit.
+
+        //1. Get the number of diff entries to return
+<span class="nc" id="L270">        int num = queryParameters.get(&quot;diff&quot;);</span>
+<span class="nc bnc" id="L271" title="All 4 branches missed.">        if (num == 0 || num &gt; this.nMax) {</span>
+<span class="nc" id="L272">            num = this.nMax;</span>
+        }
+
+<span class="nc" id="L275">        int subSize = lastIndex - p;</span>
+<span class="nc" id="L276">        int size = DiffSetsMap.get(id).getSize();</span>
+<span class="nc bnc" id="L277" title="All 2 branches missed.">        assert(subSize &lt;= size);</span>
+
+<span class="nc bnc" id="L279" title="All 2 branches missed.">        int subU = subSize &lt; num ? subSize : num;</span>
+        //min(subSize,num);
+
+<span class="nc bnc" id="L282" title="All 2 branches missed.">        int l = subU &lt; maxDiffBatch ? subU : maxDiffBatch;</span>
+
+        //2. Create the CBOR array containing the diff entries
+        CBORObject diffSet;
+        try {
+<span class="nc" id="L287">            int fromArrayPosition = size - (lastIndex - (p + subU));</span>
+<span class="nc" id="L288">            diffSet = DiffSetsMap.get(id).getDiffEntries(subU, l, fromArrayPosition);</span>
+
+<span class="nc" id="L290">        } catch (AceException e) {</span>
+<span class="nc" id="L291">            LOGGER.severe(&quot;Message processing aborted (getting diff entries): &quot;</span>
+<span class="nc" id="L292">                    + e.getMessage());</span>
+<span class="nc" id="L293">            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);</span>
+<span class="nc" id="L294">        }</span>
+
+        //3. Create the map containing the diff set, cursor value, and more value
+<span class="nc" id="L297">        CBORObject map = CBORObject.NewMap();</span>
+<span class="nc" id="L298">        map.Add(Constants.DIFF_SET, diffSet);</span>
+
+<span class="nc" id="L300">        int cursor = p + l;</span>
+<span class="nc" id="L301">        map.Add(Constants.CURSOR, cursor);</span>
+
+<span class="nc bnc" id="L303" title="All 2 branches missed.">        if (subU &lt;= maxDiffBatch) {</span>
+<span class="nc" id="L304">            map.Add(Constants.MORE, CBORObject.False);</span>
+        }
+        else {
+<span class="nc" id="L307">            map.Add(Constants.MORE, CBORObject.True);</span>
+        }
+
+<span class="nc" id="L310">        LOGGER.log(Level.FINEST, &quot;Returning diff set CBOR map&quot;);</span>
+<span class="nc" id="L311">        return msg.successReply(Message.CONTENT, map);</span>
+
+    }
+
+
+    private Message processFullQuery(Message msg, String id) {
+
+        //1. Retrieve the pertaining tokens in the trlTable
+        Set&lt;String&gt; pertainingTokens;
+        try{
+<span class="fc" id="L321">            pertainingTokens = db.getPertainingTokens(id);</span>
+<span class="nc" id="L322">        } catch(AceException e) {</span>
+<span class="nc" id="L323">            LOGGER.severe(&quot;Message processing aborted (getting tokens): &quot;</span>
+<span class="nc" id="L324">                    + e.getMessage());</span>
+<span class="nc" id="L325">            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);</span>
+<span class="fc" id="L326">        }</span>
+
+        //2. Get the map cti-tokenhash from the database
+<span class="fc" id="L329">        Map&lt;String, String&gt; ctiToTokenHash = null;</span>
+        try{
+<span class="fc" id="L331">            ctiToTokenHash = db.getTokenHashMap();</span>
+<span class="nc" id="L332">        } catch(AceException e) {</span>
+<span class="nc" id="L333">            LOGGER.severe(&quot;Message processing aborted (getting token hashes from db): &quot;</span>
+<span class="nc" id="L334">                    + e.getMessage());</span>
+<span class="nc" id="L335">            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);</span>
+<span class="fc" id="L336">        }</span>
+
+        //3. Create the CBOR array containing the token hashes as Byte Strings
+<span class="fc" id="L339">        CBORObject fullSet = CBORObject.NewArray();</span>
+<span class="fc" id="L340">        Set&lt;String&gt; tokenHashes = new HashSet&lt;&gt;();</span>
+
+<span class="fc bfc" id="L342" title="All 2 branches covered.">        for (String tokenCti : pertainingTokens) {</span>
+<span class="fc" id="L343">            String tokenHash = ctiToTokenHash.get(tokenCti);</span>
+<span class="pc bpc" id="L344" title="1 of 2 branches missed.">            if (tokenHash != null) {</span>
+<span class="fc" id="L345">                fullSet.Add(CBORObject.FromObject(tokenHash.getBytes(Constants.charset)));</span>
+<span class="fc" id="L346">                tokenHashes.add(tokenHash);</span>
+            }
+<span class="fc" id="L348">        }</span>
+
+        //3. Create the map containing the full set and cursor value
+<span class="fc" id="L351">        CBORObject map = CBORObject.NewMap();</span>
+<span class="fc" id="L352">        map.Add(Constants.FULL_SET, fullSet);</span>
+
+<span class="fc" id="L354">        int cursor = DiffSetsMap.get(id).getMaxIndex();</span>
+<span class="pc bpc" id="L355" title="1 of 2 branches missed.">        if (cursor == 0) {</span>
+<span class="fc" id="L356">            map.Add(Constants.CURSOR, CBORObject.Null);</span>
+        }
+        else {
+<span class="nc" id="L359">            map.Add(Constants.CURSOR, cursor);</span>
+        }
+
+<span class="fc" id="L362">        LOGGER.log(Level.FINEST, &quot;Returning full set: &quot; + tokenHashes);</span>
+<span class="fc" id="L363">        return msg.successReply(Message.CONTENT, map);</span>
+    }
+
+
+
+    public void setQueryParameters(Map&lt;String,Integer&gt; queryParameters) {
+<span class="fc" id="L369">        this.queryParameters = new HashMap&lt;&gt;(queryParameters);</span>
+<span class="fc" id="L370">    }</span>
+
+    public void setHasObserve(boolean observe) {
+<span class="fc" id="L373">        this.hasObserve = observe;</span>
+<span class="fc" id="L374">    }</span>
+
+
+    /**
+     * Check compliance of query parameters. Note that this check is done on the
+     * &quot;general shape&quot; of query parameters; they are not checked against the values
+     * of the specific instance of the DiffSet structure.
+     * For example, here the 'cursor' value is checked to be not lower than zero.
+     * It is not checked whether its value is lower than the latest TRL update (maxIndex)
+     * in the DiffSet structure of the specific peer.
+     *
+     * @return a map containing an error if one or more query parameters are not
+     *         compliant with the specification, null otherwise
+     */
+    private CBORObject checkQueryParameters() {
+
+        // accepted parameters:
+        // pmax:  Maximum time, in seconds, between two consecutive notifications
+        //        for the observation.
+        //        It makes sense only for observe request, and its value MUST be
+        //        greater than zero.
+        // diff:  If included, it indicates to perform a diff query of the
+        //        TRL.  Its value MUST be either:
+        //         -  the integer 0, indicating that a (notification) response should
+        //            include as many diff entries as the Authorization Server can
+        //            provide in the response; or
+        //         -  a positive integer greater than 0, indicating the maximum
+        //            number of diff entries that a (notification) response should
+        //            include.
+        // cursor: The index of the first diff entry to return.
+        //         Its value MUST be either greater than or equal to zero.
+        //         If included, also 'diff' parameter MUST be present.
+
+<span class="fc" id="L407">        Integer n = queryParameters.get(&quot;diff&quot;);</span>
+<span class="fc bfc" id="L408" title="All 4 branches covered.">        if (n != null &amp;&amp; n &lt; 0) { // diff specified and lower than 0</span>
+<span class="fc" id="L409">            return errorInvalidParameterValue();</span>
+        }
+
+<span class="fc bfc" id="L412" title="All 2 branches covered.">        if (!this.hasObserve) {</span>
+<span class="fc" id="L413">            queryParameters.remove(&quot;pmax&quot;); // ignore pmax if not observe</span>
+        }
+<span class="fc" id="L415">        Integer pmax = queryParameters.get(&quot;pmax&quot;);</span>
+<span class="pc bpc" id="L416" title="1 of 4 branches missed.">        if (pmax != null &amp;&amp; pmax &lt;= 0) { // pmax specified and lower than or equal to 0</span>
+<span class="fc" id="L417">            return errorInvalidParameterValue();</span>
+        }
+
+<span class="fc" id="L420">        Integer p = queryParameters.get(&quot;cursor&quot;);</span>
+
+<span class="fc bfc" id="L422" title="All 4 branches covered.">        if (p!= null &amp;&amp; n == null) { // cursor specified but diff not specified</span>
+<span class="fc" id="L423">            return errorInvalidSetOfParametersMap();</span>
+        }
+
+<span class="pc bpc" id="L426" title="1 of 4 branches missed.">        if (p != null &amp;&amp; p &lt; 0) {</span>
+            // cursor specified and lower than 0
+<span class="fc" id="L428">            return errorInvalidParameterValue();</span>
+        }
+
+        // return null if all the checks passed
+<span class="fc" id="L432">        return null;</span>
+    }
+
+
+    /**
+     * Build a CBOR map containing the error 'invalid parametr value' to return as response
+     *
+     * @return the map containing the error and error_description
+     */
+    private CBORObject errorInvalidParameterValue() {
+<span class="fc" id="L442">        CBORObject map = CBORObject.NewMap();</span>
+<span class="fc" id="L443">        map.Add(Constants.TRL_ERROR,</span>
+<span class="fc" id="L444">                Constants.INVALID_PARAMETER_VALUE);</span>
+<span class="fc" id="L445">        map.Add(Constants.TRL_ERROR_DESCRIPTION,</span>
+                Constants.INVALID_PARAMETER_VALUE_DESCRIPTION);
+<span class="fc" id="L447">        LOGGER.log(Level.INFO, &quot;Message processing aborted: &quot;</span>
+                + Constants.INVALID_PARAMETER_VALUE_DESCRIPTION);
+<span class="fc" id="L449">        return map;</span>
+    }
+
+
+    /**
+     * Build a CBOR map containing the error 'invalid set of parameters' to return as response
+     *
+     * @return the map containing the error and error_description
+     */
+    private CBORObject errorInvalidSetOfParametersMap() {
+<span class="fc" id="L459">        CBORObject map = CBORObject.NewMap();</span>
+<span class="fc" id="L460">        map.Add(Constants.TRL_ERROR,</span>
+<span class="fc" id="L461">                Constants.INVALID_SET_OF_PARAMETERS);</span>
+<span class="fc" id="L462">        map.Add(Constants.TRL_ERROR_DESCRIPTION,</span>
+                Constants.INVALID_SET_OF_PARAMETERS_DESCRIPTION);
+<span class="fc" id="L464">        LOGGER.log(Level.INFO, &quot;Message processing aborted: &quot;</span>
+                + Constants.INVALID_SET_OF_PARAMETERS_DESCRIPTION);
+<span class="fc" id="L466">        return map;</span>
+    }
+
+    /**
+     * Build a CBOR map containing the error 'out of bound cursor value' to return as response.
+     * The map contains also the cursor with value the maxIndex, i.e., the last trl update
+     * for the peer
+     *
+     * @return the map containing the error and error_description
+     */
+    private CBORObject errorOutOfBoundCursorValueMap(String id) {
+<span class="nc" id="L477">        CBORObject map = CBORObject.NewMap();</span>
+<span class="nc" id="L478">        map.Add(Constants.TRL_ERROR,</span>
+<span class="nc" id="L479">                Constants.OUT_OF_BOUND_CURSOR_VALUE);</span>
+<span class="nc" id="L480">        map.Add(Constants.TRL_ERROR_DESCRIPTION,</span>
+                Constants.OUT_OF_BOUND_CURSOR_VALUE_DESCRIPTION);
+<span class="nc" id="L482">        map.Add(Constants.CURSOR, DiffSetsMap.get(id).getMaxIndex());</span>
+<span class="nc" id="L483">        LOGGER.log(Level.INFO, &quot;Message processing aborted: &quot;</span>
+                + Constants.OUT_OF_BOUND_CURSOR_VALUE_DESCRIPTION);
+<span class="nc" id="L485">        return map;</span>
+    }
+
+    /**
+     * Build a CBOR map containing the error 'unauthorized client' to return as response
+     *
+     * @return the map containing the error
+     */
+    private CBORObject errorUnauthorizedPeer(String id) {
+<span class="fc" id="L494">        CBORObject map = CBORObject.NewMap();</span>
+<span class="fc" id="L495">        map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);</span>
+<span class="fc" id="L496">        LOGGER.log(Level.INFO, &quot;Message processing aborted: &quot;</span>
+                + &quot;unauthorized peer: &quot; + id);
+<span class="fc" id="L498">        return map;</span>
+    }
+
+
+    /**
+     *
+     * @return a reference to the DiffSetMap to be used by the RevocationHandler
+     */
+    public Map&lt;String, DiffSet&gt; getDiffSetsMap() {
+<span class="nc" id="L507">        return this.DiffSetsMap;</span>
+    }
+
+
+    public void addPeerToDiffSetsMap(String id) {
+<span class="nc" id="L512">        this.DiffSetsMap.put(id, new DiffSet(this.nMax));</span>
+<span class="nc" id="L513">    }</span>
+
+
+    @Override
+    public void close() throws AceException {
+<span class="nc" id="L518">        this.db.close();</span>
+<span class="nc" id="L519">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

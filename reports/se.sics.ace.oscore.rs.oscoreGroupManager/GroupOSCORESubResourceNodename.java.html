@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GroupOSCORESubResourceNodename.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.oscore.rs.oscoreGroupManager</a> &gt; <span class="el_source">GroupOSCORESubResourceNodename.java</span></div><h1>GroupOSCORESubResourceNodename.java</h1><pre class="source lang-java linenums"> /*******************************************************************************
+ * Copyright (c) 2019, RISE AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
+package se.sics.ace.oscore.rs.oscoreGroupManager;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.server.resources.CoapExchange;
+
+import com.upokecenter.cbor.CBORObject;
+
+import net.i2p.crypto.eddsa.Utils;
+import se.sics.ace.AceException;
+import se.sics.ace.Constants;
+import se.sics.ace.GroupcommErrors;
+import se.sics.ace.GroupcommParameters;
+import se.sics.ace.coap.CoapReq;
+import se.sics.ace.oscore.GroupInfo;
+import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
+import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
+
+/**
+ * Definition of the Group OSCORE group-membership sub-resource /nodes/NODENAME
+ * for the group members with node name &quot;NODENAME&quot;
+ */
+public class GroupOSCORESubResourceNodename extends CoapResource {
+	
+<span class="fc" id="L61">	private Map&lt;String, GroupInfo&gt; existingGroupInfo = new HashMap&lt;&gt;();</span>
+	
+	/**
+     * Constructor
+     * @param resId  the resource identifier
+     * @param existingGroupInfo  the set of information of the existing OSCORE groups
+     */
+    public GroupOSCORESubResourceNodename(String resId, Map&lt;String, GroupInfo&gt; existingGroupInfo) {
+        
+        // set resource identifier
+<span class="fc" id="L71">        super(resId);</span>
+        
+        // set display name
+<span class="fc" id="L74">        getAttributes().setTitle(&quot;Group OSCORE Group-Membership Sub-Resource \&quot;nodes/NODENAME\&quot; &quot; + resId);</span>
+        
+<span class="fc" id="L76">        this.existingGroupInfo = existingGroupInfo;</span>
+        
+<span class="fc" id="L78">    }</span>
+
+    @Override
+    public void handleGET(CoapExchange exchange) {
+<span class="fc" id="L82">    	System.out.println(&quot;GET request reached the GM&quot;);</span>
+    	
+    	// Retrieve the entry for the target group, using the last path segment of
+    	// the URI path as the name of the OSCORE group
+<span class="fc" id="L86">    	GroupInfo targetedGroup = existingGroupInfo.get(this.getParent().getParent().getName());</span>
+    	
+    	// This should never happen if existing groups are maintained properly
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">    	if (targetedGroup == null) {</span>
+<span class="nc" id="L90">        	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,</span>
+        					 &quot;Error when retrieving material for the OSCORE group&quot;);
+<span class="nc" id="L92">        	return;</span>
+    	}
+    	
+<span class="fc" id="L95">    	String groupName = targetedGroup.getGroupName();</span>
+    	
+    	// This should never happen if active groups are maintained properly
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">	  		if (!groupName.equals(this.getParent().getParent().getName())) {</span>
+<span class="nc" id="L99">        	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,</span>
+        					 &quot;Error when retrieving material for the OSCORE group&quot;);
+<span class="nc" id="L101">				return;</span>
+			}
+    	
+<span class="fc" id="L104">    	String subject = null;</span>
+<span class="fc" id="L105">    	Request request = exchange.advanced().getCurrentRequest();</span>
+    	
+        try {
+<span class="fc" id="L108">			subject = CoapReq.getInstance(request).getSenderId();</span>
+<span class="nc" id="L109">		} catch (AceException e) {</span>
+<span class="nc" id="L110">		    System.err.println(&quot;Error while retrieving the client identity: &quot; + e.getMessage());</span>
+<span class="fc" id="L111">		}</span>
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">        if (subject == null) {</span>
+        	// At this point, this should not really happen
+        	// due to the earlier check at the Token Repository
+<span class="nc" id="L115">        	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,</span>
+        					 &quot;Unauthenticated client tried to get access&quot;);
+<span class="nc" id="L117">        	return;</span>
+        }
+    	
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">    	if (!targetedGroup.isGroupMember(subject)) {</span>
+    		// The requester is not a current group member.
+<span class="nc" id="L122">    		CBORObject responseMap = CBORObject.NewMap();</span>
+<span class="nc" id="L123">    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.ONLY_FOR_GROUP_MEMBERS);</span>
+<span class="nc" id="L124">    		byte[] responsePayload = responseMap.EncodeToBytes();</span>
+<span class="nc" id="L125">    		exchange.respond(CoAP.ResponseCode.FORBIDDEN,</span>
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+<span class="nc" id="L128">    		return;</span>
+    	}
+    		
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">    	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {</span>
+    		// The requester is not the group member associated to this sub-resource.
+<span class="nc" id="L133">    		exchange.respond(CoAP.ResponseCode.FORBIDDEN,</span>
+    						 &quot;Operation permitted only to the group member associated to this sub-resource&quot;);
+<span class="nc" id="L135">    		return;</span>
+    	}
+        	
+    	// Respond to the Key Distribution Request
+        
+<span class="fc" id="L140">    	CBORObject myResponse = CBORObject.NewMap();</span>
+    	
+    	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
+<span class="fc" id="L143">    	myResponse.Add(GroupcommParameters.GKTY, CBORObject.FromObject(GroupcommParameters.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));</span>
+    	
+    	// This map is filled as the Group_OSCORE_Input_Material object
+<span class="fc" id="L146">    	CBORObject myMap = CBORObject.NewMap();</span>
+    	
+<span class="fc" id="L148">        byte[] senderId = null;</span>
+<span class="fc" id="L149">		String myString = targetedGroup.getGroupMemberName(subject);</span>
+        
+<span class="pc bpc" id="L151" title="1 of 2 branches missed.">    	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) !=</span>
+    		(1 &lt;&lt; GroupcommParameters.GROUP_OSCORE_MONITOR)) {
+    		// The requester is not a monitor, hence it has a Sender ID
+<span class="fc" id="L154">    		senderId = Utils.hexToBytes(myString.substring(myString.indexOf(targetedGroup.getNodeNameSeparator()) + 1));</span>
+    	}
+    	
+    	// Fill the 'key' parameter
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">    	if (senderId != null) {</span>
+    		// The joining node is not a monitor
+<span class="fc" id="L160">    		myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);</span>
+    	}
+<span class="fc" id="L162">    	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());</span>
+<span class="fc" id="L163">    	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());</span>
+<span class="fc" id="L164">    	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());</span>
+<span class="fc" id="L165">    	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());</span>
+<span class="fc" id="L166">    	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cred_fmt, targetedGroup.getAuthCredFormat());</span>
+<span class="pc bpc" id="L167" title="1 of 2 branches missed.">    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {</span>
+    	    // The group mode is used
+<span class="fc" id="L169">    	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getGpEncAlg().AsCBOR());</span>
+<span class="fc" id="L170">    	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">    	    if (targetedGroup.getSignParams().size() != 0)</span>
+<span class="fc" id="L172">    	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());</span>
+    	}
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">    	if (targetedGroup.getMode() != GroupcommParameters.GROUP_OSCORE_GROUP_MODE_ONLY) {</span>
+    	    // The pairwise mode is used
+<span class="fc" id="L176">    	    myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());</span>
+<span class="fc" id="L177">    	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_alg, targetedGroup.getEcdhAlg().AsCBOR());</span>
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">    	    if (targetedGroup.getEcdhParams().size() != 0)</span>
+<span class="fc" id="L179">    	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_params, targetedGroup.getEcdhParams());</span>
+    	}
+<span class="fc" id="L181">    	myResponse.Add(GroupcommParameters.KEY, myMap);</span>
+    	
+    	// The current version of the symmetric keying material
+<span class="fc" id="L184">    	myResponse.Add(GroupcommParameters.NUM, CBORObject.FromObject(targetedGroup.getVersion()));</span>
+    	
+    	// CBOR Value assigned to the coap_group_oscore profile.
+<span class="fc" id="L187">    	myResponse.Add(GroupcommParameters.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(GroupcommParameters.COAP_GROUP_OSCORE_APP));</span>
+    	
+    	// Expiration time in seconds, after which the OSCORE Security Context
+    	// derived from the 'k' parameter is not valid anymore.
+<span class="fc" id="L191">    	myResponse.Add(GroupcommParameters.EXP, CBORObject.FromObject(1000000));</span>
+    	
+<span class="fc" id="L193">    	byte[] responsePayload = myResponse.EncodeToBytes();</span>
+    	
+<span class="fc" id="L195">    	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);</span>
+<span class="fc" id="L196">    	coapResponse.setPayload(responsePayload);</span>
+<span class="fc" id="L197">    	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);</span>
+
+<span class="fc" id="L199">    	exchange.respond(coapResponse);</span>
+    	
+<span class="fc" id="L201">    }</span>
+    
+    @Override
+    public void handlePUT(CoapExchange exchange) {
+<span class="fc" id="L205">    	System.out.println(&quot;PUT request reached the GM&quot;);</span>
+    	
+    	// Retrieve the entry for the target group, using the last path segment of
+    	// the URI path as the name of the OSCORE group
+<span class="fc" id="L209">    	GroupInfo targetedGroup = existingGroupInfo.get(this.getParent().getParent().getName());</span>
+    	
+    	// This should never happen if existing groups are maintained properly
+<span class="pc bpc" id="L212" title="1 of 2 branches missed.">    	if (targetedGroup == null) {</span>
+<span class="nc" id="L213">        	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,</span>
+        					 &quot;Error when retrieving material for the OSCORE group&quot;);
+<span class="nc" id="L215">        	return;</span>
+    	}
+    	
+<span class="fc" id="L218">    	String groupName = targetedGroup.getGroupName();</span>
+    	
+    	// This should never happen if active groups are maintained properly
+<span class="pc bpc" id="L221" title="1 of 2 branches missed.">	  		if (!groupName.equals(this.getParent().getParent().getName())) {</span>
+<span class="nc" id="L222">        	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,</span>
+        					 &quot;Error when retrieving material for the OSCORE group&quot;);
+<span class="nc" id="L224">				return;</span>
+			}
+    	
+<span class="fc" id="L227">    	String subject = null;</span>
+<span class="fc" id="L228">    	Request request = exchange.advanced().getCurrentRequest();</span>
+        
+<span class="pc bpc" id="L230" title="1 of 2 branches missed.">    	if (request.getPayloadSize() != 0) {</span>
+    		// This request must not have a payload
+<span class="nc" id="L232">    		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,</span>
+    						 &quot;This request must not have a payload&quot;);
+<span class="nc" id="L234">    		return;</span>
+    	}
+    	
+        try {
+<span class="fc" id="L238">			subject = CoapReq.getInstance(request).getSenderId();</span>
+<span class="nc" id="L239">		} catch (AceException e) {</span>
+<span class="nc" id="L240">		    System.err.println(&quot;Error while retrieving the client identity: &quot; + e.getMessage());</span>
+<span class="fc" id="L241">		}</span>
+<span class="pc bpc" id="L242" title="1 of 2 branches missed.">        if (subject == null) {</span>
+        	// At this point, this should not really happen,
+        	// due to the earlier check at the Token Repository
+<span class="nc" id="L245">        	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,</span>
+        					 &quot;Unauthenticated client tried to get access&quot;);
+<span class="nc" id="L247">        	return;</span>
+        }
+    	
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">    	if (!targetedGroup.isGroupMember(subject)) {</span>
+    		// The requester is not a current group member.
+<span class="nc" id="L252">    		CBORObject responseMap = CBORObject.NewMap();</span>
+<span class="nc" id="L253">    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.ONLY_FOR_GROUP_MEMBERS);</span>
+<span class="nc" id="L254">    		byte[] responsePayload = responseMap.EncodeToBytes();</span>
+<span class="nc" id="L255">    		exchange.respond(CoAP.ResponseCode.FORBIDDEN,</span>
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+<span class="nc" id="L258">    		return;</span>
+    	}
+    	
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">    	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {</span>
+    		// The requester is not the group member associated to this sub-resource.
+<span class="nc" id="L263">    		exchange.respond(CoAP.ResponseCode.FORBIDDEN,</span>
+    						 &quot;Operation permitted only to the group member associated to this sub-resource&quot;);
+<span class="nc" id="L265">    		return;</span>
+    	}
+    	
+<span class="pc bpc" id="L268" title="1 of 2 branches missed.">    	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) ==</span>
+    		(1 &lt;&lt; GroupcommParameters.GROUP_OSCORE_MONITOR)) {
+    		// The requester is a monitor, hence it is not supposed to have a Sender ID.
+<span class="nc" id="L271">    		CBORObject responseMap = CBORObject.NewMap();</span>
+<span class="nc" id="L272">    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.INCONSISTENCY_WITH_ROLES);</span>
+<span class="nc" id="L273">    		byte[] responsePayload = responseMap.EncodeToBytes();</span>
+<span class="nc" id="L274">    		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,</span>
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+<span class="nc" id="L277">    		return;</span>
+    	}
+    	
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">    	if (targetedGroup.getStatus() == false) {</span>
+    		// The group is currently not active
+<span class="nc" id="L282">    		CBORObject responseMap = CBORObject.NewMap();</span>
+<span class="nc" id="L283">    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.GROUP_NOT_ACTIVE);</span>
+<span class="nc" id="L284">    		byte[] responsePayload = responseMap.EncodeToBytes();</span>
+<span class="nc" id="L285">    		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,</span>
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+<span class="nc" id="L288">    		return;</span>
+    	}
+    	
+    	
+    	// Here the Group Manager simply assigns a new Sender ID to this group member.
+    	// More generally, the Group Manager may alternatively or additionally rekey the whole OSCORE group 
+    	// Note that the node name does not change.
+    	
+<span class="fc" id="L296">    	byte[] oldSenderId = targetedGroup.getGroupMemberSenderId(subject).GetByteString();</span>
+    	
+<span class="fc" id="L298">    	byte[] senderId = targetedGroup.allocateSenderId();</span>
+    	
+<span class="pc bpc" id="L300" title="1 of 2 branches missed.">    	if (senderId == null) {</span>
+    		// All possible values are already in use for this OSCORE group
+<span class="nc" id="L302">    		CBORObject responseMap = CBORObject.NewMap();</span>
+<span class="nc" id="L303">    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.UNAVAILABLE_NODE_IDS);</span>
+<span class="nc" id="L304">    		byte[] responsePayload = responseMap.EncodeToBytes();</span>
+<span class="nc" id="L305">    		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,</span>
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+<span class="nc" id="L308">    		return;</span>
+    	}
+    	
+<span class="fc" id="L311">    	int roles = targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject)));</span>
+<span class="fc" id="L312">    	targetedGroup.setGroupMemberRoles(senderId, roles);</span>
+<span class="fc" id="L313">    	targetedGroup.setSenderIdToIdentity(subject, senderId);</span>
+    	
+<span class="fc" id="L315">    	CBORObject publicKey = targetedGroup.getAuthCred(oldSenderId);</span>
+    	
+    	// Store this client's authentication credential under the new Sender ID
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">    	if (!targetedGroup.storeAuthCred(senderId, publicKey)) {</span>
+<span class="nc" id="L319">    	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,</span>
+    	    				 &quot;Error when storing the authentication credential&quot;);
+<span class="nc" id="L321">    	    return;</span>
+    	}
+    	// Delete this client's authentication credential under the old Sender ID
+<span class="fc" id="L324">    	targetedGroup.deleteAuthCred(oldSenderId);</span>
+    	
+    	// Add the old Sender ID to the set of stale Sender IDs for this version of the symmetric keying material
+<span class="fc" id="L327">    	targetedGroup.addStaleSenderId(oldSenderId);</span>
+    	
+    	
+    	// Respond to the Key Renewal Request
+    	
+<span class="fc" id="L332">    	CBORObject myResponse = CBORObject.NewMap();</span>
+    	
+    	// The new Sender ID assigned to the group member
+<span class="fc" id="L335">    	myResponse.Add(GroupcommParameters.GROUP_SENDER_ID, CBORObject.FromObject(senderId));</span>
+    	        	
+<span class="fc" id="L337">    	byte[] responsePayload = myResponse.EncodeToBytes();</span>
+    	
+<span class="fc" id="L339">    	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);</span>
+<span class="fc" id="L340">    	coapResponse.setPayload(responsePayload);</span>
+<span class="fc" id="L341">    	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);</span>
+
+<span class="fc" id="L343">    	exchange.respond(coapResponse);</span>
+    	
+<span class="fc" id="L345">    }</span>
+    
+    
+    @Override
+    public void handleDELETE(CoapExchange exchange) {
+<span class="fc" id="L350">    	System.out.println(&quot;DELETE request reached the GM&quot;);</span>
+    	
+    	// Retrieve the entry for the target group, using the last path segment of
+    	// the URI path as the name of the OSCORE group
+<span class="fc" id="L354">    	GroupInfo targetedGroup = existingGroupInfo.get(this.getParent().getParent().getName());</span>
+    	
+    	// This should never happen if existing groups are maintained properly
+<span class="pc bpc" id="L357" title="1 of 2 branches missed.">    	if (targetedGroup == null) {</span>
+<span class="nc" id="L358">        	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,</span>
+        					 &quot;Error when retrieving material for the OSCORE group&quot;);
+<span class="nc" id="L360">        	return;</span>
+    	}
+    	
+<span class="fc" id="L363">    	String groupName = targetedGroup.getGroupName();</span>
+    	
+    	// This should never happen if active groups are maintained properly
+<span class="pc bpc" id="L366" title="1 of 2 branches missed.">  		if (!groupName.equals(this.getParent().getParent().getName())) {</span>
+<span class="nc" id="L367">    	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,</span>
+    					 &quot;Error when retrieving material for the OSCORE group&quot;);
+<span class="nc" id="L369">			return;</span>
+		}
+    	
+<span class="fc" id="L372">    	String subject = null;</span>
+<span class="fc" id="L373">    	Request request = exchange.advanced().getCurrentRequest();</span>
+    	
+        try {
+<span class="fc" id="L376">			subject = CoapReq.getInstance(request).getSenderId();</span>
+<span class="nc" id="L377">		} catch (AceException e) {</span>
+<span class="nc" id="L378">		    System.err.println(&quot;Error while retrieving the client identity: &quot; + e.getMessage());</span>
+<span class="fc" id="L379">		}</span>
+<span class="pc bpc" id="L380" title="1 of 2 branches missed.">        if (subject == null) {</span>
+        	// At this point, this should not really happen,
+        	// due to the earlier check at the Token Repository
+<span class="nc" id="L383">        	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,</span>
+        					 &quot;Unauthenticated client tried to get access&quot;);
+<span class="nc" id="L385">        	return;</span>
+        }
+        
+<span class="pc bpc" id="L388" title="1 of 2 branches missed.">    	if (!targetedGroup.isGroupMember(subject)) {</span>
+    		// The requester is not a current group member.
+<span class="nc" id="L390">    		CBORObject responseMap = CBORObject.NewMap();</span>
+<span class="nc" id="L391">    		responseMap.Add(GroupcommParameters.ERROR, GroupcommErrors.ONLY_FOR_GROUP_MEMBERS);</span>
+<span class="nc" id="L392">    		byte[] responsePayload = responseMap.EncodeToBytes();</span>
+<span class="nc" id="L393">    		exchange.respond(CoAP.ResponseCode.FORBIDDEN,</span>
+    						 responsePayload,
+    						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+<span class="nc" id="L396">    		return;</span>
+    	}
+    	
+<span class="pc bpc" id="L399" title="1 of 2 branches missed.">    	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {</span>
+    		// The requester is not the group member associated to this sub-resource.
+<span class="nc" id="L401">    		exchange.respond(CoAP.ResponseCode.FORBIDDEN,</span>
+    						 &quot;Operation permitted only to the group member associated to this sub-resource&quot;);
+<span class="nc" id="L403">    		return;</span>
+    	}
+    	
+<span class="fc" id="L406">    	targetedGroup.removeGroupMemberBySubject(subject);</span>
+    	
+    	// Respond to the Group Leaving Request
+        
+<span class="fc" id="L410">    	Response coapResponse = new Response(CoAP.ResponseCode.DELETED);</span>
+
+<span class="fc" id="L412">    	delete();</span>
+<span class="fc" id="L413">    	exchange.respond(coapResponse);</span>
+    	
+<span class="fc" id="L415">    }</span>
+    
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

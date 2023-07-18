@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TrlResponses.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.coap.client</a> &gt; <span class="el_source">TrlResponses.java</span></div><h1>TrlResponses.java</h1><pre class="source lang-java linenums">package se.sics.ace.coap.client;
+
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+import org.eclipse.californium.core.CoapResponse;
+import se.sics.ace.AceException;
+import se.sics.ace.Constants;
+import se.sics.ace.TrlStore;
+
+import java.util.Map;
+import java.util.logging.Logger;
+
+<span class="nc" id="L13">public class TrlResponses {</span>
+    /**
+     * The logger
+     */
+<span class="nc" id="L17">    private static final Logger LOGGER</span>
+<span class="nc" id="L18">            = Logger.getLogger(TrlResponses.class.getName());</span>
+
+    /**
+     * Check the response payload and process the response at the specified TrlStore.
+     *
+     * @param response the response obtained from the trl endpoint
+     * @param trlStore the TrlStore object that uses the response payload to update the local trl structures
+     * @throws AceException if the response cannot be processed at the TrlStore
+     */
+    public static void processResponse(CoapResponse response, TrlStore trlStore)
+        throws AceException {
+
+        CBORObject payload;
+        try {
+<span class="nc" id="L32">            payload = checkAndGetPayload(response);</span>
+<span class="nc" id="L33">        } catch (AceException e) {</span>
+<span class="nc" id="L34">            throw new AceException(e.getMessage());</span>
+<span class="nc" id="L35">        }</span>
+
+<span class="nc" id="L37">        trlStore.updateLocalTrl(payload);</span>
+<span class="nc" id="L38">    }</span>
+
+
+    /**
+     * Check payload structure and returns it.
+     * If the payload contains an error code, it throws an exception.
+     *
+     * @param response the response obtained from the trl endpoint
+     * @return the response payload
+     * @throws AceException if the payload cannot be processed by the TrlStore
+     */
+    public static CBORObject checkAndGetPayload(CoapResponse response)
+            throws AceException {
+
+<span class="nc" id="L52">        byte[] rawPayload = response.getPayload();</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if (rawPayload == null) {</span>
+<span class="nc" id="L54">            LOGGER.severe(&quot;Received response with null payload&quot;);</span>
+<span class="nc" id="L55">            throw new AceException(&quot;Processing response aborted: null payload&quot;);</span>
+        }
+        CBORObject payload;
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_TRL_CBOR) {</span>
+            // response should contain a CBOR map
+<span class="nc" id="L60">            payload = CBORObject.DecodeFromBytes(rawPayload);</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">            if (payload.getType() != CBORType.Map) {</span>
+<span class="nc" id="L62">                throw new AceException(&quot;Wrong payload type. Expected a CBOR Map&quot;);</span>
+            }
+<span class="nc bnc" id="L64" title="All 2 branches missed.">            if(!response.isSuccess()) {</span>
+                // extract map parameters
+<span class="nc" id="L66">                Map&lt;Short, CBORObject&gt; map = Constants.getParams(payload);</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">                if (map.containsKey(Constants.TRL_ERROR_DESCRIPTION)) {</span>
+<span class="nc" id="L68">                        LOGGER.severe(&quot;Processing response aborted: &quot;</span>
+<span class="nc" id="L69">                                + map.get(Constants.TRL_ERROR_DESCRIPTION));</span>
+                    }
+<span class="nc" id="L71">                    throw new AceException(&quot;Processing response aborted: &quot; +</span>
+                            &quot;response contains an error&quot;);
+            }
+        }
+//        else if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {
+//            // response should contain a CBOR array
+//            payload = CBORObject.DecodeFromBytes(rawPayload);
+//            if (payload.getType() != CBORType.Array) {
+//                throw new AceException(&quot;Wrong payload type. Expected a CBOR Array&quot;);
+//            }
+//        }
+        else {
+<span class="nc" id="L83">            LOGGER.severe(&quot;Received response with unexpected content-type&quot;);</span>
+<span class="nc" id="L84">            throw new AceException(&quot;Processing response aborted: unexpected content-type&quot;);</span>
+        }
+<span class="nc" id="L86">        return payload;</span>
+    }
+
+    /**
+     * Extract the CBOR map from an error response from the trl
+     *
+     * @param response the response obtained from the trl endpoint
+     * @return the CBOR map containing the error code, and optionally other fields,
+     *         e.g., the error description, included in the response by the trl endpoint at the AS
+     * @throws AceException if the response cannot be parsed
+     */
+    public static Map&lt;Short, CBORObject&gt; getErrorMap(CoapResponse response) throws AceException {
+
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (response.isSuccess()) {</span>
+<span class="nc" id="L100">            throw new AceException(&quot;Response does not contain an error: response was successful&quot;);</span>
+        }
+        CBORObject payload;
+
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        if (response.getOptions().getContentFormat() != Constants.APPLICATION_ACE_TRL_CBOR) {</span>
+<span class="nc" id="L105">            throw new AceException(&quot;Wrong content-type: expected /application/ace-trl+cbor&quot;);</span>
+        }
+        // response should contain a CBOR map
+<span class="nc" id="L108">        payload = CBORObject.DecodeFromBytes(response.getPayload());</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (payload.getType() != CBORType.Map) {</span>
+<span class="nc" id="L110">            throw new AceException(&quot;Wrong payload type. Expected a CBOR Map&quot;);</span>
+        }
+        // extract map parameters
+<span class="nc" id="L113">        Map&lt;Short, CBORObject&gt; map = Constants.getParams(payload);</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (!map.containsKey(Constants.TRL_ERROR)) {</span>
+<span class="nc" id="L115">            LOGGER.severe(&quot;Processing response aborted: payload is missing the error code.&quot;);</span>
+<span class="nc" id="L116">            throw new AceException(&quot;Processing response aborted: payload is missing the error code.&quot;);</span>
+        }
+<span class="nc" id="L118">        return map;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BasicTrlStore.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.coap.client</a> &gt; <span class="el_source">BasicTrlStore.java</span></div><h1>BasicTrlStore.java</h1><pre class="source lang-java linenums">package se.sics.ace.coap.client;
+
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+import se.sics.ace.AceException;
+import se.sics.ace.Constants;
+import se.sics.ace.TrlStore;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.logging.Logger;
+
+/**
+ * Simple TrlStore that can process full-query and diff-query responses.
+ *
+ * When processing a full-query response, it replaces the local trl with the
+ * set of all the token hashes included in the response (a full-query response
+ * gives the most recent and complete snapshot of the trl for the peer).
+ *
+ * When processing a diff-query response, it builds two sets of 'removed' and
+ * 'added' token hashes. It then first makes the union of the local trl with
+ * the 'added' set and then subtracts the 'removed' set.
+ *
+ * @author Marco Rasori
+ */
+<span class="fc" id="L27">public class BasicTrlStore implements TrlStore {</span>
+
+    /**
+     * The logger
+     */
+<span class="fc" id="L32">    private static final Logger LOGGER</span>
+<span class="fc" id="L33">            = Logger.getLogger(BasicTrlStore.class.getName());</span>
+
+
+    /**
+     * structure containing revoked token hashes
+     */
+<span class="fc" id="L39">    public Set&lt;String&gt; localTrl = new HashSet&lt;&gt;();</span>
+
+    public int cursor;
+    public boolean more;
+
+    @Override
+    public void updateLocalTrl(CBORObject payload) throws AceException {
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        if (payload.getType() != CBORType.Map) {</span>
+<span class="nc" id="L47">            throw new AceException(&quot;Error processing trl response. &quot; +</span>
+                    &quot;Expected type is CBOR map.&quot;);
+        }
+<span class="nc" id="L50">        Map&lt;Short, CBORObject&gt; map = Constants.getParams(payload);</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (map.containsKey(Constants.FULL_SET)) {</span>
+<span class="nc" id="L52">            processFullQuery(payload);</span>
+        }
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        else if (map.containsKey(Constants.DIFF_SET)) {</span>
+<span class="nc" id="L55">            processDiffQuery(payload);</span>
+        }
+        else {
+<span class="nc" id="L58">            throw new AceException(&quot;Error processing trl response. &quot; +</span>
+                    &quot;No CBOR array FULL_SET or DIFF_SET found within the CBOR map.&quot;);
+        }
+<span class="nc" id="L61">    }</span>
+
+
+    /**
+     * Process the payload of a full query response.
+     * If the payload is a CBOR map, first update the cursor value and then process
+     *
+     * @param payload CBOR object being a CBOR map or a CBOR array
+     * @throws AceException if the CBOR map cannot be parsed
+     */
+    @Override
+    public void processFullQuery(CBORObject payload)
+            throws AceException {
+
+<span class="pc bpc" id="L75" title="1 of 2 branches missed.">        if (payload.getType() != CBORType.Map) {</span>
+<span class="nc" id="L76">            throw new AceException(&quot;Error processing full query response. &quot; +</span>
+                    &quot;Expected type is CBOR map.&quot;);
+        }
+
+<span class="fc" id="L80">        Map&lt;Short, CBORObject&gt; map = Constants.getParams(payload);</span>
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">        if (!map.containsKey(Constants.FULL_SET)) {</span>
+<span class="nc" id="L82">            throw new AceException(&quot;Error processing full query response. &quot; +</span>
+                    &quot;No CBOR array FULL_SET found within the CBOR map.&quot;);
+        }
+
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (map.containsKey(Constants.CURSOR)) {</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            if (map.get(Constants.CURSOR).equals(CBORObject.Null)) {</span>
+<span class="nc" id="L88">                cursor = 0;</span>
+            }
+            else {
+<span class="nc" id="L91">                cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();</span>
+            }
+        }
+
+<span class="fc" id="L95">        processFullSetArray(map.get(Constants.FULL_SET));</span>
+<span class="fc" id="L96">    }</span>
+
+    /**
+     * Replace the content of the local trl with the set of token hashes
+     * found in the CBOR array passed as input
+     *
+     * @param fullSet the CBOR array containing the token hashes encoded as byte strings
+     */
+    private void processFullSetArray(CBORObject fullSet) throws AceException {
+
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">        if (fullSet.getType() != CBORType.Array) {</span>
+<span class="nc" id="L107">            throw new AceException(&quot;Error processing full query response. &quot; +</span>
+                    &quot;Expected type is CBOR array.&quot;);
+        }
+
+<span class="pc bpc" id="L111" title="2 of 4 branches missed.">        if (fullSet.size() != 0 &amp;&amp; fullSet.get(0).getType() != CBORType.ByteString) {</span>
+<span class="nc" id="L112">            throw new AceException(&quot;Error processing full query response. &quot; +</span>
+                    &quot;CBOR array does not contain Byte Strings.&quot;);
+        }
+
+<span class="fc" id="L116">        Set&lt;String&gt; hashes = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        for (int i = 0; i &lt; fullSet.size(); i++) {</span>
+<span class="fc" id="L118">            byte[] tokenHashB = fullSet.get(i).GetByteString();</span>
+<span class="fc" id="L119">            String tokenHashS = new String(tokenHashB, Constants.charset);</span>
+<span class="fc" id="L120">            hashes.add(tokenHashS);</span>
+        }
+<span class="fc" id="L122">        LOGGER.info(&quot;Set of received token hashes: &quot; + hashes);</span>
+
+<span class="fc" id="L124">        localTrl = new HashSet&lt;&gt;(hashes);</span>
+<span class="fc" id="L125">    }</span>
+
+    /**
+     * Process the payload of a diff query response.
+     * If the payload is a CBOR map, first update the values of cursor and more, and then process
+     *
+     * @param payload CBOR object being a CBOR map or a CBOR array
+     * @throws AceException if the CBOR map cannot be parsed
+     */
+    @Override
+    public void processDiffQuery(CBORObject payload)
+            throws AceException {
+
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">        if (payload.getType() != CBORType.Map) {</span>
+<span class="nc" id="L139">            throw new AceException(&quot;Error processing diff query response. &quot; +</span>
+                    &quot;Expected type is CBOR map.&quot;);
+        }
+
+<span class="fc" id="L143">        Map&lt;Short, CBORObject&gt; map = Constants.getParams(payload);</span>
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        if (!map.containsKey(Constants.DIFF_SET)) {</span>
+<span class="nc" id="L145">            throw new AceException(&quot;Error processing diff query response. &quot; +</span>
+                    &quot;No CBOR array DIFF_SET found within the CBOR map.&quot;);
+        }
+
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">        if (map.containsKey(Constants.CURSOR)) {</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">            if (map.get(Constants.CURSOR).equals(CBORObject.Null)) {</span>
+<span class="nc" id="L151">                cursor = 0;</span>
+            }
+            else {
+<span class="nc" id="L154">                cursor = map.get(Constants.CURSOR).AsNumber().ToInt32Checked();</span>
+            }
+        }
+
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">        if (map.containsKey(Constants.MORE)) {</span>
+<span class="nc" id="L159">            more = map.get(Constants.MORE).AsBoolean();</span>
+        }
+
+<span class="fc" id="L162">        processDiffSetArray(map.get(Constants.DIFF_SET));</span>
+<span class="fc" id="L163">    }</span>
+
+    /**
+     * Add to the local trl all the token hashes found in the trl-patch 'added',
+     * and then remove from the local trl all the token hashes found in the trl-patch 'removed'.
+     *
+     * @param diffSet the CBOR array containing the diff-entries. Each diff-entry is a CBOR Array
+     *                containing two arrays of byte strings called trl-patch. The trl-patch at index 0
+     *                refers to the 'removed' token hashes, while the trl-patch at index 1 refers to
+     *                the 'added' token hashes. A trl-patch is an array of byte strings, each of which
+     *                is the representation of a token hash.
+     */
+    private void processDiffSetArray(CBORObject diffSet) throws AceException {
+
+<span class="pc bpc" id="L177" title="1 of 2 branches missed.">        if (diffSet.getType() != CBORType.Array) {</span>
+<span class="nc" id="L178">            throw new AceException(&quot;Error processing full query response. &quot; +</span>
+                    &quot;Expected type is CBOR array.&quot;);
+        }
+
+<span class="pc bpc" id="L182" title="2 of 4 branches missed.">        if (diffSet.size() != 0 &amp;&amp; diffSet.get(0).getType() != CBORType.Array) {</span>
+<span class="nc" id="L183">            throw new AceException(&quot;Error processing diff query response. &quot; +</span>
+                    &quot;CBOR array does not contain a CBOR Array.&quot;);
+        }
+
+<span class="fc" id="L187">        Set&lt;String&gt; removedTokenHashes = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L188">        Set&lt;String&gt; addedTokenHashes = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">        for (int index = 0; index &lt; diffSet.size(); index++) {</span>
+<span class="fc" id="L190">            parseTrlPatch(diffSet.get(index).get(0), removedTokenHashes);</span>
+<span class="fc" id="L191">            parseTrlPatch(diffSet.get(index).get(1), addedTokenHashes);</span>
+        }
+
+<span class="fc" id="L194">        localTrl.addAll(addedTokenHashes);</span>
+<span class="fc" id="L195">        localTrl.removeAll(removedTokenHashes);</span>
+
+<span class="fc" id="L197">        LOGGER.info(&quot;Set of token hashes added to the trl: &quot; + addedTokenHashes + &quot;\n&quot; +</span>
+                    &quot;Set of token hashes removed from the trl: &quot; + removedTokenHashes);
+<span class="fc" id="L199">    }</span>
+
+    /**
+     * Extract token hashes as String from a CBOR array of byte strings, i.e., the trl-patch
+     *
+     * @param trlPatch the CBOR array containing byte strings
+     * @param tokenHashes the set of token hashes extracted from the trl-patch
+     */
+    private void parseTrlPatch(CBORObject trlPatch, Set&lt;String&gt; tokenHashes) {
+<span class="fc bfc" id="L208" title="All 2 branches covered.">        for (int i = 0; i &lt; trlPatch.size(); i++) {</span>
+<span class="fc" id="L209">            byte[] tokenHashB = trlPatch.get(i).GetByteString();</span>
+<span class="fc" id="L210">            String tokenHashS = new String(tokenHashB, Constants.charset);</span>
+<span class="fc" id="L211">            tokenHashes.add(tokenHashS);</span>
+        }
+<span class="fc" id="L213">    }</span>
+
+    /**
+     * Get the content of the local trl
+     *
+     * @return the local trl
+     */
+    @Override
+    public Set&lt;String&gt; getLocalTrl() {
+<span class="fc" id="L222">        return new HashSet&lt;&gt;(localTrl);</span>
+    }
+
+    /**
+     * Get the cursor value
+     *
+     * @return the cursor value
+     */
+    @Override
+    public int getCursorValue() {
+<span class="nc" id="L232">        return cursor;</span>
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

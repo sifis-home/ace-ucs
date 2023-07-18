@@ -1,0 +1,651 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KissPDP.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.examples</a> &gt; <span class="el_source">KissPDP.java</span></div><h1>KissPDP.java</h1><pre class="source lang-java linenums">/*******************************************************************************
+ * Copyright (c) 2019, RISE AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
+package se.sics.ace.examples;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.*;
+
+import se.sics.ace.AceException;
+import se.sics.ace.as.DBConnector;
+import se.sics.ace.as.PDP;
+import se.sics.ace.as.RevocationHandler;
+import se.sics.ace.as.Token;
+
+/**
+ * A simple PDP implementation for test purposes. Uses static ACLs for everything.
+ * This PDP backs up it's ACL's in the database.
+ * 
+ * NOTE: This PDP needs a SQL connector it won't work with other DBConnectors.
+ * 
+ * @author Ludwig Seitz and Marco Rasori
+ *
+ */
+public class KissPDP implements PDP, AutoCloseable {
+
+<span class="fc" id="L58">    private SQLConnector db = null;</span>
+    
+    /**
+     * The name of the Token access control table 
+     */
+<span class="fc" id="L63">    public static String tokenTable = &quot;PdpToken&quot;;</span>
+    
+    /**
+     * The name of the Introspect access control table
+     */
+<span class="fc" id="L68">    public static String introspectTable = &quot;PdpIntrospect&quot;;</span>
+    
+    /**
+     * The name of the ACL table 
+     */    
+<span class="fc" id="L73">    public static String accessTable = &quot;PdpAccess&quot;;</span>
+
+    /**
+     * The name of the column that indicates if this device has access to all detailed claims when introspecting.
+     */
+<span class="fc" id="L78">    public static String introspectClaimsColumn = &quot;claimsAccess&quot;;</span>
+    
+    private PreparedStatement canToken;    
+    private PreparedStatement canIntrospect;
+    private PreparedStatement canAccess;
+    
+    private PreparedStatement addTokenAccess;
+    private PreparedStatement addIntrospectAccess;
+    private PreparedStatement addAccess;
+    
+    private PreparedStatement deleteTokenAccess;
+    private PreparedStatement deleteIntrospectAccess;
+    private PreparedStatement deleteAccess;
+    private PreparedStatement deleteAllAccess;
+    private PreparedStatement deleteAllRsAccess;
+
+    private PreparedStatement getAllAccess;
+
+<span class="fc" id="L96">    private RevocationHandler rh = null;</span>
+<span class="fc" id="L97">    private Token t = null;</span>
+
+    /**
+	 * Constructor, can supply an initial configuration.
+	 * All configuration parameters that are null are expected
+	 * to already be in the database.
+	 * 
+	 * @param connection  the database connector
+	 * @throws AceException 
+	 */
+<span class="fc" id="L107">	public KissPDP(SQLConnector connection) throws AceException {</span>
+<span class="fc" id="L108">        this.db = connection;</span>
+	    
+<span class="fc" id="L110">	    String createToken = this.db.getAdapter().updateEngineSpecificSQL(</span>
+	            &quot;CREATE TABLE IF NOT EXISTS &quot;
+                + tokenTable + &quot;(&quot;
+                + DBConnector.idColumn + &quot; varchar(255) NOT NULL);&quot;);
+	    
+<span class="fc" id="L115">	    String createIntrospect = this.db.getAdapter().updateEngineSpecificSQL(</span>
+                &quot;CREATE TABLE IF NOT EXISTS &quot;
+                + introspectTable + &quot;(&quot;
+                + DBConnector.idColumn + &quot; varchar(255) NOT NULL,&quot;
+                + introspectClaimsColumn + &quot; boolean NOT NULL);&quot;);
+	            
+<span class="fc" id="L121">	    String createAccess = this.db.getAdapter().updateEngineSpecificSQL(</span>
+                &quot;CREATE TABLE IF NOT EXISTS &quot;
+                + accessTable + &quot;(&quot;
+                + DBConnector.idColumn + &quot; varchar(255) NOT NULL,&quot;
+                + DBConnector.rsIdColumn + &quot; varchar(255) NOT NULL,&quot;
+                + DBConnector.scopeColumn + &quot; varchar(255) NOT NULL);&quot;);
+
+<span class="fc" id="L128">	    try (Connection conn = this.db.getAdapter().getDBConnection();</span>
+<span class="fc" id="L129">             Statement stmt = conn.createStatement()) {</span>
+<span class="fc" id="L130">	        stmt.execute(createToken);</span>
+<span class="fc" id="L131">	        stmt.execute(createIntrospect);</span>
+<span class="fc" id="L132">	        stmt.execute(createAccess);</span>
+<span class="nc" id="L133">	    } catch (SQLException e) {</span>
+<span class="nc" id="L134">	        e.printStackTrace();</span>
+<span class="nc" id="L135">	        throw new AceException(e.getMessage());</span>
+<span class="fc" id="L136">	    }</span>
+	    
+<span class="fc" id="L138">	    this.canToken = this.db.prepareStatement(</span>
+<span class="fc" id="L139">                this.db.getAdapter().updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+                        + tokenTable
+                        + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+	    
+	    
+<span class="fc" id="L144">        this.canIntrospect = this.db.prepareStatement(</span>
+<span class="fc" id="L145">                this.db.getAdapter().updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+                        + introspectTable
+                        + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+        
+        //Gets only the access of the client, the PDP sorts out the audiences
+        //and scopes
+<span class="fc" id="L151">        this.canAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L152">                this.db.getAdapter().updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+                        + accessTable
+                        + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?&quot;
+                        + &quot; AND &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+        
+        
+<span class="fc" id="L158">        this.addTokenAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L159">                this.db.getAdapter().updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+                      + tokenTable + &quot; VALUES (?);&quot;));
+        
+<span class="fc" id="L162">        this.addIntrospectAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L163">                this.db.getAdapter().updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+                        + introspectTable + &quot; VALUES (?,?);&quot;));
+        
+<span class="fc" id="L166">        this.addAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L167">                this.db.getAdapter().updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+                        + accessTable + &quot; VALUES (?,?,?);&quot;));
+        
+<span class="fc" id="L170">        this.deleteTokenAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L171">                this.db.getAdapter().updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+                        + tokenTable + &quot; WHERE &quot; 
+                        + DBConnector.idColumn + &quot;=?;&quot;));
+        
+<span class="fc" id="L175">        this.deleteIntrospectAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L176">                this.db.getAdapter().updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+                        + introspectTable + &quot; WHERE &quot; 
+                        + DBConnector.idColumn + &quot;=?;&quot;));
+        
+<span class="fc" id="L180">        this.deleteAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L181">                this.db.getAdapter().updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+                        + accessTable + &quot; WHERE &quot; 
+                        + DBConnector.idColumn + &quot;=?&quot;
+                        + &quot; AND &quot; + DBConnector.rsIdColumn + &quot;=?&quot;
+                        + &quot; AND &quot; + DBConnector.scopeColumn + &quot;=?;&quot;));
+        
+<span class="fc" id="L187">        this.deleteAllAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L188">                this.db.getAdapter().updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+                        + accessTable + &quot; WHERE &quot; 
+                        + DBConnector.idColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L192">        this.deleteAllRsAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L193">                this.db.getAdapter().updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+                        + accessTable + &quot; WHERE &quot; 
+                        + DBConnector.idColumn + &quot;=?&quot;
+                        + &quot; AND &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L198">        this.getAllAccess = this.db.prepareStatement(</span>
+<span class="fc" id="L199">                this.db.getAdapter().updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+                        + accessTable + &quot; WHERE &quot;
+                        + DBConnector.idColumn + &quot;=?;&quot;));
+<span class="fc" id="L202">	}</span>
+	
+	@Override
+	public boolean canAccessToken(String clientId) throws AceException {
+<span class="pc bpc" id="L206" title="1 of 2 branches missed.">	    if (clientId == null) {</span>
+<span class="nc" id="L207">            throw new AceException(</span>
+                    &quot;canAccessToken() requires non-null clientId&quot;);
+        }
+	    
+        try {
+<span class="fc" id="L212">            this.canToken.setString(1, clientId);</span>
+<span class="fc" id="L213">            ResultSet result = this.canToken.executeQuery();</span>
+<span class="fc" id="L214">            this.canToken.clearParameters();</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">            if (result.next()) {</span>
+<span class="fc" id="L216">                result.close();</span>
+<span class="fc" id="L217">                return true;</span>
+            }
+<span class="fc" id="L219">            result.close();</span>
+<span class="nc" id="L220">        } catch (SQLException e) {</span>
+<span class="nc" id="L221">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L222">        }</span>
+<span class="fc" id="L223">        return false;</span>
+	}
+
+	@Override
+	public IntrospectAccessLevel getIntrospectAccessLevel(String rsId) throws AceException {
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">	      if (rsId == null) {</span>
+<span class="nc" id="L229">	            throw new AceException(</span>
+	                    &quot;getIntrospectAccessLevel() requires non-null rsId&quot;);
+	        }
+	        try {
+<span class="fc" id="L233">	            this.canIntrospect.setString(1, rsId);</span>
+<span class="fc" id="L234">	            ResultSet result = this.canIntrospect.executeQuery();</span>
+<span class="fc" id="L235">	            this.canIntrospect.clearParameters();</span>
+<span class="fc bfc" id="L236" title="All 2 branches covered.">	            if (result.next()) {</span>
+<span class="fc" id="L237">	                boolean canAccessClaims = result.getBoolean(introspectClaimsColumn);</span>
+<span class="fc" id="L238">	                result.close();</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">	                if (canAccessClaims)</span>
+                    {
+<span class="fc" id="L241">                        return IntrospectAccessLevel.ACTIVE_AND_CLAIMS;</span>
+                    }
+<span class="fc" id="L243">                    return IntrospectAccessLevel.ACTIVE_ONLY;</span>
+	            }
+<span class="fc" id="L245">	            result.close();</span>
+<span class="nc" id="L246">	        } catch (SQLException e) {</span>
+<span class="nc" id="L247">	            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L248">	        }</span>
+<span class="fc" id="L249">	        return IntrospectAccessLevel.NONE;</span>
+	}
+
+	@Override
+	public String canAccess(String clientId, Set&lt;String&gt; aud, Object scope, int evaluationId)
+				throws AceException {
+<span class="pc bpc" id="L255" title="1 of 2 branches missed.">	    if (clientId == null) {</span>
+<span class="nc" id="L256">            throw new AceException(</span>
+                    &quot;canAccess() requires non-null clientId&quot;);
+        }
+
+<span class="pc bpc" id="L260" title="1 of 2 branches missed.">	    if (aud == null) {</span>
+<span class="nc" id="L261">	        throw new AceException(</span>
+	                &quot;canAccess() requires non-null audience&quot;);
+	    }
+	    
+<span class="pc bpc" id="L265" title="1 of 2 branches missed.">	    if (scope == null) {</span>
+<span class="nc" id="L266">	        throw new AceException(</span>
+	                &quot;canAccess() requires non-null scope&quot;);
+	    }
+	    
+<span class="fc" id="L270">	    Set&lt;String&gt; rss = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L271" title="All 2 branches covered.">        for (String audE : aud) {</span>
+<span class="fc" id="L272">            rss.addAll(this.db.getRSS(audE));</span>
+<span class="fc" id="L273">        }</span>
+<span class="fc bfc" id="L274" title="All 2 branches covered.">        if (rss.isEmpty()) {</span>
+<span class="fc" id="L275">            return null;</span>
+        }
+            
+<span class="fc" id="L278">	    Set&lt;Set&lt;String&gt;&gt; clientACL = new HashSet&lt;&gt;();</span>
+	    
+<span class="fc bfc" id="L280" title="All 2 branches covered.">	    for (String rs : rss) {</span>
+<span class="fc" id="L281">	        Set&lt;String&gt; scopes = new HashSet&lt;&gt;();</span>
+	        try {
+<span class="fc" id="L283">	            this.canAccess.setString(1, clientId);</span>
+<span class="fc" id="L284">	            this.canAccess.setString(2, rs);</span>
+<span class="fc" id="L285">	            ResultSet result = this.canAccess.executeQuery();</span>
+<span class="fc" id="L286">	            this.canAccess.clearParameters();</span>
+<span class="fc bfc" id="L287" title="All 2 branches covered.">	            while (result.next()) {</span>
+<span class="fc" id="L288">	                scopes.add(result.getString(DBConnector.scopeColumn));</span>
+	            }
+<span class="fc" id="L290">	            result.close();</span>
+<span class="nc" id="L291">	        } catch (SQLException e) {</span>
+<span class="nc" id="L292">	            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L293">	        }</span>
+<span class="fc bfc" id="L294" title="All 2 branches covered.">	        if (scopes.isEmpty()) {</span>
+	            //The client can access nothing on this RS
+<span class="fc" id="L296">	            return null;</span>
+	        }
+<span class="fc" id="L298">	        clientACL.add(scopes);</span>
+<span class="fc" id="L299">	    }</span>
+	          
+<span class="fc" id="L301">        Set&lt;String&gt; scopes = null;</span>
+<span class="fc bfc" id="L302" title="All 2 branches covered.">        for (Set&lt;String&gt; rs : clientACL) {</span>
+<span class="fc bfc" id="L303" title="All 2 branches covered.">            if (scopes == null) {</span>
+<span class="fc" id="L304">                scopes = new HashSet&lt;&gt;();</span>
+<span class="pc bpc" id="L305" title="1 of 2 branches missed.">                if (rs != null) {</span>
+<span class="fc" id="L306">                    scopes.addAll(rs);</span>
+                }
+            } else {
+<span class="fc" id="L309">                Set&lt;String&gt; remains = new HashSet&lt;&gt;(scopes);</span>
+<span class="fc bfc" id="L310" title="All 2 branches covered.">                for (String foo : scopes) {</span>
+<span class="pc bpc" id="L311" title="1 of 2 branches missed.">                    if (rs == null ) { </span>
+                        //The client can access nothing on this RS
+<span class="nc" id="L313">                        return null;</span>
+                    }
+<span class="fc bfc" id="L315" title="All 2 branches covered.">                    if (!rs.contains(foo)) {</span>
+<span class="fc" id="L316">                        remains.remove(foo);</span>
+                    }
+<span class="fc" id="L318">                }</span>
+<span class="fc" id="L319">                scopes = remains;</span>
+            }
+<span class="fc" id="L321">        }</span>
+           
+<span class="pc bpc" id="L323" title="2 of 4 branches missed.">        if (scopes == null || scopes.isEmpty()) {</span>
+<span class="nc" id="L324">            return null;</span>
+        }
+        String scopeStr;
+<span class="pc bpc" id="L327" title="1 of 2 branches missed.">        if (scope instanceof String) {</span>
+<span class="fc" id="L328">            scopeStr = (String)scope;</span>
+        } else {
+<span class="nc" id="L330">            throw new AceException(</span>
+                    &quot;KissPDP does not support non-String scopes&quot;);
+        }
+<span class="fc" id="L333">        String[] requestedScopes = scopeStr.split(&quot; &quot;);</span>
+<span class="fc" id="L334">        String grantedScopes = &quot;&quot;;</span>
+<span class="fc bfc" id="L335" title="All 2 branches covered.">        for (int i=0; i&lt;requestedScopes.length; i++) {</span>
+<span class="fc bfc" id="L336" title="All 2 branches covered.">            if (scopes.contains(requestedScopes[i])) {</span>
+<span class="fc bfc" id="L337" title="All 2 branches covered.">                if (!grantedScopes.isEmpty()) {</span>
+<span class="fc" id="L338">                    grantedScopes += &quot; &quot;;</span>
+                }
+<span class="fc" id="L340">                grantedScopes += requestedScopes[i];</span>
+            }
+        }
+        //all scopes found
+<span class="fc bfc" id="L344" title="All 2 branches covered.">        if (grantedScopes.isEmpty()) {</span>
+<span class="fc" id="L345">            return null;</span>
+        }
+<span class="fc" id="L347">        return grantedScopes;</span>
+	}
+
+    @Override
+    public void close() throws Exception {
+<span class="fc" id="L352">       this.db.close();</span>
+<span class="fc" id="L353">    }</span>
+    
+    /**
+     * Add access permission for the token endpoint
+     * 
+     * @param id  the identifier of the entity to be allowed access
+     * 
+     * @throws AceException
+     */
+    public void addTokenAccess(String id) throws AceException {
+<span class="pc bpc" id="L363" title="1 of 2 branches missed.">        if (id == null) {</span>
+<span class="nc" id="L364">            throw new AceException(</span>
+                    &quot;addTokenAccess() requires non-null id&quot;);
+        }
+        try {
+<span class="fc" id="L368">            this.addTokenAccess.setString(1, id);</span>
+<span class="fc" id="L369">            this.addTokenAccess.execute();</span>
+<span class="fc" id="L370">            this.addTokenAccess.clearParameters();</span>
+<span class="nc" id="L371">        } catch (SQLException e) {</span>
+<span class="nc" id="L372">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L373">        }</span>
+<span class="fc" id="L374">    }</span>
+
+    /**
+     * Add access permission for the introspect endpoint, defaulting to access to activeness and claims.
+     *
+     * @param id  the identifier of the entity to be allowed access
+     *
+     * @throws AceException
+     */
+    public void addIntrospectAccess(String id) throws AceException {
+<span class="fc" id="L384">        addIntrospectAccess(id, IntrospectAccessLevel.ACTIVE_AND_CLAIMS);</span>
+<span class="fc" id="L385">    }</span>
+
+    /**
+     * Add access permission for the introspect endpoint
+     * 
+     * @param id  the identifier of the entity to be allowed access
+     * @param accessLevel the level of access to give when introspecting
+     * 
+     * @throws AceException
+     */
+    public void addIntrospectAccess(String id, IntrospectAccessLevel accessLevel) throws AceException {
+<span class="pc bpc" id="L396" title="1 of 2 branches missed.">        if (id == null) {</span>
+<span class="nc" id="L397">            throw new AceException(</span>
+                    &quot;addIntrospectAccess() requires non-null id&quot;);
+        }
+<span class="pc bpc" id="L400" title="1 of 2 branches missed.">        if (accessLevel.equals(IntrospectAccessLevel.NONE)) {</span>
+<span class="nc" id="L401">            throw new AceException(</span>
+                    &quot;addIntrospectAccess() requires non-NONE access level&quot;);
+        }
+        try {
+<span class="fc" id="L405">            boolean hasClaimsAccess = accessLevel.equals(IntrospectAccessLevel.ACTIVE_AND_CLAIMS);</span>
+<span class="fc" id="L406">            this.addIntrospectAccess.setString(1, id);</span>
+<span class="fc" id="L407">            this.addIntrospectAccess.setBoolean(2, hasClaimsAccess);</span>
+<span class="fc" id="L408">            this.addIntrospectAccess.execute();</span>
+<span class="fc" id="L409">            this.addIntrospectAccess.clearParameters();</span>
+<span class="nc" id="L410">        } catch (SQLException e) {</span>
+<span class="nc" id="L411">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L412">        }</span>
+<span class="fc" id="L413">    } </span>
+    
+    /**
+     * Add access permission for a client
+     * 
+     * @param cid  the identifier of the client to be allowed access
+     * @param rid  the identifier of the RS to which access is allowed
+     * @param scope  the identifier of the scope for which access is allowed
+     * 
+     * @throws AceException
+     */
+    public void addAccess(String cid, String rid, String scope) 
+            throws AceException {
+<span class="pc bpc" id="L426" title="1 of 2 branches missed.">        if (cid == null) {</span>
+<span class="nc" id="L427">            throw new AceException(</span>
+                    &quot;addAccess() requires non-null cid&quot;);
+        }
+<span class="pc bpc" id="L430" title="1 of 2 branches missed.">        if (rid == null) {</span>
+<span class="nc" id="L431">            throw new AceException(</span>
+                    &quot;addAccess() requires non-null rid&quot;);
+        }
+        
+<span class="pc bpc" id="L435" title="1 of 2 branches missed.">        if (scope == null) {</span>
+<span class="nc" id="L436">            throw new AceException(</span>
+                    &quot;addAccess() requires non-null scope&quot;);
+        }
+        
+        try {
+<span class="fc" id="L441">            this.addAccess.setString(1, cid);</span>
+<span class="fc" id="L442">            this.addAccess.setString(2, rid);</span>
+<span class="fc" id="L443">            this.addAccess.setString(3, scope);</span>
+<span class="fc" id="L444">            this.addAccess.execute();</span>
+<span class="fc" id="L445">            this.addAccess.clearParameters();</span>
+<span class="nc" id="L446">        } catch (SQLException e) {</span>
+<span class="nc" id="L447">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L448">        }</span>
+<span class="fc" id="L449">    }</span>
+    
+    /**
+     * Revoke an access right to the Token endpoint
+     * 
+     * @param id  the identifier if the entity for which access is revoked
+     * 
+     * @throws AceException
+     */
+    public void revokeTokenAccess(String id) throws AceException {
+<span class="pc bpc" id="L459" title="1 of 2 branches missed.">        if (id == null) {</span>
+<span class="nc" id="L460">            throw new AceException(</span>
+                    &quot;revokeTokenAccess() requires non-null id&quot;);
+        }
+        try {
+<span class="fc" id="L464">            this.deleteTokenAccess.setString(1, id);</span>
+<span class="fc" id="L465">            this.deleteTokenAccess.execute();</span>
+<span class="fc" id="L466">            this.deleteTokenAccess.clearParameters();</span>
+<span class="nc" id="L467">        } catch (SQLException e) {</span>
+<span class="nc" id="L468">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L469">        }</span>
+<span class="fc" id="L470">    }</span>
+    
+    /**
+     * Revoke an access right to the Introspect endpoint.
+     * 
+     * @param id  the identifier of the entity for which access is revoked
+     *
+     * @throws AceException
+     */
+    public void revokeIntrospectAccess(String id) throws AceException {
+<span class="pc bpc" id="L480" title="1 of 2 branches missed.">        if (id == null) {</span>
+<span class="nc" id="L481">            throw new AceException(</span>
+                    &quot;revokeIntrospectAccess() requires non-null id&quot;);
+        }
+        try {
+<span class="fc" id="L485">            this.deleteIntrospectAccess.setString(1, id);</span>
+<span class="fc" id="L486">            this.deleteIntrospectAccess.execute();</span>
+<span class="fc" id="L487">            this.deleteIntrospectAccess.clearParameters();</span>
+<span class="nc" id="L488">        } catch (SQLException e) {</span>
+<span class="nc" id="L489">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L490">        }</span>
+<span class="fc" id="L491">    }</span>
+    
+    /**
+     * Revoke a specific access right from a client.
+     * 
+     * @param cid  the client's identifier
+     * @param rid  the RS's identifier
+     * @param scope  the scope to be revoked
+     * 
+     * @throws AceException
+     */
+    public void revokeAccess(String cid, String rid, String scope) 
+                throws AceException {
+<span class="pc bpc" id="L504" title="1 of 2 branches missed.">        if (cid == null) {</span>
+<span class="nc" id="L505">            throw new AceException(</span>
+                    &quot;revokeAccess() requires non-null cid&quot;);
+        }
+<span class="pc bpc" id="L508" title="1 of 2 branches missed.">        if (rid == null) {</span>
+<span class="nc" id="L509">            throw new AceException(</span>
+                    &quot;revokeAccess() requires non-null rid&quot;);
+        }
+        
+<span class="pc bpc" id="L513" title="1 of 2 branches missed.">        if (scope == null) {</span>
+<span class="nc" id="L514">            throw new AceException(</span>
+                    &quot;revokeAccess() requires non-null scope&quot;);
+        }
+        
+        try {
+<span class="fc" id="L519">            this.deleteAccess.setString(1, cid);</span>
+<span class="fc" id="L520">            this.deleteAccess.setString(2, rid);</span>
+<span class="fc" id="L521">            this.deleteAccess.setString(3, scope);</span>
+<span class="fc" id="L522">            this.deleteAccess.execute();</span>
+<span class="fc" id="L523">            this.deleteAccess.clearParameters();</span>
+<span class="nc" id="L524">        } catch (SQLException e) {</span>
+<span class="nc" id="L525">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L526">        }</span>
+<span class="fc" id="L527">    }</span>
+    
+    /**
+     * Revoke all access for a given client.
+     * 
+     * @param id  the client's identifier
+     * 
+     * @throws AceException
+     */
+    public void revokeAllAccess(String id) throws AceException {
+<span class="pc bpc" id="L537" title="1 of 2 branches missed.">        if (id == null) {</span>
+<span class="nc" id="L538">            throw new AceException(</span>
+                    &quot;revokeAllAccess() requires non-null id&quot;);
+        }
+        try {
+<span class="fc" id="L542">            this.deleteAllAccess.setString(1, id);</span>
+<span class="fc" id="L543">            this.deleteAllAccess.execute();</span>
+<span class="fc" id="L544">            this.deleteAllAccess.clearParameters();</span>
+<span class="nc" id="L545">        } catch (SQLException e) {</span>
+<span class="nc" id="L546">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L547">        }</span>
+<span class="fc" id="L548">    }</span>
+    
+    /**
+     * Revoke all access to a specific RS for a given client.
+     * 
+     * @param cid  the client's identifier
+     * @param rid  the RS's identifier
+     * 
+     * @throws AceException
+     */
+    public void revokeAllRsAccess(String cid, String rid) 
+            throws AceException {
+<span class="pc bpc" id="L560" title="1 of 2 branches missed.">        if (cid == null) {</span>
+<span class="nc" id="L561">            throw new AceException(</span>
+                    &quot;revokeAllRsAccess() requires non-null cid&quot;);
+        }
+        
+<span class="pc bpc" id="L565" title="1 of 2 branches missed.">        if (rid == null) {</span>
+<span class="nc" id="L566">            throw new AceException(</span>
+                    &quot;revokeAllRsAccess() requires non-null rid&quot;);
+        }
+        
+        try {
+<span class="fc" id="L571">            this.deleteAllRsAccess.setString(1, cid);</span>
+<span class="fc" id="L572">            this.deleteAllRsAccess.setString(2, rid);</span>
+<span class="fc" id="L573">            this.deleteAllRsAccess.execute();</span>
+<span class="fc" id="L574">            this.deleteAllRsAccess.clearParameters();</span>
+<span class="nc" id="L575">        } catch (SQLException e) {</span>
+<span class="nc" id="L576">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L577">        }</span>
+<span class="fc" id="L578">    }</span>
+
+    /**
+     * Gets a map of all access configured for a given client.
+     *
+     * @param id  the client's identifier
+     *
+     * @return A map of RS ids associated to sets of scopes, configured for the given client id.
+     * @throws AceException
+     */
+    public Map&lt;String, Set&lt;String&gt;&gt; getAllAccess(String id) throws AceException {
+<span class="nc bnc" id="L589" title="All 2 branches missed.">        if (id == null) {</span>
+<span class="nc" id="L590">            throw new AceException(</span>
+                    &quot;getAllAccess() requires non-null id&quot;);
+        }
+        try {
+<span class="nc" id="L594">            this.getAllAccess.setString(1, id);</span>
+<span class="nc" id="L595">            ResultSet result = this.getAllAccess.executeQuery();</span>
+<span class="nc" id="L596">            this.getAllAccess.clearParameters();</span>
+
+<span class="nc" id="L598">            Map&lt;String, Set&lt;String&gt;&gt; accessMap = new HashMap&lt;&gt;();</span>
+<span class="nc bnc" id="L599" title="All 2 branches missed.">            while(result.next()) {</span>
+<span class="nc" id="L600">                String rsId = result.getString(DBConnector.rsIdColumn);</span>
+<span class="nc" id="L601">                String scope = result.getString(DBConnector.scopeColumn);</span>
+<span class="nc bnc" id="L602" title="All 2 branches missed.">                if(!accessMap.containsKey(rsId)) {</span>
+<span class="nc" id="L603">                    accessMap.put(rsId, new HashSet&lt;&gt;());</span>
+                }
+<span class="nc" id="L605">                accessMap.get(rsId).add(scope);</span>
+<span class="nc" id="L606">            }</span>
+<span class="nc" id="L607">            result.close();</span>
+<span class="nc" id="L608">            return accessMap;</span>
+<span class="nc" id="L609">        } catch (SQLException e) {</span>
+<span class="nc" id="L610">            throw new AceException(e.getMessage());</span>
+        }
+    }
+
+    @Override
+    public void updateSessionsWithCti(String tokenHash, int evaluationId) throws AceException{
+<span class="nc bnc" id="L616" title="All 2 branches missed.">        if (evaluationId &gt;= 0) {</span>
+<span class="nc" id="L617">            throw new AceException(&quot;evaluationId must be negative for a PDP not supporting revocation&quot;);</span>
+        }
+<span class="nc" id="L619">    }</span>
+
+    @Override
+    public void terminatePendingSessions(int evaluationId) throws AceException {
+<span class="nc bnc" id="L623" title="All 2 branches missed.">        if (evaluationId &gt;= 0) {</span>
+<span class="nc" id="L624">            throw new AceException(&quot;evaluationId must be negative for a PDP not supporting revocation&quot;);</span>
+        }
+<span class="nc" id="L626">    }</span>
+
+    @Override
+    public void setRevocationHandler(RevocationHandler rh) {
+<span class="nc" id="L630">        this.rh = rh;</span>
+<span class="nc" id="L631">    }</span>
+
+    @Override
+    public void revokeToken(String cti) throws AceException {
+<span class="nc bnc" id="L635" title="All 2 branches missed.">        if (this.rh != null)</span>
+<span class="nc" id="L636">            this.rh.revoke(cti);</span>
+<span class="nc" id="L637">        t.removeToken(cti);</span>
+//        else
+//            throw new AceException(&quot;Cannot revoke the token: Revocation Handler not initialized.&quot;);
+<span class="nc" id="L640">    }</span>
+
+    @Override
+<span class="nc" id="L643">    public void removeSessions4Cti(String tokenHash) { }</span>
+
+    @Override
+    public void setTokenEndpoint(Token t) {
+<span class="fc" id="L647">        this.t = t;</span>
+<span class="fc" id="L648">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

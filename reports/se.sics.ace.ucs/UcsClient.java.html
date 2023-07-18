@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UcsClient.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.ucs</a> &gt; <span class="el_source">UcsClient.java</span></div><h1>UcsClient.java</h1><pre class="source lang-java linenums">package se.sics.ace.ucs;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import it.cnr.iit.ucs.core.UCSCoreService;
+import it.cnr.iit.ucs.core.UCSCoreServiceBuilder;
+import it.cnr.iit.ucs.exceptions.RequestException;
+import it.cnr.iit.ucs.message.endaccess.EndAccessMessage;
+import it.cnr.iit.ucs.message.endaccess.EndAccessResponseMessage;
+import it.cnr.iit.ucs.message.startaccess.StartAccessMessage;
+import it.cnr.iit.ucs.message.startaccess.StartAccessResponseMessage;
+import it.cnr.iit.ucs.message.tryaccess.TryAccessMessage;
+import it.cnr.iit.ucs.message.tryaccess.TryAccessResponseMessage;
+import it.cnr.iit.ucs.pap.PolicyAdministrationPoint;
+import it.cnr.iit.ucs.pdp.PolicyDecisionPoint;
+import it.cnr.iit.ucs.pep.PEPInterface;
+import it.cnr.iit.ucs.properties.components.PapProperties;
+import it.cnr.iit.ucs.properties.components.PepProperties;
+import it.cnr.iit.ucs.properties.components.PipProperties;
+import it.cnr.iit.ucs.ucs.UCSInterface;
+import it.cnr.iit.xacml.wrappers.PolicyWrapper;
+import it.cnr.iit.xacml.wrappers.RequestWrapper;
+import se.sics.ace.ucs.properties.AceUcsProperties;
+
+/**
+ *
+ * @author Simone Facchini and Marco Rasori
+ *
+ */
+public class UcsClient {
+
+<span class="fc" id="L36">	private static final Logger LOGGER = Logger.getLogger(UcsClient.class.getName());</span>
+
+	private final AceUcsProperties properties;
+
+	private UCSInterface ucs;
+
+	private final String papPath;
+
+<span class="fc" id="L44">	public UcsClient(List&lt;PipProperties&gt; pipPropertiesList, PapProperties papProperties) {</span>
+<span class="fc" id="L45">		properties = new AceUcsProperties(pipPropertiesList, papProperties);</span>
+		try {
+<span class="fc" id="L47">			ucs = new UCSCoreServiceBuilder().setProperties(properties).build();</span>
+<span class="nc" id="L48">		} catch (Exception e) {</span>
+<span class="nc" id="L49">			e.printStackTrace();</span>
+<span class="fc" id="L50">		}</span>
+<span class="fc" id="L51">		papPath = properties.getPolicyAdministrationPoint().getPath();</span>
+<span class="fc" id="L52">	}</span>
+
+	public TryAccessResponseMessage tryAccess(String request) {
+<span class="fc" id="L55">		TryAccessMessage message = buildTryAccessMessage(request);</span>
+<span class="fc" id="L56">		return (TryAccessResponseMessage) ucs.tryAccess(message);</span>
+	}
+
+	public StartAccessResponseMessage startAccess(String sessionId) {
+<span class="fc" id="L60">		StartAccessMessage message = buildStartAccessMessage(sessionId);</span>
+<span class="fc" id="L61">		return (StartAccessResponseMessage) ucs.startAccess(message);</span>
+	}
+
+	public EndAccessResponseMessage endAccess(String sessionId) {
+<span class="fc" id="L65">		EndAccessMessage message = buildEndAccessMessage(sessionId);</span>
+<span class="fc" id="L66">		return (EndAccessResponseMessage) ucs.endAccess(message);</span>
+	}
+
+	private TryAccessMessage buildTryAccessMessage(String request) {
+<span class="fc" id="L70">		PepProperties pepProperties = properties.getPepList().get(0);</span>
+<span class="fc" id="L71">		TryAccessMessage message = new TryAccessMessage(pepProperties.getId(), pepProperties.getUri());</span>
+<span class="fc" id="L72">		message.setRequest(request);</span>
+<span class="fc" id="L73">		return message;</span>
+	}
+
+	private StartAccessMessage buildStartAccessMessage(String sessionId) {
+<span class="fc" id="L77">		PepProperties pepProperties = properties.getPepList().get(0);</span>
+<span class="fc" id="L78">		StartAccessMessage message = new StartAccessMessage(pepProperties.getId(), pepProperties.getUri());</span>
+<span class="fc" id="L79">		message.setSessionId(sessionId);</span>
+<span class="fc" id="L80">		return message;</span>
+	}
+
+	private EndAccessMessage buildEndAccessMessage(String sessionId) {
+<span class="fc" id="L84">		PepProperties pepProperties = properties.getPepList().get(0);</span>
+<span class="fc" id="L85">		EndAccessMessage message = new EndAccessMessage(pepProperties.getId(), pepProperties.getUri());</span>
+<span class="fc" id="L86">		message.setSessionId(sessionId);</span>
+<span class="fc" id="L87">		return message;</span>
+	}
+
+	public void addPolicy(String policy) {
+<span class="fc" id="L91">		PolicyAdministrationPoint pap = new PolicyAdministrationPoint(properties.getPolicyAdministrationPoint());</span>
+<span class="fc" id="L92">		pap.addPolicy(policy);</span>
+<span class="fc" id="L93">	}</span>
+
+	public UCSInterface getInterface() {
+<span class="nc" id="L96">		return ucs;</span>
+	}
+
+	public AceUcsProperties getProperties() {
+<span class="nc" id="L100">		return properties;</span>
+	}
+
+	public Map&lt;String, PEPInterface&gt; getPepMap() {
+<span class="fc" id="L104">		return ((UCSCoreService)ucs).getPEPMap();</span>
+	}
+
+	public void setUcsHelperForPeps(UcsHelper uh){
+<span class="fc" id="L108">		Map&lt;String, PEPInterface&gt; pepMap = getPepMap();</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">		for (Map.Entry&lt;String, PEPInterface&gt; entry : pepMap.entrySet()) {</span>
+<span class="fc" id="L110">			AcePep ap = (AcePep)(entry.getValue());</span>
+<span class="fc" id="L111">			ap.setUcsHelper(uh);</span>
+<span class="fc" id="L112">		}</span>
+<span class="fc" id="L113">	}</span>
+
+	public String findPolicy(String req) {
+		RequestWrapper request;
+		try{
+<span class="fc" id="L118">			request = RequestWrapper.build(req);</span>
+<span class="nc" id="L119">		} catch(RequestException e) {</span>
+<span class="nc" id="L120">			LOGGER.info(&quot;Unable to create request wrapper&quot;);</span>
+<span class="nc" id="L121">			return null;</span>
+<span class="fc" id="L122">		}</span>
+<span class="fc" id="L123">		PolicyAdministrationPoint pap = new PolicyAdministrationPoint(properties.getPolicyAdministrationPoint());</span>
+<span class="fc" id="L124">		PolicyDecisionPoint pdp = new PolicyDecisionPoint(properties.getPolicyDecisionPoint());</span>
+<span class="fc" id="L125">		pdp.setPap(pap);</span>
+<span class="fc" id="L126">		PolicyWrapper policy = pdp.findPolicy(request);</span>
+<span class="fc" id="L127">		return policy.getPolicyType().getPolicyId();</span>
+	}
+
+	public String getPapPath() {
+<span class="fc" id="L131">		return papPath;</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

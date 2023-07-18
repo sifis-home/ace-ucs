@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AceObservableEndpoint.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.coap.as</a> &gt; <span class="el_source">AceObservableEndpoint.java</span></div><h1>AceObservableEndpoint.java</h1><pre class="source lang-java linenums">/*******************************************************************************
+ * Copyright (c) 2019, RISE AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
+package se.sics.ace.coap.as;
+
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.oscore.OSCoreResource;
+import se.sics.ace.*;
+import se.sics.ace.as.*;
+import se.sics.ace.coap.CoapReq;
+import se.sics.ace.coap.CoapRes;
+
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * This class implements the ACE endpoint/resource
+ * (OAuth lingo vs CoAP lingo) trl.
+ * 
+ * @author Marco Rasori
+ *
+ */
+public class AceObservableEndpoint extends CoapResource implements AutoCloseable {
+
+    /**
+     * The logger
+     */
+<span class="fc" id="L62">    private static final Logger LOGGER = Logger.getLogger(AceObservableEndpoint.class.getName());</span>
+
+    /**
+     * The trl library
+     */
+//    private Endpoint e;       &lt;== changed to Trl since we need to call the setQueryParameters method
+    private Trl e;
+
+    /**
+     * Constructor.
+     *
+     * @param name  the resource name (should be  &quot;trl&quot;)
+     * @param e  the endpoint library instance
+     */
+    public AceObservableEndpoint(String name, Trl e) {
+<span class="fc" id="L77">        super(name, true);</span>
+<span class="fc" id="L78">        this.e = e;</span>
+<span class="fc" id="L79">        this.setObservable(true);</span>
+<span class="fc" id="L80">        this.setObserveType(CoAP.Type.CON);</span>
+<span class="fc" id="L81">        this.getAttributes().setObservable();</span>
+<span class="fc" id="L82">    }</span>
+
+    /**
+     * Default constructor.
+     *
+     * @param e  the endpoint library instance
+     */
+    public AceObservableEndpoint(Trl e) {
+<span class="nc" id="L90">        super(&quot;trl&quot;, true);</span>
+<span class="nc" id="L91">        this.e = e;</span>
+<span class="nc" id="L92">        this.setObservable(true);</span>
+<span class="nc" id="L93">        this.setObserveType(CoAP.Type.CON);</span>
+<span class="nc" id="L94">        this.getAttributes().setObservable();</span>
+<span class="nc" id="L95">    }</span>
+
+
+    @Override
+    public void handleGET(CoapExchange exchange) {
+
+<span class="nc" id="L101">        CoapReq req = null;</span>
+        try {
+<span class="nc" id="L103">            req = CoapReq.getInstance(exchange.advanced().getRequest());</span>
+<span class="nc" id="L104">        } catch (AceException e) {//Message didn't have CBOR payload</span>
+<span class="nc" id="L105">            LOGGER.info(e.getMessage());</span>
+<span class="nc" id="L106">            exchange.respond(ResponseCode.BAD_REQUEST);</span>
+<span class="nc" id="L107">        }</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        LOGGER.log(Level.FINEST, &quot;Received request: &quot;</span>
+<span class="nc" id="L109">                + ((req == null) ? &quot;null&quot; : req.toString()));</span>
+
+        //Map&lt;String, Integer&gt; queryParams = parseQueryParameters(exchange);
+<span class="nc" id="L112">        this.e.setQueryParameters(parseQueryParameters(exchange));</span>
+<span class="nc" id="L113">        this.e.setHasObserve(req.getOptions().hasObserve());</span>
+
+<span class="nc" id="L115">        Message m = this.e.processMessage(req);</span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (m instanceof CoapRes) {</span>
+<span class="nc" id="L117">            CoapRes res = (CoapRes)m;</span>
+<span class="nc" id="L118">            LOGGER.log(Level.FINEST, &quot;Produced response: &quot; + res);</span>
+
+            // FIXME: Are we supposed to use ACE_TRL_CBOR even if we return
+            //        an INTERNAL_SERVER_ERROR?
+            //        Currently, the draft does not implement this error.
+<span class="nc" id="L123">            exchange.respond(res.getCode(), res.getRawPayload(),</span>
+                    Constants.APPLICATION_ACE_TRL_CBOR);
+<span class="nc" id="L125">            return;</span>
+        }
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        if (m == null) {//Wasn't a CoAP message</span>
+<span class="nc" id="L128">            return;</span>
+        }
+<span class="nc" id="L130">        LOGGER.severe(this.e.getClass().getName()</span>
+                + &quot; library produced wrong response type&quot;);
+<span class="nc" id="L132">        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);</span>
+
+<span class="nc" id="L134">    }</span>
+
+    /**
+     * Extract the query parameters from the exchange and create a map
+     *
+     * @param exchange the exchange containing the query parameters
+     *
+     * @return the map containing the query parameter names and values
+     */
+    Map&lt;String, Integer&gt; parseQueryParameters (CoapExchange exchange) {
+
+<span class="nc" id="L145">        Map&lt;String, Integer&gt; queryParameters = new HashMap&lt;&gt;();</span>
+
+<span class="nc" id="L147">        String nStr = exchange.getQueryParameter(&quot;diff&quot;);</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        if (nStr != null) {</span>
+<span class="nc" id="L149">            queryParameters.put(&quot;diff&quot;, Integer.parseInt(nStr));</span>
+        }
+
+<span class="nc" id="L152">        String pmaxStr = exchange.getQueryParameter(&quot;pmax&quot;);</span>
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        if (pmaxStr != null) {</span>
+<span class="nc" id="L154">            queryParameters.put(&quot;pmax&quot;, Integer.parseInt(pmaxStr));</span>
+        }
+
+<span class="nc" id="L157">        String cursorStr = exchange.getQueryParameter(&quot;cursor&quot;);</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        if (cursorStr != null) {</span>
+<span class="nc" id="L159">            queryParameters.put(&quot;cursor&quot;, Integer.parseInt(cursorStr));</span>
+        }
+
+<span class="nc" id="L162">        return queryParameters;</span>
+    }
+
+    @Override
+    public void close() throws Exception {
+<span class="nc" id="L167">        this.e.close();</span>
+<span class="nc" id="L168">    }</span>
+
+}
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

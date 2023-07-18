@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RequestGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.ucs.xacml</a> &gt; <span class="el_source">RequestGenerator.java</span></div><h1>RequestGenerator.java</h1><pre class="source lang-java linenums">package se.sics.ace.ucs.xacml;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Logger;
+
+import org.w3c.dom.Node;
+
+import com.att.research.xacml.api.Attribute;
+import com.att.research.xacml.api.Identifier;
+import com.att.research.xacml.api.Request;
+import com.att.research.xacml.api.RequestAttributes;
+import com.att.research.xacml.api.RequestReference;
+import com.att.research.xacml.api.XACML3;
+import com.att.research.xacml.std.IdentifierImpl;
+import com.att.research.xacml.std.StdAttribute;
+import com.att.research.xacml.std.StdAttributeValue;
+import com.att.research.xacml.std.StdRequest;
+import com.att.research.xacml.std.StdRequestAttributes;
+
+<span class="fc" id="L21">public class RequestGenerator {</span>
+<span class="fc" id="L22">	private static final Logger log = Logger.getLogger(RequestGenerator.class.getName());</span>
+
+<span class="fc" id="L24">	boolean isXACMLv3 = false;</span>
+
+	public Request createXACMLV3Request(String user, String resource, String action, boolean isXACMLv3,
+			AdditionalAttribute... attributes) {
+<span class="fc" id="L28">		this.isXACMLv3 = isXACMLv3;</span>
+<span class="fc" id="L29">		List&lt;AdditionalAttribute&gt; subjectCustomAttributes = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L30">		List&lt;AdditionalAttribute&gt; actionCustomAttributes = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L31">		List&lt;AdditionalAttribute&gt; resourceCustomAttributes = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L32">		List&lt;AdditionalAttribute&gt; environmentCustomAttributes = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L33">		List&lt;AdditionalAttribute&gt; organizationCustomAttributes = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L34" title="1 of 2 branches missed.">		if (attributes != null) {</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">			for (AdditionalAttribute additionalAttribute : attributes) {</span>
+<span class="pc bpc" id="L36" title="1 of 2 branches missed.">				if (additionalAttribute.getCategory() == null) {</span>
+<span class="nc" id="L37">					continue;</span>
+				}
+
+<span class="pc bpc" id="L40" title="5 of 6 branches missed.">				switch (additionalAttribute.getCategory()) {</span>
+				case SUBJECT:
+<span class="nc" id="L42">					subjectCustomAttributes.add(additionalAttribute);</span>
+<span class="nc" id="L43">					break;</span>
+				case ACTION:
+<span class="nc" id="L45">					actionCustomAttributes.add(additionalAttribute);</span>
+<span class="nc" id="L46">					break;</span>
+				case RESOURCE:
+<span class="fc" id="L48">					resourceCustomAttributes.add(additionalAttribute);</span>
+<span class="fc" id="L49">					break;</span>
+				case ENVIRONMENT:
+<span class="nc" id="L51">					environmentCustomAttributes.add(additionalAttribute);</span>
+<span class="nc" id="L52">					break;</span>
+				case ORGANIZATION:
+<span class="nc" id="L54">					organizationCustomAttributes.add(additionalAttribute);</span>
+					break;
+				}
+			}
+		}
+
+<span class="fc" id="L60">		RequestAttributes actionAttributes = generateActionAttributes(null, action, actionCustomAttributes);</span>
+<span class="fc" id="L61">		RequestAttributes subjectAttributes = generateSubjectAttributes(null, user, subjectCustomAttributes);</span>
+<span class="fc" id="L62">		RequestAttributes resourceAttributes = generateResourceAttributes(null, resource, resourceCustomAttributes);</span>
+<span class="fc" id="L63">		List&lt;RequestAttributes&gt; listRequestAttributes = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L64">		listRequestAttributes.add(actionAttributes);</span>
+<span class="fc" id="L65">		listRequestAttributes.add(subjectAttributes);</span>
+<span class="fc" id="L66">		listRequestAttributes.add(resourceAttributes);</span>
+<span class="fc" id="L67">		List&lt;RequestReference&gt; listRequestReferences = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L68">		boolean returnPolicyIdListIn = false;</span>
+<span class="fc" id="L69">		boolean combinedDecisionIn = false;</span>
+<span class="fc" id="L70">		StdRequest request = new StdRequest(null, returnPolicyIdListIn, combinedDecisionIn, listRequestAttributes,</span>
+				listRequestReferences);
+//		LOGGER.info(request::toString);
+<span class="fc" id="L73">		return request;</span>
+	}
+
+	public Request createXACMLV3Request(String user, String resource, String action, boolean isXACMLv3) {
+<span class="nc" id="L77">		this.isXACMLv3 = isXACMLv3;</span>
+<span class="nc" id="L78">		RequestAttributes actionAttributes = generateActionAttributes(null, action, null);</span>
+<span class="nc" id="L79">		RequestAttributes subjectAttributes = generateSubjectAttributes(null, user, null);</span>
+<span class="nc" id="L80">		RequestAttributes resourceAttributes = generateResourceAttributes(null, resource, null);</span>
+<span class="nc" id="L81">		ArrayList&lt;RequestAttributes&gt; listRequestAttributes = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L82">		listRequestAttributes.add(actionAttributes);</span>
+<span class="nc" id="L83">		listRequestAttributes.add(subjectAttributes);</span>
+<span class="nc" id="L84">		listRequestAttributes.add(resourceAttributes);</span>
+<span class="nc" id="L85">		ArrayList&lt;RequestReference&gt; listRequestReferences = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L86">		boolean returnPolicyIdListIn = false;</span>
+<span class="nc" id="L87">		boolean combinedDecisionIn = false;</span>
+<span class="nc" id="L88">		StdRequest request = new StdRequest(null, returnPolicyIdListIn, combinedDecisionIn, listRequestAttributes,</span>
+				listRequestReferences);
+//		LOGGER.info(request::toString);
+<span class="nc" id="L91">		return request;</span>
+	}
+
+	private RequestAttributes generateSubjectAttributes(Node nodeContentRoot, String subject,
+			List&lt;AdditionalAttribute&gt; subjectCustomAttributes) {
+<span class="fc" id="L96">		boolean includeInResultsIn = true;</span>
+<span class="fc" id="L97">		StdAttributeValue&lt;String&gt; subjectAttributeValue = new StdAttributeValue&lt;&gt;(XACML3.ID_DATATYPE_STRING, subject);</span>
+<span class="fc" id="L98">		StdAttribute subjectAttribute = new StdAttribute(XACML3.ID_SUBJECT_CATEGORY_ACCESS_SUBJECT,</span>
+				XACML3.ID_SUBJECT_SUBJECT_ID, subjectAttributeValue, &quot;&quot;, includeInResultsIn);
+<span class="fc" id="L100">		List&lt;Attribute&gt; listSubjectAttributes = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L101">		listSubjectAttributes.add(subjectAttribute);</span>
+<span class="fc" id="L102">		processCustomAttributes(subjectCustomAttributes, includeInResultsIn, listSubjectAttributes,</span>
+				XACML3.ID_SUBJECT_CATEGORY_ACCESS_SUBJECT);
+<span class="fc" id="L104">		return new StdRequestAttributes(XACML3.ID_SUBJECT_CATEGORY_ACCESS_SUBJECT, listSubjectAttributes,</span>
+				nodeContentRoot, null);
+	}
+
+	private RequestAttributes generateActionAttributes(Node nodeContentRoot, String action,
+			List&lt;AdditionalAttribute&gt; actionCustomAttributes) {
+<span class="fc" id="L110">		boolean includeInResultsIn = true;</span>
+<span class="fc" id="L111">		StdRequestAttributes actionAttributes = null;</span>
+<span class="fc" id="L112">		StdAttributeValue&lt;String&gt; actionAttributeValue = new StdAttributeValue&lt;&gt;(XACML3.ID_DATATYPE_STRING, action);</span>
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">		if (isXACMLv3) {</span>
+<span class="fc" id="L114">			StdAttribute actionAttribute = new StdAttribute(XACML3.ID_ATTRIBUTE_CATEGORY_ACTION,</span>
+					XACML3.ID_ACTION_ACTION_ID, actionAttributeValue, &quot;&quot;, includeInResultsIn);
+<span class="fc" id="L116">			List&lt;Attribute&gt; listActionAttributes = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L117">			listActionAttributes.add(actionAttribute);</span>
+<span class="fc" id="L118">			processCustomAttributes(actionCustomAttributes, includeInResultsIn, listActionAttributes,</span>
+					XACML3.ID_ATTRIBUTE_CATEGORY_ACTION);
+<span class="fc" id="L120">			actionAttributes = new StdRequestAttributes(XACML3.ID_ATTRIBUTE_CATEGORY_ACTION, listActionAttributes,</span>
+					nodeContentRoot, null);
+<span class="fc" id="L122">		} else {</span>
+<span class="nc" id="L123">			IdentifierImpl actionCategoryId = new IdentifierImpl(</span>
+					&quot;urn:oasis:names:tc:xacml:1.0:action-category:access-action&quot;);
+<span class="nc" id="L125">			IdentifierImpl actionAttributeId = new IdentifierImpl(&quot;urn:oasis:names:tc:xacml:1.0:action:action-id&quot;);</span>
+<span class="nc" id="L126">			StdAttribute actionAttribute = new StdAttribute(actionCategoryId, actionAttributeId, actionAttributeValue,</span>
+					&quot;&quot;, includeInResultsIn);
+<span class="nc" id="L128">			List&lt;Attribute&gt; listActionAttributes = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L129">			listActionAttributes.add(actionAttribute);</span>
+<span class="nc" id="L130">			processCustomAttributes(actionCustomAttributes, includeInResultsIn, listActionAttributes, actionCategoryId);</span>
+<span class="nc" id="L131">			actionAttributes = new StdRequestAttributes(actionCategoryId, listActionAttributes, nodeContentRoot, null);</span>
+		}
+<span class="fc" id="L133">		return actionAttributes;</span>
+	}
+
+	private void processCustomAttributes(List&lt;AdditionalAttribute&gt; customAttributes, boolean includeInResultsIn,
+			List&lt;Attribute&gt; listActionAttributes, Identifier category) {
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">		if (customAttributes == null) {</span>
+<span class="nc" id="L139">			return;</span>
+		}
+<span class="fc bfc" id="L141" title="All 2 branches covered.">		for (AdditionalAttribute additionalAttribute : customAttributes) {</span>
+<span class="fc" id="L142">			StdAttributeValue&lt;String&gt; actionCustomAttributeValue = new StdAttributeValue&lt;&gt;(XACML3.ID_DATATYPE_STRING,</span>
+<span class="fc" id="L143">					additionalAttribute.getValue());</span>
+<span class="fc" id="L144">			StdAttribute actionCustomAttribute = new StdAttribute(category,</span>
+<span class="fc" id="L145">					new IdentifierImpl(additionalAttribute.getName()), actionCustomAttributeValue, &quot;&quot;,</span>
+					includeInResultsIn);
+<span class="fc" id="L147">			listActionAttributes.add(actionCustomAttribute);</span>
+<span class="fc" id="L148">		}</span>
+<span class="fc" id="L149">	}</span>
+
+	private RequestAttributes generateResourceAttributes(Node nodeContentRoot, String resource,
+			List&lt;AdditionalAttribute&gt; resourceCustomAttributes) {
+<span class="fc" id="L153">		boolean includeInResult = true;</span>
+<span class="fc" id="L154">		StdRequestAttributes resourceAttributes = null;</span>
+<span class="fc" id="L155">		StdAttributeValue&lt;String&gt; resourceAttributeValue = new StdAttributeValue&lt;&gt;(XACML3.ID_DATATYPE_STRING, resource);</span>
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">		if (isXACMLv3) {</span>
+<span class="fc" id="L157">			StdAttribute resourceAttribute = new StdAttribute(XACML3.ID_ATTRIBUTE_CATEGORY_RESOURCE,</span>
+					XACML3.ID_RESOURCE_RESOURCE_ID, resourceAttributeValue, &quot;&quot;, includeInResult);
+<span class="fc" id="L159">			List&lt;Attribute&gt; listResourceAttributes = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L160">			listResourceAttributes.add(resourceAttribute);</span>
+<span class="fc" id="L161">			processCustomAttributes(resourceCustomAttributes, includeInResult, listResourceAttributes,</span>
+					XACML3.ID_ATTRIBUTE_CATEGORY_RESOURCE);
+<span class="fc" id="L163">			resourceAttributes = new StdRequestAttributes(XACML3.ID_ATTRIBUTE_CATEGORY_RESOURCE, listResourceAttributes,</span>
+					nodeContentRoot, null);
+<span class="fc" id="L165">		} else {</span>
+<span class="nc" id="L166">			IdentifierImpl resCategoryId = new IdentifierImpl(</span>
+					&quot;urn:oasis:names:tc:xacml:1.0:resource-category:access-resource&quot;);
+<span class="nc" id="L168">			IdentifierImpl resAttributeId = new IdentifierImpl(&quot;urn:oasis:names:tc:xacml:1.0:resource:resource-id&quot;);</span>
+<span class="nc" id="L169">			StdAttribute resourceAttribute = new StdAttribute(resCategoryId, resAttributeId, resourceAttributeValue, &quot;&quot;,</span>
+					includeInResult);
+<span class="nc" id="L171">			List&lt;Attribute&gt; listResourceAttributes = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L172">			listResourceAttributes.add(resourceAttribute);</span>
+<span class="nc" id="L173">			processCustomAttributes(resourceCustomAttributes, includeInResult, listResourceAttributes, resCategoryId);</span>
+<span class="nc" id="L174">			resourceAttributes = new StdRequestAttributes(resCategoryId, listResourceAttributes, nodeContentRoot, null);</span>
+		}
+<span class="fc" id="L176">		return resourceAttributes;</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

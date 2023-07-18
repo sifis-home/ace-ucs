@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UcsPepProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.ucs.properties</a> &gt; <span class="el_source">UcsPepProperties.java</span></div><h1>UcsPepProperties.java</h1><pre class="source lang-java linenums">package se.sics.ace.ucs.properties;
+
+import java.util.Map;
+
+import it.cnr.iit.ucs.properties.components.PepProperties;
+
+<span class="fc" id="L7">public class UcsPepProperties implements PepProperties {</span>
+
+	@Override
+	public String getName() {
+<span class="fc" id="L11">		return &quot;se.sics.ace.ucs.AcePep&quot;;</span>
+	}
+
+	@Override
+	public Map&lt;String, String&gt; getAdditionalProperties() {
+		// TODO Auto-generated method stub
+<span class="nc" id="L17">		return null;</span>
+	}
+
+	@Override
+	public String getId() {
+<span class="fc" id="L22">		return &quot;0&quot;;</span>
+	}
+
+	@Override
+	public String getUri() {
+<span class="fc" id="L27">		return &quot;http://localhost:9400&quot;;</span>
+	}
+
+	@Override
+	public String getRevokeType() {
+<span class="nc" id="L32">		return &quot;HARD&quot;;</span>
+	}
+
+	@Override
+	public String getApiOngoingEvaluation() {
+<span class="nc" id="L37">		return &quot;onGoingEvaluation&quot;;</span>
+	}
+
+	@Override
+	public String getApiTryAccessResponse() {
+<span class="nc" id="L42">		return &quot;tryAccessResponse&quot;;</span>
+	}
+
+	@Override
+	public String getApiStartAccessResponse() {
+<span class="nc" id="L47">		return &quot;startAccessResponse&quot;;</span>
+	}
+
+	@Override
+	public String getApiEndAccessResponse() {
+<span class="nc" id="L52">		return &quot;endAccessResponse&quot;;</span>
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

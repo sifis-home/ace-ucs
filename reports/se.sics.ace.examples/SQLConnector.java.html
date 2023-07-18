@@ -1,0 +1,2733 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SQLConnector.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.examples</a> &gt; <span class="el_source">SQLConnector.java</span></div><h1>SQLConnector.java</h1><pre class="source lang-java linenums">/*******************************************************************************
+ * Copyright (c) 2019, RISE AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
+package se.sics.ace.examples;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.*;
+
+import com.upokecenter.cbor.CBORObject;
+
+import COSE.CoseException;
+import COSE.OneKey;
+
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
+import se.sics.ace.as.AccessTokenFactory;
+import se.sics.ace.as.DBConnector;
+
+/**
+ * This class provides SQL database connectivity for the Attribute Authority.
+ * 
+ * @author Ludwig Seitz and Marco Tiloca and Marco Rasori
+ *
+ */
+public class SQLConnector implements DBConnector, AutoCloseable {
+
+	/**
+	 * The user configured for access.
+	 */
+	private String currentUser;
+
+	/**
+	 * The password configured for access.
+	 */
+	private String currentPassword;
+
+	/**
+	 * A prepared connection.
+	 */
+<span class="fc" id="L72">	private Connection conn = null;</span>
+	
+	/**
+	 * Records if the singleton connector is connected or disconnected
+	 */
+<span class="fc" id="L77">	private static boolean isConnected = false;</span>
+
+	/**
+	 * A prepared INSERT statement to add a new Resource Server.
+	 * 
+	 * Parameters: rs id, cose encoding, default expiration time, psk, rpk
+	 */
+	protected PreparedStatement insertRS;
+
+	/**
+     * A prepared DELETE statement to remove a Resource Server
+     * 
+     * Parameter: rs id.
+     */
+	protected PreparedStatement deleteRS;
+    
+    /**
+     * A prepared SELECT statement to get a set of RS for an audience
+     * 
+     * Parameter: audience name
+     */
+	protected PreparedStatement selectRS;
+
+	/**
+	 * A prepared SELECT statement to get all RSs
+	 */
+	protected PreparedStatement selectAllRS;
+
+	/**
+	 * A prepared INSERT statement to add a profile supported
+	 * by a client or Resource Server
+	 * 
+	 * Parameters: id, profile name
+	 */
+	protected PreparedStatement insertProfile;
+	
+	/**
+     * A prepared DELETE statement to remove the profiles supported
+     * by a client or Resource Server
+     * 
+     * Parameter: id
+     */
+	protected PreparedStatement deleteProfiles;
+	
+    /**
+     * A prepared SELECT statement to get all profiles for 
+     * an audience and a client
+     * 
+     * Parameters: audience name, client id
+     */
+	protected PreparedStatement selectProfiles;
+    
+	/**
+	 * A prepared SELECT statement to get the profiles
+	 * for a single client or RS.	
+	 */
+	protected PreparedStatement selectProfile;
+	
+	/**
+	 * A prepared INSERT statement to add the key types supported
+     * by a client or Resource Server
+     * 
+     * Parameters: id, key type
+	 */
+	protected PreparedStatement insertKeyType;
+	 
+	/**
+     * A prepared DELETE statement to remove the key types supported
+     * by a client or Resource Server
+     * 
+     * Parameter: id
+     */
+	protected PreparedStatement deleteKeyTypes;
+    
+    /**
+     * A prepared SELECT statement to get a set of key types
+     * 
+     * Parameters: audience name, client id
+     */
+	protected PreparedStatement selectKeyTypes;
+	
+	/**
+     * A prepared INSERT statement to add the scopes supported
+     * by a Resource Server
+     * 
+     * Parameters: rs id, scope name
+     */
+	protected PreparedStatement insertScope;
+    
+    /**
+     * A prepared DELETE statement to remove the scopes supported
+     * by a Resource Server
+     * 
+     * Parameter: rs id
+     */
+	protected PreparedStatement deleteScopes;
+    
+    /**
+     * A prepared SELECT statement to get a set of Scopes for a specific audience
+     * 
+     * Parameter: audience id
+     */
+	protected PreparedStatement selectScopes;
+
+	/**
+	 * A prepared SELECT statement to get a set of Scopes for a specific RS
+	 *
+	 * Parameter: rs id
+	 */
+	protected PreparedStatement selectScopesForRS;
+
+    /**
+     * A prepared INSERT statement to add an audience a 
+     * Resource Server identifies with
+     * 
+     * Parameter: rs id, audience name
+     */
+	protected PreparedStatement insertAudience;
+	
+    /**
+     * A prepared DELETE statement to remove the audiences
+     * a Resource Server identifies with
+     * 
+     * Parameter: rs id
+     */
+	protected PreparedStatement deleteAudiences;
+	
+	/**
+     * A prepared SELECT statement to get a set of audiences for an RS
+     * 
+     * Parameter: rs id
+     */
+	protected PreparedStatement selectAudiences;
+	
+	/**
+     * A prepared INSERT statement to add an audience a 
+     * Resource Server acting as OSCORE Group Manager identifies with
+     * 
+     * Parameter: rs id, audience name
+     */
+	protected PreparedStatement insertOSCOREGroupManager;
+	
+    /**
+     * A prepared DELETE statement to remove the audiences
+     * a Resource Server acting as OSCORE Group Manager identifies with
+     * 
+     * Parameter: rs id
+     */
+	protected PreparedStatement deleteOSCOREGroupManagers;
+	
+    /**
+     * A prepared SELECT statement to get a set of audiences
+     * an RS acting as OSCORE Group Manager identifies with
+     * 
+     * Parameter: rs id
+     */
+	protected PreparedStatement selectOSCOREGroupManagers;
+    
+    /**
+     * A prepared INSERT statement to add a token type a 
+     * Resource Server supports
+     * 
+     * Parameters: rs id, token type
+     */
+	protected PreparedStatement insertTokenType;
+    
+    /**
+     * A prepared DELETE statement to remove the token types a
+     * a Resource Server supports
+     * 
+     * Parameter: rs id
+     */
+	protected PreparedStatement deleteTokenTypes;
+
+    /**
+     * A prepared SELECT statement to get a set of token types for an audience
+     * 
+     * Parameter: audience name
+     */
+	protected PreparedStatement selectTokenTypes;
+    
+	/**
+	 * A prepared INSERT statement to add a new client
+	 * 
+	 * Parameters: client id, default audience, default scope, psk, rpk
+	 */
+	protected PreparedStatement insertClient;
+	
+	/**
+	 * A prepared DELETE statement to remove a client
+	 * 
+	 * Parameter: client id
+	 */
+	protected PreparedStatement deleteClient;
+
+	/**
+	 * A prepared SELECT statement to get the default audience for a client.
+	 * 
+	 *  Parameter: client id
+	 */
+	protected PreparedStatement selectDefaultAudience;
+	
+	/**
+     * A prepared SELECT statement to get the default scope for a client.
+     * 
+     *  Parameter: client id
+     */
+	protected PreparedStatement selectDefaultScope;
+
+    
+    /**
+     * A prepared INSERT statement to add a new supported cose configuration
+     * for protecting CWTs
+     * 
+     * Parameters: rs id, cose config
+     */
+	protected PreparedStatement insertCose;
+    
+    /**
+     * A prepared DELETE statement to remove a cose configuration
+     * 
+     * Parameter: rs id
+     */
+	protected PreparedStatement deleteCose;
+    
+	/**
+	 * A prepared SELECT statement to get the COSE configurations for
+	 * an audience.
+	 * 
+	 * Parameter: audience name
+	 */
+	protected PreparedStatement selectCOSE;
+	
+	/**
+     * A prepared SELECT statement to get the default expiration time for
+     *     a RS
+     *     
+     * Parameter: audience name
+     */
+	protected PreparedStatement selectExpiration;
+	
+    /**
+     * A prepared SELECT statement to get a pre-shared token-protection 
+     * key for an audience
+     *     
+     * Parameter: audience name
+     */
+	protected PreparedStatement selectRsTokenPSK;
+	
+	/**
+	 * A prepared SELECT statement to get the pre-shared authentication
+	 * key for an RS
+	 * 
+	 * Parameter: RS name
+	 * 
+	 */
+	protected PreparedStatement selectRsAuthPSK;
+    
+    /**
+     * A prepared SELECT statement to get the public keys of an audience.
+     * 
+     * Parameter: audience name
+     */
+	protected PreparedStatement selectRsRPK;
+    
+    /**
+     * A prepared SELECT statement to get a the pre-shared key for
+     *     an client.
+     * 
+     * Parameter: client id
+     */
+	protected PreparedStatement selectCPSK;
+    
+    /**
+     * A prepared SELECT statement to get the public key of a client.
+     * 
+     * Parameter: client id
+     */
+	protected PreparedStatement selectCRPK;
+    
+    /**
+     * A prepared SELECT statement to fetch token ids and their
+     * expiration time form the claims table.
+     */
+	protected PreparedStatement selectExpirationTime;
+    
+    /**
+     * A prepared INSERT statement to add a claim of a token 
+     * to the Claims table.
+     * 
+     * Parameters: token cti, claim name, claim value
+     */
+	protected PreparedStatement insertClaim;
+    
+    /**
+     * A prepared DELETE statement to remove the claims of a token 
+     * from the Claims table.
+     * 
+     * Parameters: token cti
+     */
+	protected PreparedStatement deleteClaims;
+    
+    /**
+     * A prepared SELECT statement to select the claims of a token from
+     * the Claims table.
+     * 
+     * Parameter: token cti
+     */
+	protected PreparedStatement selectClaims;
+	
+	/**
+	 * A prepared INSERT statement to save a token's claims to the 
+	 * InvalidTokens table.
+	 */
+	protected PreparedStatement logInvalidToken;	
+    
+    /**
+     * A prepared SELECT statement to select the cti counter value from the 
+     * cti counter table.
+     */
+	protected PreparedStatement selectCtiCtr;
+    
+    /**
+     * A prepared UPDATE statement to update the saved cti counter value in the
+     * cti counter table.
+     */
+	protected PreparedStatement updateCtiCtr;
+    
+    /**
+     * A prepared SELECT statement to select the exi Sequence Number value
+     * of a specific Resource Server from the RSs table.
+     */
+	protected PreparedStatement selectExiSn;
+    
+    /**
+     * A prepared UPDATE statement to update the exi Sequence Number value
+     * of a specific Resource Server in the RSs table.
+     */
+	protected PreparedStatement updateExiSn;
+	
+    /**
+     * A prepared INSERT statement to insert a new token to peers mapping.
+     */
+    protected PreparedStatement insertCti2Peers;
+    
+    /**
+     * A prepared SELECT statement to select the client identifier holding a
+     * token identified by its cti.
+     */
+    protected PreparedStatement selectClientByCti;
+
+	/**
+	 * A prepared SELECT statement to select all registered clients.
+	 */
+	protected PreparedStatement selectAllClients;
+
+    /**
+     * A prepared SELECT statement to select the token identifiers (cti) 
+     * held by a client
+     */
+    protected PreparedStatement selectCtisByClient;
+
+	/**
+	 * A prepared SELECT statement to select the client identifier holding a
+	 * token identified by its cti.
+	 */
+	protected PreparedStatement selectRssByCti;
+
+	/**
+	 * A prepared SELECT statement to select the token identifiers (cti)
+	 * issued for a resource server
+	 */
+	protected PreparedStatement selectCtisByRs;
+
+    /**
+     * A prepared SELECT statement to select the token identifier (cti) 
+     * for an authorization grant
+     */
+    protected PreparedStatement selectCtisByGrant;
+    
+    /**
+     * A prepared INSERT statement to add a new authorization grant to
+     * access token cti mapping.
+     */
+    protected PreparedStatement insertGrant2Cti;
+    
+    /**
+     * A prepared DELETE statement to remove the mapping of a grant
+     * to an access token cti.
+     */
+    protected PreparedStatement deleteGrant2Cti;
+    
+    /**
+     * A prepared UPDATE statement to mark an authorization grant
+     * as used.
+     */
+    protected PreparedStatement updateGrant;
+
+    /**
+     * A prepared SELECT statement to select the RS information
+     * for an authorization grant
+     */
+    protected PreparedStatement selectRsInfoByGrant;
+    
+    /**
+     * A prepared INSERT statement to add the RS Information
+     * for a given grant.
+     */
+    protected PreparedStatement insertGrant2RsInfo;
+    
+    /**
+     * A prepared SELECT statement to check if a grant is marked invalid
+     */
+    protected PreparedStatement selectGrantValid;
+
+	/**
+	 * A prepared INSERT statement to add a cti and the associated token hash
+	 */
+	protected PreparedStatement insertCti2TokenHash;
+
+	/**
+	 * A prepared INSERT statement to add a token identifier and pertaining peers to the trl
+	 */
+	protected PreparedStatement insertRevokedToken;
+
+	/**
+	 * A prepared DELETE statement to remove a token identifier from the trl
+	 */
+	protected PreparedStatement deleteExpiredToken;
+
+	/**
+	 * A prepared DELETE statement to remove a token from the tokenHash table, given the cti
+	 */
+	protected PreparedStatement deleteTokenHash;
+	/**
+	 * A prepared SELECT statement to get peers pertaining to a token identifier
+	 */
+	protected PreparedStatement selectPertainingPeers;
+
+	/**
+	 * A prepared SELECT statement to get token identifiers pertaining to a peer
+	 */
+	protected PreparedStatement selectPertainingTokens;
+
+	/**
+	 * A prepared SELECT statement to get the expiration time of a specific token
+	 */
+	protected PreparedStatement selectExpirationTimeOfToken;
+
+	/**
+	 * A prepared SELECT statement to get the content of the token hash table
+	 */
+	protected PreparedStatement selectCtisToTokenHashes;
+
+    /**
+     * The singleton instance of this connector
+     */
+<span class="fc" id="L534">    private static SQLConnector connector = null;</span>
+    
+    /**
+     * The DB adapter
+     */
+<span class="fc" id="L539">    private SQLDBAdapter adapter = null;</span>
+
+    /**
+     * Gets the singleton instance of this connector.
+     * 
+     * @param dbAdapter an adapter already set up with the database information, specific for each engine.
+     *
+     * @return  the singleton instance
+     * 
+     * @throws SQLException
+     */
+    public static SQLConnector getInstance(SQLDBAdapter dbAdapter) throws SQLException {
+<span class="pc bpc" id="L551" title="1 of 2 branches missed.">        if (SQLConnector.connector == null) {</span>
+<span class="fc" id="L552">            SQLConnector.connector </span>
+                = new SQLConnector(dbAdapter);
+        }
+<span class="fc" id="L555">        return SQLConnector.connector;</span>
+    }
+
+	/**
+	 * Create a new database connector either from given values or the 
+	 * defaults.
+	 *
+     * @param dbAdapter handler for engine-db specific commands.
+	 *
+	 * @throws SQLException 
+	 */
+<span class="fc" id="L566">	protected SQLConnector(SQLDBAdapter dbAdapter) throws SQLException {</span>
+<span class="fc" id="L567">		this.adapter = dbAdapter;</span>
+
+<span class="fc" id="L569">		this.conn = dbAdapter.getDBConnection();</span>
+<span class="fc" id="L570">		SQLConnector.isConnected = true;</span>
+	        
+<span class="fc" id="L572">		this.insertRS = this.conn.prepareStatement(</span>
+<span class="fc" id="L573">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.rsTable + &quot; VALUES (?,?,?,?,?,?);&quot;));
+		
+<span class="fc" id="L576">		this.deleteRS = this.conn.prepareStatement(</span>
+<span class="fc" id="L577">		        dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+		                + DBConnector.rsTable + &quot; WHERE &quot; 
+		                + DBConnector.rsIdColumn + &quot;=?;&quot;));
+		
+<span class="fc" id="L581">		this.selectRS = this.conn.prepareStatement(</span>
+<span class="fc" id="L582">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.rsIdColumn
+		                + &quot; FROM &quot;
+		                + DBConnector.audiencesTable
+		                + &quot; WHERE &quot; + DBConnector.audColumn + &quot;=? ORDER BY &quot;
+		                + DBConnector.rsIdColumn + &quot;;&quot;));
+
+<span class="fc" id="L589">		this.selectAllRS = this.conn.prepareStatement(</span>
+<span class="fc" id="L590">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.rsIdColumn
+		                + &quot; FROM &quot;
+		                + DBConnector.rsTable
+		                + &quot; ORDER BY &quot;
+		                + DBConnector.rsIdColumn + &quot;;&quot;));
+
+<span class="fc" id="L597">		this.insertProfile = this.conn.prepareStatement(</span>
+<span class="fc" id="L598">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.profilesTable
+		                + &quot; VALUES (?,?);&quot;));
+		
+<span class="fc" id="L602">		this.deleteProfiles = this.conn.prepareStatement(</span>
+<span class="fc" id="L603">		        dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+		                + DBConnector.profilesTable
+		                + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+		
+<span class="fc" id="L607">		this.selectProfiles = this.conn.prepareStatement(</span>
+<span class="fc" id="L608">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+		                + DBConnector.profilesTable
+		                + &quot; WHERE &quot; + DBConnector.idColumn + &quot; IN (SELECT &quot; 
+		                + DBConnector.rsIdColumn + &quot; FROM &quot; 
+		                + DBConnector.audiencesTable
+		                + &quot; WHERE &quot; + DBConnector.audColumn
+		                + &quot;=?) UNION SELECT * FROM &quot; 
+		                + DBConnector.profilesTable
+		                + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=? ORDER BY &quot;
+		                + DBConnector.idColumn + &quot;;&quot;));
+		
+<span class="fc" id="L619">		this.selectProfile = this.conn.prepareStatement(</span>
+<span class="fc" id="L620">                dbAdapter.updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+                        + DBConnector.profilesTable
+                        + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L624">		this.insertKeyType = this.conn.prepareStatement(</span>
+<span class="fc" id="L625">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.keyTypesTable
+		                + &quot; VALUES (?,?);&quot;));
+
+<span class="fc" id="L629">		this.deleteKeyTypes = this.conn.prepareStatement(</span>
+<span class="fc" id="L630">		        dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+		                + DBConnector.keyTypesTable
+		                + &quot; WHERE &quot; + DBConnector.idColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L634">		this.selectKeyTypes =  this.conn.prepareStatement(</span>
+<span class="fc" id="L635">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+		                + DBConnector.keyTypesTable
+		                + &quot; WHERE &quot; + DBConnector.idColumn + &quot; IN (SELECT &quot; 
+		                + DBConnector.rsIdColumn + &quot; FROM &quot; 
+		                + DBConnector.audiencesTable
+		                + &quot; WHERE &quot; + DBConnector.audColumn + &quot;=?) ORDER BY &quot;
+		                + DBConnector.idColumn + &quot;;&quot;));
+
+<span class="fc" id="L643">		this.insertScope = this.conn.prepareStatement(</span>
+<span class="fc" id="L644">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.scopesTable
+		                + &quot; VALUES (?,?);&quot;));
+
+<span class="fc" id="L648">		this.deleteScopes = this.conn.prepareStatement(</span>
+<span class="fc" id="L649">		        dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+		                + DBConnector.scopesTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L653">		this.selectScopes = this.conn.prepareStatement(</span>
+<span class="fc" id="L654">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+		                + DBConnector.scopesTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot; IN (SELECT &quot; 
+		                + DBConnector.rsIdColumn + &quot; FROM &quot; 
+		                + DBConnector.audiencesTable
+		                + &quot; WHERE &quot; + DBConnector.audColumn + &quot;=?) ORDER BY &quot;
+		                + DBConnector.rsIdColumn + &quot;;&quot;));
+
+<span class="fc" id="L662">		this.selectScopesForRS = this.conn.prepareStatement(</span>
+<span class="fc" id="L663">				dbAdapter.updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+						+ DBConnector.scopesTable
+						+ &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=? ORDER BY &quot;
+						+ DBConnector.rsIdColumn + &quot;;&quot;));
+
+<span class="fc" id="L668">		this.insertAudience = this.conn.prepareStatement(</span>
+<span class="fc" id="L669">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.audiencesTable
+		                + &quot; VALUES (?,?);&quot;));
+
+<span class="fc" id="L673">		this.deleteAudiences = this.conn.prepareStatement(</span>
+<span class="fc" id="L674">		        dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+		                + DBConnector.audiencesTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+		
+<span class="fc" id="L678">		this.selectAudiences = this.conn.prepareStatement(</span>
+<span class="fc" id="L679">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.audColumn + &quot; FROM &quot;
+		                + DBConnector.audiencesTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=? ORDER BY &quot;
+		                + DBConnector.audColumn + &quot;;&quot;));
+
+<span class="fc" id="L685">		this.insertOSCOREGroupManager = this.conn.prepareStatement(</span>
+<span class="fc" id="L686">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.oscoreGroupManagersTable
+		                + &quot; VALUES (?,?);&quot;));
+
+<span class="fc" id="L690">		this.deleteOSCOREGroupManagers = this.conn.prepareStatement(</span>
+<span class="fc" id="L691">		        dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+		                + DBConnector.oscoreGroupManagersTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+		
+<span class="fc" id="L695">		this.selectOSCOREGroupManagers = this.conn.prepareStatement(</span>
+<span class="fc" id="L696">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.audColumn + &quot; FROM &quot;
+		                + DBConnector.oscoreGroupManagersTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=? ORDER BY &quot;
+		                + DBConnector.audColumn + &quot;;&quot;));		
+		
+<span class="fc" id="L702">		this.insertTokenType = this.conn.prepareStatement(</span>
+<span class="fc" id="L703">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.tokenTypesTable
+		                + &quot; VALUES (?,?);&quot;));
+
+<span class="fc" id="L707">		this.deleteTokenTypes = this.conn.prepareStatement(</span>
+<span class="fc" id="L708">		        dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+		                + DBConnector.tokenTypesTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L712">		this.selectTokenTypes = this.conn.prepareStatement(</span>
+<span class="fc" id="L713">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+		                + DBConnector.tokenTypesTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot; IN (SELECT &quot; 
+		                + DBConnector.rsIdColumn + &quot; FROM &quot; 
+		                + DBConnector.audiencesTable
+		                + &quot; WHERE &quot; + DBConnector.audColumn + &quot;=?) ORDER BY &quot;
+		                + DBConnector.rsIdColumn + &quot;;&quot;));
+
+<span class="fc" id="L721">		this.insertClient = this.conn.prepareStatement(</span>
+<span class="fc" id="L722">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.cTable
+		                + &quot; VALUES (?,?,?,?,?);&quot;));
+
+<span class="fc" id="L726">		this.deleteClient = this.conn.prepareStatement(</span>
+<span class="fc" id="L727">		        dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+		                + DBConnector.cTable
+		                + &quot; WHERE &quot; + DBConnector.clientIdColumn + &quot;=?;&quot;));
+
+
+<span class="fc" id="L732">		this.selectDefaultAudience = this.conn.prepareStatement(</span>
+<span class="fc" id="L733">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.defaultAud + &quot; FROM &quot; 
+		                + DBConnector.cTable
+		                + &quot; WHERE &quot; + DBConnector.clientIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L738">		this.selectDefaultScope = this.conn.prepareStatement(</span>
+<span class="fc" id="L739">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.defaultScope + &quot; FROM &quot; 
+		                + DBConnector.cTable
+		                + &quot; WHERE &quot; + DBConnector.clientIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L744">		this.insertCose = this.conn.prepareStatement(</span>
+<span class="fc" id="L745">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.coseTable
+		                + &quot; VALUES (?,?);&quot;));
+
+<span class="fc" id="L749">		this.deleteCose = this.conn.prepareStatement(</span>
+<span class="fc" id="L750">		        dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+		                + DBConnector.coseTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L754">		this.selectCOSE = this.conn.prepareStatement(</span>
+<span class="fc" id="L755">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT * &quot;</span>
+		                + &quot; FROM &quot;  + DBConnector.coseTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot; IN (SELECT &quot;
+		                + DBConnector.rsIdColumn + &quot; FROM &quot; 
+		                + DBConnector.audiencesTable
+		                + &quot; WHERE &quot; + DBConnector.audColumn + &quot;=?) ORDER BY &quot;
+		                + DBConnector.rsIdColumn + &quot;;&quot;));
+
+<span class="fc" id="L763">		this.selectExpiration = this.conn.prepareStatement(</span>
+<span class="fc" id="L764">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.expColumn 
+		                + &quot; FROM &quot;  + DBConnector.rsTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L769">		this.selectRsTokenPSK = this.conn.prepareStatement(</span>
+<span class="fc" id="L770">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.tokenPskColumn
+		                + &quot; FROM &quot;  + DBConnector.rsTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot; IN (SELECT &quot;
+		                + DBConnector.rsIdColumn + &quot; FROM &quot; 
+		                + DBConnector.audiencesTable
+		                + &quot; WHERE &quot; + DBConnector.audColumn + &quot;=?);&quot;));
+		
+<span class="fc" id="L778">		this.selectRsAuthPSK = this.conn.prepareStatement(</span>
+<span class="fc" id="L779">                dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+                        + DBConnector.authPskColumn
+                        + &quot; FROM &quot;  + DBConnector.rsTable
+                        + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L784">		this.selectRsRPK = this.conn.prepareStatement(</span>
+<span class="fc" id="L785">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.rpkColumn
+		                + &quot; FROM &quot;  + DBConnector.rsTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot; IN (SELECT &quot;
+		                + DBConnector.rsIdColumn + &quot; FROM &quot; 
+		                + DBConnector.audiencesTable
+		                + &quot; WHERE &quot; + DBConnector.audColumn + &quot;=?);&quot;));
+
+<span class="fc" id="L793">		this.selectCPSK = this.conn.prepareStatement(</span>
+<span class="fc" id="L794">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.authPskColumn
+		                + &quot; FROM &quot;  + DBConnector.cTable
+		                + &quot; WHERE &quot; + DBConnector.clientIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L799">		this.selectCRPK = this.conn.prepareStatement(</span>
+<span class="fc" id="L800">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.rpkColumn
+		                + &quot; FROM &quot;  + DBConnector.cTable
+		                + &quot; WHERE &quot;  + DBConnector.clientIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L805">		this.selectExpirationTime = this.conn.prepareStatement(</span>
+<span class="fc" id="L806">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.ctiColumn + &quot;,&quot;
+		                + DBConnector.claimValueColumn
+		                + &quot; FROM &quot;
+		                + DBConnector.claimsTable
+		                + &quot; WHERE &quot; + DBConnector.claimNameColumn + &quot;=&quot; 
+		                + Constants.EXP + &quot;;&quot;));
+
+<span class="fc" id="L814">		this.insertClaim = this.conn.prepareStatement(</span>
+<span class="fc" id="L815">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.claimsTable
+		                + &quot; VALUES (?,?,?);&quot;));
+
+<span class="fc" id="L819">		this.deleteClaims = this.conn.prepareStatement(</span>
+<span class="fc" id="L820">		        dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+		                + DBConnector.claimsTable
+		                + &quot; WHERE &quot; + DBConnector.ctiColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L824">		this.selectClaims = this.conn.prepareStatement(</span>
+<span class="fc" id="L825">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.claimNameColumn + &quot;,&quot;
+		                + DBConnector.claimValueColumn + &quot; FROM &quot; 
+		                + DBConnector.claimsTable
+		                + &quot; WHERE &quot; + DBConnector.ctiColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L831">		this.logInvalidToken = this.conn.prepareStatement(</span>
+<span class="fc" id="L832">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.oldTokensTable
+		                + &quot; SELECT * FROM &quot; + DBConnector.claimsTable
+		                + &quot; WHERE &quot; + DBConnector.ctiColumn + &quot;=?;&quot;)); 
+
+<span class="fc" id="L837">		this.selectCtiCtr = this.conn.prepareStatement(</span>
+<span class="fc" id="L838">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.ctiCounterColumn + &quot; FROM &quot;
+		                + DBConnector.ctiCounterTable
+		                + &quot;;&quot;));
+
+<span class="fc" id="L843">		this.updateCtiCtr = this.conn.prepareStatement(</span>
+<span class="fc" id="L844">		        dbAdapter.updateEngineSpecificSQL(&quot;UPDATE &quot;</span>
+		                + DBConnector.ctiCounterTable
+		                + &quot; SET &quot; + DBConnector.ctiCounterColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L848">		this.selectExiSn = this.conn.prepareStatement(</span>
+<span class="fc" id="L849">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.exiSeqNumColumn + &quot; FROM &quot; 
+		                + DBConnector.rsTable
+		                + &quot; WHERE &quot; + DBConnector.rsIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L854">		this.updateExiSn = this.conn.prepareStatement(</span>
+<span class="fc" id="L855">		        dbAdapter.updateEngineSpecificSQL(&quot;UPDATE &quot;</span>
+		                + DBConnector.rsTable
+		                + &quot; SET &quot; + DBConnector.exiSeqNumColumn + &quot;=?&quot;
+		                	    + &quot; WHERE &quot; + DBConnector.rsIdColumn
+		                	    + &quot;=?;&quot;));
+		
+<span class="fc" id="L861">		this.insertCti2Peers = this.conn.prepareStatement(</span>
+<span class="fc" id="L862">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.cti2PeersTable
+		                + &quot; VALUES (?,?,?);&quot;));
+
+<span class="fc" id="L866">		this.selectAllClients = this.conn.prepareStatement(&quot;SELECT &quot;</span>
+		        + DBConnector.clientIdColumn + &quot; FROM &quot;
+		        + DBConnector.cTable + &quot;;&quot;);
+
+<span class="fc" id="L870">		this.selectClientByCti = this.conn.prepareStatement(</span>
+<span class="fc" id="L871">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.clientIdColumn + &quot; FROM &quot;
+		                + DBConnector.cti2PeersTable
+		                + &quot; WHERE &quot; + DBConnector.ctiColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L876">		this.selectRssByCti = this.conn.prepareStatement(</span>
+<span class="fc" id="L877">				dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+						+ DBConnector.rsIdsColumn + &quot; FROM &quot;
+						+ DBConnector.cti2PeersTable
+						+ &quot; WHERE &quot; + DBConnector.ctiColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L882">		this.selectCtisByClient = this.conn.prepareStatement(</span>
+<span class="fc" id="L883">		        dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+		                + DBConnector.ctiColumn + &quot; FROM &quot;
+		                + DBConnector.cti2PeersTable
+		                + &quot; WHERE &quot; + DBConnector.clientIdColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L888">		this.selectCtisByRs = this.conn.prepareStatement(</span>
+<span class="fc" id="L889">				dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+						+ DBConnector.ctiColumn + &quot; FROM &quot;
+						+ DBConnector.cti2PeersTable
+						+ &quot; WHERE &quot; + DBConnector.rsIdsColumn + &quot; =?&quot;
+						+ &quot; OR &quot; + DBConnector.rsIdsColumn + &quot; LIKE CONCAT( ?,'%')&quot;
+						+ &quot; OR &quot; + DBConnector.rsIdsColumn + &quot; LIKE CONCAT( '%',?,'%')&quot;
+						+ &quot; OR &quot; + DBConnector.rsIdsColumn + &quot; LIKE CONCAT( '%',?);&quot;));
+
+<span class="fc" id="L897">		this.selectCtisByGrant = this.conn.prepareStatement(</span>
+<span class="fc" id="L898">                dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+                        + DBConnector.ctiColumn + &quot; FROM &quot;
+                        + DBConnector.grant2ctiTable
+                        + &quot; WHERE &quot; + DBConnector.grantColumn + &quot;=?;&quot;)); 
+
+<span class="fc" id="L903">		this.insertGrant2Cti = this.conn.prepareStatement(</span>
+<span class="fc" id="L904">                dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+                        + DBConnector.grant2ctiTable
+                        + &quot; VALUES (?,?,?);&quot;));
+		
+<span class="fc" id="L908">		this.deleteGrant2Cti = this.conn.prepareStatement(</span>
+<span class="fc" id="L909">                dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+                        + DBConnector.grant2ctiTable
+                        + &quot; WHERE &quot; + DBConnector.grantColumn + &quot;=?;&quot;));
+		
+<span class="fc" id="L913">		this.updateGrant = this.conn.prepareStatement(</span>
+<span class="fc" id="L914">                dbAdapter.updateEngineSpecificSQL(&quot;UPDATE &quot;</span>
+                        + DBConnector.grant2ctiTable
+                        + &quot; SET &quot; + DBConnector.grantValidColumn + &quot;=FALSE&quot;
+                                + &quot; WHERE &quot; + DBConnector.grantColumn 
+                                + &quot;=?;&quot;));
+		
+<span class="fc" id="L920">		this.selectRsInfoByGrant = this.conn.prepareStatement(</span>
+<span class="fc" id="L921">                dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+                        + DBConnector.claimNameColumn + &quot;,&quot;
+                        + DBConnector.claimValueColumn + &quot; FROM &quot; 
+                        + DBConnector.grant2RSInfoTable
+                        + &quot; WHERE &quot; + DBConnector.grantColumn + &quot;=?;&quot;));
+		
+<span class="fc" id="L927">		this.insertGrant2RsInfo = this.conn.prepareStatement(</span>
+<span class="fc" id="L928">		        dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+		                + DBConnector.grant2RSInfoTable
+		                + &quot; VALUES (?,?,?);&quot;));
+		
+<span class="fc" id="L932">		this.selectGrantValid = this.conn.prepareStatement(</span>
+<span class="fc" id="L933">                dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+                        + DBConnector.grantValidColumn + &quot; FROM &quot;
+                        + DBConnector.grant2ctiTable
+                        + &quot; WHERE &quot; + DBConnector.grantColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L938">		this.insertCti2TokenHash = this.conn.prepareStatement(</span>
+<span class="fc" id="L939">				dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+						+ DBConnector.tokenHashTable
+						+ &quot; VALUES (?,?);&quot;));
+
+<span class="fc" id="L943">		this.insertRevokedToken = this.conn.prepareStatement(</span>
+<span class="fc" id="L944">				dbAdapter.updateEngineSpecificSQL(&quot;INSERT INTO &quot;</span>
+						+ DBConnector.trlTable
+						+ &quot; VALUES (?,?,?);&quot;));
+
+<span class="fc" id="L948">		this.deleteExpiredToken = this.conn.prepareStatement(</span>
+<span class="fc" id="L949">				dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+						+ DBConnector.trlTable
+						+ &quot; WHERE &quot; + DBConnector.ctiColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L953">		this.deleteTokenHash = this.conn.prepareStatement(</span>
+<span class="fc" id="L954">				dbAdapter.updateEngineSpecificSQL(&quot;DELETE FROM &quot;</span>
+						+ DBConnector.tokenHashTable
+						+ &quot; WHERE &quot; + DBConnector.ctiColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L958">		this.selectPertainingPeers = this.conn.prepareStatement(</span>
+<span class="fc" id="L959">				dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+						+ DBConnector.clientIdColumn + &quot;, &quot;
+						+ DBConnector.rsIdsColumn + &quot; FROM &quot;
+						+ DBConnector.trlTable
+						+ &quot; WHERE &quot; + DBConnector.ctiColumn + &quot;=?;&quot;));
+
+<span class="fc" id="L965">		this.selectPertainingTokens = this.conn.prepareStatement(</span>
+<span class="fc" id="L966">				dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+						+ DBConnector.ctiColumn + &quot; FROM &quot;
+						+ DBConnector.trlTable
+						+ &quot; WHERE &quot; + DBConnector.clientIdColumn + &quot;=?&quot;
+						+ &quot; OR &quot; + DBConnector.rsIdsColumn + &quot; =?&quot;
+						+ &quot; OR &quot; + DBConnector.rsIdsColumn + &quot; LIKE CONCAT( ?,'%')&quot;
+						+ &quot; OR &quot; + DBConnector.rsIdsColumn + &quot; LIKE CONCAT( '%',?,'%')&quot;
+						+ &quot; OR &quot; + DBConnector.rsIdsColumn + &quot; LIKE CONCAT( '%',?);&quot;));
+
+<span class="fc" id="L975">		this.selectExpirationTimeOfToken = this.conn.prepareStatement(</span>
+<span class="fc" id="L976">				dbAdapter.updateEngineSpecificSQL(&quot;SELECT &quot;</span>
+						+ DBConnector.claimValueColumn + &quot; FROM &quot;
+						+ DBConnector.claimsTable
+						+ &quot; WHERE (&quot; + DBConnector.claimNameColumn + &quot;=&quot; + Constants.EXP
+						+ &quot;) AND ( &quot; + DBConnector.ctiColumn + &quot;=?);&quot;));
+
+<span class="fc" id="L982">		this.selectCtisToTokenHashes = this.conn.prepareStatement(</span>
+<span class="fc" id="L983">				dbAdapter.updateEngineSpecificSQL(&quot;SELECT * FROM &quot;</span>
+						+ DBConnector.tokenHashTable + &quot;;&quot;));
+<span class="fc" id="L985">	}</span>
+	
+	/**
+	 * @return  the properties of the current database user
+	 */
+	public Properties getCurrentUserProperties() {
+<span class="nc" id="L991">		Properties connectionProps = new Properties();</span>
+<span class="nc" id="L992">		connectionProps.put(&quot;user&quot;, this.currentUser);</span>
+<span class="nc" id="L993">		connectionProps.put(&quot;password&quot;, this.currentPassword);</span>
+<span class="nc" id="L994">		return connectionProps;</span>
+	}
+	
+	/**
+	 * Set the current user properties
+	 * @param user  the username of the new current user
+	 * @param password  the password of the new current user
+	 */
+	public void setCurrentUser(String user, String password) {
+<span class="nc" id="L1003">	    this.currentUser = user;</span>
+<span class="nc" id="L1004">	    this.currentPassword = password;</span>
+<span class="nc" id="L1005">	}</span>
+
+	/**
+	 * Create the necessary database and tables. Requires the
+	 * admin user password.
+	 * @param dbAdapter 
+	 * 
+	 * @param adminUser  the admin user name
+	 * @param adminPwd  the admin user password
+	 * @throws AceException
+	 */
+	public static void createDB(SQLDBAdapter dbAdapter, String adminUser, String adminPwd) throws AceException {
+<span class="pc bpc" id="L1017" title="1 of 2 branches missed.">		if (adminPwd == null) {</span>
+<span class="nc" id="L1018">			throw new AceException(</span>
+					&quot;Cannot initialize the database without the password&quot;);
+		}
+<span class="fc" id="L1021">        dbAdapter.createDBAndTables(adminUser, adminPwd);</span>
+<span class="fc" id="L1022">	}</span>
+
+	/**
+	 * Deletes the whole database.
+	 * 
+	 * CAUTION: This method really does what is says, without asking you again!
+	 * It's main function is to clean the database during test runs.
+	 * 
+	 * @param dbAdapter handler for engine-db specific commands, containing DB name and owner data as well.
+	 * @param adminUser  the admin user name
+	 * @param adminPwd  the admin password
+	 * @throws AceException
+	 * @throws SQLException 
+	 */
+	public static void wipeDatabase(SQLDBAdapter dbAdapter, String adminUser, String adminPwd) throws AceException {
+<span class="fc bfc" id="L1037" title="All 2 branches covered.">		if(SQLConnector.connector != null)</span>
+		{
+<span class="fc" id="L1039">			SQLConnector.connector.close();</span>
+		}
+<span class="fc" id="L1041">		dbAdapter.wipeDB(adminUser, adminPwd);</span>
+<span class="fc" id="L1042">	}</span>
+	
+	/**
+	 * Close the connections. After this any other method calls to this
+	 * object will lead to an exception.
+	 * 
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void close() throws AceException {
+<span class="fc bfc" id="L1052" title="All 2 branches covered.">	    if (SQLConnector.isConnected) {</span>
+<span class="fc" id="L1053">			SQLConnector.isConnected = false;</span>
+	        try {
+<span class="fc" id="L1055">	            this.conn.close();</span>
+<span class="fc" id="L1056">	            SQLConnector.connector = null;</span>
+<span class="nc" id="L1057">	        } catch (SQLException e)</span>
+			{
+<span class="nc" id="L1059">				throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1060">			}</span>
+	    }
+<span class="fc" id="L1062">	}</span>
+	
+	/**
+	 * Returns a common value that the client supports (first param )
+	 * and that every RS supports (every set in the map)
+	 * 
+	 * @param client  the set of values the client supports
+	 * @param rss  the map of sets of values the rs support
+	 * 
+	 * @return  the common value or null if there isn't any
+	 * @throws AceException 
+	 */
+	private static String getCommonValue(Set&lt;String&gt; client, 
+	        Map&lt;String,Set&lt;String&gt;&gt; rss) throws AceException {
+<span class="pc bpc" id="L1076" title="2 of 4 branches missed.">	    if (client == null || rss == null) {</span>
+<span class="nc" id="L1077">	        throw new AceException(</span>
+	                &quot;getCommonValue() requires non-null parameters&quot;);
+	    }
+<span class="fc bfc" id="L1080" title="All 2 branches covered.">	    for (String clientVal : client) {</span>
+<span class="fc" id="L1081">            boolean isSupported = true;</span>
+<span class="fc bfc" id="L1082" title="All 2 branches covered.">            for (String rs : rss.keySet()) {</span>
+<span class="fc bfc" id="L1083" title="All 2 branches covered.">                if (!rss.get(rs).contains(clientVal)) {</span>
+<span class="fc" id="L1084">                    isSupported = false;</span>
+                }
+<span class="fc" id="L1086">            }</span>
+<span class="fc bfc" id="L1087" title="All 2 branches covered.">            if (isSupported) {</span>
+<span class="fc" id="L1088">                return clientVal;</span>
+            }
+<span class="fc" id="L1090">        }</span>
+<span class="fc" id="L1091">        return null;</span>
+	}
+	
+    @Override
+    public synchronized String getSupportedProfile(
+            String clientId, Set&lt;String&gt; audience) throws AceException {
+<span class="pc bpc" id="L1097" title="2 of 4 branches missed.">        if (clientId == null || audience == null) {</span>
+<span class="nc" id="L1098">            throw new AceException(</span>
+                    &quot;getSupportedProfile() requires non-null parameters&quot;);
+        }
+<span class="fc" id="L1101">        Map&lt;String, Set&lt;String&gt;&gt; rsProfiles = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L1102">        Set&lt;String&gt; clientProfiles = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L1103" title="All 2 branches covered.">        for (String aud : audience) {</span>
+            try {
+<span class="fc" id="L1105">                this.selectProfiles.setString(1, aud);</span>
+<span class="fc" id="L1106">                this.selectProfiles.setString(2, clientId);</span>
+<span class="fc" id="L1107">                ResultSet result = this.selectProfiles.executeQuery();</span>
+<span class="fc" id="L1108">                this.selectProfiles.clearParameters();</span>
+
+<span class="fc bfc" id="L1110" title="All 2 branches covered.">                while(result.next()) {</span>
+<span class="fc" id="L1111">                    String id = result.getString(DBConnector.idColumn);</span>
+<span class="fc" id="L1112">                    String profile = result.getString(</span>
+                            DBConnector.profileColumn);
+<span class="fc bfc" id="L1114" title="All 2 branches covered.">                    if (id.equals(clientId)) {</span>
+<span class="fc" id="L1115">                        clientProfiles.add(profile);</span>
+<span class="fc bfc" id="L1116" title="All 2 branches covered.">                    } else if (rsProfiles.containsKey(id)) {</span>
+<span class="fc" id="L1117">                        Set&lt;String&gt; foo = rsProfiles.get(id);</span>
+<span class="fc" id="L1118">                        foo.add(profile);</span>
+<span class="fc" id="L1119">                        rsProfiles.put(id, foo);</span>
+<span class="fc" id="L1120">                    } else {</span>
+<span class="fc" id="L1121">                        Set&lt;String&gt; bar = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L1122">                        bar.add(profile);</span>
+<span class="fc" id="L1123">                        rsProfiles.put(id, bar);</span>
+                    }
+<span class="fc" id="L1125">                }</span>
+<span class="fc" id="L1126">                result.close();</span>
+<span class="nc" id="L1127">            } catch (SQLException e) {</span>
+<span class="nc" id="L1128">                throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1129">            }</span>
+<span class="fc" id="L1130">        }</span>
+<span class="fc" id="L1131">        return getCommonValue(clientProfiles, rsProfiles);</span>
+      
+    }
+    
+    @Override
+    public boolean hasDefaultProfile(String clientId) throws AceException {
+<span class="pc bpc" id="L1137" title="1 of 2 branches missed.">        if (clientId == null ) {</span>
+<span class="nc" id="L1138">            throw new AceException(</span>
+                    &quot;hasDefaultProfile() requires non-null clientId&quot;);
+        }
+        try {
+<span class="fc" id="L1142">            this.selectProfile.setString(1, clientId);</span>
+<span class="fc" id="L1143">            ResultSet result = this.selectProfile.executeQuery();</span>
+<span class="fc" id="L1144">            this.selectProfile.clearParameters();</span>
+<span class="fc" id="L1145">            int i = 0;</span>
+<span class="fc bfc" id="L1146" title="All 2 branches covered.">            while (result.next()) {</span>
+<span class="fc" id="L1147">                i ++;</span>
+            }
+<span class="fc" id="L1149">            result.close();</span>
+<span class="fc bfc" id="L1150" title="All 2 branches covered.">            return (i==1 ? true:false);</span>
+<span class="nc" id="L1151">        } catch (SQLException e) {</span>
+<span class="nc" id="L1152">            throw new AceException(e.getMessage());</span>
+        }
+    }
+    
+    @Override
+    public synchronized Set&lt;String&gt; getSupportedPopKeyTypes(Set&lt;String&gt; aud) 
+            throws AceException {
+<span class="pc bpc" id="L1159" title="1 of 2 branches missed.">        if (aud == null) {</span>
+<span class="nc" id="L1160">            throw new AceException(</span>
+                    &quot;getSupportedPopKeyType() requires non-null parameter&quot;);
+        }
+<span class="fc" id="L1163">        Map&lt;String, Set&lt;String&gt;&gt; rsKeyTypes = new HashMap&lt;&gt;();</span>
+    
+<span class="fc bfc" id="L1165" title="All 2 branches covered.">        for (String audE : aud) {</span>
+            try {
+<span class="fc" id="L1167">                this.selectKeyTypes.setString(1, audE);</span>
+<span class="fc" id="L1168">                ResultSet result = this.selectKeyTypes.executeQuery();</span>
+<span class="fc" id="L1169">                this.selectKeyTypes.clearParameters();</span>
+<span class="fc bfc" id="L1170" title="All 2 branches covered.">                while(result.next()) {</span>
+<span class="fc" id="L1171">                    String id = result.getString(DBConnector.idColumn);</span>
+<span class="fc" id="L1172">                    String keyType = result.getString(</span>
+                            DBConnector.keyTypeColumn);
+<span class="fc bfc" id="L1174" title="All 2 branches covered.">                    if (rsKeyTypes.containsKey(id)) {</span>
+<span class="fc" id="L1175">                        Set&lt;String&gt; foo = rsKeyTypes.get(id);</span>
+<span class="fc" id="L1176">                        foo.add(keyType);</span>
+<span class="fc" id="L1177">                        rsKeyTypes.put(id, foo);</span>
+<span class="fc" id="L1178">                    } else {</span>
+<span class="fc" id="L1179">                        Set&lt;String&gt; bar = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L1180">                        bar.add(keyType);</span>
+<span class="fc" id="L1181">                        rsKeyTypes.put(id, bar);</span>
+                    }
+<span class="fc" id="L1183">                }</span>
+<span class="fc" id="L1184">                result.close();</span>
+<span class="nc" id="L1185">            } catch (SQLException e) {</span>
+<span class="nc" id="L1186">                throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1187">            }</span>
+<span class="fc" id="L1188">        }</span>
+<span class="fc" id="L1189">        Set&lt;String&gt; typeSet = null;</span>
+<span class="fc bfc" id="L1190" title="All 2 branches covered.">        for (Map.Entry&lt;String, Set&lt;String&gt;&gt; rs : rsKeyTypes.entrySet()) {</span>
+<span class="fc bfc" id="L1191" title="All 2 branches covered.">            if (typeSet == null) {</span>
+<span class="fc" id="L1192">                typeSet = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L1193">                typeSet.addAll(rs.getValue());</span>
+            } else {
+<span class="fc" id="L1195">                Set&lt;String&gt; iterSet = new HashSet&lt;&gt;(typeSet);</span>
+<span class="fc bfc" id="L1196" title="All 2 branches covered.">                for (String keyType : iterSet) {</span>
+<span class="fc bfc" id="L1197" title="All 2 branches covered.">                    if (!rs.getValue().contains(keyType)) {</span>
+<span class="fc" id="L1198">                        typeSet.remove(keyType);</span>
+                    }
+<span class="fc" id="L1200">                }</span>
+<span class="fc bfc" id="L1201" title="All 2 branches covered.">                if (typeSet.isEmpty()) {</span>
+<span class="fc" id="L1202">                    return null;</span>
+                }
+            }
+<span class="fc" id="L1205">        }</span>
+<span class="fc" id="L1206">        return typeSet;</span>
+    }
+    
+    @Override
+    public  synchronized Short getSupportedTokenType(Set&lt;String&gt; aud) 
+            throws AceException {
+<span class="pc bpc" id="L1212" title="1 of 2 branches missed.">        if (aud == null) {</span>
+<span class="nc" id="L1213">            throw new AceException(</span>
+                    &quot;getSupportedTokenType() requires non-null aud&quot;);
+        }
+        //Note: We store the token types as Strings in the DB
+<span class="fc" id="L1217">        Map&lt;String, Set&lt;String&gt;&gt; tokenTypes = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L1218" title="All 2 branches covered.">        for (String audE : aud) {</span>
+            try {
+<span class="fc" id="L1220">                this.selectTokenTypes.setString(1, audE);</span>
+<span class="fc" id="L1221">                ResultSet result = this.selectTokenTypes.executeQuery();</span>
+<span class="fc" id="L1222">                this.selectTokenTypes.clearParameters();</span>
+<span class="fc bfc" id="L1223" title="All 2 branches covered.">                while(result.next()) {</span>
+<span class="fc" id="L1224">                    String id = result.getString(DBConnector.rsIdColumn);</span>
+<span class="fc" id="L1225">                    String tokenType = result.getString(</span>
+                            DBConnector.tokenTypeColumn);
+<span class="fc bfc" id="L1227" title="All 2 branches covered.">                    if (tokenTypes.containsKey(id)) {</span>
+<span class="fc" id="L1228">                        Set&lt;String&gt; foo = tokenTypes.get(id);</span>
+<span class="fc" id="L1229">                        foo.add(tokenType);</span>
+<span class="fc" id="L1230">                        tokenTypes.put(id, foo);</span>
+<span class="fc" id="L1231">                    } else {</span>
+<span class="fc" id="L1232">                        Set&lt;String&gt; bar = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L1233">                        bar.add(tokenType);</span>
+<span class="fc" id="L1234">                        tokenTypes.put(id, bar);</span>
+                    } 
+<span class="fc" id="L1236">                }</span>
+<span class="fc" id="L1237">                result.close();</span>
+<span class="nc" id="L1238">            } catch (SQLException e) {</span>
+<span class="nc" id="L1239">                throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1240">            }</span>
+<span class="fc" id="L1241">        }</span>
+<span class="fc" id="L1242">        Set&lt;String&gt; refSet = null;</span>
+<span class="fc bfc" id="L1243" title="All 2 branches covered.">        for (Map.Entry&lt;String, Set&lt;String&gt;&gt; rs : tokenTypes.entrySet()) {</span>
+<span class="fc bfc" id="L1244" title="All 2 branches covered.">            if (refSet == null) {</span>
+<span class="fc" id="L1245">                refSet = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L1246">                refSet.addAll(rs.getValue());</span>
+            } else {
+<span class="fc" id="L1248">                Set&lt;String&gt; iterSet = new HashSet&lt;&gt;(refSet);</span>
+<span class="fc bfc" id="L1249" title="All 2 branches covered.">                for (String tokenType : iterSet) {</span>
+<span class="fc bfc" id="L1250" title="All 2 branches covered.">                    if (!rs.getValue().contains(tokenType)) {</span>
+<span class="fc" id="L1251">                        refSet.remove(tokenType);</span>
+                    }
+<span class="fc" id="L1253">                }</span>
+<span class="fc bfc" id="L1254" title="All 2 branches covered.">                if (refSet.isEmpty()) {</span>
+<span class="fc" id="L1255">                    return null;</span>
+                }
+            }
+<span class="fc" id="L1258">        }</span>
+        //Get the first remaining value
+<span class="pc bpc" id="L1260" title="2 of 4 branches missed.">        if (refSet != null &amp;&amp; !refSet.isEmpty()) {</span>
+<span class="fc" id="L1261">            String tokenType = refSet.iterator().next();</span>
+<span class="pc bpc" id="L1262" title="1 of 2 branches missed.">            for (short i=0; i&lt;AccessTokenFactory.ABBREV.length; i++) {</span>
+<span class="fc bfc" id="L1263" title="All 2 branches covered.">                if (tokenType.equals(AccessTokenFactory.ABBREV[i])) {</span>
+<span class="fc" id="L1264">                    return i;</span>
+                }
+            }
+        } 
+        //The audience was empty or didn't support any token types
+<span class="nc" id="L1269">        throw new AceException(&quot;No token types found for audience: &quot; + aud);        </span>
+    }
+    
+    @Override
+    public synchronized COSEparams getSupportedCoseParams(Set&lt;String&gt; aud) 
+            throws AceException, CoseException {
+<span class="pc bpc" id="L1275" title="1 of 2 branches missed.">        if (aud == null) {</span>
+<span class="nc" id="L1276">            throw new AceException(</span>
+                    &quot;getSupportedCoseParams() requires non-null aud&quot;);
+        }
+<span class="fc" id="L1279">        Map&lt;String, Set&lt;String&gt;&gt; cose = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L1280" title="All 2 branches covered.">        for (String audE : aud) {</span>
+            try {
+<span class="fc" id="L1282">                this.selectCOSE.setString(1, audE);</span>
+<span class="fc" id="L1283">                ResultSet result = this.selectCOSE.executeQuery();</span>
+<span class="fc" id="L1284">                this.selectCOSE.clearParameters();</span>
+<span class="fc bfc" id="L1285" title="All 2 branches covered.">                while(result.next()) {</span>
+<span class="fc" id="L1286">                    String id = result.getString(DBConnector.rsIdColumn);</span>
+<span class="fc" id="L1287">                    String coseParam = result.getString(</span>
+                            DBConnector.coseColumn);
+<span class="pc bpc" id="L1289" title="1 of 2 branches missed.">                    if (cose.containsKey(id)) {</span>
+<span class="nc" id="L1290">                        Set&lt;String&gt; foo = cose.get(id);</span>
+<span class="nc" id="L1291">                        foo.add(coseParam);</span>
+<span class="nc" id="L1292">                        cose.put(id, foo);</span>
+<span class="nc" id="L1293">                    } else {</span>
+<span class="fc" id="L1294">                        Set&lt;String&gt; bar = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L1295">                        bar.add(coseParam);</span>
+<span class="fc" id="L1296">                        cose.put(id, bar);</span>
+                    } 
+<span class="fc" id="L1298">                }</span>
+<span class="fc" id="L1299">                result.close();</span>
+<span class="nc" id="L1300">            } catch (SQLException e) {</span>
+<span class="nc" id="L1301">                throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1302">            }</span>
+<span class="fc" id="L1303">        }</span>
+        
+<span class="fc" id="L1305">        Set&lt;String&gt; refSet = null;</span>
+<span class="fc bfc" id="L1306" title="All 2 branches covered.">        for (Map.Entry&lt;String, Set&lt;String&gt;&gt; rs : cose.entrySet()) {</span>
+<span class="fc bfc" id="L1307" title="All 2 branches covered.">            if (refSet == null) {</span>
+<span class="fc" id="L1308">                refSet = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L1309">                refSet.addAll(rs.getValue());</span>
+            } else {
+<span class="fc bfc" id="L1311" title="All 2 branches covered.">                for (String tokenType : refSet) {</span>
+<span class="fc bfc" id="L1312" title="All 2 branches covered.">                    if (!rs.getValue().contains(tokenType)) {</span>
+<span class="fc" id="L1313">                        refSet.remove(tokenType);</span>
+                    }
+<span class="fc" id="L1315">                }</span>
+<span class="fc bfc" id="L1316" title="All 2 branches covered.">                if (refSet.isEmpty()) {</span>
+<span class="fc" id="L1317">                    return null;</span>
+                }
+            }
+<span class="fc" id="L1320">        }</span>
+        
+        //Get the first remaining value
+<span class="pc bpc" id="L1323" title="2 of 4 branches missed.">        if (refSet != null &amp;&amp; !refSet.isEmpty()) {</span>
+<span class="fc" id="L1324">            String result = refSet.iterator().next();</span>
+<span class="fc" id="L1325">            return COSEparams.parse(result);</span>
+        }
+        
+        //The audience was empty or didn't support any token types
+<span class="nc" id="L1329">        throw new AceException(&quot;No cose parameters found for audience: &quot; + aud);                         </span>
+    }
+    
+    @Override
+    public synchronized boolean isScopeSupported(String aud, String scope)
+            throws AceException {
+<span class="pc bpc" id="L1335" title="2 of 4 branches missed.">        if (scope == null || aud == null) {</span>
+<span class="nc" id="L1336">            throw new AceException(</span>
+                    &quot;isScopeSupported() requires non-null parameters&quot;);
+        }
+<span class="fc" id="L1339">        Set&lt;String&gt; allRS = getRSS(aud);</span>
+<span class="fc" id="L1340">        Set&lt;String&gt; supportingSope = new HashSet&lt;&gt;();</span>
+        try {
+<span class="fc" id="L1342">            this.selectScopes.setString(1, aud);</span>
+<span class="fc" id="L1343">            ResultSet result = this.selectScopes.executeQuery();</span>
+<span class="fc" id="L1344">            this.selectScopes.clearParameters();</span>
+<span class="fc bfc" id="L1345" title="All 2 branches covered.">            while (result.next()) {</span>
+<span class="fc" id="L1346">                String scp = result.getString(DBConnector.scopeColumn);</span>
+<span class="fc bfc" id="L1347" title="All 2 branches covered.">                if (scp.equals(scope)) {</span>
+<span class="fc" id="L1348">                    supportingSope.add(result.getString(DBConnector.rsIdColumn));</span>
+                }
+<span class="fc" id="L1350">            }</span>
+<span class="fc" id="L1351">            result.close();</span>
+<span class="nc" id="L1352">        } catch (SQLException e) {</span>
+<span class="nc" id="L1353">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1354">        }</span>
+<span class="fc bfc" id="L1355" title="All 2 branches covered.">        if (supportingSope.containsAll(allRS)) {</span>
+<span class="fc" id="L1356">            return true;</span>
+        }
+<span class="fc" id="L1358">        return false;</span>
+    }
+ 
+    @Override
+    public synchronized String getDefaultScope(String clientId) 
+            throws AceException {
+<span class="pc bpc" id="L1364" title="1 of 2 branches missed.">        if (clientId == null) {</span>
+<span class="nc" id="L1365">            throw new AceException(</span>
+                    &quot;getDefaultScope() requires non-null clientId&quot;);
+        }
+        try {
+<span class="fc" id="L1369">            this.selectDefaultScope.setString(1, clientId);</span>
+<span class="fc" id="L1370">            ResultSet result = this.selectDefaultScope.executeQuery();</span>
+<span class="fc" id="L1371">            this.selectDefaultScope.clearParameters();</span>
+<span class="pc bpc" id="L1372" title="1 of 2 branches missed.">            if (result.next()) {</span>
+<span class="fc" id="L1373">                String scope = result.getString(DBConnector.defaultScope);</span>
+<span class="fc" id="L1374">                result.close();</span>
+<span class="fc" id="L1375">                return scope;</span>
+            }
+<span class="nc" id="L1377">            result.close();</span>
+<span class="nc" id="L1378">        } catch (SQLException e) {</span>
+<span class="nc" id="L1379">            throw new AceException(e.getMessage());</span>
+<span class="nc" id="L1380">        }</span>
+<span class="nc" id="L1381">        return null;</span>
+    }
+
+    @Override
+    public synchronized String getDefaultAudience(String clientId) 
+            throws AceException {
+<span class="pc bpc" id="L1387" title="1 of 2 branches missed.">        if (clientId == null) {</span>
+<span class="nc" id="L1388">            throw new AceException(</span>
+                    &quot;getDefaultAudience() requires non-null clientId&quot;);
+        }
+        try {
+<span class="fc" id="L1392">            this.selectDefaultAudience.setString(1, clientId);</span>
+<span class="fc" id="L1393">            ResultSet result = this.selectDefaultAudience.executeQuery();</span>
+<span class="fc" id="L1394">            this.selectDefaultAudience.clearParameters();</span>
+<span class="pc bpc" id="L1395" title="1 of 2 branches missed.">            if (result.next()) {</span>
+<span class="fc" id="L1396">                String aud = result.getString(DBConnector.defaultAud);</span>
+<span class="fc" id="L1397">                result.close();</span>
+<span class="fc" id="L1398">                return aud;</span>
+            }
+<span class="nc" id="L1400">            result.close();</span>
+<span class="nc" id="L1401">        } catch (SQLException e) {</span>
+<span class="nc" id="L1402">            throw new AceException(e.getMessage());</span>
+<span class="nc" id="L1403">        }</span>
+<span class="nc" id="L1404">        return null;</span>
+    }
+    
+    @Override
+    public synchronized Set&lt;String&gt; getRSS(String aud) throws AceException {
+<span class="pc bpc" id="L1409" title="1 of 2 branches missed.">        if (aud == null) {</span>
+<span class="nc" id="L1410">            throw new AceException(</span>
+                    &quot;getRSS() requires non-null aud&quot;);
+        }
+<span class="fc" id="L1413">       Set&lt;String&gt; rss = new HashSet&lt;&gt;();</span>
+        try {
+<span class="fc" id="L1415">            this.selectRS.setString(1, aud);</span>
+<span class="fc" id="L1416">            ResultSet result = this.selectRS.executeQuery();</span>
+<span class="fc" id="L1417">            this.selectRS.clearParameters();</span>
+<span class="fc bfc" id="L1418" title="All 2 branches covered.">            while (result.next()) {</span>
+<span class="fc" id="L1419">                rss.add(result.getString(DBConnector.rsIdColumn));</span>
+            }
+<span class="fc" id="L1421">            result.close();</span>
+<span class="nc" id="L1422">        } catch (SQLException e) {</span>
+<span class="nc" id="L1423">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1424">        }</span>
+<span class="fc bfc" id="L1425" title="All 2 branches covered.">        if (rss.isEmpty()) {</span>
+<span class="fc" id="L1426">            return Collections.emptySet();</span>
+        }
+<span class="fc" id="L1428">        return rss;</span>
+    }
+
+	@Override
+	public synchronized Set&lt;String&gt; getRSS() throws AceException {
+<span class="fc" id="L1433">		Set&lt;String&gt; rss = new HashSet&lt;&gt;();</span>
+		try {
+<span class="fc" id="L1435">			ResultSet result = this.selectAllRS.executeQuery();</span>
+<span class="fc bfc" id="L1436" title="All 2 branches covered.">			while (result.next()) {</span>
+<span class="fc" id="L1437">				rss.add(result.getString(DBConnector.rsIdColumn));</span>
+			}
+<span class="fc" id="L1439">			result.close();</span>
+<span class="nc" id="L1440">		} catch (SQLException e) {</span>
+<span class="nc" id="L1441">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1442">		}</span>
+<span class="fc bfc" id="L1443" title="All 2 branches covered.">		if (rss.isEmpty()) {</span>
+<span class="fc" id="L1444">			return null;</span>
+		}
+<span class="fc" id="L1446">		return rss;</span>
+	}
+    
+    @Override
+    public synchronized long getExpTime(Set&lt;String&gt; aud) throws AceException {
+<span class="pc bpc" id="L1451" title="1 of 2 branches missed.">        if (aud == null) {</span>
+<span class="nc" id="L1452">            throw new AceException(</span>
+                    &quot;getExpTime() requires non-null audience&quot;);
+        }
+<span class="fc" id="L1455">        long smallest = Long.MAX_VALUE;</span>
+        
+<span class="fc bfc" id="L1457" title="All 2 branches covered.">        for (String audE : aud) {</span>
+        	
+<span class="fc" id="L1459">        	Set&lt;String&gt; rsIds = getRSS(audE);</span>
+<span class="fc bfc" id="L1460" title="All 2 branches covered.">        	for (String myRS : rsIds) {</span>
+		            try {
+<span class="fc" id="L1462">		            	this.selectExpiration.setString(1, myRS);</span>
+<span class="fc" id="L1463">		                ResultSet result = this.selectExpiration.executeQuery();</span>
+<span class="fc" id="L1464">		                this.selectExpiration.clearParameters();</span>
+<span class="fc bfc" id="L1465" title="All 2 branches covered.">		                while (result.next()) {</span>
+<span class="fc" id="L1466">		                    long val = result.getLong(DBConnector.expColumn);</span>
+<span class="pc bpc" id="L1467" title="1 of 2 branches missed.">		                    if (val &lt; smallest) {</span>
+<span class="fc" id="L1468">		                        smallest = val;</span>
+		                    }
+<span class="fc" id="L1470">		                }</span>
+<span class="fc" id="L1471">		                result.close();</span>
+<span class="nc" id="L1472">		            } catch (SQLException e) {</span>
+<span class="nc" id="L1473">		                throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1474">		            }</span>
+<span class="fc" id="L1475">        	}       </span>
+<span class="fc" id="L1476">        }</span>
+        
+<span class="fc" id="L1478">        return smallest;</span>
+    }
+    
+
+    @Override
+    public synchronized Set&lt;String&gt; getAudiences(String rsId) 
+            throws AceException {
+<span class="pc bpc" id="L1485" title="1 of 2 branches missed.">        if (rsId == null) {</span>
+<span class="nc" id="L1486">            throw new AceException(</span>
+                    &quot;getAudiences() requires non-null rsId&quot;);
+        }
+<span class="fc" id="L1489">        Set&lt;String&gt; auds = new HashSet&lt;&gt;();</span>
+        try {
+<span class="fc" id="L1491">            this.selectAudiences.setString(1, rsId);</span>
+<span class="fc" id="L1492">            ResultSet result = this.selectAudiences.executeQuery();</span>
+<span class="fc" id="L1493">            this.selectAudiences.clearParameters();</span>
+<span class="fc bfc" id="L1494" title="All 2 branches covered.">            while (result.next()) {</span>
+<span class="fc" id="L1495">                auds.add(result.getString(DBConnector.audColumn));      </span>
+            }
+<span class="fc" id="L1497">            result.close();</span>
+<span class="nc" id="L1498">        } catch (SQLException e) {</span>
+<span class="nc" id="L1499">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1500">        }</span>
+<span class="fc" id="L1501">        return auds;</span>
+    }
+
+    @Override
+    public synchronized Set&lt;String&gt; getOSCOREGroupManagers(String rsId) 
+            throws AceException {
+<span class="nc bnc" id="L1507" title="All 2 branches missed.">        if (rsId == null) {</span>
+<span class="nc" id="L1508">            throw new AceException(</span>
+                    &quot;getOSCOREGroupManagers() requires non-null rsId&quot;);
+        }
+<span class="nc" id="L1511">        Set&lt;String&gt; auds = new HashSet&lt;&gt;();</span>
+        try {
+<span class="nc" id="L1513">            this.selectOSCOREGroupManagers.setString(1, rsId);</span>
+<span class="nc" id="L1514">            ResultSet result = this.selectOSCOREGroupManagers.executeQuery();</span>
+<span class="nc" id="L1515">            this.selectOSCOREGroupManagers.clearParameters();</span>
+<span class="nc bnc" id="L1516" title="All 2 branches missed.">            while (result.next()) {</span>
+<span class="nc" id="L1517">                auds.add(result.getString(DBConnector.audColumn));      </span>
+            }
+<span class="nc" id="L1519">            result.close();</span>
+<span class="nc" id="L1520">        } catch (SQLException e) {</span>
+<span class="nc" id="L1521">            throw new AceException(e.getMessage());</span>
+<span class="nc" id="L1522">        }</span>
+<span class="nc" id="L1523">        return auds;</span>
+    }
+    
+    @Override
+    public synchronized Set&lt;String&gt; getScopes(String rsId) throws AceException
+	{
+<span class="nc bnc" id="L1529" title="All 2 branches missed.">		if (rsId == null) {</span>
+<span class="nc" id="L1530">			throw new AceException(</span>
+					&quot;getScopes() requires non-null rsId&quot;);
+		}
+<span class="nc" id="L1533">		Set&lt;String&gt; scopes = new HashSet&lt;&gt;();</span>
+		try {
+<span class="nc" id="L1535">			this.selectScopesForRS.setString(1, rsId);</span>
+<span class="nc" id="L1536">			ResultSet result = this.selectScopesForRS.executeQuery();</span>
+<span class="nc" id="L1537">			this.selectScopesForRS.clearParameters();</span>
+<span class="nc bnc" id="L1538" title="All 2 branches missed.">			while (result.next()) {</span>
+<span class="nc" id="L1539">				scopes.add(result.getString(DBConnector.scopeColumn));</span>
+			}
+<span class="nc" id="L1541">			result.close();</span>
+<span class="nc" id="L1542">		} catch (SQLException e) {</span>
+<span class="nc" id="L1543">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L1544">		}</span>
+<span class="nc" id="L1545">		return scopes;</span>
+	}
+
+    @Override
+    public synchronized OneKey getRsTokenPSK(String rsId) throws AceException {
+<span class="pc bpc" id="L1550" title="1 of 2 branches missed.">        if (rsId == null) {</span>
+<span class="nc" id="L1551">            throw new AceException(</span>
+                    &quot;getRsPSK() requires non-null rsId&quot;);
+        }
+        try {
+<span class="fc" id="L1555">            this.selectRsTokenPSK.setString(1, rsId);</span>
+<span class="fc" id="L1556">            ResultSet result = this.selectRsTokenPSK.executeQuery();</span>
+<span class="fc" id="L1557">            this.selectRsTokenPSK.clearParameters();</span>
+<span class="fc" id="L1558">            byte[] key = null;</span>
+<span class="pc bpc" id="L1559" title="1 of 2 branches missed.">            if (result.next()) {</span>
+<span class="fc" id="L1560">                key = result.getBytes(DBConnector.tokenPskColumn);</span>
+            }
+<span class="fc" id="L1562">            result.close();</span>
+<span class="fc bfc" id="L1563" title="All 2 branches covered.">            if (key != null) {</span>
+<span class="fc" id="L1564">                CBORObject cKey = CBORObject.DecodeFromBytes(key);</span>
+<span class="fc" id="L1565">                return new OneKey(cKey);</span>
+            }
+<span class="fc" id="L1567">            return null;</span>
+<span class="nc" id="L1568">        } catch (SQLException | CoseException e) {</span>
+<span class="nc" id="L1569">            throw new AceException(e.getMessage());</span>
+        }
+    }
+    
+
+    @Override
+    public OneKey getRsAuthPSK(String rsId) throws AceException {
+<span class="pc bpc" id="L1576" title="1 of 2 branches missed.">        if (rsId == null) {</span>
+<span class="nc" id="L1577">            throw new AceException(</span>
+                    &quot;getRsPSK() requires non-null rsId&quot;);
+        }
+        try {
+<span class="fc" id="L1581">            this.selectRsAuthPSK.setString(1, rsId);</span>
+<span class="fc" id="L1582">            ResultSet result = this.selectRsAuthPSK.executeQuery();</span>
+<span class="fc" id="L1583">            this.selectRsAuthPSK.clearParameters();</span>
+<span class="fc" id="L1584">            byte[] key = null;</span>
+<span class="pc bpc" id="L1585" title="1 of 2 branches missed.">            if (result.next()) {</span>
+<span class="fc" id="L1586">                key = result.getBytes(DBConnector.authPskColumn);</span>
+            }
+<span class="fc" id="L1588">            result.close();</span>
+<span class="pc bpc" id="L1589" title="1 of 2 branches missed.">            if (key != null) {</span>
+<span class="fc" id="L1590">                CBORObject cKey = CBORObject.DecodeFromBytes(key);</span>
+<span class="fc" id="L1591">                return new OneKey(cKey);</span>
+            }
+<span class="nc" id="L1593">            return null;</span>
+<span class="nc" id="L1594">        } catch (SQLException | CoseException e) {</span>
+<span class="nc" id="L1595">            throw new AceException(e.getMessage());</span>
+        }
+    }
+
+    @Override
+    public synchronized OneKey getRsRPK(String rsId) throws AceException {
+<span class="pc bpc" id="L1601" title="1 of 2 branches missed.">        if (rsId == null) {</span>
+<span class="nc" id="L1602">            throw new AceException(</span>
+                    &quot;getRsRPK() requires non-null rsId&quot;);
+        }
+        try {
+<span class="fc" id="L1606">            this.selectRsRPK.setString(1, rsId);</span>
+<span class="fc" id="L1607">            ResultSet result = this.selectRsRPK.executeQuery();</span>
+<span class="fc" id="L1608">            this.selectRsRPK.clearParameters();</span>
+<span class="fc" id="L1609">            byte[] key = null;</span>
+<span class="pc bpc" id="L1610" title="1 of 2 branches missed.">            if (result.next()) {</span>
+<span class="fc" id="L1611">                key = result.getBytes(DBConnector.rpkColumn);</span>
+            }
+<span class="fc" id="L1613">            result.close();</span>
+<span class="fc bfc" id="L1614" title="All 2 branches covered.">            if (key != null) {</span>
+<span class="fc" id="L1615">                CBORObject cKey = CBORObject.DecodeFromBytes(key);</span>
+<span class="fc" id="L1616">                return new OneKey(cKey);</span>
+            }
+<span class="fc" id="L1618">            return null;</span>
+<span class="nc" id="L1619">        } catch (SQLException | CoseException e) {</span>
+<span class="nc" id="L1620">            throw new AceException(e.getMessage());</span>
+        }
+    }
+    
+    @Override
+    public synchronized OneKey getCPSK(String clientId) throws AceException {
+<span class="pc bpc" id="L1626" title="1 of 2 branches missed.">        if (clientId == null) {</span>
+<span class="nc" id="L1627">            throw new AceException(</span>
+                    &quot;getCPSK() requires non-null clientId&quot;);
+        }
+        try {
+<span class="fc" id="L1631">            this.selectCPSK.setString(1, clientId);</span>
+<span class="fc" id="L1632">            ResultSet result = this.selectCPSK.executeQuery();</span>
+<span class="fc" id="L1633">            this.selectCPSK.clearParameters();</span>
+<span class="fc" id="L1634">            byte[] key = null;</span>
+<span class="fc bfc" id="L1635" title="All 2 branches covered.">            if (result.next()) {</span>
+<span class="fc" id="L1636">                key = result.getBytes(DBConnector.authPskColumn);</span>
+            }
+<span class="fc" id="L1638">            result.close();</span>
+<span class="fc bfc" id="L1639" title="All 2 branches covered.">            if (key != null) {</span>
+<span class="fc" id="L1640">                CBORObject cKey = CBORObject.DecodeFromBytes(key);</span>
+<span class="fc" id="L1641">                return new OneKey(cKey);</span>
+            }
+<span class="fc" id="L1643">            return null;   </span>
+<span class="nc" id="L1644">        } catch (SQLException | CoseException e) {</span>
+<span class="nc" id="L1645">            throw new AceException(e.getMessage());</span>
+        }
+    }
+
+    @Override
+    public synchronized OneKey getCRPK(String clientId) throws AceException {
+<span class="pc bpc" id="L1651" title="1 of 2 branches missed.">        if (clientId == null) {</span>
+<span class="nc" id="L1652">            throw new AceException(</span>
+                    &quot;getCRPK() requires non-null clientId&quot;);
+        }
+        try {
+<span class="fc" id="L1656">            this.selectCRPK.setString(1, clientId);</span>
+<span class="fc" id="L1657">            ResultSet result = this.selectCRPK.executeQuery();</span>
+<span class="fc" id="L1658">            this.selectCRPK.clearParameters();</span>
+<span class="fc" id="L1659">            byte[] key = null;</span>
+<span class="pc bpc" id="L1660" title="1 of 2 branches missed.">            if (result.next()) {</span>
+<span class="fc" id="L1661">                key = result.getBytes(DBConnector.rpkColumn);</span>
+            }
+<span class="fc" id="L1663">            result.close();</span>
+<span class="fc bfc" id="L1664" title="All 2 branches covered.">            if (key != null) {</span>
+<span class="fc" id="L1665">                CBORObject cKey = CBORObject.DecodeFromBytes(key);</span>
+<span class="fc" id="L1666">                return new OneKey(cKey);</span>
+            }
+<span class="fc" id="L1668">            return null;</span>
+<span class="nc" id="L1669">        } catch (SQLException | CoseException e) {</span>
+<span class="nc" id="L1670">            throw new AceException(e.getMessage());</span>
+        }
+    }
+
+    @Override
+    public synchronized void addRS(String rsId, Set&lt;String&gt; profiles, 
+            Set&lt;String&gt; scopes, Set&lt;String&gt; auds, Set&lt;String&gt; keyTypes, 
+            Set&lt;Short&gt; tokenTypes, Set&lt;COSEparams&gt; cose, long expiration, 
+            OneKey authPsk, OneKey tokenPsk, OneKey publicKey)
+                    throws AceException {
+       
+<span class="pc bpc" id="L1681" title="2 of 4 branches missed.">        if (rsId == null || rsId.isEmpty()) {</span>
+<span class="nc" id="L1682">            throw new AceException(&quot;RS must have non-null, non-empty identifier&quot;);</span>
+        }
+        
+<span class="fc bfc" id="L1685" title="All 4 branches covered.">        if (tokenPsk == null &amp;&amp; publicKey == null) {</span>
+<span class="fc" id="L1686">            throw new AceException(&quot;Cannot register a RS without a key for&quot;</span>
+                    +&quot; protecting tokens&quot;);
+        }
+        
+<span class="pc bpc" id="L1690" title="1 of 2 branches missed.">        if (profiles.isEmpty()) {</span>
+<span class="nc" id="L1691">            throw new AceException(&quot;RS must support at least one profile&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L1694" title="1 of 2 branches missed.">        if (tokenTypes.isEmpty()) {</span>
+<span class="nc" id="L1695">            throw new AceException(&quot;RS must support at least one token type&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L1698" title="1 of 2 branches missed.">        if (keyTypes.isEmpty()) {</span>
+<span class="nc" id="L1699">            throw new AceException(&quot;RS must support at least one PoP key type&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L1702" title="1 of 2 branches missed.">        if (expiration &lt;= 0L) {</span>
+<span class="nc" id="L1703">            throw new AceException(&quot;RS must have default expiration time &gt; 0&quot;);</span>
+        }       
+        
+        // Prevent adding an rs that has an identifier that is equal to an 
+        // existing audience
+        try {
+<span class="fc" id="L1709">            this.selectRS.setString(1, rsId);</span>
+<span class="fc" id="L1710">            ResultSet result = this.selectRS.executeQuery();</span>
+<span class="fc" id="L1711">            this.selectRS.clearParameters();</span>
+<span class="pc bpc" id="L1712" title="1 of 2 branches missed.">            if (result.next()) {</span>
+<span class="nc" id="L1713">                result.close();</span>
+<span class="nc" id="L1714">                throw new AceException(</span>
+                        &quot;RsId equal to existing audience id: &quot; + rsId);
+            }
+<span class="fc" id="L1717">            result.close();</span>
+           
+<span class="fc" id="L1719">            this.insertRS.setString(1, rsId);</span>
+<span class="fc" id="L1720">            this.insertRS.setLong(2, expiration);</span>
+<span class="fc bfc" id="L1721" title="All 2 branches covered.">            if (tokenPsk != null) {</span>
+<span class="fc" id="L1722">                this.insertRS.setBytes(3, tokenPsk.EncodeToBytes());</span>
+            } else {
+<span class="fc" id="L1724">                this.insertRS.setBytes(3, null);</span>
+            }
+            
+<span class="fc bfc" id="L1727" title="All 2 branches covered.">            if (authPsk != null) {</span>
+<span class="fc" id="L1728">                this.insertRS.setBytes(4, authPsk.EncodeToBytes());</span>
+            } else {
+<span class="fc" id="L1730">                this.insertRS.setBytes(4, null);</span>
+            }
+
+<span class="fc bfc" id="L1733" title="All 2 branches covered.">            if (publicKey != null) {</span>
+<span class="fc" id="L1734">                this.insertRS.setBytes(5, publicKey.EncodeToBytes());</span>
+            } else {
+<span class="fc" id="L1736">                this.insertRS.setBytes(5, null);</span>
+            }
+            
+            // Initialize to 0 the sequence number to use when
+            // issuing to this RS tokens with the 'exi' claim
+<span class="fc" id="L1741">            this.insertRS.setInt(6, 0);</span>
+            
+<span class="fc" id="L1743">            this.insertRS.execute();</span>
+<span class="fc" id="L1744">            this.insertRS.clearParameters();</span>
+            
+<span class="fc bfc" id="L1746" title="All 2 branches covered.">            for (String profile : profiles) {</span>
+<span class="fc" id="L1747">                this.insertProfile.setString(1, rsId);</span>
+<span class="fc" id="L1748">                this.insertProfile.setString(2, profile);</span>
+<span class="fc" id="L1749">                this.insertProfile.execute();</span>
+<span class="fc" id="L1750">            }</span>
+<span class="fc" id="L1751">            this.insertProfile.clearParameters();</span>
+            
+<span class="fc bfc" id="L1753" title="All 2 branches covered.">            for (String scope : scopes) {</span>
+<span class="fc" id="L1754">                this.insertScope.setString(1, rsId);</span>
+<span class="fc" id="L1755">                this.insertScope.setString(2, scope);</span>
+<span class="fc" id="L1756">                this.insertScope.execute();</span>
+<span class="fc" id="L1757">            }</span>
+<span class="fc" id="L1758">            this.insertScope.clearParameters();</span>
+            
+<span class="fc bfc" id="L1760" title="All 2 branches covered.">            for (String aud : auds) {</span>
+<span class="fc" id="L1761">                this.insertAudience.setString(1, rsId);</span>
+<span class="fc" id="L1762">                this.insertAudience.setString(2, aud);</span>
+<span class="fc" id="L1763">                this.insertAudience.execute();</span>
+<span class="fc" id="L1764">            }</span>
+<span class="fc" id="L1765">            this.insertAudience.clearParameters();</span>
+            
+            //The RS always recognizes itself as a singleton audience
+<span class="fc" id="L1768">            this.insertAudience.setString(1, rsId);</span>
+<span class="fc" id="L1769">            this.insertAudience.setString(2, rsId);</span>
+<span class="fc" id="L1770">            this.insertAudience.execute();</span>
+<span class="fc" id="L1771">            this.insertAudience.clearParameters();</span>
+            
+<span class="fc bfc" id="L1773" title="All 2 branches covered.">            for (String keyType : keyTypes) {</span>
+<span class="fc" id="L1774">                this.insertKeyType.setString(1, rsId);</span>
+<span class="fc" id="L1775">                this.insertKeyType.setString(2, keyType);</span>
+<span class="fc" id="L1776">                this.insertKeyType.execute();</span>
+<span class="fc" id="L1777">            }</span>
+<span class="fc" id="L1778">            this.insertKeyType.clearParameters();</span>
+            
+<span class="fc bfc" id="L1780" title="All 2 branches covered.">            for (short tokenType : tokenTypes) {</span>
+<span class="fc" id="L1781">                this.insertTokenType.setString(1, rsId);</span>
+<span class="fc" id="L1782">                this.insertTokenType.setString(2, </span>
+                        AccessTokenFactory.ABBREV[tokenType]);
+<span class="fc" id="L1784">                this.insertTokenType.execute();</span>
+<span class="fc" id="L1785">            }</span>
+<span class="fc" id="L1786">            this.insertTokenType.clearParameters();</span>
+            
+<span class="fc bfc" id="L1788" title="All 2 branches covered.">            for (COSEparams coseP : cose) {</span>
+<span class="fc" id="L1789">                this.insertCose.setString(1, rsId);</span>
+<span class="fc" id="L1790">                this.insertCose.setString(2, coseP.toString());</span>
+<span class="fc" id="L1791">                this.insertCose.execute();</span>
+<span class="fc" id="L1792">            }</span>
+<span class="fc" id="L1793">            this.insertCose.clearParameters();</span>
+<span class="nc" id="L1794">        } catch (SQLException e) {</span>
+<span class="nc" id="L1795">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1796">        }</span>
+<span class="fc" id="L1797">    }</span>
+    
+    @Override
+    public void addOSCOREGroupManagers(String rsId, Set&lt;String&gt; auds) throws AceException {
+<span class="pc bpc" id="L1801" title="2 of 4 branches missed.">    	if (rsId == null || rsId.isEmpty()) {</span>
+<span class="nc" id="L1802">            throw new AceException(&quot;RS must have non-null, non-empty identifier&quot;);</span>
+        }
+    	
+    	// Prevent adding an rs that has an identifier that is equal to an 
+        // existing audience
+        try {
+<span class="fc" id="L1808">        	this.selectOSCOREGroupManagers.setString(1, rsId);</span>
+<span class="fc" id="L1809">        	ResultSet result = this.selectOSCOREGroupManagers.executeQuery();</span>
+<span class="fc" id="L1810">        	this.selectOSCOREGroupManagers.clearParameters();</span>
+<span class="pc bpc" id="L1811" title="1 of 2 branches missed.">        	if (result.next()) {</span>
+<span class="nc" id="L1812">        		result.close();</span>
+<span class="nc" id="L1813">        		throw new AceException(</span>
+        				&quot;RsId equal to existing audience id: &quot; + rsId);
+        	}
+<span class="fc" id="L1816">        	result.close();</span>
+        	
+<span class="fc bfc" id="L1818" title="All 2 branches covered.">        	for (String aud : auds) {</span>
+<span class="fc" id="L1819">                this.insertOSCOREGroupManager.setString(1, rsId);</span>
+<span class="fc" id="L1820">                this.insertOSCOREGroupManager.setString(2, aud);</span>
+<span class="fc" id="L1821">                this.insertOSCOREGroupManager.execute();</span>
+<span class="fc" id="L1822">            }</span>
+<span class="fc" id="L1823">            this.insertAudience.clearParameters();</span>
+            
+            //The RS always recognizes itself as a singleton audience
+<span class="fc" id="L1826">            this.insertOSCOREGroupManager.setString(1, rsId);</span>
+<span class="fc" id="L1827">            this.insertOSCOREGroupManager.setString(2, rsId);</span>
+<span class="fc" id="L1828">            this.insertOSCOREGroupManager.execute();</span>
+<span class="fc" id="L1829">            this.insertOSCOREGroupManager.clearParameters();</span>
+        	
+<span class="nc" id="L1831">        } catch (SQLException e) {</span>
+<span class="nc" id="L1832">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1833">        }</span>
+    	
+<span class="fc" id="L1835">    }</span>
+
+    @Override
+    public synchronized void deleteRS(String rsId) throws AceException {
+<span class="pc bpc" id="L1839" title="1 of 2 branches missed.">        if (rsId == null) {</span>
+<span class="nc" id="L1840">            throw new AceException(&quot;deleteRS() requires non-null rsId&quot;);</span>
+        }
+        try {
+<span class="fc" id="L1843">            this.deleteRS.setString(1, rsId);</span>
+<span class="fc" id="L1844">            this.deleteRS.execute();</span>
+<span class="fc" id="L1845">            this.deleteRS.clearParameters();</span>
+
+<span class="fc" id="L1847">            this.deleteProfiles.setString(1, rsId);</span>
+<span class="fc" id="L1848">            this.deleteProfiles.execute();</span>
+<span class="fc" id="L1849">            this.deleteProfiles.clearParameters();</span>
+
+<span class="fc" id="L1851">            this.deleteScopes.setString(1, rsId);</span>
+<span class="fc" id="L1852">            this.deleteScopes.execute();</span>
+<span class="fc" id="L1853">            this.deleteScopes.clearParameters();</span>
+
+<span class="fc" id="L1855">            this.deleteAudiences.setString(1, rsId);</span>
+<span class="fc" id="L1856">            this.deleteAudiences.execute();</span>
+<span class="fc" id="L1857">            this.deleteAudiences.clearParameters();</span>
+
+<span class="fc" id="L1859">            this.deleteOSCOREGroupManagers.setString(1,  rsId);</span>
+<span class="fc" id="L1860">            this.deleteOSCOREGroupManagers.execute();</span>
+<span class="fc" id="L1861">            this.deleteOSCOREGroupManagers.clearParameters();</span>
+            
+<span class="fc" id="L1863">            this.deleteKeyTypes.setString(1, rsId);</span>
+<span class="fc" id="L1864">            this.deleteKeyTypes.execute();</span>
+<span class="fc" id="L1865">            this.deleteKeyTypes.clearParameters();</span>
+
+<span class="fc" id="L1867">            this.deleteTokenTypes.setString(1, rsId);</span>
+<span class="fc" id="L1868">            this.deleteTokenTypes.execute();</span>
+<span class="fc" id="L1869">            this.deleteTokenTypes.clearParameters();    </span>
+
+<span class="fc" id="L1871">            this.deleteCose.setString(1, rsId);</span>
+<span class="fc" id="L1872">            this.deleteCose.execute();</span>
+<span class="fc" id="L1873">            this.deleteCose.clearParameters();</span>
+<span class="nc" id="L1874">        } catch (SQLException e) {</span>
+<span class="nc" id="L1875">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1876">        }</span>
+<span class="fc" id="L1877">    }</span>
+
+    @Override
+    public synchronized void addClient(String clientId, Set&lt;String&gt; profiles,
+            String defaultScope, String defaultAud, Set&lt;String&gt; keyTypes,
+            OneKey sharedKey, OneKey publicKey) 
+                    throws AceException {   
+<span class="pc bpc" id="L1884" title="2 of 4 branches missed.">        if (clientId == null || clientId.isEmpty()) {</span>
+<span class="nc" id="L1885">            throw new AceException(</span>
+                    &quot;Client must have non-null, non-empty identifier&quot;);
+        }
+        
+<span class="pc bpc" id="L1889" title="1 of 4 branches missed.">        if (profiles == null || profiles.isEmpty()) {</span>
+<span class="fc" id="L1890">            throw new AceException(&quot;Client must support at least one profile&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L1893" title="1 of 2 branches missed.">        if (keyTypes.isEmpty()) {</span>
+<span class="nc" id="L1894">            throw new AceException(</span>
+                    &quot;Client must support at least one PoP key type&quot;);
+        }
+        
+<span class="pc bpc" id="L1898" title="1 of 4 branches missed.">        if (sharedKey == null &amp;&amp; publicKey == null) {</span>
+<span class="nc" id="L1899">            throw new AceException(&quot;Cannot register a client without a key&quot;);</span>
+        }
+
+        try {
+<span class="fc" id="L1903">            this.insertClient.setString(1, clientId);</span>
+<span class="fc" id="L1904">            this.insertClient.setString(2, defaultAud);</span>
+<span class="fc" id="L1905">            this.insertClient.setString(3, defaultScope);</span>
+<span class="fc bfc" id="L1906" title="All 2 branches covered.">            if (sharedKey != null) {</span>
+<span class="fc" id="L1907">                this.insertClient.setBytes(4, sharedKey.EncodeToBytes());</span>
+            } else {
+<span class="fc" id="L1909">                this.insertClient.setBytes(4, null);</span>
+            }
+<span class="fc bfc" id="L1911" title="All 2 branches covered.">            if (publicKey != null) {</span>
+<span class="fc" id="L1912">                this.insertClient.setBytes(5, publicKey.EncodeToBytes());</span>
+            } else {
+<span class="fc" id="L1914">                this.insertClient.setBytes(5, null);</span>
+            }
+<span class="fc" id="L1916">            this.insertClient.execute();</span>
+<span class="fc" id="L1917">            this.insertClient.clearParameters();</span>
+
+<span class="fc bfc" id="L1919" title="All 2 branches covered.">            for (String profile : profiles) {</span>
+<span class="fc" id="L1920">                this.insertProfile.setString(1, clientId);</span>
+<span class="fc" id="L1921">                this.insertProfile.setString(2, profile);</span>
+<span class="fc" id="L1922">                this.insertProfile.execute();</span>
+<span class="fc" id="L1923">            }</span>
+<span class="fc" id="L1924">            this.insertProfile.clearParameters();</span>
+
+<span class="fc bfc" id="L1926" title="All 2 branches covered.">            for (String keyType : keyTypes) {</span>
+<span class="fc" id="L1927">                this.insertKeyType.setString(1, clientId);</span>
+<span class="fc" id="L1928">                this.insertKeyType.setString(2, keyType);</span>
+<span class="fc" id="L1929">                this.insertKeyType.execute();</span>
+<span class="fc" id="L1930">            }</span>
+<span class="fc" id="L1931">            this.insertKeyType.clearParameters();</span>
+<span class="nc" id="L1932">        } catch (SQLException e) {</span>
+<span class="nc" id="L1933">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1934">        }</span>
+<span class="fc" id="L1935">    }</span>
+
+    @Override
+    public synchronized void deleteClient(String clientId) throws AceException {
+<span class="pc bpc" id="L1939" title="1 of 2 branches missed.">        if (clientId == null) {</span>
+<span class="nc" id="L1940">            throw new AceException(</span>
+                    &quot;deleteClient() requires non-null clientId&quot;);
+        }
+        try {
+<span class="fc" id="L1944">            this.deleteClient.setString(1, clientId);</span>
+<span class="fc" id="L1945">            this.deleteClient.execute();</span>
+<span class="fc" id="L1946">            this.deleteClient.clearParameters();</span>
+
+<span class="fc" id="L1948">            this.deleteProfiles.setString(1, clientId);</span>
+<span class="fc" id="L1949">            this.deleteProfiles.execute();</span>
+<span class="fc" id="L1950">            this.deleteProfiles.clearParameters();</span>
+
+<span class="fc" id="L1952">            this.deleteKeyTypes.setString(1, clientId);</span>
+<span class="fc" id="L1953">            this.deleteKeyTypes.execute();</span>
+<span class="fc" id="L1954">            this.deleteKeyTypes.clearParameters(); </span>
+<span class="nc" id="L1955">        } catch (SQLException e) {</span>
+<span class="nc" id="L1956">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1957">        }   </span>
+<span class="fc" id="L1958">    }</span>
+    
+    @Override
+    public synchronized void addToken(String cti, 
+            Map&lt;Short, CBORObject&gt; claims) throws AceException {
+<span class="pc bpc" id="L1963" title="2 of 4 branches missed.">        if (cti == null || cti.isEmpty()) {</span>
+<span class="nc" id="L1964">            throw new AceException(</span>
+                    &quot;addToken() requires non-null, non-empty cti&quot;);
+        }
+<span class="pc bpc" id="L1967" title="2 of 4 branches missed.">        if (claims == null || claims.isEmpty()) {</span>
+<span class="nc" id="L1968">            throw new AceException(</span>
+                    &quot;addToken() requires at least one claim&quot;);
+        }
+        try {
+<span class="fc bfc" id="L1972" title="All 2 branches covered.">            for (Map.Entry&lt;Short, CBORObject&gt; claim : claims.entrySet()) {</span>
+<span class="fc" id="L1973">                this.insertClaim.setString(1, cti);</span>
+<span class="fc" id="L1974">                this.insertClaim.setShort(2, claim.getKey());</span>
+<span class="fc" id="L1975">                this.insertClaim.setBytes(3, claim.getValue().EncodeToBytes());</span>
+<span class="fc" id="L1976">                this.insertClaim.execute();</span>
+<span class="fc" id="L1977">            }</span>
+<span class="fc" id="L1978">            this.insertClaim.clearParameters();</span>
+<span class="nc" id="L1979">        } catch (SQLException e) {</span>
+<span class="nc" id="L1980">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1981">        }       </span>
+<span class="fc" id="L1982">    }</span>
+
+    @Override
+    public synchronized void deleteToken(String cti) throws AceException {
+<span class="pc bpc" id="L1986" title="1 of 2 branches missed.">        if (cti == null) {</span>
+<span class="nc" id="L1987">            throw new AceException(&quot;deleteToken() requires non-null cti&quot;);</span>
+        }
+        try {
+<span class="fc" id="L1990">            this.logInvalidToken.setString(1, cti);</span>
+<span class="fc" id="L1991">            this.logInvalidToken.execute();</span>
+<span class="fc" id="L1992">            this.logInvalidToken.clearParameters();</span>
+<span class="fc" id="L1993">            this.deleteClaims.setString(1, cti);</span>
+<span class="fc" id="L1994">            this.deleteClaims.execute();</span>
+<span class="fc" id="L1995">            this.deleteClaims.clearParameters();</span>
+<span class="nc" id="L1996">        } catch (SQLException e) {</span>
+<span class="nc" id="L1997">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L1998">        }   </span>
+<span class="fc" id="L1999">    }</span>
+
+    @Override
+    public synchronized void purgeExpiredTokens(long now) throws AceException {
+        try {
+<span class="fc" id="L2004">            ResultSet result = this.selectExpirationTime.executeQuery();</span>
+<span class="fc bfc" id="L2005" title="All 2 branches covered.">            while (result.next()) {</span>
+<span class="fc" id="L2006">                byte[] rawTime = result.getBytes(DBConnector.claimValueColumn);</span>
+<span class="fc" id="L2007">                CBORObject cborTime = CBORObject.DecodeFromBytes(rawTime);</span>
+<span class="fc" id="L2008">                long time = cborTime.AsNumber().ToInt64Checked();</span>
+<span class="fc bfc" id="L2009" title="All 2 branches covered.">                if (now &gt; time) {</span>
+<span class="fc" id="L2010">                    deleteToken(result.getString(DBConnector.ctiColumn));</span>
+                }
+<span class="fc" id="L2012">            }</span>
+<span class="fc" id="L2013">            result.close();</span>
+<span class="nc" id="L2014">        } catch (SQLException e) {</span>
+<span class="nc" id="L2015">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2016">        } </span>
+<span class="fc" id="L2017">    }</span>
+
+    @Override
+    public synchronized Map&lt;Short, CBORObject&gt; getClaims(String cti) 
+            throws AceException {
+<span class="pc bpc" id="L2022" title="1 of 2 branches missed.">        if (cti == null) {</span>
+<span class="nc" id="L2023">            throw new AceException(&quot;getClaims() requires non-null cti&quot;);</span>
+        }
+<span class="fc" id="L2025">        Map&lt;Short, CBORObject&gt; claims = new HashMap&lt;&gt;();</span>
+        try {
+<span class="fc" id="L2027">            this.selectClaims.setString(1, cti);</span>
+<span class="fc" id="L2028">            ResultSet result = this.selectClaims.executeQuery();</span>
+<span class="fc" id="L2029">            this.selectClaims.clearParameters();</span>
+<span class="fc bfc" id="L2030" title="All 2 branches covered.">            while (result.next()) {</span>
+<span class="fc" id="L2031">                Short claimName </span>
+<span class="fc" id="L2032">                    = result.getShort(DBConnector.claimNameColumn);</span>
+<span class="fc" id="L2033">                CBORObject cbor = CBORObject.DecodeFromBytes(</span>
+<span class="fc" id="L2034">                        result.getBytes(DBConnector.claimValueColumn));</span>
+<span class="fc" id="L2035">                claims.put(claimName, cbor);</span>
+<span class="fc" id="L2036">            }</span>
+<span class="fc" id="L2037">            result.close();</span>
+<span class="nc" id="L2038">        } catch (SQLException e) {</span>
+<span class="nc" id="L2039">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2040">        } </span>
+<span class="fc" id="L2041">        return claims;</span>
+    }
+
+    @Override
+    public synchronized Long getCtiCounter() throws AceException {
+<span class="fc" id="L2046">        Long l = -1L;</span>
+        try {
+<span class="fc" id="L2048">            ResultSet result = this.selectCtiCtr.executeQuery();</span>
+<span class="pc bpc" id="L2049" title="1 of 2 branches missed.">            if (result.next()) {</span>
+<span class="fc" id="L2050">                l = result.getLong(DBConnector.ctiCounterColumn);</span>
+            }
+<span class="fc" id="L2052">            result.close();</span>
+<span class="nc" id="L2053">        } catch (SQLException e) {</span>
+<span class="nc" id="L2054">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2055">        }</span>
+<span class="fc" id="L2056">        return l;</span>
+    }
+
+    @Override
+    public synchronized void saveCtiCounter(Long cti) throws AceException {
+        try {
+<span class="fc" id="L2062">            this.updateCtiCtr.setLong(1, cti);</span>
+<span class="fc" id="L2063">            this.updateCtiCtr.execute();</span>
+<span class="fc" id="L2064">            this.updateCtiCtr.clearParameters();</span>
+<span class="nc" id="L2065">        } catch (SQLException e) {</span>
+<span class="nc" id="L2066">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2067">        }    </span>
+<span class="fc" id="L2068">    }</span>
+    
+    @Override
+    public synchronized int getExiSequenceNumber(String rsId) throws AceException {
+<span class="fc" id="L2072">        int sn = -1;</span>
+        try {
+<span class="fc" id="L2074">        	this.selectExiSn.setString(1, rsId);</span>
+<span class="fc" id="L2075">            ResultSet result = this.selectExiSn.executeQuery();</span>
+<span class="pc bpc" id="L2076" title="1 of 2 branches missed.">            if (result.next()) {</span>
+<span class="fc" id="L2077">                sn = result.getInt(DBConnector.exiSeqNumColumn);</span>
+            }
+<span class="fc" id="L2079">            result.close();</span>
+<span class="nc" id="L2080">        } catch (SQLException e) {</span>
+<span class="nc" id="L2081">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2082">        }</span>
+<span class="fc" id="L2083">        return sn;</span>
+    }
+    
+    @Override
+    public synchronized void saveExiSequenceNumber(int sn, String rsId) throws AceException {
+        try {
+<span class="fc" id="L2089">            this.updateExiSn.setInt(1, sn);</span>
+<span class="fc" id="L2090">            this.updateExiSn.setString(2, rsId);</span>
+<span class="fc" id="L2091">            this.updateExiSn.execute();</span>
+<span class="fc" id="L2092">            this.updateExiSn.clearParameters();</span>
+<span class="nc" id="L2093">        } catch (SQLException e) {</span>
+<span class="nc" id="L2094">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2095">        }    </span>
+<span class="fc" id="L2096">    }</span>
+    
+    /**
+     * Creates the user that manages this database.
+     *
+	 * @param dbAdapter an adapter instance for the specific DB type being used.
+     * @param adminUser  the database admin user name
+     * @param adminPwd  the database admin password
+     *
+     * @throws AceException 
+     */
+    public synchronized static void createUser(SQLDBAdapter dbAdapter, String adminUser, String adminPwd) throws AceException {
+<span class="fc" id="L2108">		dbAdapter.createUser(adminUser, adminPwd);</span>
+<span class="fc" id="L2109">    }</span>
+    
+    @Override
+    public synchronized void addCti2Peers(String cti, String clientId, Set&lt;String&gt; rsIds)
+            throws AceException {
+<span class="pc bpc" id="L2114" title="3 of 6 branches missed.">        if (cti == null || clientId == null || rsIds == null) {</span>
+<span class="nc" id="L2115">            throw new AceException(</span>
+                    &quot;addCti2Peers() requires non-null parameters&quot;);
+        }
+        try {
+<span class="fc" id="L2119">			String rsIdsStr = String.join(&quot;,&quot;, rsIds);</span>
+
+<span class="fc" id="L2121">            this.insertCti2Peers.setString(1, cti);</span>
+<span class="fc" id="L2122">            this.insertCti2Peers.setString(2, clientId);</span>
+<span class="fc" id="L2123">			this.insertCti2Peers.setString(3, rsIdsStr);</span>
+<span class="fc" id="L2124">			this.insertCti2Peers.execute();</span>
+<span class="fc" id="L2125">            this.insertCti2Peers.clearParameters();</span>
+<span class="fc" id="L2126">        } catch (SQLException e) {</span>
+<span class="fc" id="L2127">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2128">        }</span>
+<span class="fc" id="L2129">    }</span>
+
+	@Override
+	public synchronized Set&lt;String&gt; getClients() throws AceException {
+<span class="fc" id="L2133">		Set&lt;String&gt; clients = new HashSet&lt;&gt;();</span>
+		try {
+<span class="fc" id="L2135">			ResultSet result = this.selectAllClients.executeQuery();</span>
+<span class="fc bfc" id="L2136" title="All 2 branches covered.">			while (result.next()) {</span>
+<span class="fc" id="L2137">				clients.add(result.getString(DBConnector.clientIdColumn));</span>
+			}
+<span class="fc" id="L2139">			result.close();</span>
+<span class="nc" id="L2140">		} catch (SQLException e) {</span>
+<span class="nc" id="L2141">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2142">		}</span>
+<span class="fc" id="L2143">		return clients;</span>
+	}
+
+    @Override
+    public synchronized String getClient4Cti(String cti) throws AceException {
+<span class="pc bpc" id="L2148" title="1 of 2 branches missed.">        if (cti == null) {</span>
+<span class="nc" id="L2149">            throw new AceException(&quot;getClient4Cti() requires non-null cti&quot;);</span>
+        }
+        try {
+<span class="fc" id="L2152">            this.selectClientByCti.setString(1, cti);</span>
+<span class="fc" id="L2153">            ResultSet result = this.selectClientByCti.executeQuery();</span>
+<span class="fc" id="L2154">            this.selectClientByCti.clearParameters();</span>
+<span class="fc bfc" id="L2155" title="All 2 branches covered.">            if (result.next()) {</span>
+<span class="fc" id="L2156">				String clientId = result.getString(DBConnector.clientIdColumn);</span>
+<span class="fc" id="L2157">                result.close();</span>
+<span class="fc" id="L2158">                return clientId;</span>
+            }
+<span class="fc" id="L2160">            result.close();</span>
+<span class="nc" id="L2161">        } catch (SQLException e) {</span>
+<span class="nc" id="L2162">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2163">        }</span>
+<span class="fc" id="L2164">        return null;</span>
+    }
+
+
+    @Override
+    public synchronized Set&lt;String&gt; getCtis4Client(String clientId)
+            throws AceException {
+<span class="pc bpc" id="L2171" title="1 of 2 branches missed.">        if (clientId == null) {</span>
+<span class="nc" id="L2172">            throw new AceException(</span>
+                    &quot;getCtis4Client() requires non-null clientId&quot;);
+        }
+<span class="fc" id="L2175">        Set&lt;String&gt; ctis = new HashSet&lt;&gt;();</span>
+        try {
+<span class="fc" id="L2177">            this.selectCtisByClient.setString(1, clientId);</span>
+<span class="fc" id="L2178">            ResultSet result = this.selectCtisByClient.executeQuery();</span>
+<span class="fc" id="L2179">            this.selectCtisByClient.clearParameters();</span>
+<span class="fc bfc" id="L2180" title="All 2 branches covered.">            while (result.next()) {</span>
+<span class="fc" id="L2181">                ctis.add(result.getString(DBConnector.ctiColumn));      </span>
+            }
+<span class="fc" id="L2183">            result.close();</span>
+<span class="nc" id="L2184">        } catch (SQLException e) {</span>
+<span class="nc" id="L2185">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2186">        }</span>
+<span class="fc" id="L2187">        return ctis;</span>
+    }
+
+	/**
+	 * Get the resource servers identifiers that hold a given token
+	 * identified by its cti.
+	 *
+	 * @param cti  the cti of the token Base64 encoded
+	 * @return  the set of resource servers identifiers
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Set&lt;String&gt; getRss4Cti(String cti) throws AceException {
+<span class="pc bpc" id="L2200" title="1 of 2 branches missed.">		if (cti == null) {</span>
+<span class="nc" id="L2201">			throw new AceException(&quot;getRss4Cti() requires non-null cti&quot;);</span>
+		}
+		try {
+<span class="fc" id="L2204">			this.selectRssByCti.setString(1, cti);</span>
+<span class="fc" id="L2205">			ResultSet result = this.selectRssByCti.executeQuery();</span>
+<span class="fc" id="L2206">			this.selectRssByCti.clearParameters();</span>
+<span class="pc bpc" id="L2207" title="1 of 2 branches missed.">			if (result.next()) {</span>
+<span class="fc" id="L2208">				String rss = result.getString(DBConnector.rsIdsColumn);</span>
+<span class="fc" id="L2209">				result.close();</span>
+<span class="fc" id="L2210">				String[] values = rss.split(&quot;,&quot;);</span>
+<span class="fc" id="L2211">				Set&lt;String&gt; rsIds = new HashSet&lt;&gt;(Arrays.asList(values));</span>
+<span class="fc" id="L2212">				return rsIds;</span>
+			}
+<span class="nc" id="L2214">			result.close();</span>
+<span class="nc" id="L2215">		} catch (SQLException e) {</span>
+<span class="nc" id="L2216">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L2217">		}</span>
+<span class="nc" id="L2218">		return new HashSet&lt;String&gt;();</span>
+	}
+
+	/**
+	 * Get the token identifiers (cti) for a given resource server.
+	 *
+	 * @param rsId  the resource server identifier
+	 * @return a set of token identifiers Base64 encoded
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Set&lt;String&gt; getCtis4Rs(String rsId) throws AceException {
+<span class="nc bnc" id="L2230" title="All 2 branches missed.">		if (rsId == null) {</span>
+<span class="nc" id="L2231">			throw new AceException(&quot;getCtis4Rs() requires non-null rsId&quot;);}</span>
+
+<span class="nc" id="L2233">		Set&lt;String&gt; ctis = new HashSet&lt;&gt;();</span>
+		try {
+<span class="nc" id="L2235">			this.selectCtisByRs.setString(1, rsId); // first and only</span>
+<span class="nc" id="L2236">			this.selectCtisByRs.setString(2, rsId + &quot;,&quot;); // first of many</span>
+<span class="nc" id="L2237">			this.selectCtisByRs.setString(3, &quot;,&quot; + rsId + &quot;,&quot;); // middle</span>
+<span class="nc" id="L2238">			this.selectCtisByRs.setString(4, &quot;,&quot; + rsId); // last</span>
+<span class="nc" id="L2239">			ResultSet result = this.selectCtisByRs.executeQuery();</span>
+<span class="nc" id="L2240">			this.selectCtisByRs.clearParameters();</span>
+<span class="nc bnc" id="L2241" title="All 2 branches missed.">			while (result.next()) {</span>
+<span class="nc" id="L2242">				ctis.add(result.getString(DBConnector.ctiColumn));</span>
+			}
+<span class="nc" id="L2244">			result.close();</span>
+<span class="nc" id="L2245">		} catch (SQLException e) {</span>
+<span class="nc" id="L2246">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L2247">		}</span>
+<span class="nc" id="L2248">		return ctis;</span>
+	}
+
+	/**
+	 * Get the client and resource servers identifiers for given token
+	 * identified by its cti.
+	 *
+	 * @param cti  the cti of the token Base64 encoded
+	 * @return  the set of client and resource servers identifiers
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Set&lt;String&gt; getPeers4Cti(String cti) throws AceException {
+<span class="nc bnc" id="L2261" title="All 2 branches missed.">		if (cti == null) {</span>
+<span class="nc" id="L2262">			throw new AceException(&quot;getRss4Cti() requires non-null cti&quot;);</span>
+		}
+
+<span class="nc" id="L2265">		Set&lt;String&gt; peerIds = getRss4Cti(cti);</span>
+<span class="nc" id="L2266">		String clientId = getClient4Cti(cti);</span>
+<span class="nc bnc" id="L2267" title="All 2 branches missed.">		if (clientId != null)</span>
+<span class="nc" id="L2268">			peerIds.add(clientId);</span>
+
+<span class="nc" id="L2270">		return peerIds;</span>
+	}
+
+    @Override
+    public String getCti4Grant(String code) throws AceException {
+<span class="nc bnc" id="L2275" title="All 2 branches missed.">        if (code == null) {</span>
+<span class="nc" id="L2276">            throw new AceException(</span>
+                    &quot;getCti4Grant() requires non-null code&quot;);
+        }
+<span class="nc" id="L2279">        String cti = null;</span>
+        try {
+<span class="nc" id="L2281">            this.selectCtisByGrant.setString(1, code);</span>
+<span class="nc" id="L2282">            ResultSet result = this.selectCtisByGrant.executeQuery();</span>
+<span class="nc" id="L2283">            this.selectCtisByGrant.clearParameters();</span>
+<span class="nc bnc" id="L2284" title="All 2 branches missed.">            while (result.next()) {</span>
+<span class="nc" id="L2285">                cti = (result.getString(DBConnector.ctiColumn));</span>
+            }
+<span class="nc" id="L2287">            result.close();</span>
+<span class="nc" id="L2288">        } catch (SQLException e) {</span>
+<span class="nc" id="L2289">            throw new AceException(e.getMessage());</span>
+<span class="nc" id="L2290">        }</span>
+<span class="nc" id="L2291">        return cti;</span>
+    }
+
+    @Override
+    public void addGrant(String code, String cti, Map&lt;Short, CBORObject&gt; claims,
+            Map&lt;Short, CBORObject&gt; rsInfo) throws AceException {
+<span class="pc bpc" id="L2297" title="1 of 2 branches missed.">        if (code == null) {</span>
+<span class="nc" id="L2298">            throw new AceException(</span>
+                    &quot;getaddGrant() requires non-null code&quot;);
+        }
+<span class="pc bpc" id="L2301" title="1 of 2 branches missed.">        if (cti == null) {</span>
+<span class="nc" id="L2302">            throw new AceException(</span>
+                    &quot;getaddGrant() requires non-null cti&quot;);
+        }
+<span class="pc bpc" id="L2305" title="2 of 4 branches missed.">        if (claims == null || claims.isEmpty()) {</span>
+<span class="nc" id="L2306">            throw new AceException(</span>
+                    &quot;getaddGrant() requires non-null and non-empty&quot;
+                    + &quot; claims&quot;);
+        }
+<span class="pc bpc" id="L2310" title="2 of 4 branches missed.">        if (rsInfo == null || rsInfo.isEmpty()) {</span>
+<span class="nc" id="L2311">            throw new AceException(</span>
+                    &quot;getaddGrant() requires non-null and non-empty&quot;
+                    + &quot; rsInfo&quot;);
+        }
+        
+<span class="fc" id="L2316">        addToken(cti, claims);</span>
+        
+        try {
+<span class="fc" id="L2319">            this.insertGrant2Cti.setString(1, code);</span>
+<span class="fc" id="L2320">            this.insertGrant2Cti.setString(2, cti);</span>
+<span class="fc" id="L2321">            this.insertGrant2Cti.setBoolean(3, true);</span>
+<span class="fc" id="L2322">            this.insertGrant2Cti.execute();</span>
+<span class="fc" id="L2323">            this.insertGrant2Cti.clearParameters();</span>
+<span class="nc" id="L2324">        } catch (SQLException e) {</span>
+<span class="nc" id="L2325">            deleteToken(cti);</span>
+<span class="nc" id="L2326">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2327">        }   </span>
+
+        try {
+<span class="fc" id="L2330">            this.insertGrant2RsInfo.setString(1, code);  </span>
+<span class="fc bfc" id="L2331" title="All 2 branches covered.">            for (Map.Entry&lt;Short, CBORObject&gt; rsEntry : rsInfo.entrySet()) {  </span>
+<span class="fc" id="L2332">                this.insertGrant2RsInfo.setShort(2, rsEntry.getKey());</span>
+<span class="fc" id="L2333">                this.insertGrant2RsInfo.setBytes(3, rsEntry.getValue().EncodeToBytes());</span>
+<span class="fc" id="L2334">                this.insertGrant2RsInfo.execute();</span>
+<span class="fc" id="L2335">            }</span>
+<span class="fc" id="L2336">            this.insertGrant2RsInfo.clearParameters();        </span>
+<span class="nc" id="L2337">        } catch (SQLException e) {</span>
+<span class="nc" id="L2338">            deleteToken(cti);</span>
+            try {
+<span class="nc" id="L2340">                this.deleteGrant2Cti.setString(1, code);</span>
+<span class="nc" id="L2341">                this.deleteGrant2Cti.execute();</span>
+<span class="nc" id="L2342">                this.deleteGrant2Cti.clearParameters();</span>
+<span class="nc" id="L2343">            } catch (SQLException e2) {</span>
+<span class="nc" id="L2344">                throw new AceException(&quot;Error while tyring to roll-back an &quot;</span>
+<span class="nc" id="L2345">                        + &quot;addGrant(): &quot; + e2.getMessage());</span>
+<span class="nc" id="L2346">            }</span>
+<span class="nc" id="L2347">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2348">        }     </span>
+<span class="fc" id="L2349">    }</span>
+
+    @Override
+    public void useGrant(String code) throws AceException {
+<span class="pc bpc" id="L2353" title="1 of 2 branches missed.">        if (code == null) {</span>
+<span class="nc" id="L2354">            throw new AceException(</span>
+                    &quot;useGrant() requires non-null code&quot;);
+        }
+        try {
+<span class="fc" id="L2358">            this.updateGrant.setString(1, code);</span>
+<span class="fc" id="L2359">            this.updateGrant.execute();</span>
+<span class="fc" id="L2360">            this.updateGrant.clearParameters();</span>
+<span class="nc" id="L2361">        } catch (SQLException e) {</span>
+<span class="nc" id="L2362">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2363">        }</span>
+<span class="fc" id="L2364">    }</span>
+
+    @Override
+    public Map&lt;Short, CBORObject&gt; getRsInfo(String code) throws AceException {
+<span class="pc bpc" id="L2368" title="1 of 2 branches missed.">        if (code == null) {</span>
+<span class="nc" id="L2369">            throw new AceException(</span>
+                    &quot;getRsInfo() requires non-null code&quot;);
+        }
+<span class="fc" id="L2372">        Map&lt;Short, CBORObject&gt; rsInfo = new HashMap&lt;&gt;();</span>
+        try {
+<span class="fc" id="L2374">            this.selectRsInfoByGrant.setString(1, code);</span>
+<span class="fc" id="L2375">            ResultSet result = this.selectRsInfoByGrant.executeQuery();</span>
+<span class="fc" id="L2376">            this.selectRsInfoByGrant.clearParameters();</span>
+<span class="fc bfc" id="L2377" title="All 2 branches covered.">            while (result.next()) {</span>
+<span class="fc" id="L2378">                    Short claimName </span>
+<span class="fc" id="L2379">                        = result.getShort(DBConnector.claimNameColumn);</span>
+<span class="fc" id="L2380">                    CBORObject cbor = CBORObject.DecodeFromBytes(</span>
+<span class="fc" id="L2381">                            result.getBytes(DBConnector.claimValueColumn));</span>
+<span class="fc" id="L2382">                    rsInfo.put(claimName, cbor);</span>
+<span class="fc" id="L2383">            }</span>
+<span class="fc" id="L2384">            result.close(); </span>
+<span class="nc" id="L2385">        } catch (SQLException e) {</span>
+<span class="nc" id="L2386">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2387">        }</span>
+<span class="fc" id="L2388">        return rsInfo;</span>
+    }
+
+
+    @Override
+    public boolean isGrantValid(String code) throws AceException {
+<span class="pc bpc" id="L2394" title="1 of 2 branches missed.">        if (code == null) {</span>
+<span class="nc" id="L2395">            throw new AceException(</span>
+                    &quot;getRsInfo() requires non-null code&quot;);
+        }
+<span class="fc" id="L2398">        boolean valid = false;</span>
+        try {
+<span class="fc" id="L2400">            this.selectGrantValid.setString(1, code);</span>
+<span class="fc" id="L2401">            ResultSet result = this.selectGrantValid.executeQuery();</span>
+<span class="fc" id="L2402">            this.selectGrantValid.clearParameters();</span>
+<span class="pc bpc" id="L2403" title="1 of 2 branches missed.">            if (result.next()) {</span>
+<span class="fc" id="L2404">                valid = result.getBoolean(DBConnector.grantValidColumn);</span>
+            } else {
+<span class="nc" id="L2406">                valid = false;</span>
+            }                  
+<span class="fc" id="L2408">            result.close();</span>
+<span class="nc" id="L2409">        } catch (SQLException e) {</span>
+<span class="nc" id="L2410">            throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2411">        }</span>
+<span class="fc" id="L2412">        return valid;</span>
+    }
+
+	/**
+	 * Save a mapping from token identifier to the hash computed
+	 * on the access token
+	 *
+	 * @param cti  the token identifier Base64 encoded
+	 * @param tokenHash  the token hash
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void addCti2TokenHash(String cti, String tokenHash)
+			throws AceException {
+<span class="pc bpc" id="L2427" title="2 of 4 branches missed.">		if (cti == null || tokenHash == null) {</span>
+<span class="nc" id="L2428">			throw new AceException(</span>
+					&quot;addCti2TokenHash() requires non-null parameters&quot;);
+		}
+		try {
+<span class="fc" id="L2432">			this.insertCti2TokenHash.setString(1, cti);</span>
+<span class="fc" id="L2433">			this.insertCti2TokenHash.setString(2, tokenHash);</span>
+<span class="fc" id="L2434">			this.insertCti2TokenHash.execute();</span>
+<span class="fc" id="L2435">			this.insertCti2TokenHash.clearParameters();</span>
+<span class="fc" id="L2436">		} catch (SQLException e) {</span>
+<span class="fc" id="L2437">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2438">		}</span>
+<span class="fc" id="L2439">	}</span>
+
+	/**
+	 * Add a token identifier and the pertaining peers
+	 * to the revoked token table (trl)
+	 *
+	 * @param cti  the token identifier of the revoked token
+	 * @param clientId  the pertaining client identifier
+	 * @param rsIds  the pertaining resource server identifiers (comma separated)
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void addRevokedToken(String cti, String clientId, Set&lt;String&gt; rsIds) throws AceException {
+<span class="pc bpc" id="L2453" title="2 of 4 branches missed.">		if (cti == null || cti.isEmpty()) {</span>
+<span class="nc" id="L2454">			throw new AceException(</span>
+					&quot;addRevokedToken() requires non-null, non-empty token identifier&quot;);
+		}
+<span class="pc bpc" id="L2457" title="2 of 4 branches missed.">		if (clientId == null || clientId.isEmpty()) {</span>
+<span class="nc" id="L2458">			throw new AceException(</span>
+					&quot;addRevokedToken() requires non-null, non-empty client identifier&quot;);
+		}
+<span class="pc bpc" id="L2461" title="2 of 4 branches missed.">		if (rsIds == null || rsIds.isEmpty()) {</span>
+<span class="nc" id="L2462">			throw new AceException(</span>
+					&quot;addRevokedToken() requires non-null, non-empty resource server identifier(s)&quot;);
+		}
+<span class="fc" id="L2465">		String rsIdsStr = String.join(&quot;,&quot;, rsIds);</span>
+		try {
+<span class="fc" id="L2467">			this.insertRevokedToken.setString(1, cti);</span>
+<span class="fc" id="L2468">			this.insertRevokedToken.setString(2, clientId);</span>
+<span class="fc" id="L2469">			this.insertRevokedToken.setString(3, rsIdsStr);</span>
+<span class="fc" id="L2470">			this.insertRevokedToken.execute();</span>
+<span class="fc" id="L2471">			this.insertRevokedToken.clearParameters();</span>
+<span class="fc" id="L2472">		} catch (SQLException e) {</span>
+<span class="fc" id="L2473">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2474">		}</span>
+<span class="fc" id="L2475">	}</span>
+
+	/**
+	 * Adds a token identifier and the pertaining peers
+	 * to the revoked token table (trl)
+	 *
+	 * @param cti  the token identifier of the revoked token
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void addRevokedToken(String cti) throws AceException{
+<span class="pc bpc" id="L2487" title="2 of 4 branches missed.">		if (cti == null || cti.isEmpty()) {</span>
+<span class="nc" id="L2488">			throw new AceException(</span>
+					&quot;addRevokedToken() requires non-null, non-empty token identifier&quot;);
+		}
+
+<span class="fc" id="L2492">		String clientId = this.getClient4Cti(cti);</span>
+<span class="fc" id="L2493">		Set&lt;String&gt; rsIds = this.getRss4Cti(cti);</span>
+		//String rsIdsStr = String.join(&quot;,&quot;, rsIds);
+
+<span class="fc" id="L2496">		this.addRevokedToken(cti, clientId, rsIds);</span>
+<span class="fc" id="L2497">	}</span>
+
+
+	/**
+	 * Deletes an expired token from the revoked token table (trl)
+	 *
+	 * @param cti  the token identifier of the token to delete
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void deleteExpiredToken(String cti) throws AceException {
+<span class="pc bpc" id="L2509" title="2 of 4 branches missed.">		if (cti == null || cti.isEmpty()) {</span>
+<span class="nc" id="L2510">			throw new AceException(</span>
+					&quot;deleteExpiredToken() requires non-null, non-empty token identifier&quot;);
+		}
+		try {
+<span class="fc" id="L2514">			this.deleteExpiredToken.setString(1, cti);</span>
+<span class="fc" id="L2515">			this.deleteExpiredToken.execute();</span>
+<span class="fc" id="L2516">			this.deleteExpiredToken.clearParameters();</span>
+<span class="nc" id="L2517">		} catch (SQLException e) {</span>
+<span class="nc" id="L2518">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2519">		}</span>
+<span class="fc" id="L2520">	}</span>
+
+	/**
+	 * Deletes a token from the token hash table, given the ti
+	 *
+	 * @param cti  the token identifier of the token to delete
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized void deleteTokenHash(String cti) throws AceException {
+<span class="pc bpc" id="L2531" title="2 of 4 branches missed.">		if (cti == null || cti.isEmpty()) {</span>
+<span class="nc" id="L2532">			throw new AceException(</span>
+					&quot;deleteTokenHash() requires non-null, non-empty token identifier&quot;);
+		}
+		try {
+<span class="fc" id="L2536">			this.deleteTokenHash.setString(1, cti);</span>
+<span class="fc" id="L2537">			this.deleteTokenHash.execute();</span>
+<span class="fc" id="L2538">			this.deleteTokenHash.clearParameters();</span>
+<span class="nc" id="L2539">		} catch (SQLException e) {</span>
+<span class="nc" id="L2540">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2541">		}</span>
+<span class="fc" id="L2542">	}</span>
+
+	/**
+	 * Get the peers pertaining to the provided token identifier
+	 *
+	 * @param cti  the token identifier to lookup
+	 *
+	 * @return  the set of pertaining peers (peers associated with the provided token identifier)
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Set&lt;String&gt; getPertainingPeers(String cti) throws AceException {
+<span class="pc bpc" id="L2554" title="2 of 4 branches missed.">		if (cti == null || cti.isEmpty()) {</span>
+<span class="nc" id="L2555">			throw new AceException(</span>
+					&quot;getPertainingPeers() requires non-null, non-empty token identifier&quot;);
+		}
+		try {
+<span class="fc" id="L2559">			this.selectPertainingPeers.setString(1, cti);</span>
+<span class="fc" id="L2560">			ResultSet result = this.selectPertainingPeers.executeQuery();</span>
+<span class="fc" id="L2561">			this.selectPertainingPeers.clearParameters();</span>
+<span class="fc bfc" id="L2562" title="All 2 branches covered.">			if (result.next()) {</span>
+<span class="fc" id="L2563">				String rss = result.getString(DBConnector.rsIdsColumn);</span>
+<span class="fc" id="L2564">				String[] values = rss.split(&quot;,&quot;);</span>
+
+<span class="fc" id="L2566">				Set&lt;String&gt; peers = new HashSet&lt;&gt;(Arrays.asList(values));</span>
+<span class="fc" id="L2567">				peers.add(result.getString(DBConnector.clientIdColumn));</span>
+
+<span class="fc" id="L2569">				result.close();</span>
+<span class="fc" id="L2570">				return peers;</span>
+			}
+<span class="fc" id="L2572">			result.close();</span>
+<span class="nc" id="L2573">		} catch (SQLException e) {</span>
+<span class="nc" id="L2574">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2575">		}</span>
+<span class="fc" id="L2576">		return new HashSet&lt;&gt;();</span>
+	}
+
+	/**
+	 * Get the token identifiers pertaining to the requesting peer identifier
+	 *
+	 * @param peerId  the client or resource server identifier
+	 *
+	 * @return  the set of pertaining token identifiers
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Set&lt;String&gt; getPertainingTokens(String peerId) throws AceException {
+<span class="pc bpc" id="L2589" title="2 of 4 branches missed.">		if (peerId == null || peerId.isEmpty()) {</span>
+<span class="nc" id="L2590">			throw new AceException(</span>
+					&quot;getPertainingTokens() requires non-null, non-empty peer identifier&quot;);
+		}
+<span class="fc" id="L2593">		Set&lt;String&gt; tokens = new HashSet&lt;&gt;();</span>
+		try {
+<span class="fc" id="L2595">			this.selectPertainingTokens.setString(1, peerId);</span>
+<span class="fc" id="L2596">			this.selectPertainingTokens.setString(2, peerId);</span>
+<span class="fc" id="L2597">			this.selectPertainingTokens.setString(3, peerId + &quot;,&quot;);</span>
+<span class="fc" id="L2598">			this.selectPertainingTokens.setString(4, &quot;,&quot; + peerId + &quot;,&quot;);</span>
+<span class="fc" id="L2599">			this.selectPertainingTokens.setString(5, &quot;,&quot; + peerId);</span>
+<span class="fc" id="L2600">			ResultSet result = this.selectPertainingTokens.executeQuery();</span>
+<span class="fc" id="L2601">			this.selectPertainingTokens.clearParameters();</span>
+<span class="fc bfc" id="L2602" title="All 2 branches covered.">			while (result.next()) {</span>
+<span class="fc" id="L2603">				tokens.add(result.getString(DBConnector.ctiColumn));</span>
+			}
+<span class="fc" id="L2605">			result.close();</span>
+<span class="nc" id="L2606">		} catch (SQLException e) {</span>
+<span class="nc" id="L2607">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2608">		}</span>
+<span class="fc" id="L2609">		return tokens;</span>
+	}
+
+	/**
+	 * Get the expiration time of the given token identifier
+	 *
+	 * @param cti  the token identifier of the token to lookup
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized long getExpirationTime(String cti) throws AceException {
+<span class="nc bnc" id="L2621" title="All 4 branches missed.">		if (cti == null || cti.isEmpty()) {</span>
+<span class="nc" id="L2622">			throw new AceException(</span>
+					&quot;getExpirationTime() requires non-null, non-empty token identifier&quot;);
+		}
+		try {
+<span class="nc" id="L2626">			this.selectExpirationTimeOfToken.setString(1, cti);</span>
+<span class="nc" id="L2627">			ResultSet result = this.selectExpirationTimeOfToken.executeQuery();</span>
+<span class="nc" id="L2628">			this.selectExpirationTimeOfToken.clearParameters();</span>
+<span class="nc bnc" id="L2629" title="All 2 branches missed.">			if (result.next()) {</span>
+<span class="nc" id="L2630">				byte[] rawTime = result.getBytes(DBConnector.claimValueColumn);</span>
+<span class="nc" id="L2631">				CBORObject cborTime = CBORObject.DecodeFromBytes(rawTime);</span>
+<span class="nc" id="L2632">				result.close();</span>
+<span class="nc" id="L2633">				return cborTime.AsNumber().ToInt64Checked();</span>
+			}
+<span class="nc" id="L2635">			result.close();</span>
+<span class="nc" id="L2636">		} catch (SQLException e) {</span>
+<span class="nc" id="L2637">			throw new AceException(e.getMessage());</span>
+<span class="nc" id="L2638">		}</span>
+<span class="nc" id="L2639">		return 0L;</span>
+	}
+
+	/**
+	 * Get the token identifiers of expired tokens
+	 */
+	@Override
+	public synchronized Set&lt;String&gt; getExpiredTokens(long now) throws AceException {
+
+<span class="fc" id="L2648">		Set&lt;String&gt; ctis = new HashSet&lt;&gt;();</span>
+		try {
+<span class="fc" id="L2650">			ResultSet result = this.selectExpirationTime.executeQuery();</span>
+<span class="fc bfc" id="L2651" title="All 2 branches covered.">			while (result.next()) {</span>
+<span class="fc" id="L2652">				byte[] rawTime = result.getBytes(DBConnector.claimValueColumn);</span>
+<span class="fc" id="L2653">				CBORObject cborTime = CBORObject.DecodeFromBytes(rawTime);</span>
+<span class="fc" id="L2654">				long time = cborTime.AsNumber().ToInt64Checked();</span>
+<span class="fc bfc" id="L2655" title="All 2 branches covered.">				if (now &gt; time) {</span>
+<span class="fc" id="L2656">					ctis.add(result.getString(DBConnector.ctiColumn));</span>
+				}
+<span class="fc" id="L2658">			}</span>
+<span class="fc" id="L2659">			result.close();</span>
+<span class="nc" id="L2660">		} catch (SQLException e) {</span>
+<span class="nc" id="L2661">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2662">		}</span>
+<span class="fc" id="L2663">		return ctis;</span>
+	}
+
+//	/**
+//	 * Get the hash values of a set of token identifiers
+//	 *
+//	 * @param cti  the set of token identifiers to lookup
+//	 *
+//	 * @throws AceException
+//	 */
+//	@Override
+//	public synchronized Set&lt;String&gt; getTokenHashes(Set&lt;String&gt; cti) throws AceException {
+//
+//	}
+
+	/**
+	 * Get a map built from the table that contains ctis and token hashes
+	 *
+	 * @throws AceException
+	 */
+	@Override
+	public synchronized Map&lt;String, String&gt; getTokenHashMap() throws AceException {
+<span class="fc" id="L2685">		Map&lt;String, String&gt; ctisToTokenHashes = new HashMap&lt;&gt;();</span>
+		try{
+<span class="fc" id="L2687">			ResultSet result = this.selectCtisToTokenHashes.executeQuery();</span>
+<span class="fc bfc" id="L2688" title="All 2 branches covered.">			while (result.next()) {</span>
+<span class="fc" id="L2689">				ctisToTokenHashes.put(</span>
+<span class="fc" id="L2690">						result.getString(DBConnector.ctiColumn),</span>
+<span class="fc" id="L2691">						result.getString(DBConnector.tokenHashColumn));</span>
+			}
+<span class="fc" id="L2693">			result.close();</span>
+<span class="nc" id="L2694">		} catch (SQLException e) {</span>
+<span class="nc" id="L2695">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2696">		}</span>
+<span class="fc" id="L2697">		return ctisToTokenHashes;</span>
+	}
+
+
+	/**
+	 * Extensibility method to allow other modules to prepare statements.
+	 *
+	 * @param statement  the statement string
+	 *
+	 * @return the prepared statement
+	 * @throws AceException
+	 *
+	 */
+	public PreparedStatement prepareStatement(String statement) throws AceException {
+<span class="fc" id="L2711">		PreparedStatement stmt = null;</span>
+		try {
+<span class="fc" id="L2713">			stmt = this.conn.prepareStatement(</span>
+<span class="fc" id="L2714">					this.adapter.updateEngineSpecificSQL(statement));</span>
+<span class="nc" id="L2715">		} catch (SQLException e) {</span>
+<span class="nc" id="L2716">			throw new AceException(e.getMessage());</span>
+<span class="fc" id="L2717">		}</span>
+<span class="fc" id="L2718">		return stmt;</span>
+
+	}
+
+    /**
+     * Get the SQL database adapter.  This method is for external modules 
+     * that need access to the database.
+     * 
+     * @return  the SQL database adapter
+     */
+    public SQLDBAdapter getAdapter() {
+<span class="fc" id="L2729">        return this.adapter;</span>
+        
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

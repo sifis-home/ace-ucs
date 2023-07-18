@@ -1,0 +1,697 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Util.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace</a> &gt; <span class="el_source">Util.java</span></div><h1>Util.java</h1><pre class="source lang-java linenums">package se.sics.ace;
+
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
+import java.util.Base64;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.OneKey;
+import org.bouncycastle.crypto.digests.SHA256Digest;
+import se.sics.ace.rs.TokenRepository;
+
+<span class="nc" id="L25">public class Util {</span>
+
+    /**
+     *  Convert a positive integer into a byte array of minimal size.
+     *  The positive integer can be up to 2,147,483,647
+     * @param num
+     * @return  the byte array
+     */
+    public static byte[] intToBytes(final int num) {
+<span class="fc" id="L34">    	return intToBytes(num, 0);</span>
+    }
+	
+    /**
+     *  Convert a positive integer into a byte array of the specified length (in bytes).
+     *  If the specified length is 0, the byte array will be of minimal size.
+     *  The positive integer can be up to 2,147,483,647
+     * @param num
+     * @param length
+     * @return  the byte array
+     */
+    public static byte[] intToBytes(final int num, final int length) {
+
+<span class="fc" id="L47">    	byte[] ret = null;</span>
+    	
+    	// Big-endian
+<span class="pc bpc" id="L50" title="2 of 4 branches missed.">    	if (num &lt; 0 || length &lt; 0)</span>
+<span class="nc" id="L51">    		return null;</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        else if (num &lt; 256) {</span>
+<span class="fc" id="L53">            ret = new byte[] { (byte) (num) };</span>
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        } else if (num &lt; 65536) {</span>
+<span class="fc" id="L55">        	ret = new byte[] { (byte) (num &gt;&gt;&gt; 8), (byte) num };</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        } else if (num &lt; 16777216) {</span>
+<span class="nc" id="L57">        	ret = new byte[] { (byte) (num &gt;&gt;&gt; 16), (byte) (num &gt;&gt;&gt; 8), (byte) num };</span>
+        } else { // up to 2,147,483,647
+<span class="nc" id="L59">        	ret = new byte[]{ (byte) (num &gt;&gt;&gt; 24), (byte) (num &gt;&gt;&gt; 16), (byte) (num &gt;&gt;&gt; 8), (byte) num };</span>
+        }
+    	
+    	// Little-endian
+    	/*
+    	if (num &lt; 0)
+    		return null;
+        else if (num &lt; 256) {
+            ret = new byte[] { (byte) (num) };
+        } else if (num &lt; 65536) {
+            ret = new byte[] { (byte) num, (byte) (num &gt;&gt;&gt; 8) };
+        } else if (num &lt; 16777216){
+            ret = new byte[] { (byte) num, (byte) (num &gt;&gt;&gt; 8), (byte) (num &gt;&gt;&gt; 16) };
+        } else{ // up to 2,147,483,647
+            ret = new byte[] { (byte) num, (byte) (num &gt;&gt;&gt; 8), (byte) (num &gt;&gt;&gt; 16), (byte) (num &gt;&gt;&gt; 24) };
+        }
+    	*/
+    	
+<span class="pc bpc" id="L77" title="1 of 4 branches missed.">    	if (length == 0 || length &lt;= ret.length)</span>
+<span class="fc" id="L78">    		return ret;</span>
+    	
+<span class="nc" id="L80">    	int paddingLength = length - ret.length;</span>
+<span class="nc" id="L81">    	byte[] retWithPadding = new byte[ret.length + paddingLength];</span>
+    	
+    	// Big-endian
+<span class="nc bnc" id="L84" title="All 2 branches missed.">    	for (int i = 0; i &lt; paddingLength; i++)</span>
+<span class="nc" id="L85">    		retWithPadding[i] = (byte) 0x00;</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">    	for (int i = 0; i &lt; ret.length; i++)</span>
+<span class="nc" id="L87">    		retWithPadding[i + paddingLength] = ret[i];</span>
+    	
+    	// Little-endian
+    	/*
+    	for (int i = 0; i &lt; ret.length; i++)
+    		retWithPadding[i] = ret[i];
+    	for (int i = 0; i &lt; paddingLength; i++)
+    		retWithPadding[i + paddingLength] = (byte) 0x00;
+    	*/
+    	
+<span class="nc" id="L97">    	return retWithPadding;</span>
+    	
+    }
+	
+    /**
+     * Convert a byte array into an equivalent unsigned integer.
+     * The input byte array can be up to 4 bytes in size.
+     *
+     * N.B. If the input array is 4 bytes in size, the returned integer may be negative!
+     *      The calling method has to check, if relevant!
+     * 
+     * @param bytes 
+     * @return   the converted integer
+     */
+    public static int bytesToInt(final byte[] bytes) {
+    	
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">    	if (bytes.length &gt; 4)</span>
+<span class="nc" id="L114">    		return -1;</span>
+    	
+<span class="fc" id="L116">    	int ret = 0;</span>
+
+    	// Big-endian
+<span class="fc bfc" id="L119" title="All 2 branches covered.">    	for (int i = 0; i &lt; bytes.length; i++)</span>
+<span class="fc" id="L120">    		ret = ret + (bytes[bytes.length - 1 - i] &amp; 0xFF) * (int) (Math.pow(256, i));</span>
+
+    	/*
+    	// Little-endian
+    	for (int i = 0; i &lt; bytes.length; i++)
+    		ret = ret + (bytes[i] &amp; 0xFF) * (int) (Math.pow(256, i));
+    	*/
+    	
+<span class="fc" id="L128">    	return ret;</span>
+    	
+    }
+	
+    /**
+     * Build the &quot;psk_identity&quot; to use in the
+     * ClientKeyExchange DTLS Handshake message
+     *  
+     * @param kid   The 'kid' of the key used as PoP key
+     * 
+     * @return The &quot;psk_identity&quot; to use in the DTLS Handshake
+     */
+	public static byte[] buildDtlsPskIdentity(byte[] kid) {
+        
+<span class="fc" id="L142">        CBORObject identityMap = CBORObject.NewMap();</span>
+<span class="fc" id="L143">        CBORObject cnfMap = CBORObject.NewMap();</span>
+<span class="fc" id="L144">        CBORObject coseKeyMap = CBORObject.NewMap();</span>
+        
+<span class="fc" id="L146">        coseKeyMap.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);</span>
+<span class="fc" id="L147">        coseKeyMap.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), kid);</span>
+<span class="fc" id="L148">        cnfMap.Add(Constants.COSE_KEY_CBOR, coseKeyMap);</span>
+<span class="fc" id="L149">        identityMap.Add(CBORObject.FromObject(Constants.CNF), cnfMap);</span>
+        
+        // The serialized identity map to use as &quot;psk_identity&quot; in DTLS
+<span class="fc" id="L152">        return identityMap.EncodeToBytes();</span>
+		
+	}
+	
+    /**
+     * Compute a digital signature
+     * 
+     * @param signKeyCurve   Elliptic curve used to compute the signature
+     * @param privKey  private key of the signer, used to compute the signature
+     * @param dataToSign  content to sign
+     * @return The computed signature, or null in case of error
+     
+     */
+    public static byte[] computeSignature(int signKeyCurve, PrivateKey privKey, byte[] dataToSign) {
+
+<span class="fc" id="L167">        Signature signCtx = null;</span>
+<span class="fc" id="L168">        byte[] signature = null;</span>
+
+        try {
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">     	   if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())</span>
+<span class="nc" id="L172">     		  signCtx = Signature.getInstance(&quot;SHA256withECDSA&quot;);</span>
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">     	   else if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())</span>
+<span class="fc" id="L174">     		  signCtx = Signature.getInstance(&quot;NonewithEdDSA&quot;, &quot;EdDSA&quot;);</span>
+     	   else {
+     		  // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
+<span class="nc" id="L177">     		  System.err.println(&quot;Unsupported signature algorithm&quot;);</span>
+<span class="nc" id="L178">     		  return null;</span>
+     	   }
+            
+        }
+<span class="nc" id="L182">        catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L183">            System.err.println(&quot;Unsupported signature algorithm: &quot; + e.getMessage());</span>
+<span class="nc" id="L184">            return null;</span>
+        }
+<span class="nc" id="L186">        catch (NoSuchProviderException e) {</span>
+<span class="nc" id="L187">            System.err.println(&quot;Unsopported security provider for signature computing: &quot; + e.getMessage());</span>
+<span class="nc" id="L188">            return null;</span>
+<span class="fc" id="L189">        }</span>
+        
+        try {
+<span class="pc bpc" id="L192" title="1 of 2 branches missed.">            if (signCtx != null)</span>
+<span class="fc" id="L193">            	signCtx.initSign(privKey);</span>
+            else {
+<span class="nc" id="L195">                System.err.println(&quot;Signature algorithm has not been initialized&quot;);</span>
+<span class="nc" id="L196">                return null;</span>
+            }
+        }
+<span class="nc" id="L199">        catch (InvalidKeyException e) {</span>
+<span class="nc" id="L200">            System.err.println(&quot;Invalid key excpetion - Invalid private key: &quot; + e.getMessage());</span>
+<span class="nc" id="L201">            return null;</span>
+<span class="fc" id="L202">        }</span>
+        
+        try {
+<span class="pc bpc" id="L205" title="1 of 2 branches missed.">        	if (signCtx != null) {</span>
+<span class="fc" id="L206">        		signCtx.update(dataToSign);</span>
+<span class="fc" id="L207">        		signature = signCtx.sign();</span>
+        	}
+<span class="nc" id="L209">        } catch (SignatureException e) {</span>
+<span class="nc" id="L210">            System.err.println(&quot;Failed signature computation: &quot; + e.getMessage());</span>
+<span class="nc" id="L211">            return null;</span>
+<span class="fc" id="L212">        }</span>
+        
+<span class="fc" id="L214">        return signature;</span>
+        
+    }
+    
+    /**
+     * Verify the correctness of a digital signature
+     * 
+     * @param signKeyCurve   Elliptic curve used to process the signature
+     * @param pubKey   Public key of the signer, used to verify the signature
+     * @param signedData   Data over which the signature has been computed
+     * @param expectedSignature   Signature to verify
+     * @return True if the signature verifies correctly, false otherwise
+     */
+    public static boolean verifySignature(int signKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
+
+<span class="fc" id="L229">        Signature signature = null;</span>
+<span class="fc" id="L230">        boolean success = false;</span>
+        
+        try {
+<span class="pc bpc" id="L233" title="1 of 2 branches missed.">           if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())</span>
+<span class="nc" id="L234">        	   signature = Signature.getInstance(&quot;SHA256withECDSA&quot;);</span>
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">           else if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())</span>
+<span class="fc" id="L236">        	   signature = Signature.getInstance(&quot;NonewithEdDSA&quot;, &quot;EdDSA&quot;);</span>
+           else {
+<span class="nc" id="L238">              System.err.println(&quot;Unsupported signature algorithm&quot;);</span>
+<span class="nc" id="L239">              return false;</span>
+           }
+             
+         }
+<span class="nc" id="L243">         catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L244">             System.err.println(&quot;Unsupported signature algorithm: &quot; + e.getMessage());</span>
+<span class="nc" id="L245">             return false;</span>
+         }
+<span class="nc" id="L247">         catch (NoSuchProviderException e) {</span>
+<span class="nc" id="L248">             System.err.println(&quot;Unsopported security provider for signature computing: &quot; + e.getMessage());</span>
+<span class="nc" id="L249">             return false;</span>
+<span class="fc" id="L250">         }</span>
+         
+         try {
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">             if (signature != null)</span>
+<span class="fc" id="L254">            	 signature.initVerify(pubKey);</span>
+             else {
+<span class="nc" id="L256">                 System.err.println(&quot;Signature algorithm has not been initialized&quot;);</span>
+<span class="nc" id="L257">                 return false;</span>
+             }
+         }
+<span class="nc" id="L260">         catch (InvalidKeyException e) {</span>
+<span class="nc" id="L261">             System.err.println(&quot;Invalid key excpetion - Invalid public key: &quot; + e.getMessage());</span>
+<span class="nc" id="L262">             return false;</span>
+<span class="fc" id="L263">         }</span>
+         
+         try {
+<span class="fc" id="L266">        	 signature.update(signedData);</span>
+<span class="fc" id="L267">             success = signature.verify(expectedSignature);</span>
+<span class="nc" id="L268">         } catch (SignatureException e) {</span>
+<span class="nc" id="L269">             System.err.println(&quot;Error during signature verification: &quot; + e.getMessage());</span>
+<span class="nc" id="L270">             return false;</span>
+<span class="fc" id="L271">         }</span>
+         
+<span class="fc" id="L273">         return success;</span>
+
+    }
+    
+    /**
+     * Add 'newRole' to the role set, encoded using the AIF-OSCORE-GROUPCOMM data model
+     * 
+     * @param currentRoleSet  the current set of roles
+     * @param newRole  the role to add to the current set
+     * 
+      * @return  the updated role set
+      * @throws AceException  if the role identifier is less than 1
+     */
+    public static int addGroupOSCORERole (int currentRoleSet, short newRole) throws AceException{
+
+<span class="pc bpc" id="L288" title="1 of 2 branches missed.">   	 if (newRole &lt; 1) throw new AceException(&quot;Invalid identifier of Group OSCORE role&quot;);</span>
+   	 
+<span class="fc" id="L290">   	 int updatedRoleSet = 0;</span>
+<span class="fc" id="L291">   	 updatedRoleSet = currentRoleSet | (1 &lt;&lt; newRole);</span>
+   	 
+<span class="fc" id="L293">   	 return updatedRoleSet; </span>
+   	 
+    }
+    
+    /**
+     * Remove 'oldRole' from the role set, encoded using the AIF-OSCORE-GROUPCOMM data model
+     * 
+     * @param currentRoleSet  the current set of roles
+     * @param oldRole  the role to remove from the current set
+     * 
+      * @return  the updated role set
+      * @throws AceException  if the role identifier is less than 1
+     */
+    public static int removeGroupOSCORERole (int currentRoleSet, short oldRole) throws AceException{
+
+<span class="nc bnc" id="L308" title="All 2 branches missed.">   	 if (oldRole &lt; 1) throw new AceException(&quot;Invalid identifier of Group OSCORE role&quot;);</span>
+   	 
+<span class="nc" id="L310">   	 int updatedRoleSet = 0;</span>
+<span class="nc" id="L311">   	 updatedRoleSet = currentRoleSet &amp; (~(1 &lt;&lt; oldRole));</span>
+   	 
+<span class="nc" id="L313">   	 return updatedRoleSet; </span>
+   	 
+    }
+       
+    /**
+     * Check if a role set includes a specified role, encoded using the AIF-OSCORE-GROUPCOMM data model
+     * 
+     * @param roleSet  the set of roles
+     * @param role  the role to remove from the current set
+     * 
+      * @return  true if the role set includes the specified role, false otherwise
+      * @throws AceException  if the role identifier is less than 1
+     */
+    public static boolean checkGroupOSCORERole (int roleSet, short role) throws AceException {
+
+<span class="nc bnc" id="L328" title="All 2 branches missed.">   	 if (role &lt; 1) throw new AceException(&quot;Invalid identifier of Group OSCORE role&quot;);</span>
+   	 
+<span class="nc bnc" id="L330" title="All 2 branches missed.">   	 return ((roleSet &amp; (1 &lt;&lt; role)) != 0);</span>
+   	 
+    }
+    
+    /**
+     * Return the array of roles included in the specified role set, encoded using the AIF-OSCORE-GROUPCOMM data model
+     * 
+     * @param roleSet  the set of roles, encoded using the AIF-OSCORE-GROUPCOMM data model
+     * 
+      * @return  The set of role identifiers specified in the role set
+      * @throws AceException  if the reserved role is requested (identifier 1, hence 'roleSet' has an odd value)
+     */
+    public static Set&lt;Integer&gt; getGroupOSCORERoles (int roleSet) throws AceException {
+   	 
+<span class="pc bpc" id="L344" title="1 of 2 branches missed.">	   	 if ((roleSet % 2) == 1) throw new AceException(&quot;Invalid identifier of Group OSCORE role&quot;);</span>
+
+<span class="fc" id="L346">	   	 Set&lt;Integer&gt; mySet = new HashSet&lt;Integer&gt;();</span>
+<span class="fc" id="L347">	   	 int roleIdentifier = 0;</span>
+
+<span class="fc bfc" id="L349" title="All 2 branches covered.">	   	 while (roleSet != 0) {</span>
+<span class="fc" id="L350">	   		 roleSet = roleSet &gt;&gt;&gt; 1;</span>
+<span class="fc" id="L351">	   	 	 roleIdentifier++;</span>
+<span class="fc bfc" id="L352" title="All 2 branches covered.">	   	 	 if ((roleSet &amp; 1) != 0) {</span>
+<span class="fc" id="L353">	   	 		 mySet.add(Integer.valueOf(roleIdentifier));</span>
+	   	 	 }
+	   	 }
+
+<span class="fc" id="L357">	   	 return mySet;</span>
+   	 
+    }
+    
+    /**
+     * Return the role sets allowed to a subject in a group, based on all the Access Tokens for that subject
+     *
+     * @param subject   Subject identity of the node
+     * @param groupName   Group name of the OSCORE group
+     * @return The sets of allowed roles for the subject in the specified group using the AIF data model,
+     *         or null in case of no results
+     */
+    public static int[] getGroupOSCORERolesFromToken(String subject, String groupName) {
+
+<span class="fc" id="L371">    	Set&lt;Integer&gt; roleSets = new HashSet&lt;Integer&gt;();</span>
+
+<span class="fc" id="L373">    	String kid = TokenRepository.getInstance().getKid(subject);</span>
+<span class="fc" id="L374">    	Set&lt;String&gt; ctis = TokenRepository.getInstance().getCtis(kid);</span>
+
+    	// This should never happen at this point, since a valid Access Token
+    	// has just made this request pass through
+<span class="pc bpc" id="L378" title="1 of 2 branches missed.">    	if (ctis == null)</span>
+<span class="nc" id="L379">    		return null;</span>
+
+<span class="fc bfc" id="L381" title="All 2 branches covered.">    	for (String cti : ctis) { //All tokens linked to that pop key</span>
+
+	        //Check if we have the claims for that cti
+	        //Get the claims
+<span class="fc" id="L385">            Map&lt;Short, CBORObject&gt; claims = TokenRepository.getInstance().getClaims(cti);</span>
+<span class="pc bpc" id="L386" title="2 of 4 branches missed.">            if (claims == null || claims.isEmpty()) {</span>
+                //No claims found
+        		// Move to the next Access Token for this 'kid'
+<span class="nc" id="L389">                continue;</span>
+            }
+
+	        //Check the scope
+<span class="fc" id="L393">            CBORObject scope = claims.get(Constants.SCOPE);</span>
+
+        	// This should never happen, since a valid Access Token
+            // has just reached a handler at the Group Manager
+<span class="pc bpc" id="L397" title="1 of 2 branches missed.">            if (scope == null) {</span>
+        		// Move to the next Access Token for this 'kid'
+<span class="nc" id="L399">            	continue;</span>
+            }
+
+<span class="pc bpc" id="L402" title="1 of 2 branches missed.">            if (!scope.getType().equals(CBORType.ByteString)) {</span>
+        		// Move to the next Access Token for this 'kid'
+<span class="nc" id="L404">            	continue;</span>
+            }
+
+<span class="fc" id="L407">            byte[] rawScope = scope.GetByteString();</span>
+<span class="fc" id="L408">        	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);</span>
+
+<span class="pc bpc" id="L410" title="1 of 2 branches missed.">        	if (!cborScope.getType().equals(CBORType.Array)) {</span>
+        		// Move to the next Access Token for this 'kid'
+<span class="nc" id="L412">                continue;</span>
+            }
+
+<span class="fc bfc" id="L415" title="All 2 branches covered.">        	for (int entryIndex = 0; entryIndex &lt; cborScope.size(); entryIndex++) {</span>
+
+<span class="fc" id="L417">        		CBORObject scopeEntry = cborScope.get(entryIndex);</span>
+
+<span class="pc bpc" id="L419" title="2 of 4 branches missed.">        		if (!scopeEntry.getType().equals(CBORType.Array) || scopeEntry.size() != 2) {</span>
+        			// Move to the next Access Token for this 'kid'
+<span class="nc" id="L421">                    break;</span>
+                }
+
+	        	// Retrieve the Group ID of the OSCORE group
+	        	String scopeStr;
+<span class="fc" id="L426">	      	  	CBORObject scopeElement = scopeEntry.get(0);</span>
+<span class="pc bpc" id="L427" title="1 of 2 branches missed.">	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {</span>
+<span class="fc" id="L428">	      	  		scopeStr = scopeElement.AsString();</span>
+<span class="pc bpc" id="L429" title="1 of 2 branches missed.">	      	  		if (!scopeStr.equals(groupName)) {</span>
+	      	  		    // Move to the next scope entry
+<span class="nc" id="L431">	      	  			continue;</span>
+	      	  		}
+	      	  	}
+	      	  	else {
+	    			// Move to the next Access Token for this 'kid'
+	                break;
+	      	  	}
+
+	      	  	// Retrieve the role or list of roles
+<span class="fc" id="L440">	      	  	scopeElement = scopeEntry.get(1);</span>
+
+<span class="pc bpc" id="L442" title="1 of 2 branches missed.">	        	if (!scopeElement.getType().equals(CBORType.Integer)) {</span>
+      	  		    // Move to the next scope entry
+<span class="nc" id="L444">      	  			continue;</span>
+	        	}
+
+<span class="fc" id="L447">        		int roleSetToken = scopeElement.AsInt32();</span>
+
+        		// According to the AIF-OSCORE-GROUPCOMM data model, a valid combination
+        		// of roles has to be a positive integer of even value (i.e., with last bit 0)
+<span class="pc bpc" id="L451" title="2 of 4 branches missed.">        		if (roleSetToken &lt;= 0 || (roleSetToken % 2 == 1)) {</span>
+      	  		    // Move to the next scope entry
+<span class="nc" id="L453">      	  			continue;</span>
+        		}
+
+<span class="fc" id="L456">        		roleSets.add(roleSetToken);</span>
+
+        	}
+
+<span class="fc" id="L460">    	}</span>
+
+    	// No Access Token allows this node to have any role
+    	// with respect to the specified group
+<span class="pc bpc" id="L464" title="1 of 2 branches missed.">    	if (roleSets.size() == 0) {</span>
+<span class="nc" id="L465">    		return null;</span>
+    	}
+    	else {
+<span class="fc" id="L468">    		int[] ret = new int[roleSets.size()];</span>
+
+<span class="fc" id="L470">    		int index = 0;</span>
+<span class="fc bfc" id="L471" title="All 2 branches covered.">    		for (Integer i : roleSets) {</span>
+<span class="fc" id="L472">    			ret[index] = i.intValue();</span>
+<span class="fc" id="L473">    			index++;</span>
+<span class="fc" id="L474">    		}</span>
+
+<span class="fc" id="L476">    		return ret;</span>
+    	}
+
+    }
+
+    /**
+     * Build a CWT Claims Set (CCS) including a COSE Key
+     * within a &quot;cnf&quot; claim and an additional &quot;sub&quot; claim
+     *  
+     * @param identityKey   The public key as a OneKey object
+     * @param subjectName   The subject name associated to this key, it can be an empty string
+     * @return  The serialization of the CCS, or null in case of errors
+     */
+	public static byte[] oneKeyToCCS(OneKey identityKey, String subjectName) {
+		
+<span class="nc bnc" id="L491" title="All 4 branches missed.">		if (identityKey  == null || subjectName == null)</span>
+<span class="nc" id="L492">			return null;</span>
+		
+<span class="nc" id="L494">		CBORObject coseKeyMap = CBORObject.NewMap();</span>
+<span class="nc" id="L495">		coseKeyMap.Add(KeyKeys.KeyType.AsCBOR(), identityKey.get(KeyKeys.KeyType));</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">		if (identityKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_OKP) {</span>
+<span class="nc" id="L497">			int curve = identityKey.get(KeyKeys.OKP_Curve).AsInt32();</span>
+<span class="nc bnc" id="L498" title="All 4 branches missed.">			if (curve == KeyKeys.OKP_Ed25519.AsInt32() || curve == KeyKeys.OKP_Ed448.AsInt32()) {</span>
+<span class="nc" id="L499">				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());</span>
+			}
+<span class="nc bnc" id="L501" title="All 4 branches missed.">			if (curve == KeyKeys.OKP_X25519.AsInt32() || curve == KeyKeys.OKP_X448.AsInt32()) {</span>
+<span class="nc" id="L502">				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDH_ES_HKDF_256.AsCBOR());</span>
+			}
+<span class="nc" id="L504">			coseKeyMap.Add(KeyKeys.OKP_Curve.AsCBOR(), identityKey.get(KeyKeys.OKP_Curve));</span>
+<span class="nc" id="L505">			coseKeyMap.Add(KeyKeys.OKP_X.AsCBOR(), identityKey.get(KeyKeys.OKP_X));</span>
+<span class="nc" id="L506">		}</span>
+<span class="nc bnc" id="L507" title="All 2 branches missed.">		else if (identityKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2) {</span>
+<span class="nc" id="L508">			int curve = identityKey.get(KeyKeys.EC2_Curve).AsInt32();</span>
+<span class="nc bnc" id="L509" title="All 2 branches missed.">			if (curve == KeyKeys.EC2_P256 .AsInt32()) {</span>
+<span class="nc" id="L510">				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());</span>
+			}
+<span class="nc bnc" id="L512" title="All 2 branches missed.">			if (curve == KeyKeys.EC2_P384 .AsInt32()) {</span>
+<span class="nc" id="L513">				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_384.AsCBOR());</span>
+			}
+<span class="nc bnc" id="L515" title="All 2 branches missed.">			if (curve == KeyKeys.EC2_P521.AsInt32()) {</span>
+<span class="nc" id="L516">				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_512.AsCBOR());</span>
+			}
+<span class="nc" id="L518">			coseKeyMap.Add(KeyKeys.EC2_Curve.AsCBOR(), identityKey.get(KeyKeys.EC2_Curve));</span>
+<span class="nc" id="L519">			coseKeyMap.Add(KeyKeys.EC2_X.AsCBOR(), identityKey.get(KeyKeys.EC2_X));</span>
+<span class="nc" id="L520">			coseKeyMap.Add(KeyKeys.EC2_Y.AsCBOR(), identityKey.get(KeyKeys.EC2_Y));</span>
+<span class="nc" id="L521">		}</span>
+		else {
+<span class="nc" id="L523">			return null;</span>
+		}
+		
+<span class="nc" id="L526">		CBORObject cnfMap = CBORObject.NewMap();</span>
+<span class="nc" id="L527">		cnfMap.Add(Constants.COSE_KEY, coseKeyMap);</span>
+		
+<span class="nc" id="L529">		CBORObject claimSetMap = CBORObject.NewMap();</span>
+<span class="nc" id="L530">		claimSetMap.Add(Constants.SUB, subjectName);</span>
+<span class="nc" id="L531">		claimSetMap.Add(Constants.CNF, cnfMap);</span>
+		
+		// Debug print
+<span class="nc" id="L534">		System.out.println(claimSetMap);</span>
+		
+<span class="nc" id="L536">        return claimSetMap.EncodeToBytes();</span>
+		
+	}
+	
+    /**
+     * Extract a public key from a CWT Claims Set (CCS) and return it as a OneKey object
+     *  
+//     * @param identityKey   The public key as a OneKey object
+//     * @param subjectName   The subject name associated to this key, it can be an empty string
+     * @return  The CCS as a CBOR map, or null in case of errors
+     */
+	public static OneKey ccsToOneKey(CBORObject ccs) {
+		
+<span class="pc bpc" id="L549" title="1 of 2 branches missed.">		if (ccs  == null)</span>
+<span class="nc" id="L550">			return null;</span>
+		
+<span class="pc bpc" id="L552" title="2 of 4 branches missed.">		if (!ccs.ContainsKey(Constants.CNF) || !ccs.get(Constants.CNF).ContainsKey(Constants.COSE_KEY))</span>
+<span class="nc" id="L553">			return null;</span>
+		
+<span class="fc" id="L555">		CBORObject pubKeyCBOR = ccs.get(Constants.CNF).get(Constants.COSE_KEY);</span>
+		
+<span class="fc" id="L557">		OneKey pubKey = null;</span>
+		try {
+<span class="fc" id="L559">			pubKey = new OneKey(pubKeyCBOR);</span>
+<span class="nc" id="L560">		} catch (CoseException e) {</span>
+<span class="nc" id="L561">			System.err.println(&quot;Error when building a OneKey from a CCS: &quot; + e.getMessage());</span>
+<span class="nc" id="L562">			return null;</span>
+<span class="fc" id="L563">		}</span>
+		
+<span class="fc" id="L565">        return pubKey;</span>
+		
+	}
+
+    /**
+     * Generate a hash value as per Section 6 of RFC6920.
+     * The Suite ID is fixed to 1 (Section 9.4 of RFC6920).
+     * The resulting tokenHashB is | 0x01 | hashInputB |
+     * size: 33 bytes = (8 + 256) bit
+     *
+     * @param accessToken the Access Token encoded in bytes. It is exactly the same
+     *                    as the one placed in the CBOR map created by the AS
+     *                    in response to an Access Token request
+     * @return the string representation (encoded in Base64) of the hash
+     */
+    public static String computeTokenHash(CBORObject accessToken) throws AceException {
+
+<span class="pc bpc" id="L582" title="1 of 2 branches missed.">        if (accessToken != null) {</span>
+<span class="fc" id="L583">            byte[] hashInputB = accessToken.EncodeToBytes();</span>
+
+<span class="fc" id="L585">            SHA256Digest digest = new SHA256Digest();</span>
+<span class="fc" id="L586">            digest.update(hashInputB, 0, hashInputB.length);</span>
+<span class="fc" id="L587">            byte[] tokenHashB = new byte[1 + digest.getDigestSize()];</span>
+<span class="fc" id="L588">            digest.doFinal(tokenHashB, 1);</span>
+<span class="fc" id="L589">            tokenHashB[0] = (byte) 0x01;</span>
+
+<span class="fc" id="L591">            return Base64.getEncoder().encodeToString(tokenHashB);</span>
+        } else {
+<span class="nc" id="L593">            throw new AceException(&quot;Access token cannot be null&quot;);</span>
+        }
+    }
+
+
+    /**
+     * @param byteArray  the byte array
+     * @return  the hex string
+     *
+     * Return the printable hexadecimal string corresponding to a byte array
+     */
+    public static String byteArrayToHexString(final byte[] byteArray) {
+
+<span class="nc bnc" id="L606" title="All 2 branches missed.">    	if (byteArray == null) {</span>
+<span class="nc" id="L607">    		return new String(&quot;&quot;);</span>
+    	}
+    	else {
+<span class="nc" id="L610">    		String str = new String(&quot;&quot;);</span>
+<span class="nc bnc" id="L611" title="All 2 branches missed.">	    	for (byte byteToConvert: byteArray) {</span>
+<span class="nc" id="L612">	            str += String.format(&quot;%02X&quot;, byteToConvert);</span>
+	        }
+<span class="nc" id="L614">	    	return str;</span>
+    	}
+
+    }
+
+    /**
+     * Read a hex string and transform to bytes
+     * 
+     * @param hex  the hex string
+     * @return  the byte array representation
+     */
+    public static byte[] hexString2byteArray(String hex) {
+<span class="fc" id="L626">        int len = hex.length();</span>
+<span class="fc" id="L627">        byte[] data = new byte[len / 2];</span>
+<span class="fc bfc" id="L628" title="All 2 branches covered.">        for (int i = 0; i &lt; len; i += 2) {</span>
+<span class="fc" id="L629">            data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) &lt;&lt; 4)</span>
+<span class="fc" id="L630">                    + Character.digit(hex.charAt(i+1), 16));</span>
+        }
+<span class="fc" id="L632">        return data;</span>
+    }
+	
+    /**
+     * Build a CBOR map specifying a public key, possibly together with the corresponding private key
+     * 
+     * @param signKeyCurve  the curve of the signature algorithm
+     * @param x  the x-coordinate of the public key
+     * @param y  the y-coordinate of the public key, or null if not applicable
+     * @param d  the private key, or null if the CBOR map specifies only the public key
+     * @return  The CBOR map specifying a public key, possibly together with the corresponding private key
+     */
+    public static CBORObject buildRpkData (int signKeyCurve, String x, String y, String d) {
+    	
+<span class="fc" id="L646">    	CBORObject rpkData = CBORObject.NewMap();</span>
+    	
+<span class="pc bpc" id="L648" title="1 of 2 branches missed.">    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {</span>
+<span class="fc" id="L649">	        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);</span>
+<span class="fc" id="L650">	        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());</span>
+<span class="fc" id="L651">	        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);</span>
+<span class="fc" id="L652">	        CBORObject Cx = CBORObject.FromObject(hexString2byteArray(x));</span>
+<span class="fc" id="L653">	        CBORObject Cy = CBORObject.FromObject(hexString2byteArray(y));</span>
+<span class="fc" id="L654">	        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), Cx);</span>
+<span class="fc" id="L655">	        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), Cy);</span>
+<span class="pc bpc" id="L656" title="1 of 2 branches missed.">	        if (d != null) {</span>
+<span class="fc" id="L657">		        CBORObject Cd = CBORObject.FromObject(hexString2byteArray(d));</span>
+<span class="fc" id="L658">		        rpkData.Add(KeyKeys.EC2_D.AsCBOR(), Cd);</span>
+	        }
+    	}
+<span class="pc bpc" id="L661" title="1 of 2 branches missed.">    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {</span>
+<span class="nc" id="L662">	        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);</span>
+<span class="nc" id="L663">	        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());</span>
+<span class="nc" id="L664">	        rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);</span>
+<span class="nc" id="L665">	        CBORObject Cx = CBORObject.FromObject(hexString2byteArray(x));</span>
+<span class="nc" id="L666">	        rpkData.Add(KeyKeys.OKP_X.AsCBOR(), Cx);</span>
+<span class="nc bnc" id="L667" title="All 2 branches missed.">	        if (d != null) {</span>
+<span class="nc" id="L668">		        CBORObject Cd = CBORObject.FromObject(hexString2byteArray(d));</span>
+<span class="nc" id="L669">		        rpkData.Add(KeyKeys.OKP_D.AsCBOR(), Cd);</span>
+	        }
+    	}
+        
+<span class="fc" id="L673">    	return rpkData;</span>
+    }
+    
+    /**
+     * Return the used major version of Java
+     * 
+     * @return  The used major version of Java
+     */
+    public static int getJavaVersion() {
+<span class="nc" id="L682">        String version = System.getProperty(&quot;java.version&quot;);</span>
+        
+<span class="nc bnc" id="L684" title="All 2 branches missed.">        if(version.startsWith(&quot;1.&quot;)) {</span>
+<span class="nc" id="L685">            version = version.substring(2, 3);</span>
+        } else {
+<span class="nc" id="L687">            int dot = version.indexOf(&quot;.&quot;);</span>
+<span class="nc bnc" id="L688" title="All 2 branches missed.">            if(dot != -1) {</span>
+<span class="nc" id="L689">            	version = version.substring(0, dot);</span>
+            }
+        }
+        
+<span class="nc" id="L693">        return Integer.parseInt(version);</span>
+    }
+    
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

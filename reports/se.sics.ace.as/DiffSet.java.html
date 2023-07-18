@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DiffSet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.as</a> &gt; <span class="el_source">DiffSet.java</span></div><h1>DiffSet.java</h1><pre class="source lang-java linenums">package se.sics.ace.as;
+
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+import se.sics.ace.AceException;
+
+import java.util.logging.Logger;
+
+public class DiffSet {
+
+    /**
+     * The logger
+     */
+<span class="fc" id="L14">    private static final Logger LOGGER</span>
+<span class="fc" id="L15">            = Logger.getLogger(DiffSet.class.getName() );</span>
+
+    /**
+     * The CBOR array containing the diff entries
+     */
+    private CBORObject diffSet;
+
+    /**
+     * The maximum size of the CBOR array containing the diff entries
+     */
+    private int maxSize;
+
+    /**
+     * The total number of insertions made in the CBOR array containing the diff entries,
+     * i.e., the number of TRL updates occurred.
+     */
+    private int maxIndex;
+    
+<span class="fc" id="L33">    public DiffSet(int size) {</span>
+<span class="fc" id="L34">        this.maxSize = size;</span>
+<span class="fc" id="L35">        diffSet = CBORObject.NewArray();</span>
+<span class="fc" id="L36">        maxIndex = 0;</span>
+<span class="fc" id="L37">    }</span>
+
+    /**
+     * Put a new diff entry in the diffSet CBOR array. The diff entry is a CBOR array
+     * containing two CBOR arrays {@code removed} and {@code added} (inputs of this method).
+     *
+     * @param removed a CBOR array containing Byte Strings of token hashes that
+     *                were revoked and are now expired
+     * @param added a CBOR array containing Byte Strings of token hashes that
+     *              have been revoked
+     *
+     * @throws AceException if the inputs are not CBOR arrays
+     */
+    public synchronized void pushDiffEntry(CBORObject removed, CBORObject added) throws AceException {
+
+<span class="pc bpc" id="L52" title="2 of 4 branches missed.">        if (added.getType() != CBORType.Array || removed.getType() != CBORType.Array) {</span>
+<span class="nc" id="L53">            throw new AceException(&quot;pushDiffEntry() requires inputs of type CBOR array&quot;);</span>
+        }
+<span class="fc" id="L55">        CBORObject diffEntry = CBORObject.NewArray();</span>
+<span class="fc" id="L56">        diffEntry.Add(removed);</span>
+<span class="fc" id="L57">        diffEntry.Add(added);</span>
+
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (diffSet.size() == maxSize) {</span>
+<span class="fc" id="L60">            diffSet.RemoveAt(0);</span>
+<span class="fc" id="L61">            diffSet.Insert(maxSize-1, diffEntry);</span>
+        }
+        else {
+<span class="fc" id="L64">            diffSet.Add(diffEntry); // check if I can get rid of the else branch</span>
+        }
+<span class="fc" id="L66">        maxIndex++;</span>
+<span class="fc" id="L67">    }</span>
+
+
+    /**
+     * Select {@code u} diff entries from diffSet such that the last of these entries
+     * is the {@code position}-th entry of diffSet.
+     * Then, return a CBOR array containing the first {@code l} entries (of the {@code u})
+     * in reverse order. That is, the diff entry at index 0 is the diff entry that
+     * was added last among the set {@code l}.
+     *
+     * @param u the number of diff entries to select in the diffSet
+     * @param l the number of diff entries to return
+     * @param position the position (in the diffSet CBOR array)
+     *                 of the last of the {@code u} diff entries to select
+     *
+     * @return a CBOR array containing the first {@code l} diff entries among the {@code u} selected.
+     *
+     * @throws AceException if the input value {@code u} is lower than {@code l}.
+     */
+    public CBORObject getDiffEntries(int u, int l, int position) throws AceException {
+//        if (diffSet.size() == 0) {
+//            // this should not happen since the Trl have to check it beforehand
+//            // and return the combination empty,Null,False
+//            return CBORObject.NewArray();
+//        }
+<span class="pc bpc" id="L92" title="2 of 4 branches missed.">        if (u &lt; 0 || l &lt; 0) {</span>
+<span class="nc" id="L93">            throw new AceException(&quot;getDiffEntries() requires positive input parameters&quot;);</span>
+        }
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">        if (u &lt; l) {</span>
+            // this should not happen. u can be at most equal to l.
+<span class="nc" id="L97">            throw new AceException(&quot;getDiffEntries() requires the input parameter u &quot; +</span>
+                    &quot;to be greater than or equal to l.&quot;);
+        }
+<span class="pc bpc" id="L100" title="1 of 4 branches missed.">        if (position &gt; diffSet.size() || position &lt; 1) {</span>
+<span class="fc" id="L101">            throw new AceException(&quot;getDiffEntries() requires the input parameter 'position' &quot; +</span>
+                    &quot;to be in the range [1,diffSet.size]&quot;);
+        }
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        if (position &lt; u) {</span>
+            //trying to select more entries than the number of entries in the array
+<span class="fc" id="L106">            throw new AceException(&quot;getDiffEntries() requires the input parameter 'u' to be &quot; +</span>
+                    &quot;lower than or equal to 'position'.&quot;);
+        }
+<span class="fc" id="L109">        int n = position - u + l; // n is the n-th element in the diffSet array, not its index</span>
+<span class="fc" id="L110">        return getDiffEntries(l, n);</span>
+    }
+
+
+    /**
+     * Select and return (in a CBOR array) {@code num} diff entries from the diffSet CBOR array.
+     * The first element of the CBOR array returned, is the element in position {@code firstToReturn}
+     * of the diffSet CBOR array. The second element of the CBOR array returned, is the element
+     * in position {@code firstToReturn - 1} of the diffSet CBOR array, and so on.
+     *
+     * @param num the number of diff entries to return
+     * @param firstToReturn the position, in the diffSet array, of most recent diff entry to return.
+     *                      The first element is in position 1, and the n-th element is in position n.
+     *                      This value does not refer to the array index.
+     *
+     * @return a CBOR array of {@code num} diff entries in reverse order w.r.t. the diffSet array.
+     *         That is, the first element of the array is the element found at position {@code firstToReturn}
+     *         in the diffSet array.
+     * @throws AceException if the input value {@code num} is either non-negative or in range
+     */
+    public CBORObject getDiffEntries(int num, int firstToReturn) throws AceException {
+<span class="pc bpc" id="L131" title="2 of 4 branches missed.">        if (num &gt; firstToReturn || num &lt; 0) {</span>
+<span class="nc" id="L132">            throw new AceException(&quot;getDiffEntries() requires the input parameter 'num' &quot; +</span>
+                    &quot;to be non negative and in range. The maximum value allowed is equal to &quot; +
+                    &quot;the size of the diffSet array&quot;);
+        }
+<span class="fc" id="L136">        CBORObject latestDiffEntries = CBORObject.NewArray();</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">        for (int i = 1; i &lt;= num; i++) {</span>
+<span class="fc" id="L138">            latestDiffEntries.Add(diffSet.get(firstToReturn - i));</span>
+        }
+<span class="fc" id="L140">        return latestDiffEntries;</span>
+    }
+
+
+    /**
+     *
+     * Select the latest {@code u} diff entries from the diffSet array and return
+     * the first {@code l} in reverse order in a CBOR array.
+     *
+     * @param u the number of diff entries to select in the diffSet
+     * @param l the number of diff entries to return
+     *
+     * @return a CBOR array containing the eldest {@code l} diff entries among the {@code u} selected.
+     * The first diff entry is the diff entry that was added last to the diffSet (among the set of {@code l}).
+     *
+     * @throws AceException if the input value {@code u} is lower than {@code l}.
+     */
+    public CBORObject getEldestDiffEntries(int u, int l) throws AceException {
+        //int n = diffSet.size() - u + l; // n is the n-th element in the diffSet array, not its index
+        //return getDiffEntries(l, n); // double check: was return getDiffEntries(n, l);
+<span class="fc" id="L160">        return getDiffEntries(u, l, diffSet.size());</span>
+    }
+
+
+    /**
+     * Get the latest {@code u} diff entries from the diffSet array and return
+     * them in reverse order in a CBOR array.
+     *
+     * @param u the number of diff entries to return
+     *
+     * @return a CBOR array containing the latest u diff entries. The first diff entry
+     *         is the diff entry that was added last to the diffSet
+     *
+     * @throws AceException if the input value is either non-negative and in range
+     */
+    public CBORObject getLatestDiffEntries(int u) throws AceException {
+<span class="fc" id="L176">        return getDiffEntries(u, u, diffSet.size());</span>
+    }
+
+
+    /**
+     * Get the current size of the diffSet CBOR array
+     * @return the current size of the diffSet CBOR array
+     */
+    public int getSize() {
+<span class="fc" id="L185">        return diffSet.size();</span>
+    }
+
+
+    /**
+     * Get the absolute number of insertion made in the diffSet CBOR array,
+     * which corresponds to the latest index.
+     * For example, if 10 insertions were made in diffSet, {@code maxIndex} value
+     * is 10.
+     *
+     * @return the number of insertion made in the diffSet CBOR array.
+     */
+    public int getMaxIndex() {
+<span class="fc" id="L198">        return maxIndex;</span>
+    }
+
+
+    /**
+     * Get the index of the oldest diff entry in the diffSet CBOR array.
+     * The index refers to the absolute number of insertion made in the diffSet
+     * CBOR array.
+     * For example, if 10 insertions were made in diffSet, and its maximum size
+     * is three, the oldest diff entry has index 8 since the 8-th, 9-th, and 10-th
+     * inserted diff entries are currently in diffSet.
+     *
+     * @return the index of the oldest diff entry in the diffSet CBOR array.
+     */
+    public int getOldestIndex() {
+<span class="fc bfc" id="L213" title="All 2 branches covered.">        return maxIndex == 0 ? 0 : maxIndex - diffSet.size() + 1;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

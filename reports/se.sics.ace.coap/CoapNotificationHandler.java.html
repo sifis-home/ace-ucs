@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CoapNotificationHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.coap</a> &gt; <span class="el_source">CoapNotificationHandler.java</span></div><h1>CoapNotificationHandler.java</h1><pre class="source lang-java linenums">package se.sics.ace.coap;
+
+/*******************************************************************************
+ * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ *
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v20.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ *
+ * Contributors:
+ *    Bosch Software Innovations - moved from org.eclipse.californium.core.test
+ ******************************************************************************/
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+import org.eclipse.californium.core.CoapHandler;
+import org.eclipse.californium.core.CoapResponse;
+import java.util.logging.Logger;
+
+import se.sics.ace.AceException;
+import se.sics.ace.Constants;
+import se.sics.ace.rs.TokenRepository;
+
+/**
+ * Counting coap handler for unit tests.
+ *
+ * Counts callbacks, records responses, and forwards failures to main testing
+ * thread on all &quot;wait???&quot; methods.
+ */
+<span class="nc" id="L40">public class CoapNotificationHandler implements CoapHandler {</span>
+
+<span class="nc" id="L42">    private static final Logger LOGGER =</span>
+<span class="nc" id="L43">    Logger.getLogger(CoapNotificationHandler.class.getName());</span>
+
+    /**
+     * Current read index for {@link #waitOnLoad(long)}
+     */
+    private int readIndex;
+    /**
+     * Recorded responses.
+     */
+<span class="nc" id="L52">    public List&lt;CoapResponse&gt; responses = new ArrayList&lt;&gt;();</span>
+    /**
+     * counter for {@link #onLoad(CoapResponse)} calls.
+     */
+<span class="nc" id="L56">    public AtomicInteger loadCalls = new AtomicInteger();</span>
+    /**
+     * counter for {@link #onError()} calls.
+     */
+<span class="nc" id="L60">    public AtomicInteger errorCalls = new AtomicInteger();</span>
+    /**
+     * {@link AssertionError} or {@link RuntimeException} during call of
+     * {@link #assertLoad(CoapResponse)}.
+     */
+    private volatile Throwable exception;
+
+    @Override
+    public final void onLoad(CoapResponse response) {
+        int counter;
+<span class="nc" id="L70">        synchronized (this) {</span>
+<span class="nc" id="L71">            counter = loadCalls.incrementAndGet();</span>
+<span class="nc" id="L72">            responses.add(response);</span>
+            try {
+<span class="nc" id="L74">                assertLoad(response);</span>
+<span class="nc" id="L75">            } catch (AssertionError | AceException error) {</span>
+<span class="nc" id="L76">                LOGGER.severe(&quot;Assert:&quot; + error);</span>
+<span class="nc" id="L77">                this.exception = error;</span>
+<span class="nc" id="L78">            } catch (RuntimeException exception) {</span>
+<span class="nc" id="L79">                LOGGER.severe(&quot;Unexpected error:&quot;+ exception);</span>
+<span class="nc" id="L80">                this.exception = exception;</span>
+<span class="nc" id="L81">            }</span>
+<span class="nc" id="L82">            notifyAll();</span>
+<span class="nc" id="L83">        }</span>
+<span class="nc" id="L84">        LOGGER.info(&quot;Received &quot; + counter + &quot;. Notification: &quot; + response.advanced());</span>
+<span class="nc" id="L85">    }</span>
+
+    /**
+     * Intended to be overwritten to check the response.
+     *
+     * Failing asserts will be forwarded to main testing thread in all &quot;wait???&quot;
+     * methods.
+     *
+     * @param response received response
+     */
+    protected void assertLoad(CoapResponse response) throws AceException {
+
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (response.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {</span>
+
+<span class="nc" id="L99">            CBORObject payload = CBORObject.DecodeFromBytes(response.getPayload());</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">            if (payload.getType() != CBORType.Array) {</span>
+<span class="nc" id="L101">                throw new AceException(&quot;Wrong payload type. Expected a CBOR Array&quot;);</span>
+            }
+<span class="nc" id="L103">            ArrayList&lt;String&gt; hashes = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">            for (int i = 0; i &lt; payload.size(); i++) {</span>
+<span class="nc" id="L105">                byte[] tokenHashB = payload.get(i).GetByteString();</span>
+<span class="nc" id="L106">                String tokenHashS = new String(tokenHashB, Constants.charset);</span>
+<span class="nc" id="L107">                hashes.add(tokenHashS);</span>
+            }
+<span class="nc" id="L109">            LOGGER.info(&quot;List of received token hashes: &quot; + hashes);</span>
+<span class="nc" id="L110">        }</span>
+
+        else { //assume text/plain
+<span class="nc" id="L113">            String content = response.getResponseText();</span>
+<span class="nc" id="L114">            System.out.println(&quot;NOTIFICATION: &quot; + content);</span>
+        }
+<span class="nc" id="L116">    }</span>
+
+    @Override
+    public final void onError() {
+        int counter;
+<span class="nc" id="L121">        synchronized (this) {</span>
+<span class="nc" id="L122">            counter = errorCalls.incrementAndGet();</span>
+<span class="nc" id="L123">            notifyAll();</span>
+<span class="nc" id="L124">        }</span>
+<span class="nc" id="L125">        LOGGER.info(counter + &quot; Errors!&quot;);</span>
+<span class="nc" id="L126">    }</span>
+
+    public int getOnLoadCalls() {
+<span class="nc" id="L129">        return loadCalls.get();</span>
+    }
+
+    public int getOnErrorCalls() {
+<span class="nc" id="L133">        return errorCalls.get();</span>
+    }
+
+    public Throwable getException() {
+<span class="nc" id="L137">        return exception;</span>
+    }
+
+    /**
+     * Wait for number of calls to {@link #onLoad(CoapResponse)}.
+     *
+     * Also forwards {@link Error} or {@link RuntimeException} during execution
+     * of {@link #assertLoad(CoapResponse)} to the caller's thread.
+     *
+     * @param counter number of expected calls
+     * @param timeout time to wait
+     * @param unit unit of time to wait
+     * @return {@code true}, if number of calls is reached in time,
+     *         {@code false}, otherwise.
+     * @throws InterruptedException if thread was interrupted.
+     * @throws Error if an error occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     * @throws RuntimeException if an runtime exception occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     */
+    public boolean waitOnLoadCalls(int counter, long timeout, TimeUnit unit) throws InterruptedException {
+<span class="nc" id="L158">        return waitOnCalls(counter, timeout, unit, loadCalls);</span>
+    }
+
+    /**
+     * Wait for number of calls to {@link #onError()}.
+     *
+     * Also forwards {@link Error} or {@link RuntimeException} during execution
+     * of {@link #assertLoad(CoapResponse)} to the caller's thread.
+     *
+     * @param counter number of expected calls
+     * @param timeout time to wait
+     * @param unit unit of time to wait
+     * @return {@code true}, if number of calls is reached in time,
+     *         {@code false}, otherwise.
+     * @throws InterruptedException if thread was interrupted.
+     * @throws Error if an error occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     * @throws RuntimeException if an runtime exception occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     */
+    public boolean waitOnErrorCalls(int counter, long timeout, TimeUnit unit) throws InterruptedException {
+<span class="nc" id="L179">        return waitOnCalls(counter, timeout, unit, errorCalls);</span>
+    }
+
+    /**
+     * Wait for number of calls to {@link #onLoad(CoapResponse)} or
+     * {@link #onError()}.
+     *
+     * Also forwards {@link Error} or {@link RuntimeException} during execution
+     * of {@link #assertLoad(CoapResponse)} to the caller's thread.
+     *
+     * @param counter number of expected calls
+     * @param timeout time to wait
+     * @param unit unit of time to wait
+     * @return {@code true}, if number of calls is reached in time,
+     *         {@code false}, otherwise.
+     * @throws InterruptedException if thread was interrupted.
+     * @throws Error if an error occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     * @throws RuntimeException if an runtime exception occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     */
+    public boolean waitOnCalls(final int counter, final long timeout, final TimeUnit unit) throws InterruptedException {
+<span class="nc" id="L201">        return waitOnCalls(counter, timeout, unit, loadCalls, errorCalls);</span>
+    }
+
+    /**
+     * Wait for number of calls.
+     *
+     * Also forwards {@link Error} or {@link RuntimeException} during execution
+     * of {@link #assertLoad(CoapResponse)} to the caller's thread.
+     *
+     * @param counter number of expected calls
+     * @param timeout time to wait
+     * @param unit unit of time to wait
+     * @param calls list of counters
+     * @return {@code true}, if number of calls is reached in time,
+     *         {@code false}, otherwise.
+     * @throws InterruptedException if thread was interrupted.
+     * @throws Error if an error occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     * @throws RuntimeException if an runtime exception occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     */
+    private synchronized boolean waitOnCalls(final int counter, final long timeout, final TimeUnit unit,
+                                             AtomicInteger... calls) throws InterruptedException {
+<span class="nc bnc" id="L224" title="All 2 branches missed.">        if (0 &lt; timeout) {</span>
+<span class="nc" id="L225">            long end = System.nanoTime() + unit.toNanos(timeout);</span>
+
+<span class="nc bnc" id="L227" title="All 2 branches missed.">            while (sum(calls) &lt; counter) {</span>
+<span class="nc" id="L228">                long left = TimeUnit.NANOSECONDS.toMillis(end - System.nanoTime());</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">                if (0 &lt; left) {</span>
+<span class="nc" id="L230">                    wait(left);</span>
+                } else {
+                    break;
+                }
+<span class="nc" id="L234">            }</span>
+        }
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        return sum(calls) &gt;= counter;</span>
+    }
+
+    /**
+     * Check, if executing {@link #assertLoad(CoapResponse)} has thrown a
+     * {@link Error} or {@link RuntimeException} and forwards these to the
+     * caller's thread.
+     *
+     * @throws Error if an error occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     * @throws RuntimeException if an runtime exception occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     * @see #exception
+     */
+    private void forwardError() {
+<span class="nc" id="L251">        Throwable exception = this.exception;</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">        if (exception != null) {</span>
+<span class="nc bnc" id="L253" title="All 2 branches missed.">            if (exception instanceof Error) {</span>
+<span class="nc" id="L254">                throw (Error) exception;</span>
+            } else {
+<span class="nc" id="L256">                throw (RuntimeException) exception;</span>
+            }
+        }
+<span class="nc" id="L259">    }</span>
+
+    /**
+     * Sum values of AtomicIntegers.
+     *
+     * Also forwards {@link Error} or {@link RuntimeException} during execution
+     * of {@link #assertLoad(CoapResponse)} to the caller's thread.
+     *
+     * @param calls list of AtomicInteger to add their values
+     * @return sum of AtomicInteger.
+     * @throws Error if an error occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     * @throws RuntimeException if an runtime exception occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     * @see #forwardError()
+     */
+    private int sum(AtomicInteger... calls) {
+<span class="nc" id="L276">        forwardError();</span>
+<span class="nc" id="L277">        int sum = 0;</span>
+<span class="nc bnc" id="L278" title="All 2 branches missed.">        for (AtomicInteger counter : calls) {</span>
+<span class="nc" id="L279">            sum += counter.get();</span>
+        }
+<span class="nc" id="L281">        return sum;</span>
+    }
+
+    /**
+     * Wait for next response.
+     *
+     * If the next response is already received, it's returned immediately. Also
+     * forwards {@link Error} or {@link RuntimeException} during execution of
+     * {@link #assertLoad(CoapResponse)} to the caller's thread.
+     *
+     * @param timeout timeout in milliseconds. [@code 0}, don't wait.
+     * @return next response, or {@code null}, if no next response is available
+     *         within the provided timeout.
+     * @throws Error if an error occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     * @throws RuntimeException if an runtime exception occurred execution
+     *             {@link #assertLoad(CoapResponse)}
+     */
+    public synchronized CoapResponse waitOnLoad(long timeout) {
+<span class="nc bnc" id="L300" title="All 4 branches missed.">        if (0 &lt; timeout &amp;&amp; responses.size() &lt;= readIndex) {</span>
+            try {
+<span class="nc" id="L302">                wait(timeout);</span>
+<span class="nc" id="L303">            } catch (InterruptedException e) {</span>
+<span class="nc" id="L304">            }</span>
+        }
+<span class="nc" id="L306">        forwardError();</span>
+<span class="nc bnc" id="L307" title="All 2 branches missed.">        if (readIndex &lt; responses.size()) {</span>
+<span class="nc" id="L308">            return responses.get(readIndex++);</span>
+        }
+<span class="nc" id="L310">        return null;</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L315">        StringBuilder builder = new StringBuilder();</span>
+<span class="nc" id="L316">        synchronized (this) {</span>
+<span class="nc" id="L317">            builder.append(&quot;loads:&quot;).append(loadCalls.get());</span>
+<span class="nc" id="L318">            builder.append(&quot;, read:&quot;).append(readIndex);</span>
+<span class="nc" id="L319">            builder.append(&quot;, errs:&quot;).append(errorCalls.get());</span>
+<span class="nc" id="L320">        }</span>
+<span class="nc" id="L321">        return builder.toString();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AceUcsProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ACE library</a> &gt; <a href="index.source.html" class="el_package">se.sics.ace.ucs.properties</a> &gt; <span class="el_source">AceUcsProperties.java</span></div><h1>AceUcsProperties.java</h1><pre class="source lang-java linenums">package se.sics.ace.ucs.properties;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import it.cnr.iit.ucs.properties.UCSProperties;
+import it.cnr.iit.ucs.properties.components.ContextHandlerProperties;
+import it.cnr.iit.ucs.properties.components.CoreProperties;
+import it.cnr.iit.ucs.properties.components.ObligationManagerProperties;
+import it.cnr.iit.ucs.properties.components.PapProperties;
+import it.cnr.iit.ucs.properties.components.PdpProperties;
+import it.cnr.iit.ucs.properties.components.PepProperties;
+import it.cnr.iit.ucs.properties.components.PipProperties;
+import it.cnr.iit.ucs.properties.components.RequestManagerProperties;
+import it.cnr.iit.ucs.properties.components.SessionManagerProperties;
+
+public class AceUcsProperties implements UCSProperties {
+
+	private List&lt;PipProperties&gt; pipPropertiesList;
+	private PapProperties papProperties;
+
+<span class="fc" id="L22">	public AceUcsProperties(List&lt;PipProperties&gt; pipPropertiesList, PapProperties papProperties) {</span>
+<span class="fc" id="L23">		this.pipPropertiesList = pipPropertiesList;</span>
+<span class="fc" id="L24">		this.papProperties = papProperties;</span>
+<span class="fc" id="L25">	}</span>
+
+	@Override
+	public CoreProperties getCore() {
+<span class="nc" id="L29">		return new UcsCoreProperties();</span>
+	}
+
+	@Override
+	public ContextHandlerProperties getContextHandler() {
+<span class="fc" id="L34">		return new UcsCHProperties();</span>
+	}
+
+	@Override
+	public RequestManagerProperties getRequestManager() {
+<span class="fc" id="L39">		return new UcsRequestManagerProperties();</span>
+	}
+
+	@Override
+	public SessionManagerProperties getSessionManager() {
+<span class="fc" id="L44">		return new UcsSessionManagerProperties();</span>
+	}
+
+	@Override
+	public PdpProperties getPolicyDecisionPoint() {
+<span class="fc" id="L49">		return new UcsPdpProperties();</span>
+	}
+
+	@Override
+	public PapProperties getPolicyAdministrationPoint() {
+<span class="fc" id="L54">		return this.papProperties;</span>
+	}
+
+	@Override
+	public ObligationManagerProperties getObligationManager() {
+<span class="fc" id="L59">		return new UcsObligationManagerProperties();</span>
+	}
+
+	@Override
+	public List&lt;PipProperties&gt; getPipList() {
+<span class="fc" id="L64">		return this.pipPropertiesList;</span>
+	}
+
+	@Override
+	public List&lt;PepProperties&gt; getPepList() {
+<span class="fc" id="L69">		List&lt;PepProperties&gt; res = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L70">		res.add(new UcsPepProperties());</span>
+<span class="fc" id="L71">		return res;</span>
+	}
+
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>
